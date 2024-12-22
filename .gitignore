@@ -1,0 +1,5 @@
+# Godot 4+ specific ignores
+.godot/
+/android/
+
+Resources/TileSets/.DS_Store
