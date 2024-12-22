@@ -7,15 +7,18 @@ class_name CharacterComponents
 @export var active_animation_sprite: AnimatedSprite2D = null
 @export var active_speed: float
 
+
 func _ready() -> void:
     self._initialize()
+
 
 func _initialize() -> void:
     self._update_upgrade()
 
+
 func _update_upgrade() -> void:
     if self.active_sprite:
-        self.active_plane_sprite.queue_free()  #Free the current sprite
+        self.active_sprite.queue_free()  #Free the current sprite
     var character_data: CharacterData = ComponentsManager.character_components[0]
 
     self.active_sprite = Sprite2D.new()

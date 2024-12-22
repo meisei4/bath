@@ -1,5 +1,6 @@
 extends Node
 
+
 func add_distortion(
     bus_name: String,
     mode: AudioEffectDistortion.Mode = AudioEffectDistortion.MODE_CLIP,
@@ -16,6 +17,7 @@ func add_distortion(
     distortion.post_gain = post_gain_db
     distortion.keep_hf_hz = keep_hf
     AudioServer.add_bus_effect(bus_idx, distortion)
+
 
 func add_delay(
     bus_name: String,
@@ -53,6 +55,7 @@ func add_delay(
 
     AudioServer.add_bus_effect(bus_idx, delay_fx)
 
+
 func add_reverb(
     bus_name: String,
     room_size: float = 0.8,
@@ -77,12 +80,29 @@ func add_reverb(
 
     AudioServer.add_bus_effect(bus_idx, reverb)
 
+
 func add_chorus(
     bus_name: String,
     voice_count: int = 2,
     voice_params: Dictionary = {
-        0: {"delay_ms": 15.0, "depth_ms": 2.0, "rate_hz": 0.8, "level_db": 0.0, "pan": -0.5, "cutoff_hz": 8000.0},
-        1: {"delay_ms": 20.0, "depth_ms": 3.0, "rate_hz": 1.2, "level_db": 0.0, "pan": 0.5, "cutoff_hz": 8000.0},
+        0:
+        {
+            "delay_ms": 15.0,
+            "depth_ms": 2.0,
+            "rate_hz": 0.8,
+            "level_db": 0.0,
+            "pan": -0.5,
+            "cutoff_hz": 8000.0
+        },
+        1:
+        {
+            "delay_ms": 20.0,
+            "depth_ms": 3.0,
+            "rate_hz": 1.2,
+            "level_db": 0.0,
+            "pan": 0.5,
+            "cutoff_hz": 8000.0
+        },
     },
     wet: float = 0.5,
     dry: float = 1.0
@@ -113,6 +133,7 @@ func add_chorus(
 
     AudioServer.add_bus_effect(bus_idx, chorus)
 
+
 func remove_effect(bus_name: String, effect_type: String) -> void:
     var bus_idx: int = AudioServer.get_bus_index(bus_name)
     var effect_count: int = AudioServer.get_bus_effect_count(bus_idx)
@@ -121,6 +142,7 @@ func remove_effect(bus_name: String, effect_type: String) -> void:
         if fx.get_class() == effect_type:
             AudioServer.remove_bus_effect(bus_idx, i)
             return
+
 
 func clear_effects(bus_name: String) -> void:
     var bus_idx: int = AudioServer.get_bus_index(bus_name)

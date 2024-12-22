@@ -5,12 +5,14 @@ const GRID_WIDTH: int = 16
 const GRID_HEIGHT: int = 8
 const SOURCE_ID: int = 234
 
-var glacier_states_instance: GlacierCellState = GlacierCellState.new() #TODO: I REALLY DONT LIKE THIS
+var glacier_states_instance: GlacierCellState = GlacierCellState.new()  #TODO: I REALLY DONT LIKE THIS
 
 var glacier_surface: TileMapLayer
 
+
 func _ready() -> void:
     initialize_glacier_surface()
+
 
 func initialize_glacier_surface() -> void:
     glacier_surface = TileMapLayer.new()
@@ -22,22 +24,27 @@ func initialize_glacier_surface() -> void:
     glacier_scene.pack(glacier_surface)
     ResourceSaver.save(glacier_scene, "res://Resources/TileMaps/GlacierMap.tscn")
 
+
 func fill_with_intact_tiles() -> void:
     for x: int in range(GRID_WIDTH):
         for y: int in range(GRID_HEIGHT):
-            glacier_surface.set_cell(Vector2i(x, y), SOURCE_ID, Vector2i(0,GlacierCellState.STATE.INTACT))
+            glacier_surface.set_cell(
+                Vector2i(x, y), SOURCE_ID, Vector2i(0, GlacierCellState.STATE.INTACT)
+            )
+
 
 # EXPLICIT CONSTS FOR TESTS/DEBUG
 const IMAGE_TEXTURE_SIZE: Vector2i = Vector2i(16, 16)
 const TEXTURE_REGION_SIZE: Vector2i = Vector2i(16, 16)
 const MARGIN: Vector2i = (TEXTURE_REGION_SIZE - IMAGE_TEXTURE_SIZE) / 2
-const ATLAS_MARGINS: Vector2i = Vector2i(0, 0) #  margins as a property? rather than from the in the texture_region and ImageTexture diff...
+const ATLAS_MARGINS: Vector2i = Vector2i(0, 0)  #  margins as a property? rather than from the in the texture_region and ImageTexture diff...
 const TILE_SIZE: Vector2i = IMAGE_TEXTURE_SIZE
 const GRID_TILE_SIZE: Vector2i = Vector2i(1, 1)
 const ATLAS_SEPARATION: Vector2i = Vector2i(0, 0)
 
+
 func create_and_save_glacier_tile_set() -> TileSet:
-    var glacier_states: Array  = GlacierCellState.STATE.values()
+    var glacier_states: Array = GlacierCellState.STATE.values()
     var glacier_tileset: TileSet = TileSet.new()
     glacier_tileset.set_tile_size(TILE_SIZE)
     var atlas_source: TileSetAtlasSource = TileSetAtlasSource.new()
@@ -47,7 +54,9 @@ func create_and_save_glacier_tile_set() -> TileSet:
 
     var atlas_texture_width: int = TEXTURE_REGION_SIZE.x
     var atlas_texture_height: int = TEXTURE_REGION_SIZE.y * glacier_states.size()
-    var atlas_texture: Image = Image.create_empty(atlas_texture_width, atlas_texture_height, false, Image.FORMAT_RGBA8)
+    var atlas_texture: Image = Image.create_empty(
+        atlas_texture_width, atlas_texture_height, false, Image.FORMAT_RGBA8
+    )
     atlas_source.set_texture_region_size(TEXTURE_REGION_SIZE)
     for tile_index: int in range(glacier_states.size()):
         var state: GlacierCellState.STATE = glacier_states[tile_index]
@@ -66,6 +75,6 @@ func create_and_save_glacier_tile_set() -> TileSet:
         atlas_source.create_tile(atlas_coords, GRID_TILE_SIZE)
 
     glacier_tileset.add_source(atlas_source)
-    glacier_tileset.set_source_id(0, SOURCE_ID) #some random id to test the set_cell later on
+    glacier_tileset.set_source_id(0, SOURCE_ID)  #some random id to test the set_cell later on
     ResourceSaver.save(glacier_tileset, "res://Resources/TileSets/glacier_tileset.tres")
     return glacier_tileset

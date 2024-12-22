@@ -11,6 +11,7 @@ var fractured_cells: Dictionary = {}
 # Dictionary for fracture lines: keys are String, values are Array[Vector2] (stored as Variant)
 var fracture_lines: Dictionary = {}
 
+
 func add_fractured_cell(position: Vector2i, glacier_map) -> void:
     var cell_key: String = str(position.x, "_", position.y)
     fractured_cells[cell_key] = true
@@ -21,10 +22,15 @@ func add_fractured_cell(position: Vector2i, glacier_map) -> void:
         if fractured_cells.has(neighbor_key):
             _add_line_between_cells(position, neighbor)
 
+
 func _add_line_between_cells(cell_a: Vector2i, cell_b: Vector2i) -> void:
     print("Adding line between ", cell_a, " and ", cell_b)
-    var p1: Vector2 = Vector2(cell_a.x * cell_size + cell_size * 0.5, cell_a.y * cell_size + cell_size * 0.5)
-    var p2: Vector2 = Vector2(cell_b.x * cell_size + cell_size * 0.5, cell_b.y * cell_size + cell_size * 0.5)
+    var p1: Vector2 = Vector2(
+        cell_a.x * cell_size + cell_size * 0.5, cell_a.y * cell_size + cell_size * 0.5
+    )
+    var p2: Vector2 = Vector2(
+        cell_b.x * cell_size + cell_size * 0.5, cell_b.y * cell_size + cell_size * 0.5
+    )
 
     var start_point: Vector2 = p1
     var end_point: Vector2 = p2
@@ -32,12 +38,15 @@ func _add_line_between_cells(cell_a: Vector2i, cell_b: Vector2i) -> void:
         start_point = p2
         end_point = p1
 
-    var line_key: String = str(start_point.x, "_", start_point.y, "_", end_point.x, "_", end_point.y)
+    var line_key: String = str(
+        start_point.x, "_", start_point.y, "_", end_point.x, "_", end_point.y
+    )
 
     var line_points: Array[Vector2] = [start_point, end_point]
 
     if not fracture_lines.has(line_key):
         fracture_lines[line_key] = line_points  # Stored as Variant, but was typed locally
+
 
 func get_lines() -> Array:
     # fracture_lines.values() returns an Array of Variants,

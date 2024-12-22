@@ -3,6 +3,7 @@ class_name Iruka
 
 @onready var character_components: CharacterComponents = $CharacterComponents
 
+
 func _init() -> void:
     self.set_physics_process(false)
     self.set_process(false)
@@ -44,18 +45,14 @@ func _handle_movement() -> void:
         self._handle_collide(collider)
 
 
-func _handle_collide(body: Obstacle) -> void:
+func _handle_collide(_body: Obstacle) -> void:
     #body.take_damage(COLLISION_DAMAGE)
-    self.take_damage(0.0)
+    #self.take_damage(0.0)
+    pass
 
-func take_damage(damage: int) -> void:
-    if not self.invulnerability.is_invulnerable:
-        self.invulnerability.start_invulnerability()
-        self.health.take_damage(damage)
-        self.upgrade_component.downgrade()
 
 func _handle_actions() -> void:
     #if Input.is_action_just_pressed("jump"):
-        pass
+    pass
     #if Input.is_action_just_pressed("dive"):
     #    pass

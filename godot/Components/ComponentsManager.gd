@@ -2,8 +2,10 @@ extends Node
 
 var character_components: Array[CharacterData] = []
 
+
 func _ready() -> void:
     load_upgrades()
+
 
 func load_upgrades() -> void:
     var character_components_dir: String = "res://Resources/CharacterComponents/"
@@ -18,4 +20,6 @@ func load_upgrades() -> void:
             character_components.append(resource)
         file_name = dir.get_next()
     dir.list_dir_end()
-    character_components.sort_custom(func(x: CharacterData, y: CharacterData) -> bool: return x.order < y.order)
+    character_components.sort_custom(
+        func(x: CharacterData, y: CharacterData) -> bool: return x.order < y.order
+    )

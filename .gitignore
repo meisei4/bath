@@ -1,5 +1,47 @@
 # Godot 4+ specific ignores
 .godot/
-/android/
+addons/
 
-Resources/TileSets/.DS_Store
+# Exported binaries
+export/
+
+# Godot cache files
+.import/
+*.import
+
+# Godot temporary files
+*.tmp
+
+# IDE specific ignores
+# VS Code
+.vscode/
+*.code-workspace
+
+# JetBrains IDEs (e.g., IntelliJ, Rider, PhpStorm, WebStorm)
+.idea/
+*.iml
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# Linux
+.*.swp
+.*.swo
+
+# Backup files
+*.bak
+*.orig
+
+# Log files
+*.log
+
+# Python virtual environments (if used)
+venv/
+__pycache__/
+*.pyc

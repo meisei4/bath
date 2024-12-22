@@ -104,11 +104,12 @@ var button_disable_delay: Button
 var effects_label: RichTextLabel
 var active_sounds_box: VBoxContainer
 
+
 func _ready() -> void:
     var vbox: VBoxContainer = VBoxContainer.new()
     add_child(vbox)
-    vbox.offset_left = - get_viewport().size.x / 2.0
-    vbox.offset_top = - get_viewport().size.y / 2.0
+    vbox.offset_left = -get_viewport().size.x / 2.0
+    vbox.offset_top = -get_viewport().size.y / 2.0
 
     option_button_sfx = OptionButton.new()
     for path: String in sfx_list:

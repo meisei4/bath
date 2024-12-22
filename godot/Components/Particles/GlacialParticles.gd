@@ -4,10 +4,12 @@ class_name GlacierParticles
 const SINGLE_FRAME_AVOIDANCE_BUFFER: float = 1.0 / 30.0
 const TILE_SIZE: float = 8.0
 
+
 func _ready() -> void:
     _initialize_particle_material()
     emitting = true
     one_shot = false
+
 
 func _initialize_particle_material() -> void:
     self.lifetime = 5.0 + SINGLE_FRAME_AVOIDANCE_BUFFER
@@ -20,6 +22,7 @@ func _initialize_particle_material() -> void:
     self.gravity = Vector2(0, 4)
 
     self.color_ramp = Gradient.new()
+
     self.color_ramp.add_point(0.0, Color.AZURE)
     self.color_ramp.add_point(0.5, Color.STEEL_BLUE)
     self.color_ramp.add_point(1.0, Color.LIGHT_CYAN)
@@ -31,6 +34,7 @@ func _initialize_particle_material() -> void:
     shader_material.set_shader_parameter("grid_size", TILE_SIZE)  # Pass TILE_SIZE for snapping
     self.material = shader_material
     _snap_emission_box_to_grid()
+
 
 func _snap_emission_box_to_grid() -> void:
     var emission_half_extents: Vector2 = Vector2(TILE_SIZE, TILE_SIZE) / 2
