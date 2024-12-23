@@ -1,75 +1,139 @@
 extends Node
 
-const POOL_SIZE: int = 10
-var audio_pool: Array[AudioStreamPlayer] = []
-var available_stream_players: Array[AudioStreamPlayer] = []
+const SFX_POOL_SIZE: int = 10
 
+var sfxPool: Array[AudioStreamPlayer] = []
+var availableSfxPlayers: Array[AudioStreamPlayer] = []
+
+var musicPlayer: AudioStreamPlayer = null
 
 func _ready() -> void:
-    setup_buses(["Master", "SFX", "Music"])
-    set_bus_volumes({"Master": 0.0, "SFX": -3.0, "Music": -6.0})
-    for i: int in range(POOL_SIZE):
-        var player: AudioStreamPlayer = AudioStreamPlayer.new()
-        player.bus = "SFX"
-        player.finished.connect(self._on_audio_finished.bind(player))
-        add_child(player)
-        audio_pool.append(player)
-        available_stream_players.append(player)
+    setupBuses(["Master", "SFX", "Music"])
+    setBusVolumes({"Master": 0.0, "SFX": -3.0, "Music": -6.0})
+    initializeSfxPool()
+    initializeMusicPlayer()
 
+func setupBuses(busNames: Array[String]) -> void:
+    var currentBusCount: int = AudioServer.get_bus_count()
+    var totalBuses: int = busNames.size()
 
-func setup_buses(bus_names: Array[String]) -> void:
-    var current_bus_count: int = AudioServer.get_bus_count()
-    for i: int in range(current_bus_count, bus_names.size()):
+    for index in range(currentBusCount, totalBuses):
         AudioServer.add_bus()
-    for i: int in range(bus_names.size()):
-        AudioServer.set_bus_name(i, bus_names[i])
 
+    for index in range(totalBuses):
+        AudioServer.set_bus_name(index, busNames[index])
 
-func set_bus_volumes(volumes_db: Dictionary) -> void:
-    for bus_name: String in volumes_db.keys():
-        var bus_idx: int = AudioServer.get_bus_index(bus_name)
-        AudioServer.set_bus_volume_db(bus_idx, volumes_db[bus_name])
+func setBusVolumes(volumesDb: Dictionary) -> void:
+    for busName in volumesDb.keys():
+        var busIndex: int = AudioServer.get_bus_index(busName)
+        if busIndex != -1:
+            AudioServer.set_bus_volume_db(busIndex, volumesDb[busName])
+        else:
+            push_warning("Bus not found: " + busName)
 
+# --- SFX Management ---
+func initializeSfxPool() -> void:
+    for _i in range(SFX_POOL_SIZE):
+        var sfxPlayer: AudioStreamPlayer = AudioStreamPlayer.new()
+        sfxPlayer.bus = "SFX"
+        sfxPlayer.finished.connect(_onSfxFinished.bind(sfxPlayer))
+        add_child(sfxPlayer)
+        sfxPool.append(sfxPlayer)
+        availableSfxPlayers.append(sfxPlayer)
 
-func play_sound(sound_res: Resource, volume: float = 0.6, bus_name: String = "SFX") -> void:
-    if available_stream_players.is_empty():
-        push_warning("No free AudioStreamPlayers.")
+func playSfx(soundResource: Resource, volumeDb: float, busName: String) -> void:
+    var player: AudioStreamPlayer = getAvailableSfxPlayer()
+    if player == null:
+        push_warning("No available SFX AudioStreamPlayers.")
         return
-    var player: AudioStreamPlayer = available_stream_players.pop_back()
-    route_sound_to_bus(player, bus_name)
-    player.stream = sound_res
-    player.volume_db = linear_to_db(volume)
+    routeSoundToBus(player, busName)
+    player.stream = soundResource
+    player.volume_db = volumeDb
     player.play()
 
+func getAvailableSfxPlayer() -> AudioStreamPlayer:
+    if availableSfxPlayers.is_empty():
+        return null
+    return availableSfxPlayers.pop_back()
 
-func route_sound_to_bus(player: AudioStreamPlayer, bus_name: String) -> void:
-    var bus_idx: int = AudioServer.get_bus_index(bus_name)
-    if bus_idx == -1:
-        push_warning("not a bus, cant route.")
-    else:
-        player.bus = bus_name
-
-
-func _on_audio_finished(player: AudioStreamPlayer) -> void:
+func _onSfxFinished(player: AudioStreamPlayer) -> void:
     player.stop()
     player.stream = null
-    available_stream_players.append(player)
+    availableSfxPlayers.append(player)
 
-
-func stop_sound(sfx_name: String) -> void:
-    for player: AudioStreamPlayer in audio_pool:
-        if player.playing and player.stream.resource_path == sfx_name:
+func stopSfx(sfxName: String) -> void:
+    for player in sfxPool:
+        if player.playing and player.stream.resource_path == sfxName:
             player.stop()
-            available_stream_players.append(player)
-            return
+            availableSfxPlayers.append(player)
+            break
 
-
-func stop_all_sounds() -> void:
-    for player: AudioStreamPlayer in audio_pool:
+func stopAllSfx() -> void:
+    for player in sfxPool:
         if player.playing:
             player.stop()
-            available_stream_players.append(player)
+            availableSfxPlayers.append(player)
 
+func initializeMusicPlayer() -> void:
+    musicPlayer = AudioStreamPlayer.new()
+    musicPlayer.bus = "Music"
+    add_child(musicPlayer)
+    musicPlayer.finished.connect(_onMusicFinished)
 
-func linear_to_db(linear: float) -> float:
-    return -80.0 if linear <= 0.0 else 20.0 * log(linear)
+func playMusic(musicResource: Resource, volumeDb: float) -> void:
+    if musicPlayer.playing:
+        musicPlayer.stop()
+    musicPlayer.stream = musicResource
+    musicPlayer.volume_db = volumeDb
+    musicPlayer.play()
+
+func stopMusic() -> void:
+    if musicPlayer.playing:
+        musicPlayer.stop()
+        musicPlayer.stream = null
+
+func isMusicPlaying() -> bool:
+    return musicPlayer.playing
+
+func _onMusicFinished() -> void:
+    musicPlayer.play() #LOOP?
+    pass
+
+func addEffect(busName: String, effect: AudioEffect) -> void:
+    var busIndex: int = AudioServer.get_bus_index(busName)
+    if busIndex != -1:
+        AudioServer.add_bus_effect(busIndex, effect)
+    else:
+        push_warning("Bus not found: " + busName)
+
+func removeEffect(busName: String, effectType: String) -> void:
+    var busIndex: int = AudioServer.get_bus_index(busName)
+    if busIndex == -1:
+        push_warning("Bus not found: " + busName)
+        return
+    var effectCount: int = AudioServer.get_bus_effect_count(busIndex)
+    for index in range(effectCount):
+        var currentEffect: AudioEffect = AudioServer.get_bus_effect(busIndex, index)
+        if currentEffect.get_class() == effectType:
+            AudioServer.remove_bus_effect(busIndex, index)
+            break
+
+func clearEffects(busName: String) -> void:
+    var busIndex: int = AudioServer.get_bus_index(busName)
+    if busIndex == -1:
+        push_warning("Bus not found: " + busName)
+        return
+    while AudioServer.get_bus_effect_count(busIndex) > 0:
+        AudioServer.remove_bus_effect(busIndex, 0)
+
+func routeSoundToBus(player: AudioStreamPlayer, busName: String) -> void:
+    var busIndex: int = AudioServer.get_bus_index(busName)
+    if busIndex == -1:
+        push_warning("Cannot route sound to non-existent bus: " + busName)
+    else:
+        player.bus = busName
+
+func linearToDb(linear: float) -> float:
+    if linear <= 0.0:
+        return -80.0
+    return 20.0 * log(linear)

@@ -162,12 +162,12 @@ func _on_button_play_pressed() -> void:
     if sfx_path:
         var sfx_res: Resource = load(sfx_path)
         if sfx_res:
-            AudioManager.play_sound(sfx_res, 1.0, "SFX")
+            AudioManager.playSfx(sfx_res, 1.0, "SFX")
             _update_active_sounds(sfx_path, "SFX")
 
 
 func _on_button_stop_all_pressed() -> void:
-    AudioManager.stop_all_sounds()
+    AudioManager.stopAllSfx()
     active_sounds_box.queue_redraw()
 
 
@@ -221,7 +221,7 @@ func _update_active_sounds(sfx_name: String, bus_name: String) -> void:
 
 
 func _stop_specific_sound(sfx_name: String) -> void:
-    AudioManager.stop_sound(sfx_name)
+    AudioManager.stopSfx(sfx_name)
     for child: HBoxContainer in active_sounds_box.get_children():
         if child is HBoxContainer and child.get_child(0).text.find(sfx_name) != -1:
             active_sounds_box.remove_child(child)
