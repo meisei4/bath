@@ -108,8 +108,8 @@ var active_sounds_box: VBoxContainer
 func _ready() -> void:
     var vbox: VBoxContainer = VBoxContainer.new()
     add_child(vbox)
-    vbox.offset_left = -get_viewport().size.x / 2.0
-    vbox.offset_top = -get_viewport().size.y / 2.0
+    vbox.offset_left = 0
+    vbox.offset_top = -get_viewport().size.y / 3.0
 
     option_button_sfx = OptionButton.new()
     for path: String in sfx_list:
@@ -152,7 +152,7 @@ func _ready() -> void:
 func _create_button(text: String, callback: Callable) -> Button:
     var button: Button = Button.new()
     button.text = text
-    button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+    button.size_flags_horizontal = Control.SIZE_SHRINK_END
     button.pressed.connect(callback)
     return button
 

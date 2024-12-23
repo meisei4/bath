@@ -1,97 +1,102 @@
 extends Control
 class_name AudioTestMusic
 
-#TODO: Looping with ogg files works fine (it has been the default for ages). As jgodfrey indicated, you may need to enable looping in the import dialog if looping has been disabled for some reason.
-
+# Music track constants
 const MUSIC_TRACK_1: String = "res://Resources/Audio/Music/trimmed_10___What_You_Want_00-40-25_00-41-40.mp3"
+const MUSIC_TRACK_2: String = "res://Resources/Audio/Music/trimmed_01___Only_Shallow_00-03-40_00-04-17.mp3"
+const MUSIC_TRACK_3: String = "res://Resources/Audio/Music/trimmed_03___Touched_00-06-55_00-07-52.mp3"
+const MUSIC_TRACK_4: String = "res://Resources/Audio/Music/trimmed_04___To_Here_Knows_When_00-12-38_00-13-23.mp3"
+const MUSIC_TRACK_5: String = "res://Resources/Audio/Music/trimmed_05___When_You_Sleep_00-17-20_00-17-35.mp3"
 
-var musicList: Array[String] = [
+var music_list: Array[String] = [
     MUSIC_TRACK_1,
+    MUSIC_TRACK_2,
+    MUSIC_TRACK_3,
+    MUSIC_TRACK_4,
+    MUSIC_TRACK_5,
 ]
 
-var effectsLabel: RichTextLabel
+# UI Components
+var option_button_music: OptionButton
+var button_play_music: Button
+var button_stop_all_music: Button
+var button_enable_reverb_music: Button
+var button_disable_reverb_music: Button
+var button_enable_dist_music: Button
+var button_disable_dist_music: Button
+var effects_label_music: RichTextLabel
 
 func _ready() -> void:
-    setupUI()
-    startMusicTest()
-
-func setupUI() -> void:
     var vbox: VBoxContainer = VBoxContainer.new()
-    vbox.anchor_left = 0.5
-    vbox.anchor_top = 0.5
-    vbox.anchor_right = 0.5
-    vbox.anchor_bottom = 0.5
-    vbox.pivot_offset = Vector2.ZERO
     add_child(vbox)
+    vbox.offset_left = -get_viewport().size.x / 2.0
+    vbox.offset_top = -get_viewport().size.y / 2.0
 
-    effectsLabel = RichTextLabel.new()
-    effectsLabel.text = "Active Effects: None"
-    vbox.add_child(effectsLabel)
+    # OptionButton for selecting music
+    option_button_music = OptionButton.new()
+    for path: String in music_list:
+        option_button_music.add_item(path.get_file())
+    vbox.add_child(option_button_music)
 
-func startMusicTest() -> void:
-    # Play the first music track
-    var musicResource1: Resource = loadMusic(MUSIC_TRACK_1)
-    if musicResource1:
-        AudioManager.playMusic(musicResource1, 0.8)
-        print("Playing Music Track 1")
-        _updateEffectsDisplay()
+    # Play Music Button
+    button_play_music = _create_button("Play Music", _on_button_play_music_pressed)
+    vbox.add_child(button_play_music)
 
-    ## Apply Reverb Effect after 2 seconds
-    #await get_tree().create_timer(2.0).timeout
-    #var reverbEffect: AudioEffectReverb = AudioEffectReverb.new()
-    #reverbEffect.room_size = 0.9
-    #reverbEffect.damping = 0.7
-    #reverbEffect.wet = 0.5
-    #AudioManager.addEffect("Music", reverbEffect)
-    #print("Reverb Effect Added to Music Bus")
-    #_updateEffectsDisplay()
+    # Stop All Music Button
+    button_stop_all_music = _create_button("Stop All Music", _on_button_stop_all_music_pressed)
+    vbox.add_child(button_stop_all_music)
 
-    # Apply Delay Effect after 2 seconds
-    #await get_tree().create_timer(2.0).timeout
-    #var delayEffect: AudioEffectDelay = AudioEffectDelay.new()
-    #delayEffect.tap1_active = true
-    #delayEffect.tap1_delay_ms = 300.0
-    #delayEffect.tap1_level_db = -6.0
-    #delayEffect.tap2_active = true
-    #delayEffect.tap2_delay_ms = 600.0
-    #delayEffect.tap2_level_db = -12.0
-    #delayEffect.feedback_active = true
-    #delayEffect.feedback_delay_ms = 400.0
-    #delayEffect.feedback_level_db = -6.0
-    #delayEffect.feedback_lowpass_hz = 15000.0
-    #delayEffect.dry = 0.8
-    #AudioManager.addEffect("Music", delayEffect)
-    #print("Delay Effect Added to Music Bus")
-    #_updateEffectsDisplay()
+    # Enable/Disable Reverb Buttons
+    button_enable_reverb_music = _create_button("Enable Reverb", _on_button_enable_reverb_music_pressed)
+    vbox.add_child(button_enable_reverb_music)
 
-    # Remove Reverb Effect after 5 seconds
-    #await get_tree().create_timer(5.0).timeout
-    #AudioManager.removeEffect("Music", "AudioEffectReverb")
-    #print("Reverb Effect Removed from Music Bus")
-    #_updateEffectsDisplay()
+    button_disable_reverb_music = _create_button("Disable Reverb", _on_button_disable_reverb_music_pressed)
+    vbox.add_child(button_disable_reverb_music)
 
-    ## Stop Music after 8 seconds
-    #await get_tree().create_timer(8.0).timeout
-    #AudioManager.stopMusic()
-    #print("Music Stopped")
-    #_updateEffectsDisplay()
+    # Enable/Disable Distortion Buttons
+    button_enable_dist_music = _create_button("Enable Distortion", _on_button_enable_dist_music_pressed)
+    vbox.add_child(button_enable_dist_music)
 
-func loadMusic(path: String) -> Resource:
-    var resource: Resource = load(path)
-    if resource == null:
-        push_error("Failed to load music track: " + path)
-    return resource
+    button_disable_dist_music = _create_button("Disable Distortion", _on_button_disable_dist_music_pressed)
+    vbox.add_child(button_disable_dist_music)
 
-func _updateEffectsDisplay() -> void:
-    var activeEffects: Array[String] = []
-    var busIndex: int = AudioServer.get_bus_index("Music")
-    var effectCount: int = AudioServer.get_bus_effect_count(busIndex)
 
-    for effectIndex: int in range(effectCount):
-        var currentEffect: AudioEffect = AudioServer.get_bus_effect(busIndex, effectIndex)
-        activeEffects.append(currentEffect.get_class())
+    # Effects Label
+    effects_label_music = RichTextLabel.new()
+    effects_label_music.text = "Active Effects: None"
+    vbox.add_child(effects_label_music)
 
-    if activeEffects.is_empty():
-        effectsLabel.text = "Active Effects: None"
-    else:
-        effectsLabel.text = "Active Effects:\n" + ", ".join(activeEffects)
+func _create_button(text: String, callback: Callable) -> Button:
+    var button: Button = Button.new()
+    button.text = text
+    button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+    button.pressed.connect(callback)
+    return button
+
+func _on_button_play_music_pressed() -> void:
+    var selected_index: int = option_button_music.get_selected_id()
+    var music_path: String = music_list[selected_index]
+    var music_res: Resource = load(music_path)
+    if music_res:
+        AudioManager.playMusic(music_res, 1.0)
+        print("Playing: " + music_path)
+
+func _on_button_stop_all_music_pressed() -> void:
+    AudioManager.stopMusic()
+    print("All music stopped.")
+
+func _on_button_enable_reverb_music_pressed() -> void:
+    AudioEffects.add_reverb("Music", 0.8, 0.5, 0.4)
+    effects_label_music.text = "Active Effects: Reverb Enabled"
+
+func _on_button_disable_reverb_music_pressed() -> void:
+    AudioEffects.remove_effect("Music", "AudioEffectReverb")
+    effects_label_music.text = "Active Effects: None"
+
+func _on_button_enable_dist_music_pressed() -> void:
+    AudioEffects.add_distortion("Music")
+    effects_label_music.text = "Active Effects: Distortion Enabled"
+
+func _on_button_disable_dist_music_pressed() -> void:
+    AudioEffects.remove_effect("Music", "AudioEffectDistortion")
+    effects_label_music.text = "Active Effects: None"
