@@ -32,11 +32,11 @@ gdscript/warnings/unsafe_call_argument=1
 
 window/size/viewport_width=256
 window/size/viewport_height=384
-window/stretch/scale=2.0
+window/stretch/scale=2.76
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/script-tabs/plugin.cfg")
+enabled=PackedStringArray("res://addons/script-tabs/plugin.cfg", "res://addons/terminal/plugin.cfg")
 
 [input]
 

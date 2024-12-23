@@ -1,6 +1,7 @@
 # Godot 4+ specific ignores
 .godot/
 addons/
+Resources/Audio
 
 # Exported binaries
 export/
