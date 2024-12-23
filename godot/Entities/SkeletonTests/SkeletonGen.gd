@@ -5,6 +5,9 @@ class_name BoneRigGenerator
 const PATTERN_WIDTH: int = 5
 const PATTERN_HEIGHT: int = 7
 
+const ROOT_BONE_NAME: String = "root_bone"
+const CHILD_BONE_NAME: String = "child_bone"
+
 # Colors
 const WHITE_COLOR: Color = Color.WHITE        # Opaque white for 'o'
 const GREY_COLOR: Color = Color.DIM_GRAY     # Grey for '*' outline
@@ -31,13 +34,11 @@ func _ready() -> void:
 
     # Step 4: Create Bone2D Nodes
     var root_bone = Bone2D.new()
-    root_bone.name = ROOT_BONE_NAME
     root_bone.position = Vector2.ZERO  # Origin
     root_bone.length = BONE_LENGTH
     skeleton.add_child(root_bone)
 
     var child_bone = Bone2D.new()
-    child_bone.name = CHILD_BONE_NAME
     child_bone.position = Vector2(BONE_LENGTH, 0)  # Positioned at end of root bone
     child_bone.length = BONE_LENGTH
     root_bone.add_child(child_bone)
@@ -53,16 +54,14 @@ func _ready() -> void:
     polygon.skeleton = skeleton
 
     # Step 6: Create a Skin2D and Assign Bones
-    var skin = Skin2D.new()
 
     # Retrieve Bone2D nodes
     var root_bone_node = skeleton.get_node(ROOT_BONE_NAME) as Bone2D
     var child_bone_node = skeleton.get_node(CHILD_BONE_NAME) as Bone2D
 
     if root_bone_node and child_bone_node:
-        skin.add_bone(root_bone_node)
-        skin.add_bone(child_bone_node)
-        polygon.skin = skin
+        skeleton.add_bone(root_bone_node)
+        skeleton.add_bone(child_bone_node)
     else:
         push_error("Bone nodes not found in the skeleton.")
         return
@@ -95,6 +94,12 @@ func generate_bone_texture() -> ImageTexture:
         "*****"
     ]
 
+    # Define constants for pattern size and colors
+    const PATTERN_WIDTH = 5
+    const PATTERN_HEIGHT = 7
+    const WHITE_COLOR = Color(1, 1, 1, 1)
+    const GREY_COLOR = Color(0.5, 0.5, 0.5, 1)
+
     # Create a new Image with exact pattern size
     var image = Image.new()
     image.create(PATTERN_WIDTH, PATTERN_HEIGHT, false, Image.FORMAT_RGBA8)
@@ -105,13 +110,16 @@ func generate_bone_texture() -> ImageTexture:
         var row = pattern[y]
         for x in range(PATTERN_WIDTH):
             var char = row[x]
-            var pixel_color = match char:
-                'o' => WHITE_COLOR
-                '*' => GREY_COLOR
-                _ => null
-            if pixel_color:
-                var pos = Vector2(x, y)
-                image.set_pixelv(pos, pixel_color)
+            var pixel_color = null
+            match char:
+                'o':
+                    pixel_color = WHITE_COLOR
+                '*':
+                    pixel_color = GREY_COLOR
+                _:
+                    pixel_color = null
+            if pixel_color != null:
+                image.set_pixel(x, y, pixel_color)
 
     # Create an ImageTexture from the Image
     var texture = ImageTexture.new()
@@ -120,10 +128,10 @@ func generate_bone_texture() -> ImageTexture:
     return texture
 
 # --- Function to Generate Polygon Points ---
-func generate_polygon_points() -> PoolVector2Array:
+func generate_polygon_points() -> PackedVector2Array:
     # Define a simple polygon that matches the bone's shape
     # Adjust points as needed for more accurate deformation
-    var points = PoolVector2Array([
+    var points = PackedVector2Array([
         Vector2(-2, -3),
         Vector2(2, -3),
         Vector2(2, 3),
