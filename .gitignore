@@ -13,6 +13,22 @@ export/
 # Godot temporary files
 *.tmp
 
+# Ignore game asset files for now
+*.mp3
+*.ogg
+*.wav
+*.flac
+*.aac
+*.m4a
+*.mid
+*.mod
+*.it
+*.s3m
+*.xm
+
+# Documentation folder
+/docs/
+
 # IDE specific ignores
 # VS Code
 .vscode/
