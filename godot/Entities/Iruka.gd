@@ -10,6 +10,7 @@ func _init() -> void:
 
 
 func _ready() -> void:
+    self.add_to_group("player")
     self._initialize()
     self._setup_signals()
     self.set_physics_process(true)

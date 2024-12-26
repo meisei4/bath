@@ -1,0 +1,10 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://godot/Audio/AudioZone.gd" id="1_lebq8"]
+
+[node name="" type="AudioStreamPlayer2D"]
+script = ExtResource("1_lebq8")
+max_effect_distance = 300.0
+effects_enabled = true
+effect_min_value = 0.0
+effect_max_value = 1.0

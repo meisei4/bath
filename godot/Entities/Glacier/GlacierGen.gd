@@ -5,7 +5,8 @@ const GRID_WIDTH: int = 16
 const GRID_HEIGHT: int = 8
 const SOURCE_ID: int = 234
 
-var glacier_states_instance: GlacierCellState = GlacierCellState.new()  #TODO: I REALLY DONT LIKE THIS
+#TODO: I REALLY DONT LIKE THIS, AGAIN LOOK AT THE AudioBus bullshit...
+var glacier_states_instance: GlacierCellState = GlacierCellState.new()
 
 var glacier_surface: TileMapLayer
 

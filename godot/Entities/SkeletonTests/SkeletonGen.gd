@@ -9,13 +9,14 @@ const ROOT_BONE_NAME: String = "root_bone"
 const CHILD_BONE_NAME: String = "child_bone"
 
 # Colors
-const WHITE_COLOR: Color = Color.WHITE        # Opaque white for 'o'
-const GREY_COLOR: Color = Color.DIM_GRAY     # Grey for '*' outline
+const WHITE_COLOR: Color = Color.WHITE  # Opaque white for 'o'
+const GREY_COLOR: Color = Color.DIM_GRAY  # Grey for '*' outline
 
 # Path to save the generated texture (ensure the directory exists)
 const TEXTURE_SAVE_PATH: String = "res://Assets/Sprites/generated_bone_sprite.png"
 
 const BONE_LENGTH: float = 32.0  # Length of each bone in pixels
+
 
 func _ready() -> void:
     var texture = generate_bone_texture()
@@ -81,18 +82,11 @@ func _ready() -> void:
     # Inform the User
     print("Bone/Skeleton rigging setup completed successfully.")
 
+
 # --- Function to Generate the Bone Texture ---
 func generate_bone_texture() -> ImageTexture:
     # Define the bone pixel pattern
-    var pattern = [
-        "*****",
-        "*o*o*",
-        "**o**",
-        "**o**",
-        "**o**",
-        "*o*o*",
-        "*****"
-    ]
+    var pattern = ["*****", "*o*o*", "**o**", "**o**", "**o**", "*o*o*", "*****"]
 
     # Define constants for pattern size and colors
     const PATTERN_WIDTH = 5
@@ -112,9 +106,9 @@ func generate_bone_texture() -> ImageTexture:
             var char = row[x]
             var pixel_color = null
             match char:
-                'o':
+                "o":
                     pixel_color = WHITE_COLOR
-                '*':
+                "*":
                     pixel_color = GREY_COLOR
                 _:
                     pixel_color = null
@@ -127,17 +121,16 @@ func generate_bone_texture() -> ImageTexture:
 
     return texture
 
+
 # --- Function to Generate Polygon Points ---
 func generate_polygon_points() -> PackedVector2Array:
     # Define a simple polygon that matches the bone's shape
     # Adjust points as needed for more accurate deformation
-    var points = PackedVector2Array([
-        Vector2(-2, -3),
-        Vector2(2, -3),
-        Vector2(2, 3),
-        Vector2(-2, 3)
-    ])
+    var points = PackedVector2Array(
+        [Vector2(-2, -3), Vector2(2, -3), Vector2(2, 3), Vector2(-2, 3)]
+    )
     return points
+
 
 # --- Function to Set Up a Simple Animation ---
 func setup_animation(skeleton: Skeleton2D, root_bone: Bone2D) -> void:
@@ -152,17 +145,19 @@ func setup_animation(skeleton: Skeleton2D, root_bone: Bone2D) -> void:
     # Add a rotation track for the RootBone
     var track_idx = animation.add_track(Animation.TYPE_VALUE)
     animation.track_set_path(track_idx, "BoneSkeleton:" + ROOT_BONE_NAME + ":rotation")
-    animation.track_insert_key(track_idx, 0.0, 0.0)                    # Start at 0 radians
-    animation.track_insert_key(track_idx, 1.0, deg2rad(45))          # Rotate to 45 degrees
-    animation.track_insert_key(track_idx, 2.0, deg2rad(-45))         # Rotate to -45 degrees
+    animation.track_insert_key(track_idx, 0.0, 0.0)  # Start at 0 radians
+    animation.track_insert_key(track_idx, 1.0, deg2rad(45))  # Rotate to 45 degrees
+    animation.track_insert_key(track_idx, 2.0, deg2rad(-45))  # Rotate to -45 degrees
 
     # Assign the animation to the AnimationPlayer
     animation_player.add_animation("BoneSwing", animation)
     animation_player.play("BoneSwing")
 
+
 # --- Utility Functions ---
 func deg2rad(degrees: float) -> float:
     return degrees * (PI / 180.0)
+
 
 func rad2deg(radians: float) -> float:
     return radians * (180.0 / PI)

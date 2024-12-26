@@ -1,7 +1,6 @@
 extends Control
 class_name AudioTest
 
-# -- All SFX Constants --
 const SFX_534_OCARINA: String = "res://Resources/Audio/SFX/534_ocarina.wav"
 const SFX_114_CLASSIC: String = "res://Resources/Audio/SFX/114_classic.wav"
 const SFX_115_ECHOY: String = "res://Resources/Audio/SFX/115_echoy.wav"
@@ -45,7 +44,6 @@ const SFX_544_METAL_ICE_SHARD: String = "res://Resources/Audio/SFX/544_metal_ice
 const SFX_545_METAL_ICE_SHARD_DUPLICATE: String = "res://Resources/Audio/SFX/545_metal_ice_shard.wav"
 const SFX_135_BUBBLY_DOWNFALL_DROWN: String = "res://Resources/Audio/SFX/135_bubbly_downfall_drown.wav"
 
-# -- Put them in one list --
 var sfx_list: Array[String] = [
     SFX_534_OCARINA,
     SFX_114_CLASSIC,
@@ -91,7 +89,6 @@ var sfx_list: Array[String] = [
     SFX_135_BUBBLY_DOWNFALL_DROWN
 ]
 
-# UI Components
 var option_button_sfx: OptionButton
 var button_play: Button
 var button_stop_all: Button
@@ -99,9 +96,6 @@ var button_enable_reverb: Button
 var button_disable_reverb: Button
 var button_enable_dist: Button
 var button_disable_dist: Button
-var button_enable_delay: Button
-var button_disable_delay: Button
-var effects_label: RichTextLabel
 var active_sounds_box: VBoxContainer
 
 
@@ -134,16 +128,6 @@ func _ready() -> void:
     button_disable_dist = _create_button("Disable Distortion", _on_button_disable_dist_pressed)
     vbox.add_child(button_disable_dist)
 
-    button_enable_delay = _create_button("Enable Delay", _on_button_enable_delay_pressed)
-    vbox.add_child(button_enable_delay)
-
-    button_disable_delay = _create_button("Disable Delay", _on_button_disable_delay_pressed)
-    vbox.add_child(button_disable_delay)
-
-    effects_label = RichTextLabel.new()
-    effects_label.text = "Active Effects: None"
-    vbox.add_child(effects_label)
-
     active_sounds_box = VBoxContainer.new()
     active_sounds_box.name = "Active Sounds"
     vbox.add_child(active_sounds_box)
@@ -162,75 +146,50 @@ func _on_button_play_pressed() -> void:
     if sfx_path:
         var sfx_res: Resource = load(sfx_path)
         if sfx_res:
-            AudioManager.playSfx(sfx_res, 1.0, "SFX")
+            AudioManager.play_sfx(sfx_res, 0.0, "SFX")
             _update_active_sounds(sfx_path, "SFX")
 
 
 func _on_button_stop_all_pressed() -> void:
-    AudioManager.stopAllSfx()
+    AudioManager.stop_all_sfx()
     active_sounds_box.queue_redraw()
 
 
 func _on_button_enable_reverb_pressed() -> void:
-    AudioEffects.add_reverb("SFX", 0.8, 0.5, 0.4)
-    add_effect_display("Reverb Enabled")
+    AudioEffects.add_reverb(AudioBus.BUS.SFX)
 
 
 func _on_button_disable_reverb_pressed() -> void:
-    AudioEffects.remove_effect("SFX", "AudioEffectReverb")
-    clear_effects_display()
+    AudioEffects.remove_effect(AudioBus.BUS.SFX, "AudioEffectReverb")
 
 
 func _on_button_enable_dist_pressed() -> void:
-    AudioEffects.add_distortion("SFX")
-    add_effect_display("Distortion Enabled")
+    AudioEffects.add_distortion(AudioBus.BUS.SFX)
 
 
 func _on_button_disable_dist_pressed() -> void:
-    AudioEffects.remove_effect("SFX", "AudioEffectDistortion")
-    clear_effects_display()
-
-
-func _on_button_enable_delay_pressed() -> void:
-    AudioEffects.add_delay("SFX")
-    add_effect_display("Delay Enabled")
-
-
-func _on_button_disable_delay_pressed() -> void:
-    AudioEffects.remove_effect("SFX", "AudioEffectDelay")
-    clear_effects_display()
+    AudioEffects.remove_effect(AudioBus.BUS.SFX, "AudioEffectDistortion")
 
 
 func _update_active_sounds(sfx_name: String, bus_name: String) -> void:
     var sound_info: HBoxContainer = HBoxContainer.new()
-
     var label_name: Label = Label.new()
     label_name.text = "Sound: " + sfx_name
     sound_info.add_child(label_name)
-
     var label_bus: Label = Label.new()
     label_bus.text = " | Bus: " + bus_name
     sound_info.add_child(label_bus)
-
     var stop_button: Button = Button.new()
     stop_button.text = "Stop"
     stop_button.pressed.connect(_stop_specific_sound.bind(sfx_name))
     sound_info.add_child(stop_button)
-
     active_sounds_box.add_child(sound_info)
 
 
 func _stop_specific_sound(sfx_name: String) -> void:
-    AudioManager.stopSfx(sfx_name)
-    for child: HBoxContainer in active_sounds_box.get_children():
+    AudioManager.stop_sfx(sfx_name)
+    for child in active_sounds_box.get_children():
         if child is HBoxContainer and child.get_child(0).text.find(sfx_name) != -1:
             active_sounds_box.remove_child(child)
+            child.queue_free()
             break
-
-
-func add_effect_display(effect_name: String) -> void:
-    effects_label.text += "\n" + effect_name
-
-
-func clear_effects_display() -> void:
-    effects_label.text = "Active Effects: None"
