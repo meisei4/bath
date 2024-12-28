@@ -2,6 +2,7 @@
 .godot/
 addons/
 Resources/Audio
+python/assets
 
 # Exported binaries
 export/

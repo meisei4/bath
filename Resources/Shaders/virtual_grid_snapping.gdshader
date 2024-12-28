@@ -1,6 +1,6 @@
 shader_type canvas_item;
 
-uniform float grid_size = 8.0;
+uniform float grid_size = 4.0;
 
 void vertex() {
     vec4 world_pos = MODEL_MATRIX * vec4(VERTEX, 0.0, 1.0);
