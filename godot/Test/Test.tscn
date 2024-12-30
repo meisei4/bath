@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3 uid="uid://cdi4vvq1oqxxx"]
+[gd_scene load_steps=12 format=3 uid="uid://dwpcwke04tlr"]
 
 [ext_resource type="Script" path="res://godot/Test/Test.gd" id="1_k00w0"]
 [ext_resource type="PackedScene" uid="uid://bdggn0k77quie" path="res://godot/Components/Particles/TrailingParticles.tscn" id="2_rmw64"]
@@ -28,13 +28,6 @@ emission_colors = PackedColorArray()
 [node name="GlacierTest" parent="." instance=ExtResource("8_jpfyv")]
 visible = false
 
-[node name="AudioTestSFX" type="Control" parent="."]
-layout_mode = 3
-anchors_preset = 0
-offset_right = 40.0
-offset_bottom = 40.0
-script = ExtResource("9_klk7r")
-
 [node name="Iruka" type="CharacterBody2D" parent="."]
 script = ExtResource("7_qrpq1")
 
@@ -44,6 +37,13 @@ script = ExtResource("8_y7e4t")
 [node name="WaterBody" parent="." instance=ExtResource("9_rnct0")]
 z_index = -2
 
+[node name="AudioTestSFX" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
+script = ExtResource("9_klk7r")
+
 [node name="AudioTestMusic" type="Control" parent="."]
 layout_mode = 3
 anchors_preset = 0
@@ -51,9 +51,9 @@ offset_right = 40.0
 offset_bottom = 40.0
 script = ExtResource("10_qmrdc")
 
-[node name="AudioZoneTestMaximumSchizoPartTwo" type="Button" parent="."]
-offset_left = 129.0
-offset_top = -267.0
-offset_right = 137.0
-offset_bottom = -259.0
+[node name="AudioZoneTest" type="Button" parent="."]
+offset_left = 219.0
+offset_top = -355.0
+offset_right = 227.0
+offset_bottom = -347.0
 script = ExtResource("11_8bn10")
