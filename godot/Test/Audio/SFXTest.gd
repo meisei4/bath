@@ -1,5 +1,5 @@
 extends Control
-class_name AudioTest
+class_name SFXTest
 
 const SFX_534_OCARINA: String = "res://Resources/Audio/SFX/534_ocarina.wav"
 const SFX_114_CLASSIC: String = "res://Resources/Audio/SFX/114_classic.wav"

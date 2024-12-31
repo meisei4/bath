@@ -6,6 +6,7 @@ class_name SpriteContourPolygonGen
 
 var polygon_node: Polygon2D
 
+
 func _ready() -> void:
     var texture: Texture2D = load(sprite_texture_path) as Texture2D
     polygon_node = Polygon2D.new()
@@ -98,7 +99,7 @@ func _ready() -> void:
         model_coords.append(model_coord)
 
     polygon_node.polygon = model_coords
-    polygon_node.uv = model_coords #TODO: these arent UVs normalized eww, its the same as model apparently
+    polygon_node.uv = model_coords  #TODO: these arent UVs normalized eww, its the same as model apparently
 
     var packed_scene: PackedScene = PackedScene.new()
     packed_scene.pack(polygon_node)

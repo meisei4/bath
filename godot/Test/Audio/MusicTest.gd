@@ -1,5 +1,5 @@
 extends Control
-class_name AudioTestMusic
+class_name MusicTest
 
 var current_pitch: float = 1.0
 const PITCH_STEP: float = 0.1
@@ -38,7 +38,6 @@ func _ready() -> void:
     vbox.offset_left = -get_viewport().size.x / 2.0
     vbox.offset_top = -get_viewport().size.y / 2.0
 
-    # OptionButton for selecting music
     option_button_music = OptionButton.new()
     for path: String in music_list:
         option_button_music.add_item(path.get_file())

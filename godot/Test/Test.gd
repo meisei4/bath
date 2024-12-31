@@ -12,6 +12,7 @@ var scale_factor: int = 2  # Scale factor (e.g., 2 for 2x scaling) just to see t
 func _ready() -> void:
     get_window().size = Vector2i(width * scale_factor, height * scale_factor)
     center_viewport()
+    OcclusionManager.scan_and_attach_occluders(self)
 
 
 func center_viewport() -> void:

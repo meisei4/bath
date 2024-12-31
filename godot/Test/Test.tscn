@@ -1,16 +1,17 @@
-[gd_scene load_steps=12 format=3 uid="uid://dwpcwke04tlr"]
+[gd_scene load_steps=13 format=3 uid="uid://dwpcwke04tlr"]
 
 [ext_resource type="Script" path="res://godot/Test/Test.gd" id="1_k00w0"]
 [ext_resource type="PackedScene" uid="uid://bdggn0k77quie" path="res://godot/Components/Particles/TrailingParticles.tscn" id="2_rmw64"]
 [ext_resource type="PackedScene" uid="uid://gojtcht0h7py" path="res://godot/Components/Particles/GlacialParticles.tscn" id="5_1yku5"]
 [ext_resource type="PackedScene" uid="uid://df7d3yxentwdh" path="res://godot/Components/Particles/SnowfallParticles.tscn" id="7_5ki8c"]
 [ext_resource type="Script" path="res://godot/Entities/Iruka.gd" id="7_qrpq1"]
-[ext_resource type="PackedScene" uid="uid://f1ko4ucy2j58" path="res://godot/Test/GlacierTest.tscn" id="8_jpfyv"]
+[ext_resource type="PackedScene" uid="uid://f1ko4ucy2j58" path="res://godot/Test/IndividualScenes/GlacierTest.tscn" id="8_jpfyv"]
 [ext_resource type="Script" path="res://godot/Components/Character/CharacterComponents.gd" id="8_y7e4t"]
-[ext_resource type="Script" path="res://godot/Test/AudioTestSFX.gd" id="9_klk7r"]
+[ext_resource type="Script" path="res://godot/Test/Audio/SFXTest.gd" id="9_klk7r"]
 [ext_resource type="PackedScene" uid="uid://dtxdm6aiao7c1" path="res://Resources/TileMaps/WaterBody.tscn" id="9_rnct0"]
-[ext_resource type="Script" path="res://godot/Test/AudioTestMusic.gd" id="10_qmrdc"]
-[ext_resource type="Script" path="res://godot/Test/AudioZoning/AudioZoneTest.gd" id="11_8bn10"]
+[ext_resource type="Script" path="res://godot/Test/Audio/MusicTest.gd" id="10_qmrdc"]
+[ext_resource type="Script" path="res://godot/Test/Audio/AudioZoning/AudioZoneTest.gd" id="11_8bn10"]
+[ext_resource type="Script" path="res://godot/Test/Lights/LightsTest.gd" id="12_dw027"]
 
 [node name="Test" type="Node2D"]
 script = ExtResource("1_k00w0")
@@ -26,7 +27,6 @@ emission_colors = PackedColorArray()
 [node name="SnowfallParticles" parent="." instance=ExtResource("7_5ki8c")]
 
 [node name="GlacierTest" parent="." instance=ExtResource("8_jpfyv")]
-visible = false
 
 [node name="Iruka" type="CharacterBody2D" parent="."]
 script = ExtResource("7_qrpq1")
@@ -37,14 +37,14 @@ script = ExtResource("8_y7e4t")
 [node name="WaterBody" parent="." instance=ExtResource("9_rnct0")]
 z_index = -2
 
-[node name="AudioTestSFX" type="Control" parent="."]
+[node name="SFXTest" type="Control" parent="."]
 layout_mode = 3
 anchors_preset = 0
 offset_right = 40.0
 offset_bottom = 40.0
 script = ExtResource("9_klk7r")
 
-[node name="AudioTestMusic" type="Control" parent="."]
+[node name="MusicTest" type="Control" parent="."]
 layout_mode = 3
 anchors_preset = 0
 offset_right = 40.0
@@ -57,3 +57,6 @@ offset_top = -355.0
 offset_right = 227.0
 offset_bottom = -347.0
 script = ExtResource("11_8bn10")
+
+[node name="LightsTest" type="Node2D" parent="."]
+script = ExtResource("12_dw027")

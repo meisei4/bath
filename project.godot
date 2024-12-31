@@ -17,8 +17,9 @@ config/features=PackedStringArray("4.3", "Forward Plus")
 
 AudioEffects="*res://godot/Audio/AudioEffects.gd"
 AudioManager="*res://godot/Audio/AudioManager.gd"
-ComponentsManager="*res://godot/Components/ComponentsManager.gd"
+ComponentsManager="*res://godot/Autoloads/ComponentsManager.gd"
 AudioBus="*res://godot/Audio/AudioBus.gd"
+OcclusionManager="*res://godot/Autoloads/OcclusionManager.gd"
 
 [debug]
 
