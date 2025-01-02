@@ -7,7 +7,7 @@ class_name AudioZone
 @export var effect_max_value: float = 1.0
 @export var audio_bus: AudioBus.BUS = AudioBus.BUS.MUSIC
 
-var viewer: Node = null
+var viewer: Node2D = null
 
 var dynamic_distortion_enabled: bool = false
 var dynamic_reverb_enabled: bool = false
@@ -37,13 +37,13 @@ func _ready() -> void:
         self.play()
 
 
-func _process(delta: float) -> void:
+func _process(_delta: float) -> void:
     if not viewer:
         return
 
-    var distance = viewer.global_position.distance_to(self.global_position)
-    var normalized_distance = clamp(1.0 - (distance / max_effect_distance), 0.0, 1.0)
-    var effect_strength = lerp(effect_min_value, effect_max_value, normalized_distance)
+    var distance: float = viewer.global_position.distance_to(self.global_position)
+    var normalized_distance: float = clamp(1.0 - (distance / max_effect_distance), 0.0, 1.0)
+    var effect_strength: float = lerp(effect_min_value, effect_max_value, normalized_distance)
 
     apply_custom_volume(effect_strength)
 
@@ -57,13 +57,13 @@ func _process(delta: float) -> void:
 
 
 func initialize_viewer() -> void:
-    var players = get_tree().get_nodes_in_group("player")
+    var players: Array[Node] = get_tree().get_nodes_in_group("player")
     if players.size() > 0:
         viewer = players[0]
         print("Player node found: ", viewer.name)
         return
 
-    var current_camera = get_viewport().get_camera_2d()
+    var current_camera: Camera2D = get_viewport().get_camera_2d()
     if current_camera:
         viewer = current_camera
         return
@@ -74,7 +74,7 @@ func apply_custom_volume(effect_strength: float) -> void:
 
 
 func adjust_distortion(effect_strength: float) -> void:
-    var config = {
+    var config: Dictionary = {
         "drive": lerp(0.0, AudioEffects.DEFAULT_DISTORTION["drive"], effect_strength),
         "pre_gain_db": lerp(0.0, AudioEffects.DEFAULT_DISTORTION["pre_gain_db"], effect_strength),
         "post_gain_db": lerp(0.0, AudioEffects.DEFAULT_DISTORTION["post_gain_db"], effect_strength)
@@ -83,7 +83,7 @@ func adjust_distortion(effect_strength: float) -> void:
 
 
 func adjust_reverb(effect_strength: float) -> void:
-    var config = {
+    var config: Dictionary = {
         "wet": lerp(0.0, AudioEffects.DEFAULT_REVERB["wet"], effect_strength),
         "room_size": lerp(0.0, AudioEffects.DEFAULT_REVERB["room_size"], effect_strength),
         "damping": lerp(0.0, AudioEffects.DEFAULT_REVERB["damping"], effect_strength)

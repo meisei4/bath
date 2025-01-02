@@ -2,24 +2,26 @@ extends Node
 
 
 func scan_and_attach_occluders(root: Node) -> void:
-    for child in root.get_children():
-        _add_occluder_if_supported(child)
-        scan_and_attach_occluders(child)
+    for child: Node in root.get_children():
+        if child is CanvasItem:
+            _add_occluder_if_supported(child as CanvasItem)
+            scan_and_attach_occluders(child)
 
 
-func _add_occluder_if_supported(node: Node) -> void:
+func _add_occluder_if_supported(node: CanvasItem) -> void:
     var rect: Rect2
 
-    if node is Sprite2D and node.texture:
-        var size = node.texture.get_size()
-        rect = Rect2(node.get_global_position() - size / 2, size)
+    if node is Sprite2D:
+        var sprite: Sprite2D = node as Sprite2D
+        var size: Vector2 = sprite.texture.get_size()
+        rect = Rect2(sprite.get_global_position() - size / 2, size)
     else:
         return
 
-    var light_occluder = LightOccluder2D.new()
+    var light_occluder: LightOccluder2D = LightOccluder2D.new()
     light_occluder.occluder_light_mask = 1
 
-    var occluder = OccluderPolygon2D.new()
+    var occluder: OccluderPolygon2D = OccluderPolygon2D.new()
     occluder.polygon = PackedVector2Array(
         [
             rect.position,

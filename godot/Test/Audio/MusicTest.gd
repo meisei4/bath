@@ -35,8 +35,10 @@ var effects_label_music: RichTextLabel
 func _ready() -> void:
     var vbox: VBoxContainer = VBoxContainer.new()
     add_child(vbox)
-    vbox.offset_left = -get_viewport().size.x / 2.0
-    vbox.offset_top = -get_viewport().size.y / 2.0
+    var viewport: Window = get_viewport() as Window
+    if viewport is Window:
+        vbox.offset_left = -viewport.size.x / 2.0
+        vbox.offset_top = -viewport.size.y / 2.0
 
     option_button_music = OptionButton.new()
     for path: String in music_list:
@@ -91,7 +93,7 @@ func _create_button(text: String, callback: Callable) -> Button:
 func _on_button_play_music_pressed() -> void:
     var selected_index: int = option_button_music.get_selected_id()
     var music_path: String = music_list[selected_index]
-    var music_res: Resource = load(music_path)
+    var music_res: AudioStream = load(music_path) as AudioStream
     if music_res:
         AudioManager.play_music(music_res, 1.0)
         print("Playing: " + music_path)

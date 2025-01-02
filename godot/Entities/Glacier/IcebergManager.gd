@@ -74,5 +74,5 @@ func create_iceberg(
 ) -> void:
     mass_distribution.set_state(position, GlacierCellState.STATE.ICEBERG, glacier_map)
     iceberg_created.emit(position)
-    SignalBus.play_sfx.emit(preload(SFX_462_BUBBLY))  #TODO: cant post yet
+    #SignalBus.play_sfx.emit(preload(SFX_462_BUBBLY))  #TODO: cant post yet
     print("ICEBERG CREATED AT: ", position)

@@ -12,14 +12,14 @@ func _ready() -> void:
     #_setup_light_occluders_test()
 
 
-func _process(delta: float) -> void:
+func _process(_delta: float) -> void:
     point_light.position = get_global_mouse_position()
 
 
 func _setup_canvas_modulate() -> void:
     canvas_modulate = CanvasModulate.new()
-    canvas_modulate.color = Color.PINK
-    canvas_modulate.color.a = 0.9
+    canvas_modulate.color = Color.DEEP_PINK
+    canvas_modulate.color.a = 1.0
     add_child(canvas_modulate)
 
 

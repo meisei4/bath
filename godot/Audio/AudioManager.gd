@@ -34,9 +34,10 @@ func _setup_buses(bus_names: Array[String]) -> void:
 
 func _set_bus_volumes() -> void:
     var bus_volumes: Dictionary = {MASTER: 0.0, SFX: -3.0, MUSIC: -6.0}
-    for bus_name in bus_volumes.keys():
+    for bus_name: StringName in bus_volumes.keys():
         var bus_idx: int = AudioServer.get_bus_index(bus_name)
         if bus_idx != -1:
+            # TODO: wait for godot 4.4 for typed dictionary stuff
             AudioServer.set_bus_volume_db(bus_idx, bus_volumes[bus_name])
         else:
             push_warning("Bus not found: " + bus_name)

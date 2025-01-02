@@ -24,4 +24,5 @@ func center_viewport() -> void:
 func _process(_delta: float) -> void:
     for child: Node in get_children():
         if child is Iruka:
-            camera.position = child.position
+            var iruka: Iruka = child as Iruka
+            camera.position = iruka.position

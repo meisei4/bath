@@ -103,7 +103,9 @@ func _ready() -> void:
     var vbox: VBoxContainer = VBoxContainer.new()
     add_child(vbox)
     vbox.offset_left = 0
-    vbox.offset_top = -get_viewport().size.y / 3.0
+    var viewport: Window = get_viewport() as Window
+    if viewport is Window:
+        vbox.offset_top = -viewport.size.y / 3.0
 
     option_button_sfx = OptionButton.new()
     for path: String in sfx_list:
@@ -144,7 +146,7 @@ func _create_button(text: String, callback: Callable) -> Button:
 func _on_button_play_pressed() -> void:
     var sfx_path: String = option_button_sfx.get_item_text(option_button_sfx.get_selected_id())
     if sfx_path:
-        var sfx_res: Resource = load(sfx_path)
+        var sfx_res: AudioStream = load(sfx_path) as AudioStream
         if sfx_res:
             AudioManager.play_sfx(sfx_res, 0.0, "SFX")
             _update_active_sounds(sfx_path, "SFX")
@@ -188,8 +190,12 @@ func _update_active_sounds(sfx_name: String, bus_name: String) -> void:
 
 func _stop_specific_sound(sfx_name: String) -> void:
     AudioManager.stop_sfx(sfx_name)
-    for child in active_sounds_box.get_children():
-        if child is HBoxContainer and child.get_child(0).text.find(sfx_name) != -1:
-            active_sounds_box.remove_child(child)
-            child.queue_free()
-            break
+    for child: Node in active_sounds_box.get_children():
+        if child is HBoxContainer:
+            var h_box_container: HBoxContainer = child as HBoxContainer
+            var button: Button = h_box_container.get_child(0) as Button
+            #TODO: this is already ridiculous, shouldnt have to do this maddness with constant typing
+            if button.text.find(sfx_name) != -1:
+                active_sounds_box.remove_child(child)
+                child.queue_free()
+                break
