@@ -2,11 +2,10 @@ import os
 from PIL import Image
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-INPUT_AUDIO_DIR = os.path.join(SCRIPT_DIR, "../assets/images")
-INPUT_FILE = "input_image.png"  # Input image file
+INPUT_FILE = "../../Assets/Lights/2d_lights_and_shadows_neutral_point_light.webp"  # Input image file
 OUTPUT_IMAGE_DIR = os.path.join(SCRIPT_DIR, "output/")
 OUTPUT_FILE = os.path.join(OUTPUT_IMAGE_DIR, "output_image.png")
-GRID_SIZE = 4  # Grid size for pixelation (e.g., 4x4 pixels will become 1 pixel)
+GRID_SIZE = 32  # Grid size for pixelation (e.g., 4x4 pixels will become 1 pixel)
 
 def pixelate_image(input_file, output_file, grid_size):
     image = Image.open(input_file)
