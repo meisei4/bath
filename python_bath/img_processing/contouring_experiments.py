@@ -23,7 +23,7 @@ CONFIG = {
     "COLOR_THEME": CURRENT_THEME
 }
 
-IMAGE_FILE = "../Assets/Sprites/Dolphin2.png"
+IMAGE_FILE = "../../Assets/Sprites/Dolphin2.png"
 
 
 def offset_polygon_vertices(verts):

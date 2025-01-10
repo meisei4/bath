@@ -1,0 +1,26 @@
+[tool.poetry]
+name = "python_bath"
+version = "0.1.0"
+description = ""
+authors = ["あああ <lanur622@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+
+whisper = "*"
+spacy = "*"
+transformers = "*"
+sacremoses = "*"
+sounddevice = "*"
+soundfile = "*"
+numpy = "*"
+librosa = "*"
+scipy = "*"
+matplotlib = "3.9.4"
+Pillow = "*"         # For PIL
+opencv-python = "*"  # For cv2
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

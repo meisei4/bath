@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.signal import spectrogram, square
 
-from audio.utils import generate_noise
+from utils import generate_noise
 
 # Constants
 FIGURE_SIZE_WAVEFORM = (10, 4)

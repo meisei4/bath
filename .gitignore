@@ -2,7 +2,7 @@
 .godot/
 addons/
 Resources/Audio
-python/assets
+python_bath/assets
 
 # Exported binaries
 export/
@@ -64,6 +64,6 @@ venv/
 __pycache__/
 *.pyc
 
-python/audio/output/track_metadata.json
+python_bath/audio/output/track_metadata.json
 
-python/audio/output/trim_metadata.json
+python_bath/audio/output/trim_metadata.json
