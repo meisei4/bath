@@ -1,7 +1,7 @@
 extends Node2D
 class_name GlacierTest
 
-@export var hydrofracture_interval_seconds: float = 3.0
+@export var hydrofracture_interval_seconds: float = 2.0
 var glacier_surface: TileMapLayer
 var glacier_cell_state: GlacierCellState.STATE
 var timer: Timer = Timer.new()
@@ -48,10 +48,9 @@ func transition_glacier_cell_state() -> void:
 func update_tile() -> void:
     var cell_position: Vector2i = Vector2i(0, 0)
     #TODO: This works now, study it and make it make sense for christs sake
-    glacier_surface.set_cell(cell_position, 0, Vector2i(0, glacier_cell_state))
+    glacier_surface.set_cell(cell_position, GlacierGen.SOURCE_ID, Vector2i(0, glacier_cell_state))
 
 
 func create_glacial_particles() -> void:
     var particles_instance: CPUParticles2D = GLACIAL_PARTICLES_SCENE.instantiate() as CPUParticles2D
-    #particles_instance.position = glacier_surface.to_global(Vector2(0, 0))
     add_child(particles_instance)

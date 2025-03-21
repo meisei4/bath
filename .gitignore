@@ -10,6 +10,7 @@ export/
 # Godot cache files
 .import/
 *.import
+*.uid
 
 # Godot temporary files
 *.tmp

@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://p62a4n5u73j4"]
 
-[ext_resource type="Script" path="res://godot/Entities/Glacier/GlacierGen.gd" id="1_a8xjs"]
+[ext_resource type="Script" uid="uid://yg0cmphkmew" path="res://godot/Entities/Glacier/GlacierGen.gd" id="1_a8xjs"]
 
 [node name="GlacierGen" type="Node2D"]
 script = ExtResource("1_a8xjs")
