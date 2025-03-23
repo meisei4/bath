@@ -10,75 +10,55 @@ signal cell_fractured(cell_position: Vector2i)
 var cells_fractured_in_previous_cycle: Array[Vector2i] = []
 var cells_newly_fractured_this_cycle: Array[Vector2i] = []
 
-
 func run_fracture_phase(glacier_data: GlacierData) -> void:
     cells_newly_fractured_this_cycle.clear()
-
-    var fracture_candidates: Array[Vector2i] = get_exposed_intact_candidates(glacier_data)
+    var fracture_candidates = get_exposed_intact_candidates(glacier_data)
     fracture_candidates.shuffle()
-
     if fracture_candidates.is_empty():
-        print("[HydrofractureManager] No fracture candidates this cycle.")
         return
 
-    var selected_starting_cells: Array[Vector2i] = fracture_candidates.slice(
-        0,
-        min(max_new_fractures_per_cycle, fracture_candidates.size())
-    )
+    var selected_starts = select_fracture_starts(fracture_candidates)
+    fracture_cells(glacier_data, selected_starts)
+    cells_fractured_in_previous_cycle = cells_newly_fractured_this_cycle.duplicate()
+    cells_newly_fractured_this_cycle.clear()
 
-    print("[HydrofractureManager] Fracture candidates:", fracture_candidates)
-    print("[HydrofractureManager] Selected starts:", selected_starting_cells)
+func select_fracture_starts(fracture_candidates: Array[Vector2i]) -> Array[Vector2i]:
+    return fracture_candidates.slice(0, min(max_new_fractures_per_cycle, fracture_candidates.size()))
 
-    for starting_cell in selected_starting_cells:
-        GlacierUtil.flood_fill_fracture_bfs(
+func fracture_cells(glacier_data: GlacierData, selected_starts: Array[Vector2i]) -> void:
+    for start_cell in selected_starts:
+        GlacierUtil.propagate_fracture_bfs(
             glacier_data,
-            starting_cell,
+            start_cell,
             max_fracture_depth,
             fracture_propagation_probability,
             func(fracture_cell_position: Vector2i, depth: int) -> void:
                 fracture_cell(glacier_data, fracture_cell_position, depth)
         )
 
-    if cells_newly_fractured_this_cycle.size() > 0:
-        print("[HydrofractureManager] Newly fractured:", cells_newly_fractured_this_cycle)
-    else:
-        print("[HydrofractureManager] No new fractures occurred.")
-
-
-func finalize_fracture_cycle() -> void:
-    cells_fractured_in_previous_cycle = cells_newly_fractured_this_cycle.duplicate()
-    cells_newly_fractured_this_cycle.clear()
-    print("[HydrofractureManager] End of fracture cycle => cells_fractured_in_previous_cycle:",
-        cells_fractured_in_previous_cycle)
-
-
-func get_cells_fractured_in_previous_cycle() -> Array[Vector2i]:
-    return cells_fractured_in_previous_cycle
-
-
 func get_exposed_intact_candidates(glacier_data: GlacierData) -> Array[Vector2i]:
-    var glacier_dimensions: Vector2i = GlacierUtil.get_dimensions(glacier_data)
-    var candidate_cells: Array[Vector2i] = []
+    var dims = GlacierUtil.get_glacier_dimensions(glacier_data)
+    var candidates: Array[Vector2i] = []
+    for y in range(dims.y):
+        for x in range(dims.x):
+            var cell_position = Vector2i(x, y)
+            if can_fracture_cell(glacier_data, cell_position):
+                candidates.append(cell_position)
 
-    for y in range(glacier_dimensions.y):
-        for x in range(glacier_dimensions.x):
-            var cell_position: Vector2i = Vector2i(x, y)
-            var current_state: int = glacier_data.get_state(cell_position)
-            if current_state != GlacierCellState.STATE.INTACT:
-                continue
-            if is_exposed_or_bottom_edge(glacier_data, cell_position):
-                candidate_cells.append(cell_position)
-    return candidate_cells
+    return candidates
 
+func can_fracture_cell(glacier_data: GlacierData, cell_position: Vector2i) -> bool:
+    return glacier_data.get_state(cell_position) == GlacierCellState.STATE.INTACT and is_exposed_or_bottom_edge(glacier_data, cell_position)
 
 func is_exposed_or_bottom_edge(glacier_data: GlacierData, cell_position: Vector2i) -> bool:
-    var glacier_dimensions: Vector2i = GlacierUtil.get_dimensions(glacier_data)
-    if cell_position.y == glacier_dimensions.y - 1:
+    var dims = GlacierUtil.get_glacier_dimensions(glacier_data)
+    if cell_position.y == dims.y - 1:
         return true
+    return has_exposed_neighbor(glacier_data, cell_position)
 
-    var neighboring_cells: Array[Vector2i] = GlacierUtil.get_orthogonal_neighbors(glacier_data, cell_position)
-    for neighbor_position in neighboring_cells:
-        if glacier_data.get_state(neighbor_position) == GlacierCellState.STATE.NONE:
+func has_exposed_neighbor(glacier_data: GlacierData, cell_position: Vector2i) -> bool:
+    for neighbor in GlacierUtil.get_adjacent_neighbors(glacier_data, cell_position):
+        if glacier_data.get_state(neighbor) == GlacierCellState.STATE.NONE:
             return true
     return false
 
@@ -87,12 +67,13 @@ func fracture_cell(glacier_data: GlacierData, cell_position: Vector2i, depth: in
         glacier_data.set_state(cell_position, GlacierCellState.STATE.FRACTURED)
         glacier_data.set_time_in_state(cell_position, 0)
         cells_newly_fractured_this_cycle.append(cell_position)
-        cell_fractured.emit(cell_position)
-        print("[HydrofractureManager] FRACTURED at:", cell_position, " depth=", depth)
+        emit_cell_fractured_signal(cell_position)
+
+func emit_cell_fractured_signal(cell_position: Vector2i) -> void:
+    cell_fractured.emit(cell_position)
 
 func force_fracture_cell(glacier_data: GlacierData, cell_position: Vector2i) -> void:
     if glacier_data.get_state(cell_position) == GlacierCellState.STATE.INTACT:
         glacier_data.set_state(cell_position, GlacierCellState.STATE.FRACTURED)
         glacier_data.set_time_in_state(cell_position, 0)
-        glacier_data.set_forced(cell_position, true)  # Mark this cell as forced
-        print("[HydrofractureManager] Force‐fractured cell at:", cell_position)
+        glacier_data.set_forced(cell_position, true)
