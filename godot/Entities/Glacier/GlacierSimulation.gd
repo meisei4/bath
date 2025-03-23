@@ -2,94 +2,108 @@ extends Node2D
 class_name GlacierSimulation
 
 const GLACIER_MAP_SCENE: PackedScene = preload("res://Resources/TileMaps/GlacierMap.tscn")
-const GLACIAL_PARTICLES_SCENE: PackedScene = preload(
-    "res://godot/Components/Particles/GlacialParticles.tscn"
-)
 
-#TODO: i already forgot why these should be @exports vs consts... something about being able to edit them in the GUI i guess?
-@export var hydrofracture_interval_seconds: float = 1.0
-@export var fractures_per_cycle: int = 1
-@export var max_fracture_depth: int = 10
-# fracture_coefficient is a kind of "weight" on the rate of propagation (bigger the number -> faster/more fractures propagate)
-@export var fracturing_coefficient: float = 0.4
-
-#TODO: havent looked at messing with "mass" yet, it's part of the IcebergManager algorithm stuff
-@export var min_iceberg_mass: int = 10
-@export var max_active_icebergs: int = 2
-@export var iceberg_flow_interval_seconds: float = 1.0  # Adjust as needed
+@export var fracturing_cycle_interval: float = 1.0
+@export var formation_delay_seconds: float = 1.0
+@export var movement_delay_seconds: float = 1.0
 
 var glacier_map: TileMapLayer
-var glacier_data: GlacierData =  GlacierData.new()
+var glacier_data: GlacierData = GlacierData.new()
 var hydrofracture_manager: HydrofractureManager = HydrofractureManager.new()
 var iceberg_manager: IcebergManager = IcebergManager.new()
 
-var hydrofracture_timer: Timer = Timer.new()
-var iceberg_flow_timer: Timer = Timer.new()
+var fracturing_timer: Timer = Timer.new()
 
-const ICEBERG_GROUP: String = "Icebergs"
-var active_icebergs_count: int = 0
+var queued_tasks: Array[Dictionary] = []
+
+var simulation_time: float = 0.0
+
+var formation_pending: bool = false
+var movement_pending: bool = false
 
 
 func _ready() -> void:
     setup_glacier()
-    setup_hydrofracture_timer()
-    setup_iceberg_flow_timer()
+    fracturing_timer.wait_time = fracturing_cycle_interval
+    fracturing_timer.timeout.connect(_on_fracture_timer)
+    add_child(fracturing_timer)
+    fracturing_timer.start()
 
+
+func _process(delta_time: float) -> void:
+    simulation_time += delta_time
+    while queued_tasks.size() > 0 and queued_tasks[0]["execute_at_time"] <= simulation_time:
+        var current_task: Dictionary = queued_tasks.pop_front()
+        var action: String = current_task["action"]
+        match action:
+            "formation":
+                run_formation_phase()
+                formation_pending = false
+                if not movement_pending:
+                    queue_task_in_seconds(movement_delay_seconds, "movement")
+                    movement_pending = true
+            "movement":
+                run_movement_phase()
+                movement_pending = false
+            _:
+                pass
 
 
 func setup_glacier() -> void:
     glacier_map = GLACIER_MAP_SCENE.instantiate() as TileMapLayer
-    glacier_data.initialize_from_tilemap(glacier_map)
-    hydrofracture_manager.max_fracture_depth = self.max_fracture_depth
-    hydrofracture_manager.fracturing_coefficient = self.fracturing_coefficient
-    iceberg_manager.min_mass = self.min_iceberg_mass
-    iceberg_manager.max_icebergs = self.max_active_icebergs
-    iceberg_manager.iceberg_created.connect(_on_iceberg_created)
     add_child(glacier_map)
+
+    glacier_data.initialize_from_tilemap(glacier_map)
+
+    iceberg_manager.iceberg_cluster_formed.connect(_on_iceberg_formed)
+    iceberg_manager.request_forced_fracture.connect(_on_iceberg_manager_request_forced_fracture)
+
     update_tilemap()
+
+
+func _on_fracture_timer() -> void:
+    hydrofracture_manager.run_fracture_phase(glacier_data)
+    hydrofracture_manager.finalize_fracture_cycle()
+    update_tilemap()
+
+    if not formation_pending:
+        queue_task_in_seconds(formation_delay_seconds, "formation")
+        formation_pending = true
+
+
+func run_formation_phase() -> void:
+    var cells_fractured_last_cycle: Array[Vector2i] = hydrofracture_manager.get_cells_fractured_in_previous_cycle()
+    iceberg_manager.iceberg_formation_phase(glacier_data, cells_fractured_last_cycle)
+    update_tilemap()
+
+
+func run_movement_phase() -> void:
+    iceberg_manager.move_icebergs(glacier_data)
+    update_tilemap()
+
 
 func update_tilemap() -> void:
-    for y: int in range(glacier_data.mass_distribution.size()):
-        for x: int in range(glacier_data.mass_distribution[y].size()):
-            var state: GlacierCellState.STATE = glacier_data.mass_distribution[y][x]
-            var cell_position: Vector2i = Vector2i(x, y)
-            glacier_map.set_cell(cell_position, GlacierGen.SOURCE_ID, Vector2i(0, state))
+    for y: int in range(glacier_data.cell_state_grid.size()):
+        for x: int in range(glacier_data.cell_state_grid[y].size()):
+            var cell_state: int = glacier_data.cell_state_grid[y][x]
+            glacier_map.set_cell(Vector2i(x, y), GlacierGen.SOURCE_ID, Vector2i(0, cell_state))
 
 
-func setup_hydrofracture_timer() -> void:
-    hydrofracture_timer.wait_time = hydrofracture_interval_seconds
-    hydrofracture_timer.timeout.connect(_on_hydrofracture_cycle)
-    add_child(hydrofracture_timer)
-    hydrofracture_timer.start()
+func queue_task_in_seconds(delay: float, action: String) -> void:
+    var execute_time: float = simulation_time + delay
+    var scheduled_task: Dictionary = {
+        "execute_at_time": execute_time,
+        "action": action
+    }
+    queued_tasks.push_back(scheduled_task)
 
 
-func setup_iceberg_flow_timer() -> void:
-    iceberg_flow_timer.wait_time = iceberg_flow_interval_seconds
-    iceberg_flow_timer.timeout.connect(_on_iceberg_flow_cycle)
-    add_child(iceberg_flow_timer)
-    iceberg_flow_timer.start()
+func _on_iceberg_formed(average_position: Vector2i) -> void:
+    # Process additional logic when an iceberg cluster is formed.
+    pass
 
 
-func _on_hydrofracture_cycle() -> void:
-    var fractures_started: int = hydrofracture_manager.run_cycle(glacier_data,fractures_per_cycle)
-    if fractures_started == 0:
-        return
-
-    var new_icebergs: int  = iceberg_manager.identify_and_create_icebergs(glacier_data)
-    active_icebergs_count += new_icebergs
-
-    if active_icebergs_count >= max_active_icebergs:
-        hydrofracture_timer.stop()
+func _on_iceberg_manager_request_forced_fracture(blocker_cell_position: Vector2i) -> void:
+    hydrofracture_manager.force_fracture_cell(glacier_data, blocker_cell_position)
+    iceberg_manager.notify_cell_fractured(blocker_cell_position, glacier_data)
     update_tilemap()
-
-
-func _on_iceberg_flow_cycle() -> void:
-    iceberg_manager.update_iceberg_flow(glacier_data)
-    update_tilemap()
-
-
-func _on_iceberg_created(_position: Vector2i) -> void:
-    var particles_instance: CPUParticles2D = GLACIAL_PARTICLES_SCENE.instantiate() as CPUParticles2D
-    #TODO: this next line is a very ugly way to get Tile coordinates -> global coordinates (16x16 tiles)
-    particles_instance.position = _position * 16
-    #add_child(particles_instance)

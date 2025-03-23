@@ -1,6 +1,6 @@
 extends Resource
 class_name GlacierCellState
-
+#NONE (0)   <-->   INTACT (1)   -->   FRACTURED (2)   -->   ICEBERG (3)
 enum STATE { NONE = 0, INTACT = 1, FRACTURED = 2, ICEBERG = 3 }
 
 @export var state: STATE = STATE.NONE
