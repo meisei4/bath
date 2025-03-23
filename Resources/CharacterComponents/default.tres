@@ -1,7 +1,7 @@
 [gd_resource type="Resource" script_class="CharacterData" load_steps=4 format=3 uid="uid://8n0vs2quiy88"]
 
-[ext_resource type="Script" path="res://godot/Components/Character/CharacterData.gd" id="1_7e3pc"]
-[ext_resource type="Texture2D" uid="uid://dfe2x6cp70is5" path="res://Assets/Sprites/iruka.png" id="2_xqub2"]
+[ext_resource type="Script" uid="uid://47p2rpb5isra" path="res://godot/Components/Character/CharacterData.gd" id="1_7e3pc"]
+[ext_resource type="Texture2D" uid="uid://cjfhug0xsyxuh" path="res://Assets/Sprites/iruka.png" id="2_xqub2"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_8om2j"]
 

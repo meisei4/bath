@@ -1,7 +1,9 @@
 [gd_scene load_steps=3 format=3 uid="uid://uh0786preowa"]
 
-[ext_resource type="Texture2D" uid="uid://cg4ec5cq4ifh8" path="res://Assets/Sprites/Dolphin2.png" id="1_spglq"]
-[ext_resource type="Script" path="res://godot/Test/SkeletonTests/SkeletonWarpPixelSnapping.gd" id="2_ftn8j"]
+[ext_resource type="Texture2D" uid="uid://dg4or88rvmd2e" path="res://Assets/Sprites/Dolphin2.png" id="1_spglq"]
+
+[sub_resource type="Resource" id="Resource_leiq4"]
+metadata/__load_path__ = "res://godot/Test/SkeletonTests/SkeletonWarpPixelSnapping.gd"
 
 [node name="Node2D" type="Node2D"]
 position = Vector2(0, -1)
@@ -18,7 +20,7 @@ uv = PackedVector2Array(12.0144, -0.70626, 9.8494, 3.29782, 7.8008, 8.00028, 5.7
 bones = ["Tail", PackedFloat32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), "Tail/Body", PackedFloat32Array(0, 0, 0, 0, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0, 0, 0, 0), "Tail/Body/Head", PackedFloat32Array(0.5, 0.5, 0.5, 0.5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0.5, 0.5, 0.5)]
 
 [node name="Skeleton2D" type="Skeleton2D" parent="."]
-script = ExtResource("2_ftn8j")
+script = SubResource("Resource_leiq4")
 
 [node name="Tail" type="Bone2D" parent="Skeleton2D"]
 position = Vector2(14, 55)
