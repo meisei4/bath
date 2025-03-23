@@ -80,19 +80,19 @@ func is_exposed_or_bottom_edge(glacier_data: GlacierData, cell_position: Vector2
     for neighbor_position in neighboring_cells:
         if glacier_data.get_state(neighbor_position) == GlacierCellState.STATE.NONE:
             return true
-
     return false
-
 
 func fracture_cell(glacier_data: GlacierData, cell_position: Vector2i, depth: int) -> void:
     if glacier_data.get_state(cell_position) == GlacierCellState.STATE.INTACT:
         glacier_data.set_state(cell_position, GlacierCellState.STATE.FRACTURED)
+        glacier_data.set_time_in_state(cell_position, 0)
         cells_newly_fractured_this_cycle.append(cell_position)
         cell_fractured.emit(cell_position)
         print("[HydrofractureManager] FRACTURED at:", cell_position, " depth=", depth)
 
-
 func force_fracture_cell(glacier_data: GlacierData, cell_position: Vector2i) -> void:
     if glacier_data.get_state(cell_position) == GlacierCellState.STATE.INTACT:
         glacier_data.set_state(cell_position, GlacierCellState.STATE.FRACTURED)
+        glacier_data.set_time_in_state(cell_position, 0)
+        glacier_data.set_forced(cell_position, true)  # Mark this cell as forced
         print("[HydrofractureManager] Force‐fractured cell at:", cell_position)
