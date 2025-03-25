@@ -32,9 +32,7 @@ func _setup_point_light() -> void:
     point_light.shadow_color = Color.BLACK  #TODO: this is funky, not sure how it works
     point_light.light_mask = 1
     #point_light.texture = preload(
-        #"res://Assets/Lights/2d_lights_and_shadows_neutral_point_light.webp"
+    #"res://Assets/Lights/2d_lights_and_shadows_neutral_point_light.webp"
     #)
-    point_light.texture = preload(
-        "res://Assets/Lights/output_image.png"
-    )
+    point_light.texture = preload("res://Assets/Lights/output_image.png")
     add_child(point_light)

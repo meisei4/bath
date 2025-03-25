@@ -2,145 +2,94 @@ extends Node2D
 class_name IcebergManager
 
 signal iceberg_cluster_formed(average_position: Vector2i)
-signal request_forced_fracture(blocker_cell: Vector2i)
+signal force_fracture_glacier_cell(cell: Vector2i)
 
 @export var minimum_iceberg_cluster_size: int = 4
 
-func form_icebergs(glacier_data: GlacierData) -> void:
-    var glacier_dimensions: Vector2i = GlacierUtil.get_glacier_dimensions(glacier_data)
-    var visited_cells: Dictionary = {}
 
-    for y in range(glacier_dimensions.y):
-        for x in range(glacier_dimensions.x):
-            var cell_position: Vector2i = Vector2i(x, y)
-            if visited_cells.has(cell_position):
-                continue
-            if should_form_iceberg(glacier_data, cell_position):
-                var iceberg_cluster: Array[Vector2i] = collect_iceberg_cluster(glacier_data, cell_position)
-                mark_cells_as_visited(visited_cells, iceberg_cluster)
-                if iceberg_cluster.size() >= minimum_iceberg_cluster_size:
-                    form_iceberg(glacier_data, iceberg_cluster)
-                    var average_position: Vector2i = calculate_average_position_of_cluster(iceberg_cluster)
-                    iceberg_cluster_formed.emit(average_position)
-
-func should_form_iceberg(glacier_data: GlacierData, cell_position: Vector2i) -> bool:
-    return glacier_data.get_state(cell_position) == GlacierCellState.STATE.FRACTURED and glacier_data.get_time_in_state(cell_position) >= 1 and is_anchored_from_below(glacier_data, cell_position)
-
-func collect_iceberg_cluster(glacier_data: GlacierData, start_cell: Vector2i) -> Array[Vector2i]:
-    return GlacierUtil.collect_connected_cells(
-        glacier_data,
-        start_cell,
-        func(target_cell: Vector2i) -> bool:
-            return glacier_data.get_state(target_cell) == GlacierCellState.STATE.FRACTURED and glacier_data.get_time_in_state(target_cell) >= 1
+func identify_and_form_iceberg_clusters(glacier_data: GlacierData) -> void:
+    GlacierUtil.for_each_cell(glacier_data, func(cell_position) -> void:
+        if glacier_data.IS_AGED_AND_FRACTURED(cell_position):
+            var iceberg_cluster = GlacierUtil.collect_connected_glacier_cells(
+                glacier_data, cell_position, glacier_data.IS_AGED_AND_FRACTURED
+            )
+            form_iceberg_cluster(glacier_data, iceberg_cluster)
     )
 
-func mark_cells_as_visited(visited_cells: Dictionary, iceberg_cluster: Array[Vector2i]) -> void:
-    for cell in iceberg_cluster:
-        visited_cells[cell] = true
 
-func form_iceberg(glacier_data: GlacierData, iceberg_cluster: Array[Vector2i]) -> void:
-    for cell in iceberg_cluster:
-        glacier_data.set_state(cell, GlacierCellState.STATE.ICEBERG)
-        glacier_data.set_time_in_state(cell, 0)
-        glacier_data.set_forced(cell, false)
+func form_iceberg_cluster(glacier_data: GlacierData, iceberg_cluster: Array[Vector2i]) -> void:
+    if iceberg_cluster.size() >= minimum_iceberg_cluster_size:
+        for iceberg_cell: Vector2i in iceberg_cluster:
+            form_iceberg(glacier_data, iceberg_cell)
+        iceberg_cluster_formed.emit(calculate_average_position_of_cluster(iceberg_cluster))
+
+
+func form_iceberg(glacier_data: GlacierData, cell_position: Vector2i) -> void:
+    glacier_data.set_glacier_cell_state(cell_position, GlacierCellState.STATE.ICEBERG)
+    glacier_data.set_glacier_cells_age_in_lifecycle(cell_position, 0)
+
 
 func move_icebergs(glacier_data: GlacierData) -> void:
-    var glacier_dimensions: Vector2i = GlacierUtil.get_glacier_dimensions(glacier_data)
-    var visited_cells: Dictionary = {}
+    GlacierUtil.for_each_cell(glacier_data, func(cell_position: Vector2i) -> void:
+        if glacier_data.IS_AGED_AND_ICEBERG(cell_position):
+            var iceberg_cluster := GlacierUtil.collect_connected_glacier_cells(
+                glacier_data, cell_position, glacier_data.IS_AGED_AND_ICEBERG # TODO: figure out if this function predicate should ever be changed in the future for connectivity
+                                                                                # currently it just glues any adjacent icebergs together immediately -- kind of ugly near the end??
+            )
+            if can_iceberg_cluster_move_down(glacier_data, iceberg_cluster):
+                update_cluster_position(glacier_data, iceberg_cluster, iceberg_cluster.duplicate())
+            else:
+                for cell: Vector2i in iceberg_cluster:
+                    var cell_below := GlacierUtil.CELL_BELOW(cell)
+                    handle_blocking_cell_below(glacier_data, cell_below)
+    , true) # Reverse Y traversal
 
-    for y in range(glacier_dimensions.y - 1, -1, -1):
-        for x in range(glacier_dimensions.x):
-            var cell_position: Vector2i = Vector2i(x, y)
-            if visited_cells.has(cell_position):
-                continue
-            if glacier_data.get_state(cell_position) == GlacierCellState.STATE.ICEBERG and glacier_data.get_time_in_state(cell_position) >= 1:
-                var iceberg_cluster: Array[Vector2i] = collect_iceberg_cluster_by_state(glacier_data, cell_position)
-                mark_cells_as_visited(visited_cells, iceberg_cluster)
-                move_cluster_down_one_step(glacier_data, iceberg_cluster)
-
-func collect_iceberg_cluster_by_state(glacier_data: GlacierData, start_cell: Vector2i) -> Array[Vector2i]:
-    return GlacierUtil.collect_connected_cells(
-        glacier_data,
-        start_cell,
-        func(cluster_cell: Vector2i) -> bool:
-            return glacier_data.get_state(cluster_cell) == GlacierCellState.STATE.ICEBERG
-    )
-
-# TODO 1: Add logic to ensure that blocking cells turn into FRACTURED state, and the whole cluster enters the movement phase only after waiting for at least 1 second to allow the blocking cell to become ICEBERG state.
-# TODO 2: Investigate and fix issues related to iceberg clusters stopping movement when new icebergs form/merge with them, and those icebergs are blocked elsewhere (e.g. by older icebergs or fractured cells).
-# TODO 3: Address the speed issue where some iceberg clusters move down at a rate of 2 cells per second, which may be too fast for the intended gameplay or mechanics.
-func move_cluster_down_one_step(glacier_data: GlacierData, iceberg_cluster: Array[Vector2i]) -> bool:
-    var glacier_dimensions: Vector2i = GlacierUtil.get_glacier_dimensions(glacier_data)
-    var initial_cluster: Array[Vector2i] = iceberg_cluster.duplicate()
-
-    if not try_move_cluster(glacier_data, iceberg_cluster, glacier_dimensions):
-        return false
-
-    update_cluster_position(glacier_data, iceberg_cluster, initial_cluster)
-    return true
-
-func try_move_cluster(glacier_data: GlacierData, iceberg_cluster: Array[Vector2i], glacier_dimensions: Vector2i) -> bool:
-    for cell in iceberg_cluster:
-        var cell_below: Vector2i = cell + Vector2i(0, 1)
-        if cell_below.y >= glacier_dimensions.y:
+func can_iceberg_cluster_move_down(
+    glacier_data: GlacierData, iceberg_cluster: Array[Vector2i]
+) -> bool:
+    var glacier_dimensions := GlacierUtil.get_glacier_grid_dimensions(glacier_data)
+    for cell_position: Vector2i in iceberg_cluster:
+        var has_reached_bottom_of_screen: bool = cell_position.y >= glacier_dimensions.y
+        if has_reached_bottom_of_screen:
             return false
-
-        var state_below: int = glacier_data.get_state(cell_below)
-        match state_below:
-            GlacierCellState.STATE.INTACT:
-                request_forced_fracture.emit(cell_below)
-                return false
-
-            GlacierCellState.STATE.FRACTURED:
-                if not handle_fractured_cell(glacier_data, iceberg_cluster, cell_below):
-                    return false
-
-            GlacierCellState.STATE.ICEBERG:
-                if not iceberg_cluster.has(cell_below):
-                    iceberg_cluster.append(cell_below)
-    return true
-
-func handle_fractured_cell(glacier_data: GlacierData, iceberg_cluster: Array[Vector2i], cell_below: Vector2i) -> bool:
-    if glacier_data.is_forced(cell_below):
-        if glacier_data.get_time_in_state(cell_below) >= 1:
-            unify_cluster_with_cell(glacier_data, iceberg_cluster, cell_below)
-        else:
+        var cell_below = GlacierUtil.CELL_BELOW(cell_position)
+        if not GlacierUtil.is_valid_glacier_cell(glacier_data, cell_below):
             return false
-    else:
-        unify_cluster_with_cell(glacier_data, iceberg_cluster, cell_below)
+        if glacier_data.IS_AGED_AND_INTACT(cell_below):
+            return false
+        if glacier_data.IS_AGED_AND_FRACTURED(cell_below):
+            return false
+        if not is_cell_open_for_iceberg_movement(glacier_data, cell_below):
+            return false
     return true
 
-func unify_cluster_with_cell(glacier_data: GlacierData, iceberg_cluster: Array[Vector2i], start_cell: Vector2i) -> void:
-    var additional_cells: Array[Vector2i] = GlacierUtil.collect_connected_cells(
-        glacier_data,
-        start_cell,
-        func(p: Vector2i) -> bool:
-            return glacier_data.is_forced(p)
-    )
-    iceberg_cluster += additional_cells
 
-func update_cluster_position(glacier_data: GlacierData, iceberg_cluster: Array[Vector2i], initial_cluster: Array[Vector2i]) -> void:
-    for cell in initial_cluster:
-        glacier_data.set_state(cell, GlacierCellState.STATE.NONE)
-    for i in range(iceberg_cluster.size()):
-        iceberg_cluster[i] += Vector2i(0, 1)
-    for cell in iceberg_cluster:
-        glacier_data.set_state(cell, GlacierCellState.STATE.ICEBERG)
-        if initial_cluster.has(cell):
-            glacier_data.set_time_in_state(cell, 0)
+func is_cell_open_for_iceberg_movement(glacier_data: GlacierData, cell_position: Vector2i) -> bool:
+    return glacier_data.IS_NONE(cell_position) or glacier_data.IS_AGED_AND_ICEBERG(cell_position)
 
-func is_anchored_from_below(glacier_data: GlacierData, cell_position: Vector2i) -> bool:
-    var glacier_dimensions: Vector2i = GlacierUtil.get_glacier_dimensions(glacier_data)
-    if cell_position.y == glacier_dimensions.y - 1:
-        return true
-    var cell_below: Vector2i = cell_position + Vector2i(0, 1)
-    if GlacierUtil.is_valid_cell(glacier_data, cell_below):
-        var state_below: int = glacier_data.get_state(cell_below)
-        return state_below == GlacierCellState.STATE.FRACTURED or state_below == GlacierCellState.STATE.ICEBERG
-    return false
 
-func calculate_average_position_of_cluster(cluster_cells: Array[Vector2i]) -> Vector2i:
+func handle_blocking_cell_below(glacier_data: GlacierData, cell_below: Vector2i) -> void:
+    if not GlacierUtil.is_valid_glacier_cell(glacier_data, cell_below):
+        return
+    if glacier_data.IS_AGED_AND_INTACT(cell_below):
+        force_fracture_glacier_cell.emit(cell_below)
+    elif glacier_data.IS_AGED_AND_FRACTURED(cell_below):
+        form_iceberg(glacier_data, cell_below)
+
+
+func update_cluster_position(
+    glacier_data: GlacierData, iceberg_cluster: Array[Vector2i], initial_cluster: Array[Vector2i]
+) -> void:
+    for cell_position: Vector2i in initial_cluster:
+        glacier_data.set_glacier_cell_state(cell_position, GlacierCellState.STATE.NONE)
+    for i: int in range(iceberg_cluster.size()):
+        iceberg_cluster[i] = GlacierUtil.CELL_BELOW(iceberg_cluster[i])
+    for cell_position: Vector2i in iceberg_cluster:
+        form_iceberg(glacier_data, cell_position)
+
+
+func calculate_average_position_of_cluster(iceberg_cluster: Array[Vector2i]) -> Vector2i:
     var total_position: Vector2i = Vector2i.ZERO
-    for cell in cluster_cells:
-        total_position += cell
-    return total_position / cluster_cells.size()
+    for cell_position: Vector2i in iceberg_cluster:
+        total_position += cell_position
+    return total_position / iceberg_cluster.size()

@@ -18,8 +18,10 @@ const TILE_SIZE: Vector2i = IMAGE_TEXTURE_SIZE
 const GRID_TILE_SIZE: Vector2i = Vector2i(1, 1)
 const ATLAS_SEPARATION: Vector2i = Vector2i(0, 0)
 
+
 func _ready() -> void:
     initialize_glacier_surface()
+
 
 func initialize_glacier_surface() -> void:
     glacier_surface = TileMapLayer.new()
@@ -31,6 +33,7 @@ func initialize_glacier_surface() -> void:
     var glacier_scene: PackedScene = PackedScene.new()
     glacier_scene.pack(glacier_surface)
     ResourceSaver.save(glacier_scene, "res://Resources/TileMaps/GlacierMap.tscn")
+
 
 func fill_initial_states() -> void:
     var glacier_height: int = 8
