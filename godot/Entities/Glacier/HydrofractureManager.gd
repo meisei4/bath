@@ -3,9 +3,9 @@ class_name HydrofractureManager
 
 signal cell_fractured(cell_position: Vector2i)
 
-@export var maximum_fracture_depth: int = 5
-@export var fracture_propagation_probability: float = 0.4
-@export var maximum_new_fractures_per_cycle: int = 2
+@export var maximum_fracture_depth: int = 3
+@export var fracture_propagation_probability: float = 0.2
+@export var maximum_new_fractures_per_cycle: int = 1
 
 
 func run_hydrofracture_cycle(glacier_data: GlacierData) -> void:

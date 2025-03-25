@@ -32,7 +32,7 @@ func form_iceberg(glacier_data: GlacierData, cell_position: Vector2i) -> void:
 func move_icebergs(glacier_data: GlacierData) -> void:
     GlacierUtil.for_each_cell(glacier_data, func(cell_position: Vector2i) -> void:
         if glacier_data.IS_AGED_AND_ICEBERG(cell_position):
-            var iceberg_cluster := GlacierUtil.collect_connected_glacier_cells(
+            var iceberg_cluster: Array[Vector2i] = GlacierUtil.collect_connected_glacier_cells(
                 glacier_data, cell_position, glacier_data.IS_AGED_AND_ICEBERG # TODO: figure out if this function predicate should ever be changed in the future for connectivity
                                                                                 # currently it just glues any adjacent icebergs together immediately -- kind of ugly near the end??
             )
@@ -40,14 +40,14 @@ func move_icebergs(glacier_data: GlacierData) -> void:
                 update_cluster_position(glacier_data, iceberg_cluster, iceberg_cluster.duplicate())
             else:
                 for cell: Vector2i in iceberg_cluster:
-                    var cell_below := GlacierUtil.CELL_BELOW(cell)
+                    var cell_below: Vector2i = GlacierUtil.CELL_BELOW(cell)
                     handle_blocking_cell_below(glacier_data, cell_below)
     , true) # Reverse Y traversal
 
 func can_iceberg_cluster_move_down(
     glacier_data: GlacierData, iceberg_cluster: Array[Vector2i]
 ) -> bool:
-    var glacier_dimensions := GlacierUtil.get_glacier_grid_dimensions(glacier_data)
+    var glacier_dimensions: Vector2i = GlacierUtil.get_glacier_grid_dimensions(glacier_data)
     for cell_position: Vector2i in iceberg_cluster:
         var has_reached_bottom_of_screen: bool = cell_position.y >= glacier_dimensions.y
         if has_reached_bottom_of_screen:

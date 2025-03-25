@@ -155,7 +155,7 @@ static func get_glacier_grid_dimensions(glacier_data: GlacierData) -> Vector2i:
 
 
 static func for_each_cell(
-    glacier_data: GlacierData, callback: Callable, reverse_y := false
+    glacier_data: GlacierData, callback: Callable, reverse_y: bool = false
 ) -> void:
     var glacier_dimensions: Vector2i = get_glacier_grid_dimensions(glacier_data)
     var y_range = range(glacier_dimensions.y)
@@ -163,5 +163,5 @@ static func for_each_cell(
         y_range = range(glacier_dimensions.y - 1, -1, -1)
     for y in y_range:
         for x in range(glacier_dimensions.x):
-            var cell_position := Vector2i(x, y)
+            var cell_position: Vector2i = Vector2i(x, y)
             callback.call(cell_position)
