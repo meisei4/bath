@@ -1,8 +1,6 @@
 shader_type canvas_item;
 
 #include "res://Resources/Shaders/constants.gdshaderinc"
-uniform float iTime;
-uniform vec3 iMouse;
 //uniform sampler2D iChannel0; // Assign: res://Assets/Textures/gray_noise_small.png (noise displacement map)
 uniform sampler2D iChannel1; // Assign: res://Assets/Textures/rocks.jpg (background texture)
 //uniform sampler2D iChannel2; // Assign: res://Assets/Textures/pebbles.png (caustics displacement map)
@@ -18,7 +16,7 @@ vec4 sample_background_with_disp_map(sampler2D tex, vec2 uv) {
     ));
 
     vec2 refracted_offset = refract(INCIDENT_DIRECTION, normal, REFRACTION_INDEX_RATIO).xy;
-    vec2 bg_uv = uv + refracted_offset * 0.05;
+    vec2 bg_uv = uv + refracted_offset;// * 0.05;
     return texture(tex, bg_uv);
 }
 
