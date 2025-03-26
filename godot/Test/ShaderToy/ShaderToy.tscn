@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3 uid="uid://bfvhn2l87bcu8"]
+
+[ext_resource type="Script" uid="uid://bwnllv465pgku" path="res://godot/Test/ShaderToy/ShaderToy.gd" id="1_e6vqi"]
+
+[node name="ShaderToy" type="Node2D"]
+script = ExtResource("1_e6vqi")
+metadata/_custom_type_script = "uid://bwnllv465pgku"
