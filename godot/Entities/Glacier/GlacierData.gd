@@ -2,7 +2,7 @@ extends Node
 class_name GlacierData
 
 var glacier_cells_states: Array = []
-var glacier_cells_ages_in_lifecycle: Array = [] #TODO: really still???
+var glacier_cells_ages_in_lifecycle: Array = []  #TODO: really still???
 
 
 func initialize_from_tilemap(tilemap: TileMapLayer) -> void:

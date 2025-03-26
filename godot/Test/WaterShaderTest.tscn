@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3 uid="uid://qpvgtwq5eu8x"]
+
+[ext_resource type="Script" uid="uid://ixcekp0shmym" path="res://godot/Test/WaterShaderTest.gd" id="1_kpqnj"]
+
+[node name="WaterShaderTest" type="Node2D"]
+script = ExtResource("1_kpqnj")
+metadata/_custom_type_script = "uid://ixcekp0shmym"

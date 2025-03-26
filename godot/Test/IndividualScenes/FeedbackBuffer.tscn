@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://kyhxh0jq0k0"]
+
+[ext_resource type="Script" uid="uid://dguykbm82f0ip" path="res://godot/Test/IndividualScenes/FeedbackBuffer.gd" id="1_4de2f"]
+
+[node name="FeedbackBuffer" type="Node2D"]
+script = ExtResource("1_4de2f")
