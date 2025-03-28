@@ -1,86 +1,91 @@
 extends Node2D
 class_name PingPongDirect
 
-var shader: Shader = load("res://Resources/Shaders/simple_feedback_buffer.gdshader")
-var shader_material: ShaderMaterial
+var ShaderNode: ColorRect
+var FeedbackShader: Shader = load("res://Resources/Shaders/simple_feedback_buffer.gdshader")
+var FeedbackShaderMaterial: ShaderMaterial
 
-var iTime: float = 0.0
-var iMouse: Vector3 = Vector3(0.0, 0.0, 0.0)
+var iMouse: Vector4
 
-var buffer_A: SubViewport
-var buffer_B: SubViewport
-var active_buffer: SubViewport
-var inactive_buffer: SubViewport
-var shader_node: CanvasItem
-var image: CanvasItem
+var BufferA: SubViewport
+var BufferB: SubViewport
+var ActiveBuffer: SubViewport
+var InactiveBuffer: SubViewport
+var FinalImage: TextureRect
 
 func _ready() -> void:
     var main_viewport_size: Vector2 = get_viewport_rect().size
-    buffer_A = create_viewport(main_viewport_size)
-    buffer_B = create_viewport(main_viewport_size)
-    active_buffer = buffer_A
-    inactive_buffer = buffer_B
+    BufferA = create_viewport(main_viewport_size)
+    BufferB = create_viewport(main_viewport_size)
+    ActiveBuffer = BufferA
+    InactiveBuffer = BufferB
 
-    image = TextureRect.new()
-    image.size = main_viewport_size
-    add_child(buffer_A)
-    add_child(buffer_B)
-    add_child(image)
+    FinalImage = TextureRect.new()
+    FinalImage.size = main_viewport_size
+    add_child(BufferA)
+    add_child(BufferB)
+    add_child(FinalImage)
 
-    shader_material = ShaderMaterial.new()
-    shader_node = ColorRect.new() #only this works for shader
-    shader_node.size = main_viewport_size
-    shader_material.shader = shader
-    shader_node.material = shader_material
+    FeedbackShaderMaterial = ShaderMaterial.new()
+    ShaderNode = ColorRect.new()
+    ShaderNode.size = main_viewport_size
+    FeedbackShaderMaterial.shader = FeedbackShader
+    ShaderNode.material = FeedbackShaderMaterial
 
-    shader_material.set_shader_parameter("iResolution", main_viewport_size)
-
-    active_buffer.add_child(shader_node)
+    ActiveBuffer.add_child(ShaderNode)
     await RenderingServer.frame_post_draw
-    image.texture = active_buffer.get_texture()
-    shader_material.set_shader_parameter("iChannel0", image.get_texture())
-    #Control
-    shader_node.anchor_left = 0.0
-    shader_node.anchor_top = 0.0
-    shader_node.anchor_right = 0.0
-    shader_node.anchor_bottom = 0.0
-    #shader_node.offset_left = 0.0
-    #shader_node.offset_top = 0.0
-    #shader_node.offset_right = 0.0
-    #shader_node.offset_bottom = 0.0
-    shader_node.pivot_offset = Vector2(0, 0)
-    shader_node.position = Vector2(0, 0)
-    shader_node.rotation = 0.0
-    shader_node.rotation_degrees = 0.0
-    shader_node.scale = Vector2(1, 1)
-
-    shader_node.focus_mode = Control.FOCUS_NONE
-    shader_node.grow_horizontal = Control.GROW_DIRECTION_END
-    shader_node.grow_vertical = Control.GROW_DIRECTION_END
-    shader_node.layout_direction = Control.LAYOUT_DIRECTION_INHERITED
-
+    FinalImage.texture = ActiveBuffer.get_texture()
+    FeedbackShaderMaterial.set_shader_parameter("iResolution", main_viewport_size)
+    FeedbackShaderMaterial.set_shader_parameter("iChannel0", FinalImage.get_texture())
 
 func create_viewport(size: Vector2) -> SubViewport:
-    var vp = SubViewport.new()
-    vp.size = size
-    vp.disable_3d = true
-    vp.render_target_clear_mode = SubViewport.CLEAR_MODE_ONCE
-    vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+    var subviewport: SubViewport = SubViewport.new()
+    subviewport.size = size
+    subviewport.disable_3d = true
+    subviewport.render_target_clear_mode = SubViewport.CLEAR_MODE_ONCE
+    subviewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+    return subviewport
 
-    return vp
+#func _process(_delta: float) -> void:
+    #var mouse_coords: Vector2 = get_viewport().get_mouse_position()
+    #var mouse_z: float = 1.0 if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) else 0.0
+    #iMouse = Vector3(mouse_coords.x, mouse_coords.y, mouse_z)
+    #FeedbackShaderMaterial.set_shader_parameter("iMouse", iMouse)
+    #
+    #FinalImage.texture = ActiveBuffer.get_texture()
+    #ActiveBuffer.remove_child(ShaderNode)
+    #InactiveBuffer.add_child(ShaderNode)
+    #FeedbackShaderMaterial.set_shader_parameter("iChannel0", FinalImage.get_texture())
+#
+    #var tmp: SubViewport = ActiveBuffer
+    #ActiveBuffer = InactiveBuffer
+    #InactiveBuffer = tmp
 
 
-func _process(delta: float) -> void:
-    var mouse_coords: Vector2 = get_viewport().get_mouse_position()
-    var mouse_z: float = 1.0 if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) else 0.0
-    iMouse = Vector3(mouse_coords.x, mouse_coords.y, mouse_z)
-    shader_material.set_shader_parameter("iMouse", iMouse)
 
-    image.texture = active_buffer.get_texture()
-    active_buffer.remove_child(shader_node)
-    inactive_buffer.add_child(shader_node)
-    shader_material.set_shader_parameter("iChannel0", image.get_texture())
+var mouse_pressed: bool = false
+var drag_start: Vector2 = Vector2()
 
-    var temp = active_buffer
-    active_buffer = inactive_buffer
-    inactive_buffer = temp
+func _process(_delta: float) -> void:
+    var current_pos: Vector2 = get_viewport().get_mouse_position()
+    if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+        if not mouse_pressed:
+            drag_start = current_pos
+            iMouse = Vector4(current_pos.x, current_pos.y, drag_start.x, drag_start.y)
+            mouse_pressed = true
+        else:
+            iMouse.x = current_pos.x
+            iMouse.y = current_pos.y
+    else:
+        if mouse_pressed:
+            iMouse = Vector4(current_pos.x, current_pos.y, -drag_start.x, -drag_start.y)
+            mouse_pressed = false
+
+    FeedbackShaderMaterial.set_shader_parameter("iMouse", iMouse)
+    FinalImage.texture = ActiveBuffer.get_texture()
+    ActiveBuffer.remove_child(ShaderNode)
+    InactiveBuffer.add_child(ShaderNode)
+
+    var tmp: SubViewport = ActiveBuffer
+    ActiveBuffer = InactiveBuffer
+    InactiveBuffer = tmp

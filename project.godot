@@ -32,8 +32,8 @@ gdscript/warnings/unsafe_call_argument=1
 
 [display]
 
-window/size/viewport_width=512
-window/size/viewport_height=768
+window/size/viewport_width=800
+window/size/viewport_height=450
 
 [editor_plugins]
 
@@ -64,4 +64,6 @@ down={
 
 [rendering]
 
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
 environment/defaults/default_clear_color=Color(0, 0, 0, 1)
