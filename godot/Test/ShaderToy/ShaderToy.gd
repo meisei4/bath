@@ -1,104 +1,94 @@
 extends Node2D
 class_name ShaderToy
 
+var background_image: Texture = load("res://Assets/Textures/rocks.jpg")
 var caustic_shader: Shader = load("res://Resources/Shaders/water.gdshader")
 var caustic_material: ShaderMaterial
-#var feedback_buffer_shader: Shader = load("res://Resources/Shaders/simple_feedback_buffer.gdshader")
-#TODO:^^the above works fine just with up till BufferC being the texture fed into the shader as feedback
-#TODO: see https://www.shadertoy.com/view/W3s3W8, it works the same way i think
-#var ripple_shader: Shader = load("res://Resources/Shaders/finite_approx_ripple.gdshader")
-var ripple_shader: Shader = load("res://Resources/Shaders/all_in_one_ripple.gdshader")
+var ripple_shader: Shader = load("res://Resources/Shaders/finite_approx_ripple.gdshader")
 var ripple_material: ShaderMaterial
-
-var background_image: Texture = load("res://Assets/Textures/rocks.jpg")
 
 var iTime: float = 0.0
 var iMouse: Vector3 = Vector3(0.0, 0.0, 0.0)
 
-var BufferA: SubViewport
-var BufferA_Image: ColorRect
-var BufferB: SubViewport
-var BufferB_Image: TextureRect
-var BufferC: TextureRect
-var BufferD: SubViewport
-var BufferD_Image: ColorRect
-var BufferE: SubViewport
-var BufferE_Image: TextureRect
-var MainImage: TextureRect
 
+var RippleBufferA: SubViewport
+var RippleBufferB: SubViewport
+var RippleMainImage: TextureRect
+
+var ActiveBuffer: SubViewport
+var inactive_buffer: SubViewport
+var RippleShader: ColorRect
+
+var WaterBuffer: SubViewport
+var WaterMainImage: TextureRect
+var WaterShader: ColorRect
 
 func _ready() -> void:
-    var main_viewport_size: Vector2 = get_viewport_rect().size  # THIS WILL ALWAYS BE THE WINDOW I THINK
-    BufferA = SubViewport.new()
-    BufferA.render_target_clear_mode = SubViewport.CLEAR_MODE_ONCE
-    BufferA.size = main_viewport_size
+    var main_viewport_size: Vector2 = get_viewport_rect().size  # Window size
 
-    BufferA_Image = ColorRect.new()
-    BufferA_Image.color = Color(0.0, 0.0, 0.0, 0.0)
-    BufferA_Image.size = main_viewport_size
+    ## Initialize Ripple (Ping-Pong) Buffers and Shader
+    RippleBufferA = create_viewport(main_viewport_size)
+    RippleBufferB = create_viewport(main_viewport_size)
+    ActiveBuffer = RippleBufferA
+    inactive_buffer = RippleBufferB
+
+    RippleShader = ColorRect.new()
+    RippleShader.size = main_viewport_size
     ripple_material = ShaderMaterial.new()
-    ripple_material.shader = self.ripple_shader
-    BufferA_Image.material = self.ripple_material
-
-    BufferB = SubViewport.new()
-    BufferB.render_target_clear_mode = SubViewport.CLEAR_MODE_ONCE
-    BufferB.size = main_viewport_size
-
-    BufferB_Image = TextureRect.new()
-    BufferB_Image.size = main_viewport_size
-
-    BufferB_Image.texture = BufferA.get_texture()
-
-    BufferC = TextureRect.new()
-    BufferC.size = main_viewport_size
-    BufferC.texture = BufferB.get_texture()
-
-    BufferA.add_child(BufferA_Image)
-    BufferB.add_child(BufferB_Image)
-    add_child(BufferA)
-    add_child(BufferB)
-    add_child(BufferC)
-
-    ripple_material.set_shader_parameter("iChannel0", BufferC.texture)
-    ripple_material.set_shader_parameter("iChannel1", background_image)
+    ripple_material.shader = ripple_shader
     ripple_material.set_shader_parameter("iResolution", main_viewport_size)
+    RippleShader.material = ripple_material
 
-    #BufferD = SubViewport.new()
-    #BufferD.render_target_clear_mode = SubViewport.CLEAR_MODE_ONCE
-    #BufferD.size = main_viewport_size
-#
-    #BufferD_Image = ColorRect.new()
-    #BufferD_Image.size = main_viewport_size
-    #caustic_material = ShaderMaterial.new()
-    #caustic_material.shader = self.caustic_shader
-    #BufferD_Image.material = self.caustic_material
-#
-    #BufferE = SubViewport.new()
-    #BufferE.render_target_clear_mode = SubViewport.CLEAR_MODE_ONCE
-    #BufferE.size = main_viewport_size
-#
-    #BufferE_Image = TextureRect.new()
-    #BufferE_Image.size = main_viewport_size
-    #BufferE_Image.texture = BufferD.get_texture()
-#
-    #MainImage = TextureRect.new()
-    #MainImage.size = main_viewport_size
-    #MainImage.texture = BufferE.get_texture()
+    # Add the ripple shader to the active buffer
+    ActiveBuffer.add_child(RippleShader)
 
-    #BufferD.add_child(BufferD_Image)
-    #BufferE.add_child(BufferE_Image)
-    #add_child(BufferD)
-    #add_child(BufferE)
-    #add_child(MainImage)
+    # Set up the TextureRect to capture the ripple output
+    RippleMainImage = TextureRect.new()
+    RippleMainImage.size = main_viewport_size
 
-    #caustic_material.set_shader_parameter("iChannel1", background_image)
-    #caustic_material.set_shader_parameter("iChannel3", MainImage.texture)
+    ## Initialize Water (Caustic) Shader and Buffer
+    WaterBuffer = create_viewport(main_viewport_size)
+    WaterShader = ColorRect.new()
+    WaterShader.size = main_viewport_size
+    caustic_material = ShaderMaterial.new()
+    caustic_material.shader = caustic_shader
+    WaterShader.material = caustic_material
+
+    # Add the water shader node to its buffer
+    WaterBuffer.add_child(WaterShader)
+
+    # Set up the TextureRect to capture the water shader output
+    WaterMainImage = TextureRect.new()
+    WaterMainImage.size = main_viewport_size
+
+    ## Add Nodes to the Scene
+    add_child(ActiveBuffer)
+    add_child(inactive_buffer)
+    add_child(RippleMainImage)
+    add_child(WaterBuffer)
+    add_child(WaterMainImage)
+
+    ## Wait for the first frame to ensure render targets are updated
+    #await RenderingServer.frame_post_draw
+    ## Initialize Shader Texture Parameters after textures are valid
+    RippleMainImage.texture = ActiveBuffer.get_texture()
+    ripple_material.set_shader_parameter("iChannel0", RippleMainImage.texture)
+
+    WaterMainImage.texture = WaterBuffer.get_texture()
+    caustic_material.set_shader_parameter("iChannel3", RippleMainImage.texture)
+    caustic_material.set_shader_parameter("iChannel1", background_image)
 
 
-#TODO: I have no idea about the frozen shakey stuff in the result, seems like its not able to recognize even the following:
-# 1- there needs to be an understood equilibrium of the heightmap
-# 2- might be screwing up the viewport stuff up above
-func _physics_process(delta: float) -> void:
+
+func create_viewport(size: Vector2) -> SubViewport:
+    var vp = SubViewport.new()
+    vp.size = size
+    vp.disable_3d = true
+    vp.render_target_clear_mode = SubViewport.CLEAR_MODE_ONCE
+    vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+    return vp
+
+func _process(delta: float) -> void:
     iTime += delta
     var mouse_coords: Vector2 = get_viewport().get_mouse_position()
     var mouse_z: int = 1.0 if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) else 0.0
@@ -106,3 +96,13 @@ func _physics_process(delta: float) -> void:
     #print("Mouse Position: ", mouse_coords, " | Mouse Z (pressed): ", mouse_z)
     ripple_material.set_shader_parameter("iTime", iTime)
     ripple_material.set_shader_parameter("iMouse", iMouse)
+
+    RippleMainImage.texture = ActiveBuffer.get_texture()
+    ripple_material.set_shader_parameter("iChannel0", RippleMainImage.texture)
+    caustic_material.set_shader_parameter("iChannel3", RippleMainImage.texture)
+    ActiveBuffer.remove_child(RippleShader)
+    inactive_buffer.add_child(RippleShader)
+
+    var temp = ActiveBuffer
+    ActiveBuffer = inactive_buffer
+    inactive_buffer = temp
