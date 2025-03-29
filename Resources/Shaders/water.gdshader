@@ -9,11 +9,11 @@ uniform sampler2D iChannel2; //"file://assets/textures/pebbles.png"           //
 uniform sampler2D iChannel3; // this should be whats getting updated by buffer
 
 // debug macros
-#define PIXELATE_UV
+//#define PIXELATE_UV
 #define SHOW_NOISE_DISP_MAP_1
 #define SHOW_NOISE_DISP_MAP_2
 #define SHOW_CAUSTICS_DISP_MAP_1
-#define SHOW_CAUSTICS_DISP_MAP_2
+//#define SHOW_CAUSTICS_DISP_MAP_2
 #define SHOW_BACKGROUND
 #define RIPPLE_EFFECT
 
