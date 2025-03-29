@@ -23,7 +23,7 @@ uniform sampler2D iChannel0;
 #define BASE_DAMPENING 0.85 // EFFECTIVE_DAMPENING to vary between 95% and 15% of 95%
 
 //EFFECTIVE PARAMETERS DERVIED FROM IDEAL PARAMETERS AND BASE PARAMETERS:
-#define EFFECTIVE_SAMPLE_STEP (BASE_SAMPLE_STEP * SPEED_FACTOR)  
+#define EFFECTIVE_SAMPLE_STEP (BASE_SAMPLE_STEP * SPEED_FACTOR)
 #define EFFECTIVE_RIPPLE_SCALE (RIPPLE_SCALE / sqrt(SPEED_FACTOR))
 #define IMPULSE_INNER_RADIUS  (0.025 * EFFECTIVE_RIPPLE_SCALE)
 #define IMPULSE_OUTER_RADIUS (IMPULSE_INNER_RADIUS + IMPULSE_WAVE_WIDTH * EFFECTIVE_RIPPLE_SCALE)
@@ -37,7 +37,7 @@ float sample_height(sampler2D tex, vec2 uv) {
 }
 
 void fragment() {
-//void mainImage(out vec4 frag_color, in vec2 frag_coord) {    
+//void mainImage(out vec4 frag_color, in vec2 frag_coord) {
     vec2 uv = FRAGCOORD.xy / iResolution.xy;
     //vec2 uv = frag_coord.xy / iResolution.xy;
 
@@ -45,16 +45,16 @@ void fragment() {
     float adjusted_sample_step = EFFECTIVE_SAMPLE_STEP * (iResolution.x / iResolution.y);
     vec2 neighbor_offset_x = vec2(EFFECTIVE_SAMPLE_STEP, 0.0);
     vec2 neighbor_offset_y = vec2(0.0, adjusted_sample_step);
-    
+
     vec2 prev_heights = texture(iChannel0, uv).rg;
     float height_left   = sample_height(iChannel0, uv - neighbor_offset_x);
     float height_right  = sample_height(iChannel0, uv + neighbor_offset_x);
     float height_bottom = sample_height(iChannel0, uv - neighbor_offset_y);
     float height_top    = sample_height(iChannel0, uv + neighbor_offset_y);
-    
+
     vec2 mouse_position = iMouse.xy / iResolution.xy;
     float mouse_impulse = 0.0;
-    
+
     if (iMouse.z > 0.0) {
         float uv_distance_from_mouse = length(mouse_position - uv);
         mouse_impulse = BASE_IMPULSE_STRENGTH * smoothstep(IMPULSE_OUTER_RADIUS, IMPULSE_INNER_RADIUS, uv_distance_from_mouse);
@@ -64,7 +64,7 @@ void fragment() {
     float new_height = prev_heights.r + EFFECTIVE_PROPAGATION * (avg_neighbor_height - prev_heights.g);
     new_height *= EFFECTIVE_DAMPENING;
     new_height += mouse_impulse;
-    
+
     COLOR = vec4(new_height, prev_heights.r, mouse_position.x, mouse_position.y);
     //frag_color = vec4(new_height, prev_heights.r, mouse_position.x, mouse_position.y);
 }

@@ -33,7 +33,6 @@ func _ready() -> void:
     ShaderNode.material = FeedbackShaderMaterial
 
     ActiveBuffer.add_child(ShaderNode)
-    await RenderingServer.frame_post_draw
     FinalImage.texture = ActiveBuffer.get_texture()
     FeedbackShaderMaterial.set_shader_parameter("iResolution", main_viewport_size)
     FeedbackShaderMaterial.set_shader_parameter("iChannel0", FinalImage.get_texture())
@@ -42,6 +41,8 @@ func create_viewport(size: Vector2) -> SubViewport:
     var subviewport: SubViewport = SubViewport.new()
     subviewport.size = size
     subviewport.disable_3d = true
+    subviewport.use_hdr_2d = true #TODO: THIS IS HUGE!
+    RenderingServer.set_default_clear_color(Color(0.0, 0.0, 0.0, 1.0))
     subviewport.render_target_clear_mode = SubViewport.CLEAR_MODE_ONCE
     subviewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
     return subviewport

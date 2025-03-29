@@ -1,5 +1,5 @@
 //TODO: THESE ARE MAYBE FUN TO FUCK WITH WITH AUDIO INPUT
-#define NORMAL_SAMPLE_OFFSET 1e-4 
+#define NORMAL_SAMPLE_OFFSET 1e-4
 #define NORMAL_Z_SCALE           1.0  // Multiplier for the Z component in the normal
 #define AIR_REFRACTION_INDEX     1.0
 #define WATER_REFRACTION_INDEX   1.08

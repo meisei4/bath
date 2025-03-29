@@ -4,7 +4,7 @@ shader_type canvas_item;
 uniform sampler2D iChannel0;
 uniform vec3 iMouse;
 uniform vec2 iResolution;
-const float DECAY_FACTOR = 0.985;
+const float DECAY_FACTOR = 0.975;
 
 const float CIRCLE_OUTER_RADIUS = 0.08;
 const float CIRCLE_INNER_RADIUS = 0.06;
@@ -14,10 +14,7 @@ const vec4 RED = vec4(1.0, 0.0, 0.0, 1.0);
 void fragment() {
     //vec2 UV = frag_coord.xy / iResolution.xy;
     vec4 previous_frames_fragment_color = texture(iChannel0, UV);
-    //in godot Limited texture precision (8/16-bit) and purely additive blending can prevent very small values from decaying to zero causing a persistent color burn.
-    //Thus we combine multiplicative decay with a subtractive clamp to force near-zero values to black.
-    vec4 decayed_previous_frames_fragment_color = previous_frames_fragment_color * DECAY_FACTOR - vec4(0.005);
-    decayed_previous_frames_fragment_color = max(decayed_previous_frames_fragment_color, vec4(0.0)); // Clamp to 0
+    vec4 decayed_previous_frames_fragment_color = previous_frames_fragment_color * DECAY_FACTOR;
     vec2 mouse_uv = iMouse.xy / iResolution.xy;
     if (iMouse.z > 0.0){
         float current_fragments_distance_from_moving_circle = distance(UV, mouse_uv);
