@@ -1,3 +1,4 @@
+#TODO: figure out the reason for the buffer errors again. for some reason they are being not ping ponged in time
 extends Node2D
 class_name ShaderToy
 
@@ -11,11 +12,13 @@ var RippleShader: Shader = load("res://Resources/Shaders/finite_approx_ripple.gd
 #var RippleShader: Shader = load("res://Resources/Shaders/buffer_sampling_clamp_test.gdshader")
 var RippleShaderMaterial: ShaderMaterial
 
+var NoiseTexture: Texture = load("res://Assets/Textures/gray_noise_small.png")
 var BackgroundTexture: Texture = load("res://Assets/Textures/rocks.jpg")
 var CausticsTexture: Texture = load("res://Assets/Textures/pebbles.png")
 
-
+#var iMouse: Vector3
 var iMouse: Vector4
+var iTime: float
 var BufferA: SubViewport
 var BufferB: SubViewport
 var BufferC: SubViewport
@@ -29,11 +32,13 @@ func _ready() -> void:
     var main_viewport_size: Vector2 = get_viewport_rect().size
     BufferA = create_viewport(main_viewport_size)
     BufferB = create_viewport(main_viewport_size)
+    #TODO: this was the fix! it allows for the texture format for the subviewport sampling to go from R10G10B10A2_UNORM (10 bit precision unsigned normalized) to 16 bit FLOATS!
+    BufferA.use_hdr_2d = true
+    BufferB.use_hdr_2d = true
     ActiveBuffer = BufferA
     InactiveBuffer = BufferB
 
     RippleImage = TextureRect.new()
-
     RippleImage.size = main_viewport_size
     add_child(BufferA)
     add_child(BufferB)
@@ -46,12 +51,12 @@ func _ready() -> void:
     RippleShaderNode.material = RippleShaderMaterial
 
     ActiveBuffer.add_child(RippleShaderNode)
-
     RippleImage.texture = ActiveBuffer.get_texture()
     RippleShaderMaterial.set_shader_parameter("iResolution", main_viewport_size)
     RippleShaderMaterial.set_shader_parameter("iChannel0", RippleImage.get_texture())
 
     BufferC = create_viewport(main_viewport_size)
+    BufferC.use_hdr_2d = false #TODO: without this the noise texture goes insane
     FinalImage = TextureRect.new()
     FinalImage.size = main_viewport_size
     add_child(BufferC)
@@ -64,22 +69,21 @@ func _ready() -> void:
     WaterShaderNode.material = WaterShaderMaterial
 
     BufferC.add_child(WaterShaderNode)
-
+    await RenderingServer.frame_post_draw
     FinalImage.texture = BufferC.get_texture()
     WaterShaderMaterial.set_shader_parameter("iResolution", main_viewport_size)
-    WaterShaderMaterial.set_shader_parameter("iChannel0", RippleImage.get_texture())
-    #WaterShaderMaterial.set_shader_parameter("iChannel0", CausticsTexture) #TODO: shadertoy does wrapping = repeat not clamp see
+    WaterShaderMaterial.set_shader_parameter("iChannel0", NoiseTexture)
     WaterShaderMaterial.set_shader_parameter("iChannel1", BackgroundTexture)
+    WaterShaderMaterial.set_shader_parameter("iChannel2", CausticsTexture) #TODO: shadertoy does wrapping = repeat not clamp see
+    WaterShaderMaterial.set_shader_parameter("iChannel3", RippleImage.get_texture())
+
 
 
 func create_viewport(size: Vector2) -> SubViewport:
     var subviewport: SubViewport = SubViewport.new()
     subviewport.size = size
     subviewport.disable_3d = true
-    #TODO: this was the fix! it allows for the texture format for the subviewport sampling to go from R10G10B10A2_UNORM (10 bit precision unsigned normalized) to 16 bit FLOATS!
-    subviewport.use_hdr_2d = true
-    RenderingServer.set_default_clear_color(Color(0.0, 0.0, 0.0, 0.0))
-    subviewport.transparent_bg
+    RenderingServer.set_default_clear_color(Color.BLACK)
     subviewport.render_target_clear_mode = SubViewport.CLEAR_MODE_ONCE
     subviewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
     return subviewport
@@ -87,7 +91,13 @@ func create_viewport(size: Vector2) -> SubViewport:
 var mouse_pressed: bool = false
 var drag_start: Vector2 = Vector2()
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
+    iTime += delta
+    WaterShaderMaterial.set_shader_parameter("iTime", iTime)
+
+    #var mouse_xy: Vector2 = get_viewport().get_mouse_position()
+    #var mouse_z: float = 1.0 if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) else 0.0
+    #iMouse = Vector3(mouse_xy.x, mouse_xy.y, mouse_z)
     var current_pos: Vector2 = get_viewport().get_mouse_position()
     if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
         if not mouse_pressed:
