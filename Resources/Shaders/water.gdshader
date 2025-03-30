@@ -2,18 +2,18 @@ shader_type canvas_item;
 
 #include "res://Resources/Shaders/constants.gdshaderinc"
 uniform vec2 iResolution;
-uniform float iTime;
-uniform sampler2D iChannel0; //"file://assets/textures/gray_noise_small.png"  // noise displacement map (red channel)
-uniform sampler2D iChannel1; //"file://assets/textures/rocks.jpg"             // background texture (full-color)
-uniform sampler2D iChannel2; //"file://assets/textures/pebbles.png"           // caustics displacement map (red channel)
-uniform sampler2D iChannel3; // this should be whats getting updated by buffer
+
+uniform sampler2D iChannel0: repeat_enable; //"file://assets/textures/gray_noise_small.png"  // noise displacement map (red channel)
+uniform sampler2D iChannel1: repeat_enable; //"file://assets/textures/rocks.jpg"             // background texture (full-color)
+uniform sampler2D iChannel2: repeat_enable; //"file://assets/textures/pebbles.png"           // caustics displacement map (red channel)
+uniform sampler2D iChannel3; // this will be the viewport texture/buffer that holds the ripple feedback heightmap
 
 // debug macros
-//#define PIXELATE_UV
+#define PIXELATE_UV
 #define SHOW_NOISE_DISP_MAP_1
 #define SHOW_NOISE_DISP_MAP_2
 #define SHOW_CAUSTICS_DISP_MAP_1
-//#define SHOW_CAUSTICS_DISP_MAP_2
+#define SHOW_CAUSTICS_DISP_MAP_2
 #define SHOW_BACKGROUND
 #define RIPPLE_EFFECT
 
@@ -22,7 +22,8 @@ vec2 pixelate_uv(vec2 uv) {
 }
 
 vec2 scroll_displacement_map(vec2 uv, vec2 velocity, vec2 positional_offset) {
-    return uv + iTime * velocity + positional_offset;
+    return uv + TIME * velocity + positional_offset;
+    //return uv + iTime * velocity + positional_offset;
 }
 
 vec4 sample_disp_map(
@@ -50,31 +51,18 @@ vec4 sample_background_with_disp_map(
 }
 
 vec2 compute_ripple_offset(vec2 uv) {
-    // Wave simulation buffer (iChannel3) only stores a single "height" channel;
-    // we sample neighbors here to derive slope (dX, dY).
-    // The wave pass might use a different neighbor step (e.g. "EFFECTIVE_SAMPLE_STEP");
-    // we choose NORMAL_SAMPLE_OFFSET here purely for rendering normals.
-    float height_center = texture(iChannel3, uv).r;  // Might be unused if we only use neighbors
+    float height_center = texture(iChannel3, uv).r; 
     float height_left   = texture(iChannel3, uv - vec2(NORMAL_SAMPLE_OFFSET, 0.0)).r;
     float height_right  = texture(iChannel3, uv + vec2(NORMAL_SAMPLE_OFFSET, 0.0)).r;
     float height_up     = texture(iChannel3, uv + vec2(0.0, NORMAL_SAMPLE_OFFSET)).r;
     float height_down   = texture(iChannel3, uv - vec2(0.0, NORMAL_SAMPLE_OFFSET)).r;
     float d_x = height_right - height_left;
     float d_y = height_up    - height_down;
-    // --- 2. Build a 3D normal vector.
-    // Notice we multiply the Z part by NORMAL_Z_SCALE * NORMAL_SAMPLE_OFFSET
-    // so we can control how "tilted" the surface is.
     vec3 raw_normal = vec3(d_x, d_y, NORMAL_Z_SCALE * NORMAL_SAMPLE_OFFSET);
     vec3 surface_normal = normalize(raw_normal);
-    // --- 3. Refract the "incident direction" through this normal
     vec3 refracted = refract(INCIDENT_DIRECTION, surface_normal, REFRACTION_INDEX_RATIO);
     return refracted.xy;
 }
-
-// vec4 sample_background_with_height_map(sampler2D background_tex, vec2 uv) {
-//     vec2 bg_uv = uv + refracted_offset;
-//     return texture(background_tex, bg_uv);
-// }
 
 float compute_effective_opacity(
     vec4 noise_disp_map_1,
@@ -99,7 +87,8 @@ float compute_effective_opacity(
 
 void fragment(){
 //void mainImage(out vec4 frag_color, in vec2 frag_coord) {
-    vec2 uv = FRAGCOORD.xy / iResolution.xy;
+    vec2 uv = vec2(FRAGCOORD.x, iResolution.y - FRAGCOORD.y) / iResolution.xy;
+    //vec2 uv = FRAGCOORD.xy / iResolution.xy;
     //vec2 uv = frag_coord / iResolution.xy;
 
     vec4 noise_disp_map_1 = vec4(0.0);

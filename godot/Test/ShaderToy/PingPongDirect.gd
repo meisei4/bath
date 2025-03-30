@@ -6,7 +6,8 @@ var FeedbackShader: Shader = load("res://Resources/Shaders/simple_feedback_buffe
 var FeedbackShaderMaterial: ShaderMaterial
 
 var iMouse: Vector4
-
+#TODO: hahaha this whole this is defunct because i found out you can just do uniform sampler2D iChannel0: hint_screen_texture; in gdshader
+# dear lord godot shader resources do not provide proper examples to make this clear...
 var BufferA: SubViewport
 var BufferB: SubViewport
 var ActiveBuffer: SubViewport

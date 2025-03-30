@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://cka7frik0f3y8"]
 
-[ext_resource type="Script" uid="uid://dgtvbucuv3yig" path="res://godot/Test/ShaderToy/PingPongDirect.gd" id="1_wxgc4"]
+[ext_resource type="Script" uid="uid://dfbfbp10s2oap" path="res://godot/Test/ShaderToy/PingPongDirect.gd" id="1_wxgc4"]
 
 [node name="PingPongDirect" type="Node2D"]
 script = ExtResource("1_wxgc4")
