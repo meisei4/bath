@@ -22,6 +22,7 @@ var BufferA: SubViewport
 var BufferB: SubViewport
 var FinalImage: TextureRect
 
+
 func _ready() -> void:
     NoiseImage.convert(Image.FORMAT_R8)
     NoiseTexture = ImageTexture.create_from_image(NoiseImage)
@@ -47,7 +48,7 @@ func _ready() -> void:
     BufferB.use_hdr_2d = false  #TODO: without this the noise texture goes insane, feel like it should be able to be controlled by the ImageTexture channel format...
     FinalImage = TextureRect.new()
     FinalImage.texture = BufferB.get_texture()
-    FinalImage.flip_v = true # flip because shadertoy has fragment coordinates at origin bottom left (godot is top left)
+    FinalImage.flip_v = true  # flip because shadertoy has fragment coordinates at origin bottom left (godot is top left)
     WaterShaderMaterial = ShaderMaterial.new()
     WaterShaderNode = ColorRect.new()
     WaterShaderNode.size = iResolution
@@ -60,6 +61,7 @@ func _ready() -> void:
     BufferB.add_child(WaterShaderNode)
     add_child(BufferB)
     add_child(FinalImage)
+
 
 func create_viewport(size: Vector2) -> SubViewport:
     var subviewport: SubViewport = SubViewport.new()
