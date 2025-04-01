@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3 uid="uid://d1xslcrnermka"]
+
+[ext_resource type="Script" uid="uid://bx64i3bndw08o" path="res://godot/Shaders/WaterCaustics.gd" id="1_wuqjh"]
+
+[node name="WaterCaustics" type="Node2D"]
+script = ExtResource("1_wuqjh")
+metadata/_custom_type_script = "uid://bx64i3bndw08o"

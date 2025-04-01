@@ -1,11 +1,11 @@
 shader_type canvas_item;
 
-#include "res://Resources/Shaders/constants.gdshaderinc"
+#include "res://Resources/Shaders/Water/constants.gdshaderinc"
 uniform vec2 iResolution;
 
-uniform sampler2D iChannel0: repeat_enable; //"file://assets/textures/gray_noise_small.png"  // noise displacement map (red channel)
-uniform sampler2D iChannel1: repeat_enable; //"file://assets/textures/rocks.jpg"             // background texture (full-color)
-uniform sampler2D iChannel2: repeat_enable; //"file://assets/textures/pebbles.png"           // caustics displacement map (red channel)
+uniform sampler2D iChannel0: repeat_enable, filter_linear_mipmap; //"file://assets/textures/gray_noise_small.png"  // noise displacement map (red channel)
+uniform sampler2D iChannel1: repeat_enable, filter_linear_mipmap; //"file://assets/textures/rocks.jpg"             // background texture (full-color)
+uniform sampler2D iChannel2: repeat_enable, filter_linear_mipmap; //"file://assets/textures/pebbles.png"           // caustics displacement map (red channel)
 uniform sampler2D iChannel3; // this will be the viewport texture/buffer that holds the ripple feedback heightmap
 
 // debug macros
@@ -51,7 +51,7 @@ vec4 sample_background_with_disp_map(
 }
 
 vec2 compute_ripple_offset(vec2 uv) {
-    float height_center = texture(iChannel3, uv).r; 
+    float height_center = texture(iChannel3, uv).r;
     float height_left   = texture(iChannel3, uv - vec2(NORMAL_SAMPLE_OFFSET, 0.0)).r;
     float height_right  = texture(iChannel3, uv + vec2(NORMAL_SAMPLE_OFFSET, 0.0)).r;
     float height_up     = texture(iChannel3, uv + vec2(0.0, NORMAL_SAMPLE_OFFSET)).r;

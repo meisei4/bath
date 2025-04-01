@@ -1,8 +1,8 @@
 //TODO: THESE ARE MAYBE FUN TO FUCK WITH WITH AUDIO INPUT
 #define NORMAL_SAMPLE_OFFSET     0.001 // How far we sample around uv to find local slope
 #define NORMAL_Z_SCALE           1.0  // Multiplier for the Z component in the normal
-#define AIR_REFRACTION_INDEX     1.0     
-#define WATER_REFRACTION_INDEX   1.08      
+#define AIR_REFRACTION_INDEX     1.0
+#define WATER_REFRACTION_INDEX   1.08
 #define REFRACTION_INDEX_RATIO   (AIR_REFRACTION_INDEX/ WATER_REFRACTION_INDEX) // For water ~0.75. Try (1.0 / 1.5)=~0.67 (glass), (1.0 / 2.4)=~0.42 (diamond), etc.
 #define INCIDENT_DIRECTION       vec3(0.0, 0.0, -1.0) // "Camera is looking down" direction
 
