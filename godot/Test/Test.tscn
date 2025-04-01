@@ -1,11 +1,10 @@
-[gd_scene load_steps=13 format=3 uid="uid://dwpcwke04tlr"]
+[gd_scene load_steps=12 format=3 uid="uid://dwpcwke04tlr"]
 
 [ext_resource type="Script" uid="uid://b7ucrt8ynrevb" path="res://godot/Test/Test.gd" id="1_k00w0"]
 [ext_resource type="PackedScene" uid="uid://bdggn0k77quie" path="res://godot/Shaders/Particles/TrailingParticles.tscn" id="2_rmw64"]
 [ext_resource type="PackedScene" uid="uid://gojtcht0h7py" path="res://godot/Shaders/Particles/GlacialParticles.tscn" id="5_1yku5"]
 [ext_resource type="PackedScene" uid="uid://df7d3yxentwdh" path="res://godot/Shaders/Particles/SnowfallParticles.tscn" id="7_5ki8c"]
 [ext_resource type="Script" uid="uid://5u8sw6c1dmi7" path="res://godot/Entities/Iruka.gd" id="7_qrpq1"]
-[ext_resource type="PackedScene" uid="uid://f1ko4ucy2j58" path="res://godot/Test/IndividualScenes/GlacierTest.tscn" id="8_jpfyv"]
 [ext_resource type="Script" uid="uid://cc28m2wpv6ur3" path="res://godot/Components/Character/CharacterComponents.gd" id="8_y7e4t"]
 [ext_resource type="Script" uid="uid://b85osbgh3dxkl" path="res://godot/Test/Audio/SFXTest.gd" id="9_klk7r"]
 [ext_resource type="PackedScene" uid="uid://dtxdm6aiao7c1" path="res://Resources/TileMaps/WaterBody.tscn" id="9_rnct0"]
@@ -25,8 +24,6 @@ emission_colors = PackedColorArray()
 [node name="GlacialParticles" parent="." instance=ExtResource("5_1yku5")]
 
 [node name="SnowfallParticles" parent="." instance=ExtResource("7_5ki8c")]
-
-[node name="GlacierTest" parent="." instance=ExtResource("8_jpfyv")]
 
 [node name="Iruka" type="CharacterBody2D" parent="."]
 script = ExtResource("7_qrpq1")
