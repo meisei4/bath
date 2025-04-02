@@ -7,7 +7,7 @@ uniform vec2 iResolution;
 uniform sampler2D iChannel0: hint_screen_texture;
 
 #define TILE_SIZE 16.0
-#define MAX_ICEBERGS 8u
+#define MAX_ICEBERGS 16u
 //TODO: !!!!If you expect more tiles than you can comfortably pass as a uniform array, you would switch to passing them via a small texture instead.
 uniform vec2 iceberg_positions[MAX_ICEBERGS];
 uniform vec2 iceberg_velocities[MAX_ICEBERGS];
@@ -16,7 +16,7 @@ uniform int cluster_offsets[128];  // pairs: [start_index, end_index, ...]
 
 //IDEAL ADJUSTABLE PARAMETERS:
 //EFFECTIVE DOMAIN: [0.5, 20.0] UNITS: multiplier against base 1.0 size (percentage of screen resolution)
-#define RIPPLE_SCALE 0.1 // to scale the size of the ripple
+#define RIPPLE_SCALE 0.25 // to scale the size of the ripple
 //EFFECTIVE DOMAIN: [0.1, 1.0] UNITS: multiplier against base 1x speed
 #define SPEED_FACTOR 1.0 // to slow down ripple
 //EFFECTIVE DOMAIN: [-0.34, 1.0] TRY -0.34 to break things,
@@ -40,30 +40,10 @@ uniform int cluster_offsets[128];  // pairs: [start_index, end_index, ...]
 #define EFFECTIVE_PROPAGATION (BASE_PROPAGATION + 0.15 * PROPAGATION_INTENSITY)  // Ranges from 1.0 to 1.15.
 #define EFFECTIVE_DAMPENING (BASE_DAMPENING - 0.15 * PROPAGATION_INTENSITY) // Ranges from 95% down to 15% of 95%
 
-#define SILHOUTTE_BAND (0.0) //(IMPULSE_WAVE_WIDTH * EFFECTIVE_RIPPLE_SCALE) 
-
 float sample_height(sampler2D tex, vec2 uv) {
     if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0)
         return 0.0;
     return texture(tex, uv).r;
-}
-
-
-float compute_wavefront(vec2 uv, vec2 iceberg_position, vec2 iceberg_wavefront_velocity) {
-    float uv_distance_from_iceberg_wavefront = length(iceberg_position - uv);
-    //float audio_factor = get_audio_scale_factor();
-    float audio_effective_inner_radius = IMPULSE_INNER_RADIUS;// * audio_factor;
-    float audio_effective_outer_radius = IMPULSE_OUTER_RADIUS;// * audio_factor;
-    float radial_impulse = BASE_IMPULSE_STRENGTH * smoothstep(IMPULSE_OUTER_RADIUS, IMPULSE_INNER_RADIUS, uv_distance_from_iceberg_wavefront);
-    float movement = length(iceberg_wavefront_velocity);
-    float directional_factor = 1.0;
-    if (movement > 0.001) {
-        vec2 wavefront_velocity_direction = normalize(iceberg_wavefront_velocity);
-        vec2 to_fragment = normalize(uv - iceberg_position);
-        directional_factor = step(0.0, dot(wavefront_velocity_direction, to_fragment));
-    }
-
-    return radial_impulse * directional_factor;
 }
 
 float compute_wavefront_advection(vec2 uv, vec2 iceberg_position, vec2 iceberg_wavefront_velocity, vec2 gradient) {
@@ -83,24 +63,27 @@ float distance_to_tile_boundary(vec2 uv, vec2 iceberg_tile_center_uv, vec2 half_
     return max(distance_to_iceberg_tile_boundary.x, distance_to_iceberg_tile_boundary.y);
 }
 
-float distance_to_iceberg_cluster_silhouette_mask(vec2 uv, int cluster_index) {
+float compute_silhouette_mask_wavefront(vec2 uv, int cluster_index, vec2 cluster_velocity) {
     int start_idx = cluster_offsets[cluster_index * 2];
     int end_idx   = cluster_offsets[cluster_index * 2 + 1];
-    
     vec2 iceberg_cluster_anchor_screen_coordinates = iceberg_positions[cluster_index];
     float min_distance = 999999.0;
+    float final_impulse = 0.0;
     for (int i = start_idx; i < end_idx; i++) {
         vec2 local_offset_in_iceberg_cluster_bounding_box_in_screen_coordinates = iceberg_tile_positions[i];
-        //vec2 iceberg_tile_center_in_screen_coordinates = iceberg_cluster_anchor_screen_coordinates + local_offset_in_iceberg_cluster_bounding_box_in_screen_coordinates;
         vec2 iceberg_tile_center_in_screen_coordinates = iceberg_cluster_anchor_screen_coordinates + local_offset_in_iceberg_cluster_bounding_box_in_screen_coordinates + vec2(TILE_SIZE * 0.5, TILE_SIZE * 0.5);
         vec2 iceberg_tile_center_in_uv_coordinates = iceberg_tile_center_in_screen_coordinates / iResolution;
         vec2 half_tile_size_uv = vec2(TILE_SIZE * 0.5) / iResolution;
         float distance_to_tile_boundary = distance_to_tile_boundary(uv, iceberg_tile_center_in_uv_coordinates, half_tile_size_uv);
-        if (distance_to_tile_boundary < min_distance) {
-            min_distance = distance_to_tile_boundary;
-        }
+        //float audio_factor = get_audio_scale_factor();
+        float audio_effective_inner_radius = IMPULSE_INNER_RADIUS;// * audio_factor;
+        float audio_effective_outer_radius = IMPULSE_OUTER_RADIUS;// * audio_factor;
+        float wave_factor = smoothstep(audio_effective_outer_radius, audio_effective_inner_radius, distance_to_tile_boundary);
+        vec2 to_fragment = normalize(uv - iceberg_tile_center_in_uv_coordinates);
+        float directional_factor = clamp(dot(normalize(cluster_velocity), to_fragment), 0.0, 1.0);
+        final_impulse += BASE_IMPULSE_STRENGTH * wave_factor * directional_factor;
     }
-    return min_distance;
+    return final_impulse;
 }
 
 void fragment(){
@@ -117,29 +100,19 @@ void fragment(){
 
     float silhouette_impulse = 0.0;
     for (int i = 0; i < iceberg_positions.length(); i++) {
-        float min_distance = distance_to_iceberg_cluster_silhouette_mask(uv, i);
-        float wave_factor = smoothstep(SILHOUTTE_BAND, -SILHOUTTE_BAND, min_distance);
-        silhouette_impulse += wave_factor * BASE_IMPULSE_STRENGTH;
+        silhouette_impulse += compute_silhouette_mask_wavefront(uv, i, iceberg_velocities[i]);
     }
-    
-    float wavefront_impulse = 0.0;
-    for (int i = 0; i < iceberg_positions.length(); i++) {
-        vec2 iceberg_position_uv = iceberg_positions[i] / iResolution.xy; // Ensure same space as uv
-        wavefront_impulse += compute_wavefront(uv, iceberg_position_uv, iceberg_velocities[i]);
-    }
-    
     float avg_neighbor_height = (height_left + height_right + height_top + height_bottom) / 4.0;
     float new_height = prev_heights.r + EFFECTIVE_PROPAGATION * (avg_neighbor_height - prev_heights.g);
     new_height *= EFFECTIVE_DAMPENING;
     new_height += silhouette_impulse;
-    //new_height += wavefront_impulse;
     vec2 gradient = vec2(height_right - height_left, height_top - height_bottom);
     float total_advection = 0.0;
     for (int i = 0; i < iceberg_positions.length(); i++) {
         vec2 iceberg_position_uv = iceberg_positions[i] / iResolution.xy;
         total_advection += compute_wavefront_advection(uv, iceberg_position_uv, iceberg_velocities[i], gradient);
     }
-    new_height += -0.060 * total_advection;
+    new_height += -0.070 * total_advection;
     COLOR = vec4(new_height, prev_heights.r, 0.0, 1.0);
     //frag_color = vec4(new_height, prev_heights.r, 0.0, 1.0);
 }
