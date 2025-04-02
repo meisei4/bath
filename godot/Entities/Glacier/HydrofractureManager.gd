@@ -3,10 +3,6 @@ class_name HydrofractureManager
 
 signal cell_fractured(cell_position: Vector2i)
 
-@export var maximum_fracture_depth: int = 3
-@export var fracture_propagation_probability: float = 0.2
-@export var maximum_new_fractures_per_cycle: int = 1
-
 
 func run_hydrofracture_cycle(glacier_data: GlacierData) -> void:
     var hydrofracture_initiation_candidates: Array[Vector2i] = gather_hydrofracture_initiation_candidates(
@@ -42,21 +38,20 @@ func reduce_hydrofracture_candidates_for_current_cycle(
     fracture_candidates: Array[Vector2i]
 ) -> Array[Vector2i]:
     return fracture_candidates.slice(
-        0, min(maximum_new_fractures_per_cycle, fracture_candidates.size())
+        0, min(GlacierConstants.MAXIMUM_NEW_FRACTURES_PER_CYCLE, fracture_candidates.size())
     )
 
 
 func propagate_fractures(
     glacier_data: GlacierData, hydrofracture_initiation_cells: Array[Vector2i]
 ) -> void:
-    for cell_position: Vector2i in hydrofracture_initiation_cells:
-        GlacierUtil.propagate_hydrofracture_using_bfs(
-            glacier_data,
-            cell_position,
-            maximum_fracture_depth,
-            fracture_propagation_probability,
-            self.fracture_glacier_cell  #TODO: figure out if this will ever need to be a different function???
-        )
+    GlacierUtil.multi_source_hydrofracture(
+        glacier_data,
+        hydrofracture_initiation_cells,
+        GlacierConstants.MAXIMUM_FRACTURE_DEPTH,
+        GlacierConstants.FRACTURE_PROPAGATION_PROBABILITY,
+        self.fracture_glacier_cell
+    )
 
 
 func fracture_glacier_cell(glacier_data: GlacierData, cell_position: Vector2i) -> void:

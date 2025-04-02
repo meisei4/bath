@@ -6,21 +6,21 @@ render_mode blend_disabled; // TODO you have to do this if you want to send feed
 uniform vec2 iResolution;
 uniform sampler2D iChannel0: hint_screen_texture;
 
-#define TILE_SIZE 16.0
-#define MAX_ICEBERGS 16u
+#define MAX_ICEBERGS 24u
 //TODO: !!!!If you expect more tiles than you can comfortably pass as a uniform array, you would switch to passing them via a small texture instead.
 uniform vec2 iceberg_positions[MAX_ICEBERGS];
 uniform vec2 iceberg_velocities[MAX_ICEBERGS];
 uniform vec2 iceberg_tile_positions[1024];  //TODO: 1024 this should be just how many INTACT glacier tiles there are at the start of the sim
 uniform int cluster_offsets[128];  // pairs: [start_index, end_index, ...]
+uniform float tile_size;
 
 //IDEAL ADJUSTABLE PARAMETERS:
 //EFFECTIVE DOMAIN: [0.5, 20.0] UNITS: multiplier against base 1.0 size (percentage of screen resolution)
-#define RIPPLE_SCALE 0.25 // to scale the size of the ripple
+#define RIPPLE_SCALE 0.1 // to scale the size of the ripple
 //EFFECTIVE DOMAIN: [0.1, 1.0] UNITS: multiplier against base 1x speed
-#define SPEED_FACTOR 1.0 // to slow down ripple
+#define SPEED_FACTOR 0.5 // to slow down ripple
 //EFFECTIVE DOMAIN: [-0.34, 1.0] TRY -0.34 to break things,
-#define PROPAGATION_INTENSITY -0.0 //to speed up the ripple
+#define PROPAGATION_INTENSITY 0.0 //to speed up the ripple
 //EFFECTIVE DOMAIN: [0.025, 0.5], UNITS: percentage of canvas resolution
 #define IMPULSE_WAVE_WIDTH 0.025 //to adjust the wave front width
 
@@ -30,7 +30,7 @@ uniform int cluster_offsets[128];  // pairs: [start_index, end_index, ...]
 #define BASE_IMPULSE_STRENGTH -0.015 // Base impulse strength (height units per frame)
 #define BASE_PROPAGATION 1.0 // EFFECTIVE_PROPAGATION to vary between 1.0 and 1.15,
 // TODO: tie this with the advent
-#define BASE_DAMPENING 0.85 // EFFECTIVE_DAMPENING to vary between 95% and 15% of 95%
+#define BASE_DAMPENING 0.6 // EFFECTIVE_DAMPENING to vary between 95% and 15% of 95%
 
 //EFFECTIVE PARAMETERS DERVIED FROM IDEAL PARAMETERS AND BASE PARAMETERS:
 #define EFFECTIVE_SAMPLE_STEP (BASE_SAMPLE_STEP * SPEED_FACTOR)
@@ -71,9 +71,9 @@ float compute_silhouette_mask_wavefront(vec2 uv, int cluster_index, vec2 cluster
     float final_impulse = 0.0;
     for (int i = start_idx; i < end_idx; i++) {
         vec2 local_offset_in_iceberg_cluster_bounding_box_in_screen_coordinates = iceberg_tile_positions[i];
-        vec2 iceberg_tile_center_in_screen_coordinates = iceberg_cluster_anchor_screen_coordinates + local_offset_in_iceberg_cluster_bounding_box_in_screen_coordinates + vec2(TILE_SIZE * 0.5, TILE_SIZE * 0.5);
+        vec2 iceberg_tile_center_in_screen_coordinates = iceberg_cluster_anchor_screen_coordinates + local_offset_in_iceberg_cluster_bounding_box_in_screen_coordinates + vec2(tile_size * 0.5, tile_size * 0.5);
         vec2 iceberg_tile_center_in_uv_coordinates = iceberg_tile_center_in_screen_coordinates / iResolution;
-        vec2 half_tile_size_uv = vec2(TILE_SIZE * 0.5) / iResolution;
+        vec2 half_tile_size_uv = vec2(tile_size * 0.5) / iResolution;
         float distance_to_tile_boundary = distance_to_tile_boundary(uv, iceberg_tile_center_in_uv_coordinates, half_tile_size_uv);
         //float audio_factor = get_audio_scale_factor();
         float audio_effective_inner_radius = IMPULSE_INNER_RADIUS;// * audio_factor;

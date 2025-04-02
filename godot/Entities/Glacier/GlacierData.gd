@@ -2,6 +2,7 @@ extends Node
 class_name GlacierData
 
 var glacier_cells_states: Array = []
+var dirty_cells: Array = []
 var glacier_cells_ages_in_lifecycle: Array = []  #TODO: really still???
 
 
@@ -72,6 +73,7 @@ func get_glacier_cell_state(cell_position: Vector2i) -> int:
 
 func set_glacier_cell_state(cell_position: Vector2i, new_state: int) -> void:
     glacier_cells_states[cell_position.y][cell_position.x] = new_state
+    dirty_cells.append(cell_position)
 
 
 func get_glacier_cells_age_in_lifecycle(cell_position: Vector2i) -> int:

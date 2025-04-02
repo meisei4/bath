@@ -1,60 +1,54 @@
 extends Node
 class_name GlacierUtil
 
-const UP: Vector2i = Vector2i(0, -1)
-const DOWN: Vector2i = Vector2i(0, 1)
-const LEFT: Vector2i = Vector2i(-1, 0)
-const RIGHT: Vector2i = Vector2i(1, 0)
-
-const CARDINAL_DIRECTIONS: Array[Vector2i] = [LEFT, RIGHT, UP, DOWN]
-
 
 static func CELL_ABOVE(cell_position: Vector2i) -> Vector2i:
-    return cell_position + UP
+    return cell_position + GlacierConstants.UP
 
 
 static func CELL_BELOW(cell_position: Vector2i) -> Vector2i:
-    return cell_position + DOWN
+    return cell_position + GlacierConstants.DOWN
 
 
 static func CELL_LEFT(cell_position: Vector2i) -> Vector2i:
-    return cell_position + LEFT
+    return cell_position + GlacierConstants.LEFT
 
 
 static func CELL_RIGHT(cell_position: Vector2i) -> Vector2i:
-    return cell_position + RIGHT
+    return cell_position + GlacierConstants.RIGHT
 
 
 const CELL_KEY: String = "cell"
 const DEPTH_KEY: String = "depth"
 
 
-static func propagate_hydrofracture_using_bfs(
+static func multi_source_hydrofracture(
     glacier_data: GlacierData,
-    starting_cell: Vector2i,
-    maximum_fracture_depth: int,
-    fracture_spread_probability: float,
-    on_fracture_callback: Callable
+    initiation_cells: Array[Vector2i],
+    max_depth: int,
+    fracture_prob: float,
+    fracture_callback: Callable
 ) -> void:
-    # use Breadth-First Search (BFS) to simulate the propagation of a hydrofracture from a starting cell
-    var visited_cells: Dictionary[Vector2i, bool] = {}
-    var bfs_queue: Array[Dictionary] = [{CELL_KEY: starting_cell, DEPTH_KEY: 0}]
-    while bfs_queue.size() > 0:
-        var current_element: Dictionary = bfs_queue.pop_front()
-        var current_cell: Vector2i = current_element[CELL_KEY]
-        var current_depth: int = current_element[DEPTH_KEY]
-        if visited_cells.has(current_cell):
+    var visited: Dictionary[Vector2i, bool] = {}
+    var queue: Array[Dictionary] = []
+    for cell in initiation_cells:
+        queue.append({CELL_KEY: cell, DEPTH_KEY: 0})
+
+    while queue.size() > 0:
+        var current = queue.pop_front()
+        var current_pos: Vector2i = current[CELL_KEY]
+        var depth: int = current[DEPTH_KEY]
+
+        if visited.has(current_pos):
             continue
-        visited_cells[current_cell] = true
-        if glacier_data.IS_INTACT(current_cell):
-            on_fracture_callback.callv([glacier_data, current_cell])
-            if current_depth < maximum_fracture_depth:
+        visited[current_pos] = true
+
+        if glacier_data.IS_INTACT(current_pos):
+            fracture_callback.callv([glacier_data, current_pos])
+            if depth < max_depth:
+                # Instead of BFS from one cell, keep going for all of them
                 gather_cell_candidates_for_potential_fracturing(
-                    glacier_data,
-                    current_cell,
-                    current_depth,
-                    fracture_spread_probability,
-                    bfs_queue
+                    glacier_data, current_pos, depth, fracture_prob, queue
                 )
 
 
@@ -75,8 +69,9 @@ static func gather_cell_candidates_for_potential_fracturing(
     for neighbor: Vector2i in get_cardinal_neighbors(glacier_data, current_cell):
         if neighbor == cell_below:
             continue
-        if glacier_data.IS_AGED_AND_INTACT(neighbor) and randf() < fracture_spread_probability:
-            bfs_queue.append({CELL_KEY: neighbor, DEPTH_KEY: current_depth + 1})
+        _try_append_neighbor(
+            glacier_data, neighbor, current_depth, fracture_spread_probability, bfs_queue
+        )
 
 
 static func collect_connected_glacier_cells(
@@ -97,7 +92,7 @@ static func collect_connected_glacier_cells(
             for neighbor: Vector2i in get_cardinal_neighbors(glacier_data, current_cell):
                 if not visited_cells.has(neighbor):
                     dfs_stack.push_back(neighbor)
-
+        # else, do nothing.
     return connected_cells
 
 
@@ -114,20 +109,20 @@ static func get_cardinal_neighbors(
     glacier_data: GlacierData, cell_position: Vector2i
 ) -> Array[Vector2i]:
     var neighbors: Array[Vector2i] = []
-    #for direction in CARDINAL_DIRECTIONS:
+    #for direction in GlacierConstants.CARDINAL_DIRECTIONS:
     #var neighbor_position: Vector2i = cell_position + direction
     #if is_valid_glacier_cell(glacier_data, neighbor_position):
     #neighbors.append(neighbor_position)
-    for direction: Vector2i in CARDINAL_DIRECTIONS:
+    for direction: Vector2i in GlacierConstants.CARDINAL_DIRECTIONS:
         var neighbor: Vector2i
         match direction:
-            UP:
+            GlacierConstants.UP:
                 neighbor = CELL_ABOVE(cell_position)
-            DOWN:
+            GlacierConstants.DOWN:
                 neighbor = CELL_BELOW(cell_position)
-            LEFT:
+            GlacierConstants.LEFT:
                 neighbor = CELL_LEFT(cell_position)
-            RIGHT:
+            GlacierConstants.RIGHT:
                 neighbor = CELL_RIGHT(cell_position)
 
         if is_valid_glacier_cell(glacier_data, neighbor):
@@ -165,3 +160,14 @@ static func for_each_cell(
         for x: int in range(glacier_dimensions.x):
             var cell_position: Vector2i = Vector2i(x, y)
             callback.call(cell_position)
+
+
+static func _try_append_neighbor(
+    glacier_data: GlacierData,
+    neighbor: Vector2i,
+    current_depth: int,
+    fracture_spread_probability: float,
+    bfs_queue: Array[Dictionary]
+) -> void:
+    if glacier_data.IS_AGED_AND_INTACT(neighbor) and randf() < fracture_spread_probability:
+        bfs_queue.append({CELL_KEY: neighbor, DEPTH_KEY: current_depth + 1})
