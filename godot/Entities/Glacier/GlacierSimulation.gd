@@ -50,16 +50,39 @@ func _on_iceberg_manager_force_fracture_glacier_cell(cell_position: Vector2i) ->
     update_tilemap()
 
 
-func _on_iceberg_cluster_formed(cluster_id: int, iceberg_wavefront_position: Vector2i) -> void:
-    water_caustics_shader.update_iceberg_cluster_position_in_continious_space(
-        cluster_id, Vector2(iceberg_wavefront_position)
+func _on_iceberg_cluster_formed(cluster_id: int, iceberg_cluster: Array[Vector2i]) -> void:
+    var tile_size: float = 16.0  # TODO: FIX THIS EVERYTHWERE IN THE CODE whole codebase!!!
+    var iceberg_cluster_anchor_in_tile_coordinates: Vector2i = (
+        iceberg_manager.calculate_iceberg_cluster_anchor_in_tile_coordinates(iceberg_cluster)
     )
-    update_tilemap()
+
+    (
+        water_caustics_shader
+        . update_iceberg_clusters_anchor_position_from_discrete_tile_space_to_continious_interpolated_screen_space(
+            cluster_id, iceberg_cluster_anchor_in_tile_coordinates
+        )
+    )
+    var start_index: int = water_caustics_shader.iceberg_tile_positions.size()
+    for iceberg_cell: Vector2i in iceberg_cluster:
+        var local_position_in_iceberg_cluster_bounding_box: Vector2 = (
+            (iceberg_cell - iceberg_cluster_anchor_in_tile_coordinates) * tile_size
+        )
+        water_caustics_shader.iceberg_tile_positions.append(
+            local_position_in_iceberg_cluster_bounding_box
+        )
+    var end_index: int = water_caustics_shader.iceberg_tile_positions.size()
+    water_caustics_shader.cluster_offsets.append(start_index)
+    water_caustics_shader.cluster_offsets.append(end_index)
 
 
-func _on_iceberg_cluster_moved(cluster_id: int, iceberg_wavefront_position: Vector2i) -> void:
-    water_caustics_shader.update_iceberg_cluster_position_in_continious_space(
-        cluster_id, Vector2(iceberg_wavefront_position)
+func _on_iceberg_cluster_moved(
+    cluster_id: int, iceberg_cluster_anchor_tile_coordinates: Vector2i
+) -> void:
+    (
+        water_caustics_shader
+        . update_iceberg_clusters_anchor_position_from_discrete_tile_space_to_continious_interpolated_screen_space(
+            cluster_id, iceberg_cluster_anchor_tile_coordinates
+        )
     )
     update_tilemap()
 

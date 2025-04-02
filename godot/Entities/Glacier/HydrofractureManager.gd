@@ -23,7 +23,7 @@ func gather_hydrofracture_initiation_candidates(glacier_data: GlacierData) -> Ar
     var candidate_cells: Array[Vector2i] = []
     GlacierUtil.for_each_cell(
         glacier_data,
-        func(cell_position) -> void:
+        func(cell_position: Vector2i) -> void:
             if cell_is_eligible_for_hydrofracture(glacier_data, cell_position):
                 candidate_cells.append(cell_position)
     )

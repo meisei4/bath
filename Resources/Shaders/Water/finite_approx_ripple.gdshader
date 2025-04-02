@@ -3,15 +3,16 @@ render_mode blend_disabled; // TODO you have to do this if you want to send feed
 
 #include "res://Resources/Shaders/Water/constants.gdshaderinc"
 
-uniform vec3 iMouse;
-
-#define MAX_ICEBERGS 8u
-
-uniform vec2 iceberg_positions[MAX_ICEBERGS];
-uniform vec2 iceberg_velocities[MAX_ICEBERGS];
-
 uniform vec2 iResolution;
 uniform sampler2D iChannel0: hint_screen_texture;
+
+#define TILE_SIZE 16.0
+#define MAX_ICEBERGS 8u
+//TODO: !!!!If you expect more tiles than you can comfortably pass as a uniform array, you would switch to passing them via a small texture instead.
+uniform vec2 iceberg_positions[MAX_ICEBERGS];
+uniform vec2 iceberg_velocities[MAX_ICEBERGS];
+uniform vec2 iceberg_tile_positions[1024];  //TODO: 1024 this should be just how many INTACT glacier tiles there are at the start of the sim
+uniform int cluster_offsets[128];  // pairs: [start_index, end_index, ...]
 
 //IDEAL ADJUSTABLE PARAMETERS:
 //EFFECTIVE DOMAIN: [0.5, 20.0] UNITS: multiplier against base 1.0 size (percentage of screen resolution)
@@ -23,12 +24,13 @@ uniform sampler2D iChannel0: hint_screen_texture;
 //EFFECTIVE DOMAIN: [0.025, 0.5], UNITS: percentage of canvas resolution
 #define IMPULSE_WAVE_WIDTH 0.025 //to adjust the wave front width
 
+
 //BASE PARAMETERS:
 #define BASE_SAMPLE_STEP 0.005
 #define BASE_IMPULSE_STRENGTH -0.015 // Base impulse strength (height units per frame)
 #define BASE_PROPAGATION 1.0 // EFFECTIVE_PROPAGATION to vary between 1.0 and 1.15,
 // TODO: tie this with the advent
-#define BASE_DAMPENING 0.90 // EFFECTIVE_DAMPENING to vary between 95% and 15% of 95%
+#define BASE_DAMPENING 0.85 // EFFECTIVE_DAMPENING to vary between 95% and 15% of 95%
 
 //EFFECTIVE PARAMETERS DERVIED FROM IDEAL PARAMETERS AND BASE PARAMETERS:
 #define EFFECTIVE_SAMPLE_STEP (BASE_SAMPLE_STEP * SPEED_FACTOR)
@@ -37,6 +39,8 @@ uniform sampler2D iChannel0: hint_screen_texture;
 #define IMPULSE_OUTER_RADIUS (IMPULSE_INNER_RADIUS + IMPULSE_WAVE_WIDTH * EFFECTIVE_RIPPLE_SCALE)
 #define EFFECTIVE_PROPAGATION (BASE_PROPAGATION + 0.15 * PROPAGATION_INTENSITY)  // Ranges from 1.0 to 1.15.
 #define EFFECTIVE_DAMPENING (BASE_DAMPENING - 0.15 * PROPAGATION_INTENSITY) // Ranges from 95% down to 15% of 95%
+
+#define SILHOUTTE_BAND (0.0) //(IMPULSE_WAVE_WIDTH * EFFECTIVE_RIPPLE_SCALE) 
 
 float sample_height(sampler2D tex, vec2 uv) {
     if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0)
@@ -74,6 +78,31 @@ float compute_wavefront_advection(vec2 uv, vec2 iceberg_position, vec2 iceberg_w
     return advection * weight;
 }
 
+float distance_to_tile_boundary(vec2 uv, vec2 iceberg_tile_center_uv, vec2 half_size_uv) {
+    vec2 distance_to_iceberg_tile_boundary = abs(uv - iceberg_tile_center_uv) - half_size_uv;
+    return max(distance_to_iceberg_tile_boundary.x, distance_to_iceberg_tile_boundary.y);
+}
+
+float distance_to_iceberg_cluster_silhouette_mask(vec2 uv, int cluster_index) {
+    int start_idx = cluster_offsets[cluster_index * 2];
+    int end_idx   = cluster_offsets[cluster_index * 2 + 1];
+    
+    vec2 iceberg_cluster_anchor_screen_coordinates = iceberg_positions[cluster_index];
+    float min_distance = 999999.0;
+    for (int i = start_idx; i < end_idx; i++) {
+        vec2 local_offset_in_iceberg_cluster_bounding_box_in_screen_coordinates = iceberg_tile_positions[i];
+        //vec2 iceberg_tile_center_in_screen_coordinates = iceberg_cluster_anchor_screen_coordinates + local_offset_in_iceberg_cluster_bounding_box_in_screen_coordinates;
+        vec2 iceberg_tile_center_in_screen_coordinates = iceberg_cluster_anchor_screen_coordinates + local_offset_in_iceberg_cluster_bounding_box_in_screen_coordinates + vec2(TILE_SIZE * 0.5, TILE_SIZE * 0.5);
+        vec2 iceberg_tile_center_in_uv_coordinates = iceberg_tile_center_in_screen_coordinates / iResolution;
+        vec2 half_tile_size_uv = vec2(TILE_SIZE * 0.5) / iResolution;
+        float distance_to_tile_boundary = distance_to_tile_boundary(uv, iceberg_tile_center_in_uv_coordinates, half_tile_size_uv);
+        if (distance_to_tile_boundary < min_distance) {
+            min_distance = distance_to_tile_boundary;
+        }
+    }
+    return min_distance;
+}
+
 void fragment(){
 //void mainImage(out vec4 frag_color, in vec2 frag_coord) {
     vec2 uv = FRAGCOORD.xy / iResolution.xy;
@@ -86,25 +115,31 @@ void fragment(){
     float height_bottom = sample_height(iChannel0, uv - neighbor_offset_y);
     float height_top    = sample_height(iChannel0, uv + neighbor_offset_y);
 
-    float ripple_impulse = 0.0;
+    float silhouette_impulse = 0.0;
+    for (int i = 0; i < iceberg_positions.length(); i++) {
+        float min_distance = distance_to_iceberg_cluster_silhouette_mask(uv, i);
+        float wave_factor = smoothstep(SILHOUTTE_BAND, -SILHOUTTE_BAND, min_distance);
+        silhouette_impulse += wave_factor * BASE_IMPULSE_STRENGTH;
+    }
+    
+    float wavefront_impulse = 0.0;
     for (int i = 0; i < iceberg_positions.length(); i++) {
         vec2 iceberg_position_uv = iceberg_positions[i] / iResolution.xy; // Ensure same space as uv
-        ripple_impulse += compute_wavefront(uv, iceberg_position_uv, iceberg_velocities[i]);
+        wavefront_impulse += compute_wavefront(uv, iceberg_position_uv, iceberg_velocities[i]);
     }
-
+    
     float avg_neighbor_height = (height_left + height_right + height_top + height_bottom) / 4.0;
     float new_height = prev_heights.r + EFFECTIVE_PROPAGATION * (avg_neighbor_height - prev_heights.g);
     new_height *= EFFECTIVE_DAMPENING;
-    new_height += ripple_impulse;
-    //vec2 gradient = vec2(height_right - height_left, height_top - height_bottom);
-        // Compute the gradient of the ripple field.
+    new_height += silhouette_impulse;
+    //new_height += wavefront_impulse;
     vec2 gradient = vec2(height_right - height_left, height_top - height_bottom);
     float total_advection = 0.0;
     for (int i = 0; i < iceberg_positions.length(); i++) {
         vec2 iceberg_position_uv = iceberg_positions[i] / iResolution.xy;
         total_advection += compute_wavefront_advection(uv, iceberg_position_uv, iceberg_velocities[i], gradient);
     }
-    new_height += -0.075 * total_advection;
+    new_height += -0.060 * total_advection;
     COLOR = vec4(new_height, prev_heights.r, 0.0, 1.0);
     //frag_color = vec4(new_height, prev_heights.r, 0.0, 1.0);
 }
