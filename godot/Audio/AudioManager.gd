@@ -1,6 +1,6 @@
 extends Node
 
-const SFX_POOL_SIZE: int = 20
+const SFX_POOL_SIZE: int = 40
 const MUSIC_POOL_SIZE: int = 5
 
 var sfx_pool: Array[AudioStreamPlayer] = []

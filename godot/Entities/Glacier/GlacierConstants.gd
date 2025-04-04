@@ -2,8 +2,8 @@ extends Node
 class_name GlacierConstants
 
 #const IMAGE_TEXTURE_SIZE: Vector2i = Vector2i(16, 16)
-const TILE_SIZE_1D: int = 8
-const SUBDIVISION_FACTOR: int = 2
+const TILE_SIZE_1D: int = 2
+const SUBDIVISION_FACTOR: int = 8
 const DS_RESOLUTION: Vector2i = Vector2i(256, 384)
 const IMAGE_TEXTURE_SIZE: Vector2i = Vector2i(TILE_SIZE_1D, TILE_SIZE_1D)
 const TEXTURE_REGION_SIZE: Vector2i = Vector2i(TILE_SIZE_1D, TILE_SIZE_1D)
@@ -27,10 +27,10 @@ const RIGHT: Vector2i = Vector2i(1, 0)
 const CARDINAL_DIRECTIONS: Array[Vector2i] = [LEFT, RIGHT, UP, DOWN]
 
 const MAXIMUM_FRACTURE_DEPTH: int = 6
-const FRACTURE_PROPAGATION_PROBABILITY: float = 0.35
+const FRACTURE_PROPAGATION_PROBABILITY: float = 0.40
 const MAXIMUM_NEW_FRACTURES_PER_CYCLE: int = 1
 
-const MINIMUM_ICEBERG_CLUSTER_SIZE: int = 24
+const MINIMUM_ICEBERG_CLUSTER_SIZE: int = 60
 
 const FRACTURING_CYCLE_INTERVAL: float = 0.1
 const SIMULATION_TICK_INTERVAL: float = 0.1  #TODO: match this with the actual glacier sim somewhere

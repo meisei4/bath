@@ -6,18 +6,13 @@ const PITCH_STEP: float = 0.1
 const MAX_PITCH: float = 2.0
 const MIN_PITCH: float = 0.5
 
-const MUSIC_TRACK_1: String = "res://Resources/Audio/Music/trimmed_10___What_You_Want_00-40-25_00-41-40.mp3"
-const MUSIC_TRACK_2: String = "res://Resources/Audio/Music/trimmed_01___Only_Shallow_00-03-40_00-04-17.mp3"
-const MUSIC_TRACK_3: String = "res://Resources/Audio/Music/trimmed_03___Touched_00-06-55_00-07-52.mp3"
-const MUSIC_TRACK_4: String = "res://Resources/Audio/Music/trimmed_04___To_Here_Knows_When_00-12-38_00-13-23.mp3"
-const MUSIC_TRACK_5: String = "res://Resources/Audio/Music/trimmed_05___When_You_Sleep_00-17-20_00-17-35.mp3"
 
 var music_list: Array[String] = [
-    MUSIC_TRACK_1,
-    MUSIC_TRACK_2,
-    MUSIC_TRACK_3,
-    MUSIC_TRACK_4,
-    MUSIC_TRACK_5,
+    AudioConsts.MUSIC_TRACK_1,
+    AudioConsts.MUSIC_TRACK_2,
+    AudioConsts.MUSIC_TRACK_3,
+    AudioConsts.MUSIC_TRACK_4,
+    AudioConsts.MUSIC_TRACK_5,
 ]
 
 var option_button_music: OptionButton

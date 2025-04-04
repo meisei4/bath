@@ -26,6 +26,10 @@ func _ready() -> void:
         _on_iceberg_manager_force_fracture_glacier_cell
     )
     update_dirty_tiles()
+    var music_res: AudioStream = load(AudioConsts.MUSIC_TRACK_1) as AudioStream
+    AudioManager.play_music(music_res, 1.0)
+    AudioEffects.add_reverb(AudioBus.BUS.MUSIC)
+    #AudioEffects.add_reverb(AudioBus.BUS.SFX)
 
 
 func setup_glacier() -> void:
@@ -47,6 +51,8 @@ func _on_simulation_tick() -> void:
 
 func _on_iceberg_manager_force_fracture_glacier_cell(cell_position: Vector2i) -> void:
     hydrofracture_manager.fracture_glacier_cell(glacier_data, cell_position)
+    var sfx_res: AudioStream = load(AudioConsts.SFX_544_METAL_ICE_SHARD)
+    AudioManager.play_sfx(sfx_res, -15.0)
     update_dirty_tiles()
 
 
@@ -73,7 +79,10 @@ func _on_iceberg_cluster_formed(cluster_id: int, iceberg_cluster: Array[Vector2i
     var end_index: int = water_caustics_shader.iceberg_tile_positions.size()
     water_caustics_shader.cluster_offsets.append(start_index)
     water_caustics_shader.cluster_offsets.append(end_index)
+    var sfx_res: AudioStream = load(AudioConsts.SFX_469_SPLASH)
+    AudioManager.play_sfx(sfx_res, -3.0)
     update_dirty_tiles()
+
 
 
 func _on_iceberg_cluster_moved(
@@ -86,6 +95,7 @@ func _on_iceberg_cluster_moved(
         )
     )
     update_dirty_tiles()
+
 
 
 func update_entire_tilemap() -> void:
