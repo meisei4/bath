@@ -12,6 +12,20 @@ var clusters: Dictionary[int, Array] = {}  # cluster_id -> list of cells
 var iceberg_cell_to_cluster_id: Dictionary[Vector2i, int] = {} # Key: iceberg cell_coord, value: cluster id,
 var current_iceberg_cluster_id: int = 0
 
+#TODO: introduce this to make everything actually easy to understand instead of just low level crazy coordinate clusters in an array
+class IcebergCluster:
+    var id: int
+    var cells: Array[Vector2i] = []
+    var position: Vector2 = Vector2.ZERO
+    var velocity: Vector2 = Vector2.ZERO
+    var tile_positions: PackedVector2Array = PackedVector2Array()
+    var active: bool = true
+
+    func update(delta: float) -> void:
+        if active:
+            position += velocity * delta
+
+
 func identify_and_form_iceberg_clusters(glacier_data: GlacierData) -> void:
     var visited: Dictionary[Vector2i, bool] = {}
     GlacierUtil.for_each_cell(glacier_data, func(cell_position: Vector2i) -> void:
@@ -39,6 +53,7 @@ func form_iceberg(glacier_data: GlacierData, iceberg_cell: Vector2i, iceberg_clu
     iceberg_cell_to_cluster_id[iceberg_cell] = iceberg_cluster_id
     glacier_data.set_glacier_cell_state(iceberg_cell, GlacierCellState.STATE.ICEBERG)
     glacier_data.set_glacier_cells_age_in_lifecycle(iceberg_cell, 0)
+    #TODO: i dont know how to remove active fractures when they turn into icebergs, so i really dont like this
 
 
 func move_icebergs(glacier_data: GlacierData) -> void:
@@ -59,6 +74,8 @@ func can_iceberg_cluster_move_down(
     for cell_position: Vector2i in iceberg_cluster:
         var has_reached_bottom_of_screen: bool = cell_position.y >= glacier_dimensions.y
         if has_reached_bottom_of_screen:
+            #TODO: some how remove the ripples from the icebergs that reach the bottom of the screen????
+            #clusters.erase(iceberg_cell_to_cluster_id.get(cell_position))
             return false
         var cell_below: Vector2i = GlacierUtil.CELL_BELOW(cell_position)
         if not GlacierUtil.is_valid_glacier_cell(glacier_data, cell_below):

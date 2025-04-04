@@ -162,6 +162,17 @@ static func for_each_cell(
             callback.call(cell_position)
 
 
+static func for_each_neighbor(glacier_data: GlacierData, callback: Callable) -> void:
+    var visited_neighbors: Array = []
+    for fracture in glacier_data.active_fractures:
+        var neighbors = get_cardinal_neighbors(glacier_data, fracture)
+        for neighbor in neighbors:
+            # Ensure we do not call the callback more than once for the same neighbor cell.
+            if not (neighbor in visited_neighbors):
+                visited_neighbors.append(neighbor)
+                callback.call(neighbor)
+
+
 static func _try_append_neighbor(
     glacier_data: GlacierData,
     neighbor: Vector2i,

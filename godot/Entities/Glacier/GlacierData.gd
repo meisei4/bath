@@ -4,6 +4,7 @@ class_name GlacierData
 var glacier_cells_states: Array = []
 var dirty_cells: Array = []
 var glacier_cells_ages_in_lifecycle: Array = []  #TODO: really still???
+var active_fractures: Array[Vector2i] = []  #TODO this is dangerous, figure out how to actually update and control this
 
 
 func initialize_from_tilemap(tilemap: TileMapLayer) -> void:
@@ -25,6 +26,7 @@ func initialize_from_tilemap(tilemap: TileMapLayer) -> void:
             var absolute_x: int = used_tile_rect.position.x + rel_x
             var absolute_y: int = used_tile_rect.position.y + y
             var cell_position: Vector2i = Vector2i(absolute_x, absolute_y)
+            dirty_cells.append(cell_position)  #TODO: ugly but needed for first pass
             var tile_atlas_coords: Vector2i = tilemap.get_cell_atlas_coords(cell_position)
 
             if tile_atlas_coords == Vector2i(-1, -1):
