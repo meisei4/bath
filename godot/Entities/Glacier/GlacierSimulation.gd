@@ -84,7 +84,6 @@ func _on_iceberg_cluster_formed(cluster_id: int, iceberg_cluster: Array[Vector2i
     update_dirty_tiles()
 
 
-
 func _on_iceberg_cluster_moved(
     cluster_id: int, iceberg_cluster_anchor_tile_coordinates: Vector2i
 ) -> void:
@@ -95,7 +94,6 @@ func _on_iceberg_cluster_moved(
         )
     )
     update_dirty_tiles()
-
 
 
 func update_entire_tilemap() -> void:

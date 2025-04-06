@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3 uid="uid://b376qdgg7y7wc"]
+
+[ext_resource type="Script" uid="uid://bj0ok2b21rdts" path="res://godot/Test/ShaderToy/AudioTextureVisualizer.gd" id="1_1bdmt"]
+
+[node name="AudioTextureVisualizer" type="Node2D"]
+script = ExtResource("1_1bdmt")
+metadata/_custom_type_script = "uid://bj0ok2b21rdts"

@@ -6,7 +6,6 @@ const PITCH_STEP: float = 0.1
 const MAX_PITCH: float = 2.0
 const MIN_PITCH: float = 0.5
 
-
 var music_list: Array[String] = [
     AudioConsts.MUSIC_TRACK_1,
     AudioConsts.MUSIC_TRACK_2,

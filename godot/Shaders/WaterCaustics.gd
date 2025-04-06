@@ -10,7 +10,7 @@ var WaterShader: Shader = load("res://Resources/Shaders/Water/water_caustics.gds
 var WaterShaderMaterial: ShaderMaterial
 
 var NoiseTexture: Image = Image.load_from_file("res://Assets/Textures/gray_noise_small.png")
-var BackgroundTexture: Image = Image.load_from_file("res://Assets/Textures/rocks.jpg")
+var BackgroundTexture: Image = Image.load_from_file("res://Assets/Textures/moon_water.png")
 var CausticsTexture: Image = Image.load_from_file("res://Assets/Textures/pebbles.png")
 
 var BufferA: SubViewport
@@ -71,9 +71,9 @@ func _ready() -> void:
 
 func initialize_shadertoy_uniforms_and_textures() -> void:
     iResolution = get_viewport_rect().size
-    NoiseTexture.convert(Image.FORMAT_R8)
-    BackgroundTexture.convert(Image.FORMAT_RGBA8)
-    CausticsTexture.convert(Image.FORMAT_R8)
+    #NoiseTexture.convert(Image.FORMAT_R8)
+    #BackgroundTexture.convert(Image.FORMAT_RGBA8)
+    #CausticsTexture.convert(Image.FORMAT_R8)
     iChannel0 = ImageTexture.create_from_image(NoiseTexture)
     iChannel1 = ImageTexture.create_from_image(BackgroundTexture)
     iChannel2 = ImageTexture.create_from_image(CausticsTexture)
