@@ -50,7 +50,7 @@ func _process(_delta: float) -> void:
 func prepare_waveform_audio_effect_capture() -> void:
     waveform_audio_effect_capture = AudioEffectCapture.new()
     #waveform_audio_effect_capture.buffer_length =  0.01666 # 1/60??
-    waveform_audio_effect_capture.buffer_length = 0.03333333333  #TODO how to get a proper framerate based buffer length.....
+    waveform_audio_effect_capture.buffer_length = 0.03333333333  #TODO how to get a proper framerate based buffer length or is it even what i want? it looks decent like this tbh........
     AudioEffects.add_effect(TARGET_AUDIO_BUS, waveform_audio_effect_capture)
     waveform_data.resize(BUFFER_SIZE)
 

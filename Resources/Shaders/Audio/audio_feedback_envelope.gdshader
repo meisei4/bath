@@ -5,6 +5,7 @@ render_mode blend_disabled;
 
 uniform vec2 iResolution;
 uniform int iFrame;
+uniform float iTime;
 uniform sampler2D iChannel0: hint_screen_texture;
 uniform sampler2D iChannel1; //audio texture
 
@@ -26,8 +27,8 @@ float sample_waveform_envelope(int bin_index) {
     return sum_amplitude / float(samples_per_bin);
 }
 
-vec4 shift_envelope_history(vec2 uv_coordinates, float row_height) {
-    return texture(iChannel0, uv_coordinates + vec2(0.0, row_height));
+vec4 shift_envelope_history(vec2 uv, float row_height) {
+    return texture(iChannel0, uv + vec2(0.0, row_height));
 }
 
 //void mainImage(out vec4 frag_color, in vec2 frag_coord) {
@@ -36,14 +37,12 @@ void fragment() {
     vec2 uv = FRAGCOORD.xy / iResolution.xy;
 
     float row_height = 1.0 / float(NUMBER_OF_HISTORY_ROWS);
-    
     if (uv.y < 1.0 - row_height) {
         //frag_color = shift_envelope_history(uv, row_height);
         COLOR = shift_envelope_history(uv, row_height);
     } else {
         float update_interval = uUpdateInterval; 
         float blend_factor = mod(float(iFrame), update_interval) / update_interval;
-        
         int bin_index = int(floor(uv.x * float(NUMBER_OF_BINS)));
         float new_envelope = sample_waveform_envelope(bin_index);
         float old_envelope = texture(iChannel0, uv).r;

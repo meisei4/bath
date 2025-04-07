@@ -21,6 +21,7 @@ var iResolution: Vector2
 var iChannel0: Texture
 var iChannel1: Texture
 var iFrame: int = 0
+var iTime: float = 0.0
 
 
 func _ready() -> void:
@@ -75,11 +76,13 @@ func create_buffer_viewport(resolution: Vector2) -> SubViewport:
 
 
 #TODO: its very important to control frame rate with these audio shaders
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
     iFrame += 1
+    iTime += delta
     iChannel1 = shadertoy_audio_texture.audio_texture
     #TODO: remember iChannel0 for BufferA is just screen hinted in the shader
     BufferAShaderMaterial.set_shader_parameter("iFrame", iFrame)
+    BufferAShaderMaterial.set_shader_parameter("iTime", iTime)
     BufferAShaderMaterial.set_shader_parameter("iChannel1", iChannel1)
 
     iChannel0 = BufferA.get_texture() as ViewportTexture
