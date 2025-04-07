@@ -6,7 +6,7 @@ const SFX_POOL_SIZE: int = 12
 const MUSIC_POOL_SIZE: int = 5
 
 const bus_volumes: Dictionary[AudioBus.BUS, float] = {
-    AudioBus.BUS.MASTER: 0.0, AudioBus.BUS.SFX: -3.0, AudioBus.BUS.MUSIC: -6.0
+    AudioBus.BUS.MASTER: 0.0, AudioBus.BUS.SFX: 0.0, AudioBus.BUS.MUSIC: 0.0
 }
 
 var sfx_pool: Array[AudioStreamPlayer] = []

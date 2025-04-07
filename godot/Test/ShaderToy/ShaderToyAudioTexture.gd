@@ -9,7 +9,8 @@ var waveform_data_capture: AudioEffectCapture
 var TARGET_AUDIO_BUS: AudioBus.BUS = AudioBus.BUS.MUSIC
 var MAX_MAGNITUDE_MODE_LOL: AudioEffectSpectrumAnalyzerInstance.MagnitudeMode
 
-var buffer_size: int = 512
+var fft_data: Array[float]  #TODO: use these as uniforms perhaps later if it improves performance
+var waveform_data: Array[float]  #TODO: use these as uniforms perhaps later if it improves performance
 # When sampling a texture, you typically sample at the center of a texel.
 # For a texture that’s 2 pixels high, the centers of the two rows are calculated as:
 #Top row (y = 0): Center is at (0 + 0.5) / 2 = 0.25
@@ -17,19 +18,13 @@ var buffer_size: int = 512
 #Thus, in ShaderToy:
 #Sampling at y = 0.25 fetches the FFT data.
 #Sampling at y = 0.75 fetches the raw waveform data.
-var texture_height: int = 2  #y = 0 is fft spectrum, y= 1 is raw wave data
-var fft_data: Array[float]  #TODO: use these as uniforms perhaps later if it improves performance
-var waveform_data: Array[float]  #TODO: use these as uniforms perhaps later if it improves performance
-
-var sample_rate: float = 44100.0  #TODO: figure out how to get this to actually be shadertoy matched
-var frequency_bin_size: float
-var width_per_frequency_bin: float
-
-const DEAD_CHANNEL: float = 0.0
-
+const TEXTURE_HEIGHT: int = 2  #y = 0 is fft spectrum, y= 1 is raw wave data
+const BUFFER_SIZE: int = 512
+const SAMPLE_RATE: float = 48000.0  #TODO: figure out how to get this to actually be shadertoy matched
+const TOTAL_RANGE_HZ: float = 12000.0 #for exactly 12 kHz coverage over 512 bins
 const FFT_ROW: int = 0
 const WAVEFORM_ROW: int = 1
-
+const DEAD_CHANNEL: float = 0.0
 
 func _ready() -> void:
     var fft_effect: AudioEffectSpectrumAnalyzer = AudioEffectSpectrumAnalyzer.new()
@@ -40,20 +35,16 @@ func _ready() -> void:
         AudioServer.get_bus_effect_instance(audio_bus_index, 0)
         as AudioEffectSpectrumAnalyzerInstance
     )
+    #TODO: make the image only 32-bit Red channel only: Image.FORMAT_RF = Red channel Full 32 bit range
+    audio_image = Image.create(BUFFER_SIZE, TEXTURE_HEIGHT, false, Image.FORMAT_RF)
+    audio_texture = ImageTexture.create_from_image(audio_image)
 
-    frequency_bin_size = sample_rate / 1.0
-    width_per_frequency_bin = frequency_bin_size / buffer_size
+    fft_data.resize(BUFFER_SIZE)
 
     #waveform_data_capture = AudioEffectCapture.new()
     #waveform_data_capture.buffer_length = 0.1 #????? 10th of a second?
     #AudioEffects._add_effect(TARGET_AUDIO_BUS, waveform_data_capture)
-
-    #TODO: make the image only 32-bit Red channel only: Image.FORMAT_RF = Red channel Full 32 bit range
-    audio_image = Image.create(int(buffer_size), texture_height, false, Image.FORMAT_RF)
-    audio_texture = ImageTexture.create_from_image(audio_image)
-
-    fft_data.resize(buffer_size)
-    waveform_data.resize(buffer_size)
+    waveform_data.resize(BUFFER_SIZE)
 
 
 func _process(_delta: float) -> void:
@@ -62,23 +53,26 @@ func _process(_delta: float) -> void:
     audio_texture.set_image(audio_image)
 
 
-#TODO: something is going terribly wrong here that doesnt result in the same scaling as shadertoys FFT channel
 func update_fft_texture_channel() -> void:
-    MAX_MAGNITUDE_MODE_LOL = AudioEffectSpectrumAnalyzerInstance.MagnitudeMode.MAGNITUDE_MAX
+    MAX_MAGNITUDE_MODE_LOL = AudioEffectSpectrumAnalyzerInstance.MagnitudeMode.MAGNITUDE_AVERAGE
+    #var width_per_frequency_bin: float = TOTAL_RANGE_HZ / float(BUFFER_SIZE)
+    var width_per_frequency_bin: float = (SAMPLE_RATE / 4.0) / float(BUFFER_SIZE)
     var prev_hz: float = 0.0
-    for x: int in range(buffer_size):
+    for x: int in range(BUFFER_SIZE):
         var current_hz: float = (x + 1) * width_per_frequency_bin
-        var freq_bin_magnitude_left_channel: float = (
+        var current_frequency_bin_amplitude_left_channel: float = (
             fft_spectrum
             . get_magnitude_for_frequency_range(prev_hz, current_hz, MAX_MAGNITUDE_MODE_LOL)
             . x
         )
-        var db: float = 20.0 * log10(freq_bin_magnitude_left_channel)
-        var db_scaled: float = (db + 60.0) / 60.0  # TODO: i dont even know if shadertoy is using db scaling no idea
-        #db_scaled = clamp(db_scaled, 0.0, 1.0)
-        audio_image.set_pixel(
-            x, FFT_ROW, Color(db_scaled, DEAD_CHANNEL, DEAD_CHANNEL, DEAD_CHANNEL)
-        )
+        # human hearing range decibels
+        var db: float = 20.0 * log10(current_frequency_bin_amplitude_left_channel + 1e-12)
+        var min_db: float = -60.0   # floor
+        var max_db: float = 0.0     # ceiling
+        var db_norm: float = (db - min_db) / (max_db - min_db) #normal range for
+        db_norm = clamp(db_norm, 0.0, 1.0) #TODO WHYYY
+        var audio_texture_value: Color = Color(db_norm, DEAD_CHANNEL, DEAD_CHANNEL, DEAD_CHANNEL)
+        audio_image.set_pixel(x, FFT_ROW, audio_texture_value)
         prev_hz = current_hz
 
 
@@ -87,19 +81,19 @@ func log10(value: float) -> float:
 
 
 func update_waveform_texture_channel() -> void:
-    if waveform_data_capture.can_get_buffer(buffer_size):
+    if waveform_data_capture.can_get_buffer(BUFFER_SIZE):
         #TODO: the get_buffer may return a variable sized vector array, since its just how many could be put into the buffer
         # get_buffer behavior: The samples are signed floating-point PCM between -1 and 1.
         # You will have to scale them if you want to use them as 8 or 16-bit integer samples:
         # (v = 0x7fff * samples[0].x)
         #TODO: experiment more with how to truly control this buffer size i the audio sampling
         var captured_frames_from_current_waveform_buffer: PackedVector2Array = (
-            waveform_data_capture.get_buffer(buffer_size)
+            waveform_data_capture.get_buffer(BUFFER_SIZE)
         )
         var frame_count: float = captured_frames_from_current_waveform_buffer.size()
         #TODO: we need to scale down the buffer to fit into our 512 pixel length texture (ji.e. divide whatever size comes out of the capture)
-        var frames_per_pixel: float = frame_count / buffer_size
-        for x: int in range(buffer_size):
+        var frames_per_pixel: float = frame_count / BUFFER_SIZE
+        for x: int in range(BUFFER_SIZE):
             var start_frame_index: float = x * frames_per_pixel
             var end_frame_index: float = (x + 1) * frames_per_pixel
             if end_frame_index > frame_count:
@@ -118,11 +112,9 @@ func update_waveform_texture_channel() -> void:
             # optional accumulated_amplitudes += 0x7fff * captured_frames_from_current_waveform_buffer[0].x) to get 8bit or 16bit???
             average_amplitude = average_amplitude * 0.5 + 0.5
             waveform_data[x] = average_amplitude
-            audio_image.set_pixel(
-                x, WAVEFORM_ROW, Color(waveform_data[x], DEAD_CHANNEL, DEAD_CHANNEL, DEAD_CHANNEL)
-            )
+            var audio_texture_value: Color = Color(average_amplitude, DEAD_CHANNEL, DEAD_CHANNEL, DEAD_CHANNEL)
+            audio_image.set_pixel(x, WAVEFORM_ROW, audio_texture_value)
     else:
-        for x: int in range(buffer_size):
-            audio_image.set_pixel(
-                x, WAVEFORM_ROW, Color(waveform_data[x], DEAD_CHANNEL, DEAD_CHANNEL, DEAD_CHANNEL)
-            )
+        for x: int in range(BUFFER_SIZE):
+            var audio_texture_value: Color = Color(waveform_data[x], DEAD_CHANNEL, DEAD_CHANNEL, DEAD_CHANNEL)
+            audio_image.set_pixel(x, WAVEFORM_ROW, audio_texture_value)

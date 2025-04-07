@@ -8,7 +8,7 @@ uniform sampler2D iChannel0;
 #define WHITE vec4(1.0, 1.0, 1.0, 1.0)
 #define BLACK vec4(0.0, 0.0, 0.0, 1.0)
 #define FFT_ROW 0.0 //TODO: figure this out please
-#define FREQ_BIN_BAR_WIDTH 2.0 // results in "1 pixel", in the case of a 512 width screen
+#define FREQ_BIN_BAR_WIDTH 1.0 // results in "1 pixel", in the case of a 512 width screen
 
 void fragment() {
 //void mainImage(out vec4 frag_color, in vec2 frag_coord){
