@@ -11,8 +11,8 @@ uniform sampler2D iChannel1; //audio texture
 #define WAVEFORM_SAMPLE_COUNT 512
 
 //TODO: turn these into uniforms maybe 
-const float uUpdateInterval = 10.0;    // e.g. 15.0 for more frequent updates.
-const float uEnvelopeSmoothing = 0.4;    // e.g. 0.3 to 0.5 for moderate smoothing.
+const float uUpdateInterval = 11.0;    // e.g. 15.0 for more frequent updates.
+const float uEnvelopeSmoothing = 0.2;    // e.g. 0.3 to 0.5 for moderate smoothing.
 
 const int samples_per_bin = WAVEFORM_SAMPLE_COUNT / NUMBER_OF_BINS;
 

@@ -1,9 +1,9 @@
-#define NUMBER_OF_BINS 64
+#define NUMBER_OF_BINS 85
 #define NUMBER_OF_HISTORY_ROWS 5
 
 const float amplitude_scale = 100.0;
-const float isometric_zoom   = 3.0;
-const float row_spacing      = 8.0;
+const float isometric_zoom   = 4.0;
+const float row_spacing      = 10.0;
 
 vec2 project_envelope(vec3 envelope_coordinate) {
     float bin_index       = envelope_coordinate.x;
