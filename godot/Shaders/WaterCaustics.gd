@@ -10,7 +10,7 @@ var WaterShader: Shader = load("res://Resources/Shaders/Water/water_caustics.gds
 var WaterShaderMaterial: ShaderMaterial
 
 var NoiseTexture: Image = Image.load_from_file("res://Assets/Textures/gray_noise_small.png")
-var BackgroundTexture: Image = Image.load_from_file("res://Assets/Textures/rocks.jpg")
+var BackgroundTexture: Image = Image.load_from_file("res://Assets/Textures/moon_water.png")
 var CausticsTexture: Image = Image.load_from_file("res://Assets/Textures/pebbles.png")
 
 var BufferA: SubViewport
@@ -18,24 +18,16 @@ var BufferB: SubViewport
 var MainImage: TextureRect
 
 var iResolution: Vector2
-var iMouse: Vector3
 
-# Instead of separate iceberg_1, iceberg_2, etc., we use arrays:
 var iceberg_previous_positions: PackedVector2Array = PackedVector2Array()
 var iceberg_current_positions: PackedVector2Array = PackedVector2Array()
 var iceberg_target_positions: PackedVector2Array = PackedVector2Array()
 var iceberg_velocities: PackedVector2Array = PackedVector2Array()
 
-var MAX_TOTAL_ICEBERG_TILES: int = 1024  #TODO: derive this from the amount of INTACT state cells at the beginning of the simulation
 var iceberg_tile_positions: PackedVector2Array = PackedVector2Array()
-
-# For each cluster, store the RANGE of INDICIES pointing that distinguish beginning and end of clusters in the array
-# cluster_offsets[i] = the starting index into iceberg_tile_positions for cluster i
-# cluster_offsets[i+1] = the first index AFTER that cluster ends
 var cluster_offsets: PackedInt32Array = PackedInt32Array()
 
 var interpolation_timer: float = 0.0
-var simulation_tick_interval: float = 0.10  #TODO: match this with the actual glacier sim somewhere
 
 var iChannel0: Texture
 var iChannel1: Texture
@@ -53,6 +45,7 @@ func _ready() -> void:
     RippleShaderMaterial.shader = RippleShader
     RippleShaderNode.material = RippleShaderMaterial
     RippleShaderMaterial.set_shader_parameter("iResolution", iResolution)
+    RippleShaderMaterial.set_shader_parameter("tile_size", GlacierConstants.TILE_SIZE_1D)
 
     BufferB = ShaderToyUtil.create_buffer_viewport(iResolution)
     BufferB.use_hdr_2d = false
@@ -78,17 +71,19 @@ func _ready() -> void:
 
 func initialize_shadertoy_uniforms_and_textures() -> void:
     iResolution = get_viewport_rect().size
-    NoiseTexture.convert(Image.FORMAT_R8)
-    BackgroundTexture.convert(Image.FORMAT_RGBA8)
-    CausticsTexture.convert(Image.FORMAT_R8)
+    #NoiseTexture.convert(Image.FORMAT_R8)
+    #BackgroundTexture.convert(Image.FORMAT_RGBA8)
+    #CausticsTexture.convert(Image.FORMAT_R8)
     iChannel0 = ImageTexture.create_from_image(NoiseTexture)
     iChannel1 = ImageTexture.create_from_image(BackgroundTexture)
     iChannel2 = ImageTexture.create_from_image(CausticsTexture)
 
 
 func _process(delta: float) -> void:
-    interpolation_timer = min(interpolation_timer + delta, simulation_tick_interval)
-    var t: float = interpolation_timer / simulation_tick_interval
+    interpolation_timer = min(
+        interpolation_timer + delta, GlacierConstants.SIMULATION_TICK_INTERVAL
+    )
+    var t: float = interpolation_timer / GlacierConstants.SIMULATION_TICK_INTERVAL
     for i: int in range(iceberg_previous_positions.size()):
         var previous_position: Vector2 = iceberg_previous_positions[i]
         var target_position: Vector2 = iceberg_target_positions[i]
@@ -106,10 +101,10 @@ func _process(delta: float) -> void:
 func update_iceberg_clusters_anchor_position_from_discrete_tile_space_to_continious_interpolated_screen_space(
     cluster_id: int, iceberg_cluster_anchor_in_tile_coordinates: Vector2i
 ) -> void:
-    var tile_size: float = 16.0  # TODO: FIX THIS EVERYTHWERE IN THE CODE whole codebase!!!
     var iceberg_cluster_anchor_screen_coordinates: Vector2 = (
-        iceberg_cluster_anchor_in_tile_coordinates * tile_size
+        iceberg_cluster_anchor_in_tile_coordinates * GlacierConstants.TILE_SIZE_1D
     )
+
     #TODO: fix all this initialization garbagio, its ugly as hell
     if cluster_id >= iceberg_target_positions.size():
         while iceberg_target_positions.size() <= cluster_id:
@@ -127,7 +122,7 @@ func update_iceberg_clusters_anchor_position_from_discrete_tile_space_to_contini
         iceberg_target_positions[cluster_id] = iceberg_cluster_anchor_screen_coordinates
         var new_velocity: Vector2 = (
             (iceberg_cluster_anchor_screen_coordinates - iceberg_previous_positions[cluster_id])
-            / simulation_tick_interval
+            / GlacierConstants.SIMULATION_TICK_INTERVAL
         )
         iceberg_velocities[cluster_id] = new_velocity
 

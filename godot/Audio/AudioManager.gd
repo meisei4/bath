@@ -1,7 +1,13 @@
 extends Node
+#TODO: autoloads cant be class named in file
+#class_name AudioManager
 
-const SFX_POOL_SIZE: int = 20
+const SFX_POOL_SIZE: int = 12
 const MUSIC_POOL_SIZE: int = 5
+
+const bus_volumes: Dictionary[AudioBus.BUS, float] = {
+    AudioBus.BUS.MASTER: 0.0, AudioBus.BUS.SFX: -3.0, AudioBus.BUS.MUSIC: -6.0
+}
 
 var sfx_pool: Array[AudioStreamPlayer] = []
 var available_sfx_players: Array[AudioStreamPlayer] = []
@@ -9,49 +15,34 @@ var available_sfx_players: Array[AudioStreamPlayer] = []
 var music_pool: Array[AudioStreamPlayer] = []
 var available_music_players: Array[AudioStreamPlayer] = []
 
-# TODO: godot enums suck, like they seriously suck, or else im the dumbest person on earth
-#var MASTER: String = AudioBus.val(AudioBus.BUS.MASTER)
-#var SFX: String = AudioBus.val(AudioBus.BUS.SFX)
-#var MUSIC: String = AudioBus.val(AudioBus.BUS.MUSIC)
-const MASTER: String = "Master"
-const SFX: String = "SFX"
-const MUSIC: String = "Music"
-
 
 func _ready() -> void:
-    _setup_buses([MASTER, SFX, MUSIC])
+    _setup_buses([AudioBus.BUS.MASTER, AudioBus.BUS.SFX, AudioBus.BUS.MUSIC])
     _set_bus_volumes()
-    _initialize_pools()
-
-
-func _setup_buses(bus_names: Array[String]) -> void:
-    var current_bus_count: int = AudioServer.get_bus_count()
-    for i: int in range(current_bus_count, bus_names.size()):
-        AudioServer.add_bus()
-    for i: int in range(bus_names.size()):
-        AudioServer.set_bus_name(i, bus_names[i])
-
-
-func _set_bus_volumes() -> void:
-    var bus_volumes: Dictionary = {MASTER: 0.0, SFX: -3.0, MUSIC: -6.0}
-    for bus_name: StringName in bus_volumes.keys():
-        var bus_idx: int = AudioServer.get_bus_index(bus_name)
-        if bus_idx != -1:
-            # TODO: wait for godot 4.4 for typed dictionary stuff
-            AudioServer.set_bus_volume_db(bus_idx, bus_volumes[bus_name])
-        else:
-            push_warning("Bus not found: " + bus_name)
-
-
-func _initialize_pools() -> void:
     _initialize_sfx_pool()
     _initialize_music_pool()
+
+
+func _setup_buses(buses: Array[AudioBus.BUS]) -> void:
+    var current_bus_count: int = AudioServer.get_bus_count()
+    for i: int in range(current_bus_count, buses.size()):
+        AudioServer.add_bus()
+    for i: int in range(buses.size()):
+        AudioServer.set_bus_name(i, AudioBus.val(buses[i]))
+
+
+#TODO: this only sets the volumes of buses based on their Bus types,
+#TODO: figure out if we want to be able to set individual buses in the object pool to certain volumes regardless of Bus type
+func _set_bus_volumes() -> void:
+    for bus: AudioBus.BUS in bus_volumes.keys():
+        var bus_idx: int = AudioBus.get_bus_index(bus)
+        AudioServer.set_bus_volume_db(bus_idx, bus_volumes[bus])
 
 
 func _initialize_sfx_pool() -> void:
     for _i: int in range(SFX_POOL_SIZE):
         var sfx_player: AudioStreamPlayer = AudioStreamPlayer.new()
-        sfx_player.bus = SFX
+        sfx_player.bus = AudioBus.val(AudioBus.BUS.SFX)
         sfx_player.finished.connect(_on_sfx_finished.bind(sfx_player))
         add_child(sfx_player)
         sfx_pool.append(sfx_player)
@@ -61,7 +52,7 @@ func _initialize_sfx_pool() -> void:
 func _initialize_music_pool() -> void:
     for _i: int in range(MUSIC_POOL_SIZE):
         var music_player: AudioStreamPlayer = AudioStreamPlayer.new()
-        music_player.bus = MUSIC
+        music_player.bus = AudioBus.val(AudioBus.BUS.MUSIC)
         music_player.finished.connect(_on_music_finished.bind(music_player))
         add_child(music_player)
         music_pool.append(music_player)
@@ -94,12 +85,13 @@ func release_music_player(player: AudioStreamPlayer) -> void:
     available_music_players.append(player)
 
 
-func play_sfx(sound_resource: AudioStream, volume_db: float = 0.0, bus_name: String = SFX) -> void:
+func play_sfx(sound_resource: AudioStream, volume_db: float = 0.0) -> void:
     var player: AudioStreamPlayer = acquire_sfx_player()
     if player == null:
+        print("Failed to play SFX: Pool exhausted.")
         push_warning("Failed to play SFX: Pool exhausted.")
         return
-    _route_sound_to_bus(player, bus_name)
+    player.bus = AudioBus.val(AudioBus.BUS.SFX)
     player.stream = sound_resource
     player.volume_db = volume_db
     player.play()
@@ -142,14 +134,6 @@ func is_music_playing() -> bool:
         if player.playing:
             return true
     return false
-
-
-func _route_sound_to_bus(player: AudioStreamPlayer, bus_name: String) -> void:
-    var bus_index: int = AudioServer.get_bus_index(bus_name)
-    if bus_index == -1:
-        push_warning("Cannot route sound to non-existent bus: " + bus_name)
-    else:
-        player.bus = bus_name
 
 
 func _on_sfx_finished(player: AudioStreamPlayer) -> void:

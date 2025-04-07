@@ -15,14 +15,6 @@ var dynamic_pitch_shift_enabled: bool = false
 
 var current_pitch: float = 1.0
 
-# TODO: godot enums suck, like they seriously suck, or else im the dumbest person on earth
-#var MASTER: String = AudioBus.val(AudioBus.BUS.MASTER)
-#var SFX: String = AudioBus.val(AudioBus.BUS.SFX)
-#var MUSIC: String = AudioBus.val(AudioBus.BUS.MUSIC)
-#const MASTER: String = "Master"
-#const SFX: String = "SFX"
-#const MUSIC: String = "Music"
-
 
 func _ready() -> void:
     initialize_viewer()
