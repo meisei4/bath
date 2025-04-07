@@ -45,7 +45,9 @@ const SFX_544_METAL_ICE_SHARD: String = "res://Resources/Audio/SFX/544_metal_ice
 const SFX_545_METAL_ICE_SHARD_DUPLICATE: String = "res://Resources/Audio/SFX/545_metal_ice_shard.wav"
 const SFX_135_BUBBLY_DOWNFALL_DROWN: String = "res://Resources/Audio/SFX/135_bubbly_downfall_drown.wav"
 
+const HELLION: String = "res://Resources/Audio/Music/Hellion_v2.ogg"
 const SHADERTOY_MUSIC_TRACK_EXPERIMENT: String = "res://Resources/Audio/Music/experiment.mp3"
+
 const MUSIC_TRACK_1: String = "res://Resources/Audio/Music/trimmed_10___What_You_Want_00-40-25_00-41-40.mp3"
 const MUSIC_TRACK_2: String = "res://Resources/Audio/Music/trimmed_01___Only_Shallow_00-03-40_00-04-17.mp3"
 const MUSIC_TRACK_3: String = "res://Resources/Audio/Music/trimmed_03___Touched_00-06-55_00-07-52.mp3"

@@ -7,7 +7,7 @@ var fft_spectrum: AudioEffectSpectrumAnalyzerInstance
 var waveform_data_capture: AudioEffectCapture
 
 var TARGET_AUDIO_BUS: AudioBus.BUS = AudioBus.BUS.MUSIC
-var MAX_MAGNITUDE_MODE_LOL: AudioEffectSpectrumAnalyzerInstance.MagnitudeMode
+var MAGNITUDE_MODE: AudioEffectSpectrumAnalyzerInstance.MagnitudeMode
 
 var fft_data: Array[float]  #TODO: use these as uniforms perhaps later if it improves performance
 var waveform_data: Array[float]  #TODO: use these as uniforms perhaps later if it improves performance
@@ -21,10 +21,10 @@ var waveform_data: Array[float]  #TODO: use these as uniforms perhaps later if i
 const TEXTURE_HEIGHT: int = 2  #y = 0 is fft spectrum, y= 1 is raw wave data
 const BUFFER_SIZE: int = 512
 const SAMPLE_RATE: float = 48000.0  #TODO: figure out how to get this to actually be shadertoy matched
-const TOTAL_RANGE_HZ: float = 12000.0 #for exactly 12 kHz coverage over 512 bins
 const FFT_ROW: int = 0
 const WAVEFORM_ROW: int = 1
 const DEAD_CHANNEL: float = 0.0
+
 
 func _ready() -> void:
     var fft_effect: AudioEffectSpectrumAnalyzer = AudioEffectSpectrumAnalyzer.new()
@@ -41,36 +41,34 @@ func _ready() -> void:
 
     fft_data.resize(BUFFER_SIZE)
 
-    #waveform_data_capture = AudioEffectCapture.new()
-    #waveform_data_capture.buffer_length = 0.1 #????? 10th of a second?
-    #AudioEffects._add_effect(TARGET_AUDIO_BUS, waveform_data_capture)
+    waveform_data_capture = AudioEffectCapture.new()
+    waveform_data_capture.buffer_length = 0.1  #????? 10th of a second?
+    AudioEffects.add_effect(TARGET_AUDIO_BUS, waveform_data_capture)
     waveform_data.resize(BUFFER_SIZE)
 
 
 func _process(_delta: float) -> void:
-    update_fft_texture_channel()
-    #update_waveform_texture_channel()
+    #update_fft_texture_channel()
+    update_waveform_texture_channel()
     audio_texture.set_image(audio_image)
 
 
+#TODO: this is not actually achieving the same FFT derivation that shadertoy web uses, but VSCode extension is also wacked up, so just derive it later custom or something
 func update_fft_texture_channel() -> void:
-    MAX_MAGNITUDE_MODE_LOL = AudioEffectSpectrumAnalyzerInstance.MagnitudeMode.MAGNITUDE_AVERAGE
-    #var width_per_frequency_bin: float = TOTAL_RANGE_HZ / float(BUFFER_SIZE)
+    MAGNITUDE_MODE = AudioEffectSpectrumAnalyzerInstance.MagnitudeMode.MAGNITUDE_AVERAGE
     var width_per_frequency_bin: float = (SAMPLE_RATE / 4.0) / float(BUFFER_SIZE)
     var prev_hz: float = 0.0
     for x: int in range(BUFFER_SIZE):
         var current_hz: float = (x + 1) * width_per_frequency_bin
         var current_frequency_bin_amplitude_left_channel: float = (
-            fft_spectrum
-            . get_magnitude_for_frequency_range(prev_hz, current_hz, MAX_MAGNITUDE_MODE_LOL)
-            . x
+            fft_spectrum.get_magnitude_for_frequency_range(prev_hz, current_hz, MAGNITUDE_MODE).x
         )
-        # human hearing range decibels
+        # human hearing range decibels????
         var db: float = 20.0 * log10(current_frequency_bin_amplitude_left_channel + 1e-12)
-        var min_db: float = -60.0   # floor
-        var max_db: float = 0.0     # ceiling
-        var db_norm: float = (db - min_db) / (max_db - min_db) #normal range for
-        db_norm = clamp(db_norm, 0.0, 1.0) #TODO WHYYY
+        var min_db: float = -60.0  # floor
+        var max_db: float = 0.0  # ceiling
+        var db_norm: float = (db - min_db) / (max_db - min_db)
+        db_norm = clamp(db_norm, 0.0, 1.0)  #TODO not sure how decibels get normalized without knowing true max min of the input file
         var audio_texture_value: Color = Color(db_norm, DEAD_CHANNEL, DEAD_CHANNEL, DEAD_CHANNEL)
         audio_image.set_pixel(x, FFT_ROW, audio_texture_value)
         prev_hz = current_hz
@@ -112,9 +110,13 @@ func update_waveform_texture_channel() -> void:
             # optional accumulated_amplitudes += 0x7fff * captured_frames_from_current_waveform_buffer[0].x) to get 8bit or 16bit???
             average_amplitude = average_amplitude * 0.5 + 0.5
             waveform_data[x] = average_amplitude
-            var audio_texture_value: Color = Color(average_amplitude, DEAD_CHANNEL, DEAD_CHANNEL, DEAD_CHANNEL)
+            var audio_texture_value: Color = Color(
+                average_amplitude, DEAD_CHANNEL, DEAD_CHANNEL, DEAD_CHANNEL
+            )
             audio_image.set_pixel(x, WAVEFORM_ROW, audio_texture_value)
     else:
         for x: int in range(BUFFER_SIZE):
-            var audio_texture_value: Color = Color(waveform_data[x], DEAD_CHANNEL, DEAD_CHANNEL, DEAD_CHANNEL)
+            var audio_texture_value: Color = Color(
+                waveform_data[x], DEAD_CHANNEL, DEAD_CHANNEL, DEAD_CHANNEL
+            )
             audio_image.set_pixel(x, WAVEFORM_ROW, audio_texture_value)
