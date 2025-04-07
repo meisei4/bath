@@ -114,7 +114,7 @@ func update_entire_tilemap() -> void:
 
 
 func update_dirty_tiles() -> void:
-    for cell_position in glacier_data.dirty_cells:
+    for cell_position: Vector2i in glacier_data.dirty_cells:
         var cell_state: int = glacier_data.glacier_cells_states[cell_position.y][cell_position.x]
         if cell_state == GlacierCellState.STATE.NONE:
             #glacier_map.get_cell_tile_data(cell_position).modulate.a = 0.0

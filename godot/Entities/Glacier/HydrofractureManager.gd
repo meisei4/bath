@@ -1,8 +1,6 @@
 extends Node2D
 class_name HydrofractureManager
 
-signal iceberg_formation_potential(cells: Array[Vector2i])
-
 
 #TODO: introduce this to finally make all the representations of fractures/maps to fractures and stuff actually make sense
 class Hydrofracture:
@@ -10,7 +8,7 @@ class Hydrofracture:
     var depth: int  #TODO shouldnt this be like a vertical height? not the actual amount of cells in the fracture
     var cells: Array[Vector2i]
 
-    func _init(seed: Vector2i, initial_depth: int):
+    func _init(seed: Vector2i, initial_depth: int) -> void:
         self.seed = seed
         self.depth = initial_depth
         self.cells = [seed]

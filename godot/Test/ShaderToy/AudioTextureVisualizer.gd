@@ -36,6 +36,7 @@ func _ready() -> void:
     AudioManager.play_music(music_resource, 0.0)
     #TODO: ^^^ ew, figure out how to perhaps make it more obvious that the audio texture can target whatever audio bus...
     shadertoy_audio_texture = ShaderToyAudioTexture.new()  #TODO: this has to target a specific audio bus internally, figure out a better way
+
     BufferA.add_child(BufferAShaderNode)
     add_child(BufferA)
     add_child(MainImage)
@@ -55,6 +56,5 @@ func create_buffer_viewport(resolution: Vector2) -> SubViewport:
 
 
 func _process(_delta: float) -> void:
-    # Update the texture from the audio effect.
     iChannel0 = shadertoy_audio_texture.audio_texture
     BufferAShaderMaterial.set_shader_parameter("iChannel0", iChannel0)

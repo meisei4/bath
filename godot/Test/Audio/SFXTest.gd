@@ -1,7 +1,7 @@
 extends Control
 class_name SFXTest
 
-var SFX_list: Array[String] = [
+var sfx_list: Array[String] = [
     AudioConsts.SFX_534_OCARINA,
     AudioConsts.SFX_114_CLASSIC_PUZZLE_SOUND,
     AudioConsts.SFX_115_ECHOY,
@@ -46,7 +46,7 @@ var SFX_list: Array[String] = [
     AudioConsts.SFX_135_BUBBLY_DOWNFALL_DROWN
 ]
 
-var option_button_SFX: OptionButton
+var option_button_sfx: OptionButton
 var button_play: Button
 var button_stop_all: Button
 var button_enable_reverb: Button
@@ -64,10 +64,10 @@ func _ready() -> void:
     if viewport is Window:
         vbox.offset_top = -viewport.size.y / 3.0
 
-    option_button_SFX = OptionButton.new()
-    for path: String in SFX_list:
-        option_button_SFX.add_item(path)
-    vbox.add_child(option_button_SFX)
+    option_button_sfx = OptionButton.new()
+    for path: String in sfx_list:
+        option_button_sfx.add_item(path)
+    vbox.add_child(option_button_sfx)
 
     button_play = _create_button("Play", _on_button_play_pressed)
     vbox.add_child(button_play)
@@ -101,16 +101,16 @@ func _create_button(text: String, callback: Callable) -> Button:
 
 
 func _on_button_play_pressed() -> void:
-    var SFX_path: String = option_button_SFX.get_item_text(option_button_SFX.get_selected_id())
-    if SFX_path:
-        var SFX_res: AudioStream = load(SFX_path) as AudioStream
-        if SFX_res:
-            AudioManager.play_AudioConsts.SFX(SFX_res, 0.0, "AudioConsts.SFX")
-            _update_active_sounds(SFX_path, "AudioConsts.SFX")
+    var sfx_path: String = option_button_sfx.get_item_text(option_button_sfx.get_selected_id())
+    if sfx_path:
+        var sfx_res: AudioStream = load(sfx_path) as AudioStream
+        if sfx_res:
+            AudioManager.play_sfx(sfx_res)
+            _update_active_sounds(sfx_path, "AudioConsts.SFX")
 
 
 func _on_button_stop_all_pressed() -> void:
-    AudioManager.stop_all_AudioConsts.SFX()
+    AudioManager.stop_all_sfx()
     active_sounds_box.queue_redraw()
 
 
@@ -130,29 +130,29 @@ func _on_button_disable_dist_pressed() -> void:
     AudioEffects.remove_effect(AudioBus.BUS.SFX, "AudioEffectDistortion")
 
 
-func _update_active_sounds(SFX_name: String, bus_name: String) -> void:
+func _update_active_sounds(sfx_name: String, bus_name: String) -> void:
     var sound_info: HBoxContainer = HBoxContainer.new()
     var label_name: Label = Label.new()
-    label_name.text = "Sound: " + SFX_name
+    label_name.text = "Sound: " + sfx_name
     sound_info.add_child(label_name)
     var label_bus: Label = Label.new()
     label_bus.text = " | Bus: " + bus_name
     sound_info.add_child(label_bus)
     var stop_button: Button = Button.new()
     stop_button.text = "Stop"
-    stop_button.pressed.connect(_stop_specific_sound.bind(SFX_name))
+    stop_button.pressed.connect(_stop_specific_sound.bind(sfx_name))
     sound_info.add_child(stop_button)
     active_sounds_box.add_child(sound_info)
 
 
-func _stop_specific_sound(SFX_name: String) -> void:
-    AudioManager.stop_sfx(SFX_name)
+func _stop_specific_sound(sfx_name: String) -> void:
+    AudioManager.stop_sfx(sfx_name)
     for child: Node in active_sounds_box.get_children():
         if child is HBoxContainer:
             var h_box_container: HBoxContainer = child as HBoxContainer
             var button: Button = h_box_container.get_child(0) as Button
             #TODO: this is already ridiculous, shouldnt have to do this maddness with constant typing
-            if button.text.find(SFX_name) != -1:
+            if button.text.find(sfx_name) != -1:
                 active_sounds_box.remove_child(child)
                 child.queue_free()
                 break

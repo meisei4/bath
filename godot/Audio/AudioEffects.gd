@@ -1,12 +1,12 @@
 extends Node
+#TODO: autoloads cant be class named in file
+#class_name AudioEffects
 
-@export var bus: AudioBus.BUS = AudioBus.BUS.MASTER
-
-const DEFAULT_PITCH_SHIFT: Dictionary = {
+const DEFAULT_PITCH_SHIFT: Dictionary[String, float] = {
     "pitch_scale": 1.0,
 }
 
-const DEFAULT_DISTORTION: Dictionary = {
+const DEFAULT_DISTORTION: Dictionary[String, float] = {
     "mode": AudioEffectDistortion.MODE_CLIP,
     "drive": 0.5,
     "pre_gain_db": 0.0,
@@ -14,7 +14,7 @@ const DEFAULT_DISTORTION: Dictionary = {
     "keep_hf_hz": 16000.0
 }
 
-const DEFAULT_REVERB: Dictionary = {
+const DEFAULT_REVERB: Dictionary[String, float] = {
     "room_size": 0.8,
     "damping": 0.5,
     "wet": 0.5,
@@ -26,32 +26,21 @@ const DEFAULT_REVERB: Dictionary = {
 }
 
 
-func _get_bus_index(bus_enum: AudioBus.BUS) -> int:
-    var bus_name: StringName = AudioBus.val(bus_enum)
-    var bus_idx: int = AudioServer.get_bus_index(bus_name)
-    if bus_idx == -1:
-        push_warning("Bus not found: " + bus_name)
-    return bus_idx
-
-
-func _add_effect(bus_enum: AudioBus.BUS, effect: AudioEffect) -> void:
-    var bus_idx: int = _get_bus_index(bus_enum)
-    if bus_idx == -1:
-        return
+func add_effect(bus: AudioBus.BUS, effect: AudioEffect) -> void:
+    var bus_idx: int = AudioBus.get_bus_index(bus)
     AudioServer.add_bus_effect(bus_idx, effect)
-    print("Added ", effect.get_class(), " effect to bus: ", bus_enum)
+    print("Added ", effect.get_class(), " effect to bus: ", bus)
 
 
-func remove_effect(bus_enum: AudioBus.BUS, effect_type: String) -> void:
-    var bus_idx: int = _get_bus_index(bus_enum)
-    if bus_idx == -1:
-        return
+func remove_effect(bus: AudioBus.BUS, effect_type: String) -> void:
+    var bus_idx: int = AudioBus.get_bus_index(bus)
     var effect_count: int = AudioServer.get_bus_effect_count(bus_idx)
     for i: int in range(effect_count):
         var fx: AudioEffect = AudioServer.get_bus_effect(bus_idx, i)
+        #TODO: why are we doing reflection/class strings, figure out enums if this is even needed
         if fx.get_class() == effect_type:
             AudioServer.remove_bus_effect(bus_idx, i)
-            print("Removed ", effect_type, " from bus: ", bus_enum)
+            print("Removed ", effect_type, " from bus: ", bus)
             return
 
 
@@ -62,7 +51,7 @@ func add_distortion(bus_enum: AudioBus.BUS, config: Dictionary = DEFAULT_DISTORT
     distortion.pre_gain = config["pre_gain_db"]
     distortion.post_gain = config["post_gain_db"]
     distortion.keep_hf_hz = config["keep_hf_hz"]
-    _add_effect(bus_enum, distortion)
+    add_effect(bus_enum, distortion)
 
 
 func add_reverb(bus_enum: AudioBus.BUS, config: Dictionary = DEFAULT_REVERB) -> void:
@@ -75,14 +64,11 @@ func add_reverb(bus_enum: AudioBus.BUS, config: Dictionary = DEFAULT_REVERB) -> 
     reverb.predelay_msec = config["predelay_msec"]
     reverb.predelay_feedback = config["predelay_feedback"]
     reverb.spread = config["spread"]
-    _add_effect(bus_enum, reverb)
+    add_effect(bus_enum, reverb)
 
 
-func set_pitch_shift(bus_enum: AudioBus.BUS, pitch: float) -> void:
-    var bus_idx: int = _get_bus_index(bus_enum)
-    if bus_idx == -1:
-        return
-
+func set_pitch_shift(bus: AudioBus.BUS, pitch: float) -> void:
+    var bus_idx: int = AudioBus.get_bus_index(bus)
     var pitch_shift_found: bool = false
     for i: int in range(AudioServer.get_bus_effect_count(bus_idx)):
         #TODO: THIS NEXT SECTION IS THE ONLY WAY TO GET RID OF THE STATIC TYPING AND INFFERENCE ERROR
@@ -91,20 +77,18 @@ func set_pitch_shift(bus_enum: AudioBus.BUS, pitch: float) -> void:
             var pitch_shift_effect: AudioEffectPitchShift = effect as AudioEffectPitchShift
             pitch_shift_effect.pitch_scale = pitch
             pitch_shift_found = true
-            print("Updated pitch shift on bus ", bus_enum, " to pitch_scale: ", pitch)
+            print("Updated pitch shift on bus ", bus, " to pitch_scale: ", pitch)
             break
 
     if not pitch_shift_found:
         var pitch_shift: AudioEffectPitchShift = AudioEffectPitchShift.new()
         pitch_shift.pitch_scale = pitch
-        _add_effect(bus_enum, pitch_shift)
-        print("Added new pitch shift effect to bus ", bus_enum, " with pitch_scale: ", pitch)
+        add_effect(bus, pitch_shift)
+        print("Added new pitch shift effect to bus ", bus, " with pitch_scale: ", pitch)
 
 
-func update_distortion(bus_enum: AudioBus.BUS, config: Dictionary) -> void:
-    var bus_idx: int = _get_bus_index(bus_enum)
-    if bus_idx == -1:
-        return
+func update_distortion(bus: AudioBus.BUS, config: Dictionary) -> void:
+    var bus_idx: int = AudioBus.get_bus_index(bus)
     for i: int in range(AudioServer.get_bus_effect_count(bus_idx)):
         var effect: AudioEffect = AudioServer.get_bus_effect(bus_idx, i)
         if effect is AudioEffectDistortion:
@@ -115,14 +99,12 @@ func update_distortion(bus_enum: AudioBus.BUS, config: Dictionary) -> void:
                 distortion.pre_gain = config["pre_gain_db"]
             if "post_gain_db" in config:
                 distortion.post_gain = config["post_gain_db"]
-            print("Updated distortion on bus ", bus_enum, " with config: ", config)
+            print("Updated distortion on bus ", bus, " with config: ", config)
             break
 
 
-func update_reverb(bus_enum: AudioBus.BUS, config: Dictionary) -> void:
-    var bus_idx: int = _get_bus_index(bus_enum)
-    if bus_idx == -1:
-        return
+func update_reverb(bus: AudioBus.BUS, config: Dictionary) -> void:
+    var bus_idx: int = AudioBus.get_bus_index(bus)
     for i: int in range(AudioServer.get_bus_effect_count(bus_idx)):
         var effect: AudioEffect = AudioServer.get_bus_effect(bus_idx, i)
         if effect is AudioEffectReverb:
@@ -133,5 +115,5 @@ func update_reverb(bus_enum: AudioBus.BUS, config: Dictionary) -> void:
                 reverb.room_size = config["room_size"]
             if "damping" in config:
                 reverb.damping = config["damping"]
-            print("Updated reverb on bus ", bus_enum, " with config: ", config)
+            print("Updated reverb on bus ", bus, " with config: ", config)
             break

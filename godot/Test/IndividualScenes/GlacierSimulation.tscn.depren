@@ -1,7 +1,0 @@
-[gd_scene load_steps=2 format=3 uid="uid://sbhtbyhafang"]
-
-[ext_resource type="Script" uid="uid://qkxf1geyr1au" path="res://godot/Entities/Glacier/GlacierSimulation.gd" id="1_3e8de"]
-
-[node name="GlacierSimulation" type="Node2D"]
-script = ExtResource("1_3e8de")
-metadata/_custom_type_script = "uid://qkxf1geyr1au"

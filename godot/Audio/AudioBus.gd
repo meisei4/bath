@@ -1,11 +1,12 @@
 extends Node
+#TODO: autoloads cant be class named in file
+#class_name AudioBus
 
 enum BUS { MASTER = 0, SFX = 1, MUSIC = 2 }
 
 @export var bus: BUS = BUS.MASTER
 
 
-#TODO: hahaha you idiot, nice try. It wont work, and probably shouldnt even work, GlacierCellState is forced)
 func val(_bus: BUS) -> StringName:
     match _bus:
         BUS.MASTER:
@@ -16,3 +17,11 @@ func val(_bus: BUS) -> StringName:
             return "Music"
         _:
             return ""
+
+
+func get_bus_index(_bus: BUS) -> int:
+    var bus_name: StringName = AudioBus.val(_bus)
+    var bus_idx: int = AudioServer.get_bus_index(bus_name)
+    if bus_idx == -1:
+        push_warning("Bus not found: " + bus_name)
+    return bus_idx

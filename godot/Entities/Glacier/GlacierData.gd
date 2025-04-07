@@ -1,9 +1,9 @@
 extends Node
 class_name GlacierData
 
-var glacier_cells_states: Array = []
-var dirty_cells: Array = []
-var glacier_cells_ages_in_lifecycle: Array = []  #TODO: really still???
+var glacier_cells_states: Array[Array] = []
+var dirty_cells: Array[Vector2i] = []
+var glacier_cells_ages_in_lifecycle: Array[Array] = []  #TODO: really still???
 var active_fractures: Array[Vector2i] = []  #TODO this is dangerous, figure out how to actually update and control this
 
 

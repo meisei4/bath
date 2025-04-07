@@ -30,12 +30,12 @@ func identify_and_form_iceberg_clusters(glacier_data: GlacierData) -> void:
     var visited: Dictionary[Vector2i, bool] = {}
     GlacierUtil.for_each_cell(glacier_data, func(cell_position: Vector2i) -> void:
         if not visited.has(cell_position) and glacier_data.IS_AGED_AND_FRACTURED(cell_position):
-            var cluster = GlacierUtil.collect_connected_glacier_cells(
+            var cluster: Array[Vector2i] = GlacierUtil.collect_connected_glacier_cells(
                 glacier_data,
                 cell_position,
                 glacier_data.IS_AGED_AND_FRACTURED
             )
-            for c in cluster:
+            for c: Vector2i in cluster:
                 visited[c] = true
             form_iceberg_cluster(glacier_data, cluster)
     )
@@ -43,7 +43,7 @@ func identify_and_form_iceberg_clusters(glacier_data: GlacierData) -> void:
 func form_iceberg_cluster(glacier_data: GlacierData, iceberg_cluster: Array[Vector2i]) -> void:
     if iceberg_cluster.size() >= GlacierConstants.MINIMUM_ICEBERG_CLUSTER_SIZE:
         clusters[current_iceberg_cluster_id] = iceberg_cluster.duplicate()
-        for iceberg_cell in iceberg_cluster:
+        for iceberg_cell: Vector2i in iceberg_cluster:
             form_iceberg(glacier_data, iceberg_cell, current_iceberg_cluster_id)
             iceberg_cell_to_cluster_id[iceberg_cell] = current_iceberg_cluster_id
         iceberg_cluster_formed.emit(current_iceberg_cluster_id, iceberg_cluster)
@@ -57,12 +57,12 @@ func form_iceberg(glacier_data: GlacierData, iceberg_cell: Vector2i, iceberg_clu
 
 
 func move_icebergs(glacier_data: GlacierData) -> void:
-    for cluster_id in clusters.keys():
+    for cluster_id: int in clusters.keys():
         var iceberg_cluster: Array[Vector2i] = clusters[cluster_id]
         if can_iceberg_cluster_move_down(glacier_data, iceberg_cluster):
             update_cluster_position(cluster_id, glacier_data, iceberg_cluster, iceberg_cluster.duplicate())
         else:
-            for iceberg_cell in iceberg_cluster:
+            for iceberg_cell: Vector2i in iceberg_cluster:
                 var cell_below: Vector2i = GlacierUtil.CELL_BELOW(iceberg_cell)
                 handle_blocking_cell_below(glacier_data, cell_below, cluster_id)
 
@@ -100,7 +100,7 @@ func handle_blocking_cell_below(glacier_data: GlacierData, cell_below: Vector2i,
         force_fracture_glacier_cell.emit(cell_below)
     elif glacier_data.IS_AGED_AND_FRACTURED(cell_below):
         if iceberg_cell_to_cluster_id.has(cell_below):
-            var existing_cluster_id = iceberg_cell_to_cluster_id[cell_below]
+            var existing_cluster_id: int = iceberg_cell_to_cluster_id[cell_below]
             if existing_cluster_id != iceberg_cluster_id:
                 merge_iceberg_clusters(iceberg_cluster_id, existing_cluster_id)
         else:
@@ -138,9 +138,9 @@ func calculate_iceberg_cluster_anchor_in_tile_coordinates(iceberg_cluster: Array
 func merge_iceberg_clusters(cluster_a_id: int, cluster_b_id: int) -> void:
     if not clusters.has(cluster_a_id) or not clusters.has(cluster_b_id):
         return
-    var cluster_a = clusters[cluster_a_id]
-    var cluster_b = clusters[cluster_b_id]
-    for cell in cluster_b:
+    var cluster_a: Array = clusters[cluster_a_id]
+    var cluster_b: Array = clusters[cluster_b_id]
+    for cell: Vector2i in cluster_b:
         if cell not in cluster_a:
             cluster_a.append(cell)
             iceberg_cell_to_cluster_id[cell] = cluster_a_id

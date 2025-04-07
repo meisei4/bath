@@ -31,11 +31,11 @@ static func multi_source_hydrofracture(
 ) -> void:
     var visited: Dictionary[Vector2i, bool] = {}
     var queue: Array[Dictionary] = []
-    for cell in initiation_cells:
+    for cell: Vector2i in initiation_cells:
         queue.append({CELL_KEY: cell, DEPTH_KEY: 0})
 
     while queue.size() > 0:
-        var current = queue.pop_front()
+        var current: Dictionary = queue.pop_front()
         var current_pos: Vector2i = current[CELL_KEY]
         var depth: int = current[DEPTH_KEY]
 
@@ -77,7 +77,6 @@ static func gather_cell_candidates_for_potential_fracturing(
 static func collect_connected_glacier_cells(
     glacier_data: GlacierData, starting_cell: Vector2i, cell_connectivity_predicate: Callable  #TODO: THIS DEFINES WHAT IT MEANS TO BE CONNECTED!!! takes a cell position and returns a boolean if its connected
 ) -> Array[Vector2i]:
-    # use Depth-First Search (DFS) to collect all connected cells that meet a certain cell_connectivity_predicate.
     var visited_cells: Dictionary = {}
     var connected_cells: Array[Vector2i] = []
     var dfs_stack: Array[Vector2i] = [starting_cell]
@@ -92,7 +91,6 @@ static func collect_connected_glacier_cells(
             for neighbor: Vector2i in get_cardinal_neighbors(glacier_data, current_cell):
                 if not visited_cells.has(neighbor):
                     dfs_stack.push_back(neighbor)
-        # else, do nothing.
     return connected_cells
 
 
@@ -164,10 +162,9 @@ static func for_each_cell(
 
 static func for_each_neighbor(glacier_data: GlacierData, callback: Callable) -> void:
     var visited_neighbors: Array = []
-    for fracture in glacier_data.active_fractures:
-        var neighbors = get_cardinal_neighbors(glacier_data, fracture)
-        for neighbor in neighbors:
-            # Ensure we do not call the callback more than once for the same neighbor cell.
+    for fracture: Vector2i in glacier_data.active_fractures:
+        var neighbors: Array[Vector2i] = get_cardinal_neighbors(glacier_data, fracture)
+        for neighbor: Vector2i in neighbors:
             if not (neighbor in visited_neighbors):
                 visited_neighbors.append(neighbor)
                 callback.call(neighbor)

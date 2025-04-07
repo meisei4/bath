@@ -1,7 +1,6 @@
 extends Node
 class_name GlacierConstants
 
-#const IMAGE_TEXTURE_SIZE: Vector2i = Vector2i(16, 16)
 const TILE_SIZE_1D: int = 2
 const SUBDIVISION_FACTOR: int = 8
 const DS_RESOLUTION: Vector2i = Vector2i(256, 384)
