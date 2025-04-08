@@ -41,16 +41,18 @@ func _ready() -> void:
     audio_texture = ImageTexture.create_from_image(audio_image)
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
     #update_fft_texture_row()
+    var accumulated_time = 0.0
     update_waveform_texture_row()
     audio_texture.set_image(audio_image)
 
 
 func prepare_waveform_audio_effect_capture() -> void:
     waveform_audio_effect_capture = AudioEffectCapture.new()
-    #waveform_audio_effect_capture.buffer_length =  0.01666 # 1/60??
-    waveform_audio_effect_capture.buffer_length = 0.03333333333  #TODO how to get a proper framerate based buffer length or is it even what i want? it looks decent like this tbh........
+    #waveform_audio_effect_capture.buffer_length = 0.01666666666 #TODO: 1/60 this is bat shit and results in unaligned injection and propagation somehow?
+    waveform_audio_effect_capture.buffer_length = 0.03333333333 #TODO: 1/30 this aligns kind of with the frame rate and thus the injection intervals and propagation??
+    #waveform_audio_effect_capture.buffer_length = 0.06666666666 #TODO: 1/15 this is bat shit and results in unaligned injection and propagation somehow?
     AudioEffects.add_effect(TARGET_AUDIO_BUS, waveform_audio_effect_capture)
     waveform_data.resize(BUFFER_SIZE)
 
