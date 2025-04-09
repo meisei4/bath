@@ -14,9 +14,9 @@ uniform sampler2D iChannel0; //the envelope buffer
 #define BLACK vec4(0.0, 0.0, 0.0, 1.0)
 
 
-float get_envelope_from_buffer(int history_row, int bin_index) {
+float get_envelope_from_buffer(int history_row, int segment_index) {
     float texture_v = 1.0 - (float(history_row) + 0.5) / float(NUMBER_OF_HISTORICAL_ENVELOPE_SNAPSHOTS);
-    float texture_u = (float(bin_index) + 0.5) / float(DOWNSCALED_TARGET_NUMBER_OF_FREQUENCY_BINS);
+    float texture_u = (float(segment_index) + 0.5) / float(DOWNSCALED_TARGET_NUMBER_OF_WAVEFORM_SEGMENTS);
     return texture(iChannel0, vec2(texture_u, texture_v)).r;
 }
 
@@ -31,12 +31,12 @@ vec2 project_centered_envelope(vec3 envelope_coordinate) {
 void fragment() {
     float closest_distance = MAX_DISTANCE;
     for (int history_row = 0; history_row < NUMBER_OF_HISTORICAL_ENVELOPE_SNAPSHOTS; history_row++) {
-        for (int bin_index = 0; bin_index < DOWNSCALED_TARGET_NUMBER_OF_FREQUENCY_BINS - 1; bin_index++) {
-            float envelope_left = get_envelope_from_buffer(history_row, bin_index);
-            float envelope_right = get_envelope_from_buffer(history_row, bin_index + 1);
+        for (int segment_index = 0; segment_index < DOWNSCALED_TARGET_NUMBER_OF_WAVEFORM_SEGMENTS - 1; segment_index++) {
+            float envelope_left = get_envelope_from_buffer(history_row, segment_index);
+            float envelope_right = get_envelope_from_buffer(history_row, segment_index + 1);
 
-            vec3 envelope_coordinate_left = vec3(float(bin_index), envelope_left, float(history_row));
-            vec3 envelope_coordinate_right = vec3(float(bin_index + 1), envelope_right, float(history_row));
+            vec3 envelope_coordinate_left = vec3(float(segment_index), envelope_left, float(history_row));
+            vec3 envelope_coordinate_right = vec3(float(segment_index + 1), envelope_right, float(history_row));
 
             vec2 screen_position_left = project_centered_envelope(envelope_coordinate_left);
             vec2 screen_position_right = project_centered_envelope(envelope_coordinate_right);
