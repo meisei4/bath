@@ -34,8 +34,3 @@ void fragment() {
     //frag_color = color;
     COLOR = color;
 }
-
-
-
-
-

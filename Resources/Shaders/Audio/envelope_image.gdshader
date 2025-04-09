@@ -1,7 +1,7 @@
 shader_type canvas_item;
 render_mode blend_disabled;
 
-#include "res://Resources/Shaders/Audio/audio_plotting.gdshaderinc"
+#include "res://Resources/Shaders/Audio/utils.gdshaderinc"
 
 uniform vec2 iResolution;
 uniform sampler2D iChannel0; //samples the output of audio_feedback_envelope
@@ -31,8 +31,6 @@ vec2 project_centered_envelope(vec3 envelope_coordinate) {
 //void mainImage(out vec4 frag_color, in vec2 frag_coord) {
 void fragment() {
     float closest_distance = MAX_DISTANCE;
-
-    // Loop over each history row (each envelope capture).
     for (int history_row = 0; history_row < NUMBER_OF_HISTORY_ROWS; history_row++) {
         // Loop over each pair of adjacent bins.
         for (int bin_index = 0; bin_index < NUMBER_OF_BINS - 1; bin_index++) {
@@ -47,7 +45,6 @@ void fragment() {
 
             float distance_to_wave_line = distance_to_line(FRAGCOORD.xy, screen_position_left, screen_position_right);
             //float distance_to_wave_line = distance_to_line(frag_coord.xy, screen_position_left, screen_position_right);
-
             closest_distance = min(closest_distance, distance_to_wave_line);
         }
     }
