@@ -1,29 +1,25 @@
-#define NUMBER_OF_BINS 85
-#define NUMBER_OF_HISTORY_ROWS 5
-
-const float amplitude_scale = 100.0;
-const float isometric_zoom   = 4.0;
-const float row_spacing      = 10.0;
+#define DOWNSCALED_TARGET_NUMBER_OF_FREQUENCY_BINS 85
+#define DOWNSCALED_TARGET_NUMBER_OF_FREQUENCY_BINS_F float(DOWNSCALED_TARGET_NUMBER_OF_FREQUENCY_BINS)
+#define NUMBER_OF_HISTORICAL_ENVELOPE_SNAPSHOTS 5
+#define AMPLITUDE_SCALE 100.0
+#define ISOMETRIC_ZOOM 4.0
+#define ROW_SPACING 10.0
 
 vec2 project_envelope(vec3 envelope_coordinate) {
     float bin_index       = envelope_coordinate.x;
     float envelope_value  = envelope_coordinate.y;
     float history_row     = envelope_coordinate.z;
-    float effective_row   = history_row * row_spacing;
-
-    // Isometric projection:
-    //   X = bin_index - effective_row
-    //   Y = (bin_index + effective_row) * 0.5 - envelope_value * amplitude_scale
+    float effective_row   = history_row * ROW_SPACING;
     float projected_x = bin_index - effective_row;
-    float projected_y = (bin_index + effective_row) * 0.5 - envelope_value * amplitude_scale;
-    return vec2(projected_x, projected_y) * isometric_zoom;
+    float projected_y = (bin_index + effective_row) * 0.5 - envelope_value * AMPLITUDE_SCALE;
+    return vec2(projected_x, projected_y) * ISOMETRIC_ZOOM;
 }
 
 vec2 compute_envelope_grid_center() {
     vec2 projected_bottom_left  = project_envelope(vec3(0.0, 0.0, 0.0));
-    vec2 projected_bottom_right = project_envelope(vec3(float(NUMBER_OF_BINS - 1), 0.0, 0.0));
-    vec2 projected_top_left     = project_envelope(vec3(0.0, 1.0, float(NUMBER_OF_HISTORY_ROWS - 1)));
-    vec2 projected_top_right    = project_envelope(vec3(float(NUMBER_OF_BINS - 1), 1.0, float(NUMBER_OF_HISTORY_ROWS - 1)));
+    vec2 projected_bottom_right = project_envelope(vec3(float(DOWNSCALED_TARGET_NUMBER_OF_FREQUENCY_BINS - 1), 0.0, 0.0));
+    vec2 projected_top_left     = project_envelope(vec3(0.0, 1.0, float(NUMBER_OF_HISTORICAL_ENVELOPE_SNAPSHOTS - 1)));
+    vec2 projected_top_right    = project_envelope(vec3(float(DOWNSCALED_TARGET_NUMBER_OF_FREQUENCY_BINS - 1), 1.0, float(NUMBER_OF_HISTORICAL_ENVELOPE_SNAPSHOTS - 1)));
 
     vec2 minimum_corner = min(min(projected_bottom_left, projected_bottom_right),
                               min(projected_top_left, projected_top_right));

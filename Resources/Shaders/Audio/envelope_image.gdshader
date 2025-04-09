@@ -4,23 +4,22 @@ render_mode blend_disabled;
 #include "res://Resources/Shaders/Audio/utils.gdshaderinc"
 
 uniform vec2 iResolution;
-uniform sampler2D iChannel0; //samples the output of audio_feedback_envelope
+uniform sampler2D iChannel0; //the envelope buffer
 
-#define LINE_RENDER_MARGIN 0.23        // amount of thickness (in fragment size/single pixel) that surrounds both sides of the wave signal lines
-#define MAX_DISTANCE 1e6               // some stupid number to just initialize the min distance to closest wave signal logic
+#define LINE_RENDER_WIDTH 0.75
+#define LINE_RENDER_MARGIN (LINE_RENDER_WIDTH * 2.0) // amount of thickness (in fragment size/single pixel) that surrounds both sides of the wave signal lines
+#define MAX_DISTANCE 1e6 // some stupid number to just initialize the min distance to closest wave signal logic
 
 #define WHITE vec4(1.0, 1.0, 1.0, 1.0)
 #define BLACK vec4(0.0, 0.0, 0.0, 1.0)
 
-const float line_render_width = 0.75;
 
 float get_envelope_from_buffer(int history_row, int bin_index) {
-    float texture_v = 1.0 - (float(history_row) + 0.5) / float(NUMBER_OF_HISTORY_ROWS);
-    float texture_u = (float(bin_index) + 0.5) / float(NUMBER_OF_BINS);
+    float texture_v = 1.0 - (float(history_row) + 0.5) / float(NUMBER_OF_HISTORICAL_ENVELOPE_SNAPSHOTS);
+    float texture_u = (float(bin_index) + 0.5) / float(DOWNSCALED_TARGET_NUMBER_OF_FREQUENCY_BINS);
     return texture(iChannel0, vec2(texture_u, texture_v)).r;
 }
 
-// Offsets a projected envelope coordinate so the full grid is centered on screen.
 vec2 project_centered_envelope(vec3 envelope_coordinate) {
     vec2 raw_projected_coordinate = project_envelope(envelope_coordinate);
     vec2 grid_center = compute_envelope_grid_center();
@@ -31,9 +30,8 @@ vec2 project_centered_envelope(vec3 envelope_coordinate) {
 //void mainImage(out vec4 frag_color, in vec2 frag_coord) {
 void fragment() {
     float closest_distance = MAX_DISTANCE;
-    for (int history_row = 0; history_row < NUMBER_OF_HISTORY_ROWS; history_row++) {
-        // Loop over each pair of adjacent bins.
-        for (int bin_index = 0; bin_index < NUMBER_OF_BINS - 1; bin_index++) {
+    for (int history_row = 0; history_row < NUMBER_OF_HISTORICAL_ENVELOPE_SNAPSHOTS; history_row++) {
+        for (int bin_index = 0; bin_index < DOWNSCALED_TARGET_NUMBER_OF_FREQUENCY_BINS - 1; bin_index++) {
             float envelope_left = get_envelope_from_buffer(history_row, bin_index);
             float envelope_right = get_envelope_from_buffer(history_row, bin_index + 1);
 
@@ -49,7 +47,7 @@ void fragment() {
         }
     }
 
-    float intensity = 1.0 - smoothstep(line_render_width, line_render_width * 2.0, closest_distance);
+    float intensity = 1.0 - smoothstep(LINE_RENDER_WIDTH, LINE_RENDER_MARGIN, closest_distance);
     //frag_color = vec4(vec3(intensity), 1.0);
     COLOR = vec4(vec3(intensity), 1.0);
 }
