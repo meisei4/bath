@@ -4,10 +4,17 @@ extends Node
 
 const SFX_POOL_SIZE: int = 12
 const MUSIC_POOL_SIZE: int = 5
+const INPUT_POOL_SIZE: int = 1
 
 const bus_volumes: Dictionary[AudioBus.BUS, float] = {
-    AudioBus.BUS.MASTER: 0.0, AudioBus.BUS.SFX: 0.0, AudioBus.BUS.MUSIC: 0.0
+    #TODO: WHEN USING THE REROUTED VIRTUAL DEVICE AS MICROPHONE INPUT SET THE MASTER AUDIO BUS TO -80.0 to avoid infinite routing feedback
+    AudioBus.BUS.MASTER: -80.0,
+    AudioBus.BUS.SFX: 0.0,
+    AudioBus.BUS.MUSIC: 0.0,
+    AudioBus.BUS.INPUT: 0.0
 }
+
+var input_stream_player: AudioStreamPlayer
 
 var sfx_pool: Array[AudioStreamPlayer] = []
 var available_sfx_players: Array[AudioStreamPlayer] = []
@@ -17,10 +24,11 @@ var available_music_players: Array[AudioStreamPlayer] = []
 
 
 func _ready() -> void:
-    _setup_buses([AudioBus.BUS.MASTER, AudioBus.BUS.SFX, AudioBus.BUS.MUSIC])
+    _setup_buses([AudioBus.BUS.MASTER, AudioBus.BUS.SFX, AudioBus.BUS.MUSIC, AudioBus.BUS.INPUT])
     _set_bus_volumes()
     _initialize_sfx_pool()
     _initialize_music_pool()
+    _initialize_input_stream()
 
 
 func _setup_buses(buses: Array[AudioBus.BUS]) -> void:
@@ -37,6 +45,13 @@ func _set_bus_volumes() -> void:
     for bus: AudioBus.BUS in bus_volumes.keys():
         var bus_idx: int = AudioBus.get_bus_index(bus)
         AudioServer.set_bus_volume_db(bus_idx, bus_volumes[bus])
+
+
+func _initialize_input_stream() -> void:
+    input_stream_player = AudioStreamPlayer.new()  # ONLY 1!!!
+    input_stream_player.bus = AudioBus.val(AudioBus.BUS.INPUT)
+    #TODO: add releasing and connection signals
+    add_child(input_stream_player)
 
 
 func _initialize_sfx_pool() -> void:
@@ -73,6 +88,11 @@ func acquire_music_player() -> AudioStreamPlayer:
     return available_music_players.pop_back()
 
 
+func release_input_player(player: AudioStreamPlayer) -> void:
+    player.stop()
+    player.stream = null
+
+
 func release_sfx_player(player: AudioStreamPlayer) -> void:
     player.stop()
     player.stream = null
@@ -83,6 +103,12 @@ func release_music_player(player: AudioStreamPlayer) -> void:
     player.stop()
     player.stream = null
     available_music_players.append(player)
+
+
+func play_input(input_resource: AudioStreamMicrophone, volume_db: float = 0.0) -> void:
+    input_stream_player.stream = input_resource
+    input_stream_player.volume_db = volume_db
+    input_stream_player.play()
 
 
 func play_sfx(sound_resource: AudioStream, volume_db: float = 0.0) -> void:
@@ -134,6 +160,10 @@ func is_music_playing() -> bool:
         if player.playing:
             return true
     return false
+
+
+func _on_input_finished(player: AudioStreamPlayer) -> void:
+    release_input_player(player)
 
 
 func _on_sfx_finished(player: AudioStreamPlayer) -> void:

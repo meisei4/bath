@@ -48,8 +48,12 @@ func _ready() -> void:
     MainImage.texture = BufferB.get_texture()
     MainImage.flip_v = true
     #var music_resource: AudioStream = load(AudioConsts.SHADERTOY_MUSIC_TRACK_EXPERIMENT)
-    var music_resource: AudioStream = load(AudioConsts.HELLION)
-    AudioManager.play_music(music_resource, 0.0)
+    #var music_resource: AudioStream = load(AudioConsts.HELLION)
+    #var music_resource: AudioStream = load(AudioConsts.BEETH)
+    #AudioManager.play_music(music_resource, 0.0)
+    var input_resource: AudioStreamMicrophone = AudioStreamMicrophone.new()
+    AudioManager.play_input(input_resource, 0.0)
+
     #TODO: ^^^ ew, figure out how to perhaps make it more obvious that the audio texture can target whatever audio bus...
     shadertoy_audio_texture = ShaderToyAudioTexture.new()  #TODO: this has to target a specific audio bus internally, figure out a better way
 

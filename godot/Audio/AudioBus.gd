@@ -2,7 +2,7 @@ extends Node
 #TODO: autoloads cant be class named in file
 #class_name AudioBus
 
-enum BUS { MASTER = 0, SFX = 1, MUSIC = 2 }
+enum BUS { MASTER = 0, SFX = 1, MUSIC = 2, INPUT = 3 }
 
 @export var bus: BUS = BUS.MASTER
 
@@ -15,6 +15,8 @@ func val(_bus: BUS) -> StringName:
             return "SFX"
         BUS.MUSIC:
             return "Music"
+        BUS.INPUT:
+            return "Input"
         _:
             return ""
 
