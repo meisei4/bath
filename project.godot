@@ -12,7 +12,6 @@ config_version=5
 
 config/name="bath"
 config/features=PackedStringArray("4.4", "Forward Plus")
-run/max_fps=30
 
 [audio]
 

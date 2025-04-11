@@ -2,11 +2,13 @@ extends Node2D
 class_name SoundEnvelope
 
 var BufferAShaderNode: ColorRect
-var BufferAShader: Shader = load("res://Resources/Shaders/Audio/envelope_buffer.gdshader")
+#var BufferAShader: Shader = load("res://Resources/Shaders/Audio/envelope_buffer.gdshader")
+var BufferAShader: Shader = load("res://Resources/Shaders/Audio/optimized_envelope_buffer_a.gdshader")
 var BufferAShaderMaterial: ShaderMaterial
 
 var BufferBShaderNode: ColorRect
-var BufferBShader: Shader = load("res://Resources/Shaders/Audio/envelope_image.gdshader")
+#var BufferBShader: Shader = load("res://Resources/Shaders/Audio/envelope_image.gdshader")
+var BufferBShader: Shader = load("res://Resources/Shaders/Audio/optimized_envelope_buffer_b.gdshader")
 var BufferBShaderMaterial: ShaderMaterial
 
 var shadertoy_audio_texture: ShaderToyAudioTexture
@@ -79,9 +81,11 @@ func create_buffer_viewport(resolution: Vector2) -> SubViewport:
 
 #TODO: its very important to control frame rate with these audio shaders
 func _process(delta: float) -> void:
+    iFrame += 1
     iChannel1 = shadertoy_audio_texture.audio_texture
     #TODO: remember iChannel0 for BufferA is just screen hinted in the shader
     BufferAShaderMaterial.set_shader_parameter("iChannel1", iChannel1)
 
     iChannel0 = BufferA.get_texture() as ViewportTexture
     BufferBShaderMaterial.set_shader_parameter("iChannel0", iChannel0)
+    BufferBShaderMaterial.set_shader_parameter("iFrame", iFrame)

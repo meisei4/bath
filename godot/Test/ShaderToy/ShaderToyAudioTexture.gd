@@ -24,7 +24,7 @@ var fft_data: Array[float]  #TODO: use these as uniforms perhaps later if it imp
 const TEXTURE_HEIGHT: int = 2  #y = 0 is fft spectrum, y= 1 is raw wave data
 const BUFFER_SIZE: int = 512
 const SAMPLE_RATE: float = 48000.0  #TODO: figure out how to get this to actually be shadertoy matched
-const AUDIO_DECIBEL_FLOOR: float = -100.0  # some default "quietest" decibel level (near silence) in the audio.
+const AUDIO_DECIBEL_FLOOR: float = -80.0  # some default "quietest" decibel level (near silence) in the audio.
 const AUDIO_DECIBEL_CIELING: float = 0.0  #the loudest?? is it just from the AudioBus attribute???
 
 const WAVEFORM_ROW: int = 1

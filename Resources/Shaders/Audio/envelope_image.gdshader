@@ -35,6 +35,11 @@ void fragment() {
             float envelope_left = get_envelope_from_buffer(history_row, segment_index);
             float envelope_right = get_envelope_from_buffer(history_row, segment_index + 1);
 
+            //float current_left = get_envelope_from_buffer(0, segment_index);
+            //float current_right = get_envelope_from_buffer(0, segment_index + 1);
+            //envelope_left = min(envelope_left, current_left);
+            //envelope_right = min(envelope_right, current_right);
+
             vec3 envelope_coordinate_left = vec3(float(segment_index), envelope_left, float(history_row));
             vec3 envelope_coordinate_right = vec3(float(segment_index + 1), envelope_right, float(history_row));
 

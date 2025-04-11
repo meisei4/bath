@@ -1,9 +1,12 @@
-#define DOWNSCALED_TARGET_NUMBER_OF_WAVEFORM_SEGMENTS 100
+#define DOWNSCALED_TARGET_NUMBER_OF_WAVEFORM_SEGMENTS 64
 #define DOWNSCALED_TARGET_NUMBER_OF_WAVEFORM_SEGMENTS_F float(DOWNSCALED_TARGET_NUMBER_OF_WAVEFORM_SEGMENTS)
-#define NUMBER_OF_HISTORICAL_ENVELOPE_SNAPSHOTS 5
-#define AMPLITUDE_SCALE 500.0
-#define ISOMETRIC_ZOOM 3.0
-#define ROW_SPACING 13.0
+#define NUMBER_OF_HISTORICAL_ENVELOPE_SNAPSHOTS 6
+#define AMPLITUDE_SCALE 100.0
+#define ISOMETRIC_ZOOM 5.2
+#define ROW_SPACING 10.0 //THE FUCK THIS CAUSES ARTIFACTS IN THE CLEARING AFTER 5 ROWS IF ITS 12 or something
+
+#define UNUSED_FEEDBACK_CHANNEL 0.0
+
 
 vec2 project_envelope(vec3 envelope_coordinate) {
     float segment_index   = envelope_coordinate.x;
@@ -14,6 +17,14 @@ vec2 project_envelope(vec3 envelope_coordinate) {
     float projected_y = (segment_index + effective_row) * 0.5 - envelope_value * AMPLITUDE_SCALE;
     return vec2(projected_x, projected_y) * ISOMETRIC_ZOOM;
 }
+
+vec2 compute_isometric_uv_shift(vec2 resolution_uniform) {
+    vec2 proj0 = project_envelope(vec3(0.0, 0.0, 1.0));
+    vec2 proj1 = project_envelope(vec3(0.0, 0.0, 0.0));
+    vec2 projected_diff = proj1 - proj0;
+    return projected_diff / resolution_uniform;
+}
+
 
 vec2 compute_envelope_grid_center() {
     vec2 projected_bottom_left  = project_envelope(vec3(0.0, 0.0, 0.0));
@@ -27,6 +38,7 @@ vec2 compute_envelope_grid_center() {
                               max(projected_top_left, projected_top_right));
     return (minimum_corner + maximum_corner) * 0.5;
 }
+
 
 float distance_to_line(vec2 pixel_coordinate, vec2 line_start, vec2 line_end) {
     vec2 line_vector = line_end - line_start;
