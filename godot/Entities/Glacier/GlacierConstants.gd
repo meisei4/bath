@@ -1,8 +1,8 @@
 extends Node
 class_name GlacierConstants
 
-const TILE_SIZE_1D: int = 2
-const SUBDIVISION_FACTOR: int = 8
+const TILE_SIZE_1D: int = 8
+const SUBDIVISION_FACTOR: int = 2
 const DS_RESOLUTION: Vector2i = Vector2i(256, 384)
 const IMAGE_TEXTURE_SIZE: Vector2i = Vector2i(TILE_SIZE_1D, TILE_SIZE_1D)
 const TEXTURE_REGION_SIZE: Vector2i = Vector2i(TILE_SIZE_1D, TILE_SIZE_1D)
@@ -12,9 +12,9 @@ const TILE_SIZE: Vector2i = IMAGE_TEXTURE_SIZE
 const GRID_TILE_SIZE: Vector2i = Vector2i(1, 1)
 const ATLAS_SEPARATION: Vector2i = Vector2i(0, 0)
 
-const TOTAL_GRID_WIDTH_IN_TILES: int = 16 * SUBDIVISION_FACTOR
-const TOTAL_GRID_HEIGHT_IN_TILES: int = 24 * SUBDIVISION_FACTOR
-const GLACIER_HEIGHT_IN_TILES: int = 8 * SUBDIVISION_FACTOR
+const TOTAL_GRID_WIDTH_IN_TILES: int = 32 * SUBDIVISION_FACTOR
+const TOTAL_GRID_HEIGHT_IN_TILES: int = 48 * SUBDIVISION_FACTOR
+const GLACIER_HEIGHT_IN_TILES: int = 16 * SUBDIVISION_FACTOR
 
 const SOURCE_ID: int = 234
 
@@ -29,7 +29,7 @@ const MAXIMUM_FRACTURE_DEPTH: int = 6
 const FRACTURE_PROPAGATION_PROBABILITY: float = 0.40
 const MAXIMUM_NEW_FRACTURES_PER_CYCLE: int = 1
 
-const MINIMUM_ICEBERG_CLUSTER_SIZE: int = 60
+const MINIMUM_ICEBERG_CLUSTER_SIZE: int = 30
 
 const FRACTURING_CYCLE_INTERVAL: float = 0.1
 const SIMULATION_TICK_INTERVAL: float = 0.1  #TODO: match this with the actual glacier sim somewhere

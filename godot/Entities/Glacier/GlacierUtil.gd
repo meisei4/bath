@@ -21,7 +21,7 @@ static func CELL_RIGHT(cell_position: Vector2i) -> Vector2i:
 const CELL_KEY: String = "cell"
 const DEPTH_KEY: String = "depth"
 
-
+#TODO: this is the performance killer
 static func multi_source_hydrofracture(
     glacier_data: GlacierData,
     initiation_cells: Array[Vector2i],
@@ -29,12 +29,14 @@ static func multi_source_hydrofracture(
     fracture_prob: float,
     fracture_callback: Callable
 ) -> void:
+    var start_time = Profiler.start_timer()
     var visited: Dictionary[Vector2i, bool] = {}
     var queue: Array[Dictionary] = []
     for cell: Vector2i in initiation_cells:
         queue.append({CELL_KEY: cell, DEPTH_KEY: 0})
 
     while queue.size() > 0:
+
         var current: Dictionary = queue.pop_front()
         var current_pos: Vector2i = current[CELL_KEY]
         var depth: int = current[DEPTH_KEY]
@@ -50,8 +52,13 @@ static func multi_source_hydrofracture(
                 gather_cell_candidates_for_potential_fracturing(
                     glacier_data, current_pos, depth, fracture_prob, queue
                 )
+    Profiler.record("multi_source_hydrofracture", Time.get_ticks_usec() - start_time, {
+        "visited_count": visited.size(),
+        "queue_size": queue.size()
+    })
 
 
+#TODO: this is the performance killer
 static func gather_cell_candidates_for_potential_fracturing(
     glacier_data: GlacierData,
     current_cell: Vector2i,
@@ -59,6 +66,7 @@ static func gather_cell_candidates_for_potential_fracturing(
     fracture_spread_probability: float,
     bfs_queue: Array[Dictionary]
 ) -> void:
+    var start_time = Profiler.start_timer()
     var cell_below: Vector2i = CELL_BELOW(current_cell)
     if (
         is_valid_glacier_cell(glacier_data, cell_below)
@@ -72,6 +80,7 @@ static func gather_cell_candidates_for_potential_fracturing(
         _try_append_neighbor(
             glacier_data, neighbor, current_depth, fracture_spread_probability, bfs_queue
         )
+    Profiler.record("gather_cell_candidates_for_potential_fracturing", Time.get_ticks_usec() - start_time)
 
 
 static func collect_connected_glacier_cells(

@@ -47,6 +47,8 @@ func _on_simulation_tick() -> void:
     iceberg_manager.identify_and_form_iceberg_clusters(glacier_data)
     iceberg_manager.move_icebergs(glacier_data)
     update_dirty_tiles()
+    if Engine.get_frames_drawn() % 30 == 0:
+        Profiler.print_metrics()
 
 
 func _on_iceberg_manager_force_fracture_glacier_cell(cell_position: Vector2i) -> void:

@@ -114,8 +114,8 @@ func play_input(input_resource: AudioStreamMicrophone, volume_db: float = 0.0) -
 func play_sfx(sound_resource: AudioStream, volume_db: float = 0.0) -> void:
     var player: AudioStreamPlayer = acquire_sfx_player()
     if player == null:
-        print("Failed to play SFX: Pool exhausted.")
-        push_warning("Failed to play SFX: Pool exhausted.")
+        #print("Failed to play SFX: Pool exhausted.")
+        #push_warning("Failed to play SFX: Pool exhausted.")
         return
     player.bus = AudioBus.val(AudioBus.BUS.SFX)
     player.stream = sound_resource
