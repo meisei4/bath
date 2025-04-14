@@ -1,6 +1,0 @@
-[gd_scene load_steps=2 format=3 uid="uid://bdggn0k77quie"]
-
-[ext_resource type="Script" uid="uid://cpr0fw5etwxdf" path="res://godot/Shaders/Particles/TrailingParticles.gd" id="1_ayt2r"]
-
-[node name="TrailingParticles" type="CPUParticles2D"]
-script = ExtResource("1_ayt2r")

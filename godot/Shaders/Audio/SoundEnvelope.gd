@@ -29,7 +29,7 @@ func _ready() -> void:
     DisplayServer.window_set_size(res)  #TODO: this doesnt do what you think it does
     iResolution = res
     #iResolution = get_viewport_rect().size
-    BufferA = create_buffer_viewport(iResolution)
+    BufferA = ShaderToyUtil.create_buffer_viewport(iResolution)
     BufferAShaderMaterial = ShaderMaterial.new()
     BufferAShaderNode = ColorRect.new()
     BufferAShaderNode.size = iResolution
@@ -38,7 +38,7 @@ func _ready() -> void:
     BufferAShaderMaterial.set_shader_parameter("iResolution", iResolution)
     BufferAShaderMaterial.set_shader_parameter("iFrame", iFrame)
 
-    BufferB = create_buffer_viewport(iResolution)
+    BufferB = ShaderToyUtil.create_buffer_viewport(iResolution)
     BufferBShaderMaterial = ShaderMaterial.new()
     BufferBShaderNode = ColorRect.new()
     BufferBShaderNode.size = iResolution
@@ -65,18 +65,6 @@ func _ready() -> void:
     add_child(BufferB)
     add_child(MainImage)
     add_child(waveform_texture)
-
-
-func create_buffer_viewport(resolution: Vector2) -> SubViewport:
-    var subviewport: SubViewport = SubViewport.new()
-    subviewport.size = resolution
-    subviewport.disable_3d = true
-    #TODO: be able to sample 16 bit at least??? even though i try to set the image format to FORMAT_RF (32-bit floats when i draw to the audio texture
-    subviewport.use_hdr_2d = true
-    RenderingServer.set_default_clear_color(Color.BLACK)
-    subviewport.render_target_clear_mode = SubViewport.CLEAR_MODE_ONCE
-    subviewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
-    return subviewport
 
 
 #TODO: its very important to control frame rate with these audio shaders
