@@ -11,7 +11,7 @@ var BufferBShader: Shader = load("res://Resources/Shaders/Audio/envelope_image.g
 #var BufferBShader: Shader = load("res://Resources/Shaders/Audio/optimized_envelope_buffer_b.gdshader")
 var BufferBShaderMaterial: ShaderMaterial
 
-var shadertoy_audio_texture: ShaderToyAudioTexture
+var waveform_texture: WaveformTexture
 
 var BufferA: SubViewport
 var BufferB: SubViewport
@@ -57,14 +57,14 @@ func _ready() -> void:
     AudioManager.play_input(input_resource, 0.0)
 
     #TODO: ^^^ ew, figure out how to perhaps make it more obvious that the audio texture can target whatever audio bus...
-    shadertoy_audio_texture = ShaderToyAudioTexture.new()  #TODO: this has to target a specific audio bus internally, figure out a better way
+    waveform_texture = WaveformTexture.new()  #TODO: this has to target a specific audio bus internally, figure out a better way
 
     BufferA.add_child(BufferAShaderNode)
     add_child(BufferA)
     BufferB.add_child(BufferBShaderNode)
     add_child(BufferB)
     add_child(MainImage)
-    add_child(shadertoy_audio_texture)
+    add_child(waveform_texture)
 
 
 func create_buffer_viewport(resolution: Vector2) -> SubViewport:
@@ -82,7 +82,7 @@ func create_buffer_viewport(resolution: Vector2) -> SubViewport:
 #TODO: its very important to control frame rate with these audio shaders
 func _process(delta: float) -> void:
     iFrame += 1
-    iChannel1 = shadertoy_audio_texture.audio_texture
+    iChannel1 = waveform_texture.audio_texture
     #TODO: remember iChannel0 for BufferA is just screen hinted in the shader
     BufferAShaderMaterial.set_shader_parameter("iChannel1", iChannel1)
 

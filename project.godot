@@ -41,7 +41,6 @@ window/size/viewport_height=768
 window/size/resizable=false
 window/size/always_on_top=true
 window/size/sharp_corners=true
-window/stretch/scale=2.0
 
 [editor_plugins]
 
