@@ -48,7 +48,8 @@ func _on_simulation_tick() -> void:
     iceberg_manager.move_icebergs(glacier_data)
     update_dirty_tiles()
     if Engine.get_frames_drawn() % 30 == 0:
-        Profiler.print_metrics()
+        pass
+        #TODO: do something limit drawning times or something for certain cycles
 
 
 func _on_iceberg_manager_force_fracture_glacier_cell(cell_position: Vector2i) -> void:
