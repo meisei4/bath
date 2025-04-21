@@ -1,34 +1,100 @@
 extends Mechanic
 class_name Jump
 
-@export var initial_jump_velocity: float = 10.0  # in "world units"/s
-@export var override_gravity: float = 0.0  # if > 0, use that instead of SpacetimeContext.GRAVITY
+const INITIAL_JUMP_VELOCITY: float = 10.0
+const FORWARD_SPEED: float = 5.0
+const SPRITE_SCALE_AT_MAX_ALTITUDE: float = 3.0
+const OVERRIDE_GRAVITY: float = 0.0 #TODO: these things will be moved to a resource for controlling spacetime context
 
-var vertical_velocity: float = 0.0
+var gravity_value: float
+var vertical_speed: float = 0.0
+var altitude: float = 0.0
 
 
 func _ready() -> void:
     MechanicManager.jump.connect(_on_jump)
+    gravity_value = OVERRIDE_GRAVITY if OVERRIDE_GRAVITY > 0.0 else SpacetimeContext.GRAVITY
+
+func process_input(frame_delta: float) -> void:
+    var time_scaled_delta: float = SpacetimeContext.apply_time_scale(frame_delta)
+    _apply_gravity_and_drag(time_scaled_delta)
+    _update_altitude(time_scaled_delta)
+    if _should_land(): _handle_landing()
+    if _should_move_forward_in_air(): _apply_forward_movement(time_scaled_delta)
+
+
+func _apply_gravity_and_drag(time_scaled_delta: float) -> void:
+    vertical_speed = vertical_speed - (gravity_value * time_scaled_delta)
+    vertical_speed = SpacetimeContext.apply_universal_drag(vertical_speed, time_scaled_delta)
+
+
+func _update_altitude(time_scaled_delta: float) -> void:
+    altitude = altitude + (vertical_speed * time_scaled_delta)
+
+
+func _should_land() -> bool:
+    return altitude < 0.0
+
+
+func _handle_landing() -> void:
+    altitude = 0.0
+    vertical_speed = 0.0
+
+
+func _should_move_forward_in_air() -> bool:
+    return altitude > 0.0 and FORWARD_SPEED != 0.0
+
+
+func _apply_forward_movement(time_scaled_delta: float) -> void:
+    var forward_movement_world_units: float = FORWARD_SPEED * time_scaled_delta
+    var forward_movement_pixel_units: float = SpacetimeContext.to_physical_space(forward_movement_world_units)
+    character.position.y = character.position.y - forward_movement_pixel_units
+
+
+func process_visual_illusion(_frame_delta: float) -> void:
+    var sprite_node: Sprite2D = get_sprite_for_visual_illusion()
+    var vertical_offset_pixels: float = SpacetimeContext.to_physical_space(altitude)
+    sprite_node.position.y = -vertical_offset_pixels
+    var maximum_jump_height: float = _calculate_parabolic_max_altitude()
+    var altitude_location: float = _compute_location_in_jump_parabola(altitude, maximum_jump_height)
+    _update_sprite_scale(sprite_node, altitude_location)
+
+
+func _calculate_parabolic_max_altitude() -> float:
+    if gravity_value > 0.0:
+        var squared_initial_velocity: float = INITIAL_JUMP_VELOCITY * INITIAL_JUMP_VELOCITY
+        var denominator: float = 2.0 * gravity_value
+        return squared_initial_velocity / denominator
+    else:
+        return 0.0
+
+
+func _compute_location_in_jump_parabola(current_height: float, maximum_height: float) -> float:
+    if maximum_height > 0.0:
+        var raw_ratio: float = current_height / maximum_height
+        return clamp(raw_ratio, 0.0, 1.0)
+    else:
+        return 0.0
+
+
+func _update_sprite_scale(sprite_node: Sprite2D, altitude_location: float) -> void:
+    var scale_minimum: float = 1.0
+    #var scale_multiplier: float = lerp(1.0, SPRITE_SCALE_AT_MAX_ALTITUDE, altitude_location)
+    #TODO: below is an explicit lerp function
+    var scale_multiplier: float = scale_minimum + ((SPRITE_SCALE_AT_MAX_ALTITUDE - scale_minimum) * altitude_location)
+    sprite_node.scale = Vector2.ONE * scale_multiplier
 
 
 func _on_jump() -> void:
-    vertical_velocity = -initial_jump_velocity
+    if _can_jump():
+        vertical_speed = INITIAL_JUMP_VELOCITY
+
+func _can_jump() -> bool:
+    return _is_grounded() and _is_vertically_idle()
+
+func _is_grounded() -> bool:
+    return altitude == 0.0
 
 
-func process_input(real_delta: float) -> void:
-    var scaled_delta: float = SpacetimeContext.apply_time_scale(real_delta)
-
-    var g: float = override_gravity if (override_gravity > 0.0) else SpacetimeContext.GRAVITY
-    vertical_velocity += g * scaled_delta
-
-    vertical_velocity = SpacetimeContext.apply_universal_drag(vertical_velocity, scaled_delta)
-
-    if SpacetimeContext.random_quantum_tunnel_check():
-        vertical_velocity = -vertical_velocity * 0.5
-
-    var delta_world_units: float = vertical_velocity * scaled_delta
-    var delta_pixels: float = SpacetimeContext.to_physical_space(delta_world_units)
-    character.position.y += delta_pixels
-
-    if vertical_velocity >= 0.0:
-        vertical_velocity = 0.0
+func _is_vertically_idle() -> bool:
+    return vertical_speed == 0.0

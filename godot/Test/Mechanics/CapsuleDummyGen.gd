@@ -5,7 +5,7 @@ class_name CapsuleDummyGen
 func _ready() -> void:
     var sprite_width: int = 16
     var sprite_height: int = 24
-    var image: Image = Image.create(sprite_width, sprite_height, false, Image.FORMAT_RGBA8)
+    var image: Image = Image.create(sprite_width, sprite_height, true, Image.FORMAT_RGBA8)
 
     var shape: Array[String] = [
         "      XXXX      ",
@@ -46,10 +46,12 @@ func _ready() -> void:
             image.set_pixel(x, y, pixel_color)
 
     var texture: ImageTexture = ImageTexture.create_from_image(image)
+
     var character_body: CharacterBody2D = CharacterBody2D.new()
     character_body.name = "CharacterBody2D"
 
     var sprite: Sprite2D = Sprite2D.new()
+    sprite.set_texture_filter(CanvasItem.TextureFilter.TEXTURE_FILTER_NEAREST) #TODO: This is the mipmap thing, not in the image itself but the sprite
     sprite.name = "Sprite2D"
     sprite.texture = texture
     sprite.centered = true
@@ -68,10 +70,10 @@ func _ready() -> void:
     collision.owner = character_body
 
     var capsule_script: Script = (
-        ResourceLoader.load("res://godot/Entities/CapsuleDummy.gd") as Script
+        ResourceLoader.load("res://godot/Test/Mechanics/CapsuleDummy.gd") as Script
     )
     character_body.set_script(capsule_script)
 
     var scene: PackedScene = PackedScene.new()
     scene.pack(character_body)
-    ResourceSaver.save(scene, "res://godot/Entities/CapsuleDummy.tscn")
+    ResourceSaver.save(scene, "res://godot/Test/Mechanics/CapsuleDummy.tscn")

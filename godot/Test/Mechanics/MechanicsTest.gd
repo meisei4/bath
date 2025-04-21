@@ -4,7 +4,7 @@ class_name MechanicsTest
 
 func _ready() -> void:
     var capsule_scene: PackedScene = (
-        ResourceLoader.load("res://godot/Entities/CapsuleDummy.tscn") as PackedScene
+        ResourceLoader.load("res://godot/Test/Mechanics/CapsuleDummy.tscn") as PackedScene
     )
     var character: CharacterBody2D = capsule_scene.instantiate() as CharacterBody2D
     character.position = get_viewport().get_visible_rect().size / 2
