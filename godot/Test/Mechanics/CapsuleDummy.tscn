@@ -10,7 +10,6 @@ shader_parameter/altitude_location = 0.0
 shader_parameter/ascending = true
 shader_parameter/max_angle_degrees = 45.0
 shader_parameter/apex_sharpness = 2.0
-shader_parameter/flatness_duration = 0.5
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_oiyva"]
 size = Vector2(32, 48)
