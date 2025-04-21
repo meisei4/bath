@@ -85,6 +85,14 @@ func _update_sprite_scale(sprite_node: Sprite2D, altitude_location: float) -> vo
     sprite_node.scale = Vector2.ONE * scale_multiplier
 
 
+func process_collision_shape(_delta: float) -> void:
+    var collision_shape: CollisionShape2D = get_collision_object_for_processing()
+    if _is_grounded():
+        collision_shape.disabled = false #TODO: lmao double negatives
+    else:
+        collision_shape.disabled = true
+
+
 func _on_jump() -> void:
     if _can_jump():
         vertical_speed = INITIAL_JUMP_VELOCITY

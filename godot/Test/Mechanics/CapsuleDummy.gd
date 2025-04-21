@@ -20,3 +20,4 @@ func _physics_process(delta: float) -> void:
     for mechanic: Mechanic in mechanics:
         mechanic.process_input(delta)
         mechanic.process_visual_illusion(delta)
+        mechanic.process_collision_shape(delta)
