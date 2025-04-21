@@ -4,23 +4,27 @@ class_name Jump
 const INITIAL_JUMP_VELOCITY: float = 10.0
 const FORWARD_SPEED: float = 5.0
 const SPRITE_SCALE_AT_MAX_ALTITUDE: float = 3.0
-const OVERRIDE_GRAVITY: float = 0.0 #TODO: these things will be moved to a resource for controlling spacetime context
+const OVERRIDE_GRAVITY: float = 0.0  #TODO: these things will be moved to a resource for controlling spacetime context
 
 var gravity_value: float
 var vertical_speed: float = 0.0
 var altitude: float = 0.0
+var _prev_altitude_location: float = 0.0
 
 
 func _ready() -> void:
     MechanicManager.jump.connect(_on_jump)
     gravity_value = OVERRIDE_GRAVITY if OVERRIDE_GRAVITY > 0.0 else SpacetimeContext.GRAVITY
 
+
 func process_input(frame_delta: float) -> void:
     var time_scaled_delta: float = SpacetimeContext.apply_time_scale(frame_delta)
-    _apply_gravity_and_drag(time_scaled_delta)
-    _update_altitude(time_scaled_delta)
-    if _should_land(): _handle_landing()
-    if _should_move_forward_in_air(): _apply_forward_movement(time_scaled_delta)
+    _apply_gravity_and_drag(time_scaled_delta * 0.5)
+    _update_altitude(time_scaled_delta * 0.5)
+    if _should_land():
+        _handle_landing()
+    if _should_move_forward_in_air():
+        _apply_forward_movement(time_scaled_delta)
 
 
 func _apply_gravity_and_drag(time_scaled_delta: float) -> void:
@@ -47,7 +51,9 @@ func _should_move_forward_in_air() -> bool:
 
 func _apply_forward_movement(time_scaled_delta: float) -> void:
     var forward_movement_world_units: float = FORWARD_SPEED * time_scaled_delta
-    var forward_movement_pixel_units: float = SpacetimeContext.to_physical_space(forward_movement_world_units)
+    var forward_movement_pixel_units: float = SpacetimeContext.to_physical_space(
+        forward_movement_world_units
+    )
     character.position.y = character.position.y - forward_movement_pixel_units
 
 
@@ -56,7 +62,11 @@ func process_visual_illusion(_frame_delta: float) -> void:
     var vertical_offset_pixels: float = SpacetimeContext.to_physical_space(altitude)
     sprite_node.position.y = -vertical_offset_pixels
     var maximum_jump_height: float = _calculate_parabolic_max_altitude()
-    var altitude_location: float = _compute_location_in_jump_parabola(altitude, maximum_jump_height)
+    var altitude_location: float = _compute_altitude_location_in_jump_parabola(altitude, maximum_jump_height)
+    var ascending: bool = altitude_location > _prev_altitude_location
+    sprite_node.material.set_shader_parameter("ascending", ascending)
+    sprite_node.material.set_shader_parameter("altitude_location", altitude_location)
+    _prev_altitude_location = altitude_location
     _update_sprite_scale(sprite_node, altitude_location)
 
 
@@ -69,7 +79,7 @@ func _calculate_parabolic_max_altitude() -> float:
         return 0.0
 
 
-func _compute_location_in_jump_parabola(current_height: float, maximum_height: float) -> float:
+func _compute_altitude_location_in_jump_parabola(current_height: float, maximum_height: float) -> float:
     if maximum_height > 0.0:
         var raw_ratio: float = current_height / maximum_height
         return clamp(raw_ratio, 0.0, 1.0)
@@ -81,14 +91,16 @@ func _update_sprite_scale(sprite_node: Sprite2D, altitude_location: float) -> vo
     var scale_minimum: float = 1.0
     #var scale_multiplier: float = lerp(1.0, SPRITE_SCALE_AT_MAX_ALTITUDE, altitude_location)
     #TODO: below is an explicit lerp function
-    var scale_multiplier: float = scale_minimum + ((SPRITE_SCALE_AT_MAX_ALTITUDE - scale_minimum) * altitude_location)
+    var scale_multiplier: float = (
+        scale_minimum + ((SPRITE_SCALE_AT_MAX_ALTITUDE - scale_minimum) * altitude_location)
+    )
     sprite_node.scale = Vector2.ONE * scale_multiplier
 
 
 func process_collision_shape(_delta: float) -> void:
     var collision_shape: CollisionShape2D = get_collision_object_for_processing()
     if _is_grounded():
-        collision_shape.disabled = false #TODO: lmao double negatives
+        collision_shape.disabled = false  #TODO: lmao double negatives
     else:
         collision_shape.disabled = true
 
@@ -97,8 +109,10 @@ func _on_jump() -> void:
     if _can_jump():
         vertical_speed = INITIAL_JUMP_VELOCITY
 
+
 func _can_jump() -> bool:
     return _is_grounded() and _is_vertically_idle()
+
 
 func _is_grounded() -> bool:
     return altitude == 0.0

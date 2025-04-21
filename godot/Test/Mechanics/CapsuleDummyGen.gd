@@ -51,10 +51,17 @@ func _ready() -> void:
     character_body.name = "CharacterBody2D"
 
     var sprite: Sprite2D = Sprite2D.new()
-    sprite.set_texture_filter(CanvasItem.TextureFilter.TEXTURE_FILTER_NEAREST) #TODO: This is the mipmap thing, not in the image itself but the sprite
+    sprite.set_texture_filter(CanvasItem.TextureFilter.TEXTURE_FILTER_NEAREST)  #TODO: This is the mipmap thing, not in the image itself but the sprite
     sprite.name = "Sprite2D"
     sprite.texture = texture
     sprite.centered = true
+    var animation_shader: ShaderMaterial = ShaderMaterial.new()
+    #TODO: get this from a resource collection, for now its hard coded to the jump shader
+    animation_shader.shader = load(
+        "res://Resources/Shaders/MechanicAnimations/jumping_bend.gdshader"
+    )
+    sprite.material = animation_shader
+
     image.save_png("res://Assets/Sprites/capsule.png")
     sprite.texture = ResourceLoader.load("res://Assets/Sprites/capsule.png")
     character_body.add_child(sprite)

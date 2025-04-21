@@ -8,6 +8,7 @@ var BufferA: SubViewport
 var MainImage: TextureRect
 var iResolution: Vector2
 
+
 func _ready() -> void:
     #var res: Vector2i = Vector2i(855, 480)
     #DisplayServer.window_set_size(res)  #TODO: this doesnt do what you think it does

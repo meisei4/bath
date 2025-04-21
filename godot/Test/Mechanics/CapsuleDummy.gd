@@ -7,12 +7,15 @@ var mechanics: Array[Mechanic] = []
 func _ready() -> void:
     var lateral_movement: LateralMovement = LateralMovement.new()
     lateral_movement.character = self
+    var later_movement_animation: ShaderMaterial = ShaderMaterial.new()
+    #later_movement_animation.shader = preload("res://shaders/jump_bulge.shader")
+    lateral_movement.animation_shader = later_movement_animation
     add_child(lateral_movement)
     mechanics.append(lateral_movement)
 
     var jump: Jump = Jump.new()
     jump.character = self
-    add_child(jump)
+    add_child(jump) #TODO: this is when the _ready function gets ran and the sahder gets added
     mechanics.append(jump)
 
 
