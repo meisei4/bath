@@ -1,7 +1,6 @@
 shader_type canvas_item;
-#define MAXIMUM_TILT_ANGLE_ACHIEVED_AT_IMMEDIATE_ASCENSION_AND_FINAL_DESCENT  0.785398 // PI / 4 ~ 45° in radians
 #define MIDPOINT_UV 0.5
-#define FOCAL_LENGTH  0.5
+
 #define NEGATE_TILT_ANGLE -1.0
 
 #define DISCARD_PIXELS_OUTSIDE_OF_ALTERED_UV_BOUNDS(uv, texel_size) \
@@ -12,8 +11,11 @@ shader_type canvas_item;
         discard;
 
 uniform vec2 iResolution;
+uniform float MAXIMUM_TILT_ANGLE_ACHIEVED_AT_IMMEDIATE_ASCENSION_AND_FINAL_DESCENT;
+uniform float FOCAL_LENGTH;
 uniform float altitude_normal; //value from 0 -> 1 -> 0 tracing the jump state as a normal scale for altitude
 uniform bool  ascending;
+
 
 void fragment() {
 //void mainImage(out vec4 frag_color, in vec2 frag_coord) {
