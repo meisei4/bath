@@ -1,24 +1,17 @@
-[gd_scene load_steps=6 format=3 uid="uid://fjh77cd6ml5a"]
+[gd_scene load_steps=4 format=3]
 
-[ext_resource type="Script" uid="uid://b0y0vf7cnjyk6" path="res://godot/Test/Mechanics/CapsuleDummy.gd" id="1_om70y"]
-[ext_resource type="Shader" uid="uid://cbrswq2jd25q1" path="res://Resources/Shaders/MechanicAnimations/jump_trig.gdshader" id="2_okub3"]
-[ext_resource type="Texture2D" uid="uid://crkmp2kbgccvy" path="res://Assets/Sprites/capsule.png" id="3_l58hy"]
+[ext_resource type="Script" path="res://godot/Test/Mechanics/CapsuleDummy.gd" id="1_1le21"]
+[ext_resource type="Texture2D" path="res://Assets/Sprites/capsule.png" id="2_om70y"]
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_nwxev"]
-shader = ExtResource("2_okub3")
-shader_parameter/altitude_normal = 0.0
-shader_parameter/ascending = true
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_oiyva"]
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_okub3"]
 size = Vector2(32, 48)
 
 [node name="CharacterBody2D" type="CharacterBody2D"]
-script = ExtResource("1_om70y")
+script = ExtResource("1_1le21")
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
 texture_filter = 1
-material = SubResource("ShaderMaterial_nwxev")
-texture = ExtResource("3_l58hy")
+texture = ExtResource("2_om70y")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
-shape = SubResource("RectangleShape2D_oiyva")
+shape = SubResource("RectangleShape2D_okub3")

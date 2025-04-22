@@ -12,7 +12,7 @@ func _ready() -> void:
 
     var jump: Jump = Jump.new()
     jump.character = self
-    add_child(jump) #TODO: this is when the _ready function gets ran and the sahder gets added
+    add_child(jump)  #TODO: this is when the _ready function gets ran and the sahder gets added
     mechanics.append(jump)
 
 

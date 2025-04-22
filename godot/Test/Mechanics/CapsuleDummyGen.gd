@@ -11,7 +11,7 @@ func _ready() -> void:
         "      XXXX      ",
         "    X......X    ",
         "  X..........X  ",
-        " X............X ",
+        " X.....XX.....X ",
         "X..............X",
         "X..............X",
         "X..............X",
@@ -45,6 +45,7 @@ func _ready() -> void:
                 pixel_color = Color.WHITE
             image.set_pixel(x, y, pixel_color)
 
+    image.save_png("res://Assets/Sprites/capsule.png")
     var texture: ImageTexture = ImageTexture.create_from_image(image)
 
     var character_body: CharacterBody2D = CharacterBody2D.new()
@@ -55,14 +56,8 @@ func _ready() -> void:
     sprite.name = "Sprite2D"
     sprite.texture = texture
     sprite.centered = true
-    var animation_shader: ShaderMaterial = ShaderMaterial.new()
-    #TODO: get this from a resource collection, for now its hard coded to the jump shader
-    animation_shader.shader = load(
-        "res://Resources/Shaders/MechanicAnimations/jump_trig.gdshader"
-    )
-    sprite.material = animation_shader
 
-    image.save_png("res://Assets/Sprites/capsule.png")
+    #TODO: this next part is a race condition because the image wont be saved in time, so you have to run this twice lol
     sprite.texture = ResourceLoader.load("res://Assets/Sprites/capsule.png")
     character_body.add_child(sprite)
     sprite.owner = character_body

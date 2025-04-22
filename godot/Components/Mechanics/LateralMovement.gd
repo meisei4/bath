@@ -7,8 +7,8 @@ const DECELERATION: float = 600.0
 const LATERAL_FADE_TIME: float = 0.3  # how long (seconds) to reach full wiggle
 
 #TODO: this is a clone of movement_input to be used for animations, i.e. persist between input events
-var lateral_dir: int    = 0    # –1 for left, +1 for right, 0 for none
-var lateral_timer:  float = 0  # ramps 0→LATERAL_FADE_TIME while moving, back to 0 when stopped
+var lateral_dir: int = 0  # –1 for left, +1 for right, 0 for none
+var lateral_timer: float = 0  # ramps 0→LATERAL_FADE_TIME while moving, back to 0 when stopped
 
 var movement_input: int = 0
 var current_velocity: float = 0.0
@@ -16,6 +16,7 @@ var stretch_timer: float = 0.0
 
 
 func _ready() -> void:
+    #apply_mechanic_animation_shader("res://Resources/Shaders/MechanicAnimations/mechanic_animations.gdshader")
     MechanicManager.left_lateral_movement.connect(_on_move_left_triggered)
     MechanicManager.right_lateral_movement.connect(_on_move_right_triggered)
 
@@ -28,6 +29,7 @@ func _process(delta: float) -> void:
 func _on_move_left_triggered() -> void:
     movement_input = -1
     lateral_dir = -1
+
 
 func _on_move_right_triggered() -> void:
     movement_input = 1
