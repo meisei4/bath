@@ -8,7 +8,7 @@
 shader = ExtResource("2_okub3")
 shader_parameter/altitude_location = 0.0
 shader_parameter/ascending = true
-shader_parameter/max_angle_degrees = 45.0
+shader_parameter/max_angle = 0.785398
 shader_parameter/apex_sharpness = 2.0
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_oiyva"]

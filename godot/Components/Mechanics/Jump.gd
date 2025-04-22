@@ -19,8 +19,8 @@ func _ready() -> void:
 
 func process_input(frame_delta: float) -> void:
     var time_scaled_delta: float = SpacetimeContext.apply_time_scale(frame_delta)
-    _apply_gravity_and_drag(time_scaled_delta * 0.5)
-    _update_altitude(time_scaled_delta * 0.5)
+    _apply_gravity_and_drag(time_scaled_delta * 0.25)
+    _update_altitude(time_scaled_delta * 0.25)
     if _should_land():
         _handle_landing()
     if _should_move_forward_in_air():
