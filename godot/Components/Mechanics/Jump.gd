@@ -9,7 +9,7 @@ const OVERRIDE_GRAVITY: float = 0.0  #TODO: these things will be moved to a reso
 var gravity_value: float
 var vertical_speed: float = 0.0
 var altitude: float = 0.0
-var _prev_altitude_location: float = 0.0
+var _prev_altitude_normal: float = 0.0
 
 
 func _ready() -> void:
@@ -19,12 +19,13 @@ func _ready() -> void:
 
 func process_input(frame_delta: float) -> void:
     var time_scaled_delta: float = SpacetimeContext.apply_time_scale(frame_delta)
-    _apply_gravity_and_drag(time_scaled_delta * 0.25)
-    _update_altitude(time_scaled_delta * 0.25)
+    _apply_gravity_and_drag(time_scaled_delta)
+    _update_altitude(time_scaled_delta)
     if _should_land():
         _handle_landing()
     if _should_move_forward_in_air():
-        _apply_forward_movement(time_scaled_delta)
+        pass
+        #_apply_forward_movement(time_scaled_delta)
 
 
 func _apply_gravity_and_drag(time_scaled_delta: float) -> void:
@@ -62,12 +63,16 @@ func process_visual_illusion(_frame_delta: float) -> void:
     var vertical_offset_pixels: float = SpacetimeContext.to_physical_space(altitude)
     sprite_node.position.y = -vertical_offset_pixels
     var maximum_jump_height: float = _calculate_parabolic_max_altitude()
-    var altitude_location: float = _compute_altitude_location_in_jump_parabola(altitude, maximum_jump_height)
-    var ascending: bool = altitude_location > _prev_altitude_location
+    var altitude_normal: float = _compute_altitude_normal_in_jump_parabola(altitude, maximum_jump_height)
+    var ascending: bool = altitude_normal > _prev_altitude_normal
+    print("altitude: ", altitude)
+    print("_prev_altitude_location: ", _prev_altitude_normal)
+    print("altitude_location: ", altitude_normal)
+    print("ascending?: ", ascending)
     sprite_node.material.set_shader_parameter("ascending", ascending)
-    sprite_node.material.set_shader_parameter("altitude_location", altitude_location)
-    _prev_altitude_location = altitude_location
-    _update_sprite_scale(sprite_node, altitude_location)
+    sprite_node.material.set_shader_parameter("altitude_normal", altitude_normal)
+    _prev_altitude_normal = altitude_normal
+    _update_sprite_scale(sprite_node, altitude_normal)
 
 
 func _calculate_parabolic_max_altitude() -> float:
@@ -79,7 +84,7 @@ func _calculate_parabolic_max_altitude() -> float:
         return 0.0
 
 
-func _compute_altitude_location_in_jump_parabola(current_height: float, maximum_height: float) -> float:
+func _compute_altitude_normal_in_jump_parabola(current_height: float, maximum_height: float) -> float:
     if maximum_height > 0.0:
         var raw_ratio: float = current_height / maximum_height
         return clamp(raw_ratio, 0.0, 1.0)

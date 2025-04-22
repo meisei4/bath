@@ -58,7 +58,7 @@ func _ready() -> void:
     var animation_shader: ShaderMaterial = ShaderMaterial.new()
     #TODO: get this from a resource collection, for now its hard coded to the jump shader
     animation_shader.shader = load(
-        "res://Resources/Shaders/MechanicAnimations/jumping_bend.gdshader"
+        "res://Resources/Shaders/MechanicAnimations/jump_trig.gdshader"
     )
     sprite.material = animation_shader
 
