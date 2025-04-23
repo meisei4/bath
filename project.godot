@@ -38,12 +38,12 @@ gdscript/warnings/unsafe_call_argument=1
 
 [display]
 
-window/size/viewport_width=512
-window/size/viewport_height=768
+window/size/viewport_width=1024
+window/size/viewport_height=1536
 window/size/resizable=false
 window/size/always_on_top=true
 window/size/sharp_corners=true
-window/stretch/scale=2.0
+window/stretch/scale=4.0
 
 [editor_plugins]
 

@@ -11,6 +11,10 @@ shader_type canvas_item;
         discard;
 
 uniform vec2 iResolution;
+//TODO: mess with these sampling hints more, because it implies the Sprite2D node's texture is not
+// defaulted to filter nearest despite how i explcitly set the texture to be as such in CapsuleDummyGen:
+//    sprite.set_texture_filter(CanvasItem.TextureFilter.TEXTURE_FILTER_NEAREST)
+uniform sampler2D iChannel0: filter_nearest;
 uniform float MAXIMUM_TILT_ANGLE_ACHIEVED_AT_IMMEDIATE_ASCENSION_AND_FINAL_DESCENT;
 uniform float FOCAL_LENGTH;
 uniform float altitude_normal; //value from 0 -> 1 -> 0 tracing the jump state as a normal scale for altitude
@@ -24,7 +28,7 @@ void fragment() {
     //vec2 uv = frag_coord.xy / iResolution.xy;
     // If grounded (not airboene), draw sprite normally
     if (altitude_normal <= 0.0) {
-        COLOR = texture(TEXTURE, uv);
+        COLOR = texture(iChannel0, uv);
         //frag_color =  texture(iChannel0, uv) * frag_color;
     } else {
         // 1) normalized 0->1 fraction through jump cycle (0 = lift‑off/land, 1 = apex, back to 0 for landing)
@@ -121,7 +125,7 @@ void fragment() {
         // 12) Discard samples that fall ≥1 pixel outside of the projected texture’s bounds
         //(to avoid sampling outside of a fragment warped quad)
         DISCARD_PIXELS_OUTSIDE_OF_ALTERED_UV_BOUNDS(altered_uv, TEXTURE_PIXEL_SIZE)
-        COLOR = texture(TEXTURE, altered_uv);
+        COLOR = texture(iChannel0, altered_uv);
         //frag_color =  texture(iChannel0, altered_uv);
     }
 }

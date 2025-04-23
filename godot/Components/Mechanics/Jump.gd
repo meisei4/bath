@@ -64,6 +64,7 @@ func process_visual_illusion(_frame_delta: float) -> void:
     sprite_node.material.set_shader_parameter("ascending", is_ascending())
     sprite_node.material.set_shader_parameter("altitude_normal", altitude_normal)
     #TODO: figure out how to not have to update these every single frame please
+    sprite_node.material.set_shader_parameter("iChannel0", sprite_node.texture)
     sprite_node.material.set_shader_parameter(
         "MAXIMUM_TILT_ANGLE_ACHIEVED_AT_IMMEDIATE_ASCENSION_AND_FINAL_DESCENT",
         PARAMETERS.MAXIMUM_TILT_ANGLE_ACHIEVED_AT_IMMEDIATE_ASCENSION_AND_FINAL_DESCENT

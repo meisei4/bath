@@ -1,0 +1,10 @@
+[gd_scene load_steps=3 format=3 uid="uid://ba73yshn08skg"]
+
+[ext_resource type="Script" uid="uid://dcpv228fcgck1" path="res://godot/Test/Lights/ShadeZoneTest.gd" id="1_lcail"]
+[ext_resource type="PackedScene" uid="uid://bq2o0bc07hgiy" path="res://godot/Test/Mechanics/MechanicsTest.tscn" id="2_aw3iq"]
+
+[node name="ShadeZoneTest" type="Node2D"]
+script = ExtResource("1_lcail")
+metadata/_custom_type_script = "uid://dcpv228fcgck1"
+
+[node name="MechanicsTest" parent="." instance=ExtResource("2_aw3iq")]

@@ -7,7 +7,7 @@ func _ready() -> void:
         ResourceLoader.load("res://godot/Test/Mechanics/CapsuleDummy.tscn") as PackedScene
     )
     var character: CharacterBody2D = capsule_scene.instantiate() as CharacterBody2D
-
+    character.z_index = 1.0
     add_child(character)
 
     var viewport_size: Vector2 = get_viewport().get_visible_rect().size
