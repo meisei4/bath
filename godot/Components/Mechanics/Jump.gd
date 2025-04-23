@@ -31,7 +31,7 @@ func process_input(frame_delta: float) -> void:
 
 func _apply_gravity_and_drag(time_scaled_delta: float) -> void:
     if is_airborne():
-        var gravity := _get_effective_gravity()
+        var gravity: float = _get_effective_gravity()
         vertical_speed -= gravity * time_scaled_delta
         vertical_speed = SpacetimeContext.apply_universal_drag(vertical_speed, time_scaled_delta)
 
@@ -90,7 +90,7 @@ func _compute_altitude_normal_in_jump_parabola(
     if max_altitude == 0.0:
         return 0.0
     else:
-        var altitude_normal = _vertical_position / max_altitude
+        var altitude_normal: float = _vertical_position / max_altitude
         return clamp(altitude_normal, 0.0, 1.0)
 
 

@@ -40,7 +40,7 @@ func process_input(delta: float) -> void:
 
 
 func process_visual_illusion(_delta: float) -> void:
-    var sprite_node: Sprite2D = get_sprite_for_visual_illusion()
+    pass
 
 
 func _apply_movement_input(time: float) -> void:

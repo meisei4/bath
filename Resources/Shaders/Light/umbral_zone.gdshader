@@ -2,7 +2,7 @@ shader_type canvas_item;
 
 //In OpenGL/Compatibility AND Vulkan/Forward+ mode, this iChannel0 screen sampling works fine
 //TODO: I am going to add BackBufferCopy to anticipate double screen sampling shaders though!!!
-uniform sampler2D iChannel0 : hint_screen_texture;
+uniform sampler2D iChannel0 : hint_screen_texture, filter_nearest; //TODO: FIGURE OUT FILTERING
 
 //TODO: hard coded MainViewport.get_texture() sampling results in the classic vulkan error only in Forward+/non compatibility mode (OpenGl has no such error
 //draw_list_bind_uniform_set: Attempted to use the same texture in framebuffer attachment and a uniform (set: 1, binding: 1), this is not allowed.
@@ -15,13 +15,14 @@ uniform sampler2D iChannel0 : hint_screen_texture;
 //uniform sampler2D iChannel0: filter_nearest; //filter hint ust to remind me that later if background texture is pixel perfect or mip mapped...
 
 uniform vec2 iResolution;
-uniform vec2 shade_zone_bounds;
+uniform vec2 umbral_zone_bounds;
+uniform float luminance_attenuation_coefficient = 0.75;
 
 void fragment() {
     vec2 uv = UV;
     vec4 color = texture(iChannel0, uv);
-    if (uv.x < shade_zone_bounds.x && uv.y < shade_zone_bounds.y) {
-        color.rgb *= 0.75;
+    if (uv.x < umbral_zone_bounds.x && uv.y < umbral_zone_bounds.y) {
+        color.rgb *= luminance_attenuation_coefficient;
     }
     COLOR = color;
 }

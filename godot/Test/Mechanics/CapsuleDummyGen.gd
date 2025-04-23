@@ -5,7 +5,7 @@ class_name CapsuleDummyGen
 func _ready() -> void:
     var sprite_width: int = 16
     var sprite_height: int = 24
-    var image: Image = Image.create(sprite_width, sprite_height, true, Image.FORMAT_RGBA8)
+    var image: Image = Image.create(sprite_width, sprite_height, false, Image.FORMAT_RGBA8)
 
     var shape: Array[String] = [
         "      XXXX      ",

@@ -5,15 +5,15 @@ class_name JumpData
 # If 0, uses SpacetimeContext.GRAVITY
 # Units: px/s²
 
-@export var INITIAL_JUMP_VELOCITY: float = 10.0
+@export var INITIAL_JUMP_VELOCITY: float = 12.0
 # Controls jump height: higher velocity → higher apex
 # Units: px/s
 
-@export var FORWARD_SPEED: float = 5.0
+@export var FORWARD_SPEED: float = 6.0
 # Horizontal movement while airborne
 # Units: world units/s
 
-@export var SPRITE_SCALE_AT_MAX_ALTITUDE: float = 2.0
+@export var SPRITE_SCALE_AT_MAX_ALTITUDE: float = 2.5
 # Max sprite scale at jump apex
 # Range: >1.0 for foreshortening illusion
 

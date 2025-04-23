@@ -1,7 +1,7 @@
 extends Area2D
-class_name DitherZone
+class_name UmbralZone
 
-var friction_factor: float = 0.25
+var cooling_factor: float = 0.5
 var collision_shape: CollisionShape2D
 
 
@@ -20,5 +20,5 @@ func set_zone_bounds(_bounds: Vector2) -> void:
     pass
 
 
-func get_friction_factor() -> float:
-    return friction_factor
+func get_cooling_factor() -> float:
+    return cooling_factor

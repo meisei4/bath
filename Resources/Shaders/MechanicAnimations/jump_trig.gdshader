@@ -1,8 +1,7 @@
 shader_type canvas_item;
+
 #define MIDPOINT_UV 0.5
-
 #define NEGATE_TILT_ANGLE -1.0
-
 #define DISCARD_PIXELS_OUTSIDE_OF_ALTERED_UV_BOUNDS(uv, texel_size) \
     if ((uv).x < (texel_size).x \
         || (uv).x > 1.0 - (texel_size).x \
@@ -14,7 +13,7 @@ uniform vec2 iResolution;
 //TODO: mess with these sampling hints more, because it implies the Sprite2D node's texture is not
 // defaulted to filter nearest despite how i explcitly set the texture to be as such in CapsuleDummyGen:
 //    sprite.set_texture_filter(CanvasItem.TextureFilter.TEXTURE_FILTER_NEAREST)
-uniform sampler2D iChannel0: filter_nearest;
+uniform sampler2D iChannel0: filter_nearest; //TODO: figure out filtering stuff with all the shaders for consistency
 uniform float MAXIMUM_TILT_ANGLE_ACHIEVED_AT_IMMEDIATE_ASCENSION_AND_FINAL_DESCENT;
 uniform float FOCAL_LENGTH;
 uniform float altitude_normal; //value from 0 -> 1 -> 0 tracing the jump state as a normal scale for altitude
