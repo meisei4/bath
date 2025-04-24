@@ -13,7 +13,7 @@ class_name JumpData
 # Horizontal movement while airborne
 # Units: world units/s
 
-@export var SPRITE_SCALE_AT_MAX_ALTITUDE: float = 2.5
+@export var SPRITE_SCALE_AT_MAX_ALTITUDE: float = 3.0
 # Max sprite scale at jump apex
 # Range: >1.0 for foreshortening illusion
 

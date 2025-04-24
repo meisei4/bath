@@ -29,7 +29,7 @@ const PIXELS_PER_WORLD_UNIT: float = METERS_PER_WORLD_UNIT * PIXELS_PER_REAL_MET
 # For controlling time flow. If TIME_SCALE = 1.0,
 # then 1 second of real time = 1 second of in-game time.
 # If TIME_SCALE = 2.0, then the game runs at "double speed."
-const TIME_SCALE: float = 0.75
+const TIME_SCALE: float = 0.5
 
 # A universal time offset (e.g., for network synchronization or for offsetting
 # a game clock from real time). Usually 0 for local single-player contexts.

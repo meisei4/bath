@@ -14,6 +14,8 @@ uniform sampler2D iChannel0 : hint_screen_texture, filter_nearest; //TODO: FIGUR
 // source: https://github.com/godotengine/godot/issues/17234
 //uniform sampler2D iChannel0: filter_nearest; //filter hint ust to remind me that later if background texture is pixel perfect or mip mapped...
 
+uniform sampler2D iChannel1 : filter_nearest;   // R32F tilt mask generated in compute shader
+
 uniform vec2 iResolution;
 uniform vec2 umbral_zone_bounds;
 uniform float luminance_attenuation_coefficient = 0.75;
@@ -21,8 +23,13 @@ uniform float luminance_attenuation_coefficient = 0.75;
 void fragment() {
     vec2 uv = UV;
     vec4 color = texture(iChannel0, uv);
+    float perspective_tilt = texture(iChannel1, UV).r;    // 0-1 tilt amount
     if (uv.x < umbral_zone_bounds.x && uv.y < umbral_zone_bounds.y) {
-        color.rgb *= luminance_attenuation_coefficient;
+        //color.rgb *= luminance_attenuation_coefficient; //for the first application of the umbral effect
+        //apply the umbral effect now again but only to the sprite with the perspective tilt
+        color.rgb = mix(color.rgb, color.rgb * luminance_attenuation_coefficient, perspective_tilt);
+        float shade = mix(luminance_attenuation_coefficient, 0.0, perspective_tilt);
+        color.rgb *= shade;
     }
     COLOR = color;
 }
