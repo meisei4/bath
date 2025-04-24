@@ -1,7 +1,7 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=4 format=3 uid="uid://dgcuj0g1nd6n1"]
 
-[ext_resource type="Script" path="res://godot/Test/Mechanics/CapsuleDummy.gd" id="1_1le21"]
-[ext_resource type="Texture2D" path="res://Assets/Sprites/capsule.png" id="2_om70y"]
+[ext_resource type="Script" uid="uid://b0y0vf7cnjyk6" path="res://godot/Test/Mechanics/CapsuleDummy.gd" id="1_1le21"]
+[ext_resource type="Texture2D" uid="uid://b16h75h2kypwc" path="res://Assets/Sprites/capsule.png" id="2_om70y"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_okub3"]
 size = Vector2(32, 48)

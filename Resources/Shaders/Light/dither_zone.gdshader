@@ -23,11 +23,11 @@ void fragment() {
         float bayer_threshold = texture(iChannel0, frag_coord / BAYER_DIVISION_SCALAR).r;
 
         // 4) step() gives you a 0 or 1 mask per channel:
-        //    if (color.rgb > threshold) → 1, else → 0
+        //    if (color.rgb > threshold) -> 1, else -> 0
         vec4 dithered = step(bayer_threshold, color);
 
         // 5) mix back with the original color to soften the effect
-        //    weight = 0 → no dither, 1 → full binary dither
+        //    weight = 0 -> no dither, 1 -> full binary dither
         color = mix(color, dithered, dither_interpolation_weight);
     }
     COLOR = color;

@@ -4,22 +4,11 @@
 
 /*  var groups_x = ceil(iResolution.x / 8)
     var groups_y = ceil(iResolution.y / 8)
-    rendering_device.compute_list_dispatch(cl, groups_x, groups_y, 1)
+    var groups_z = 1
+    rendering_device.compute_list_dispatch(cl, groups_x, groups_y, groups_z)
 */
 layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
 
-/*  var compute_list_int: int = rendering_device.compute_list_begin()
-    rendering_device.compute_list_bind_compute_pipeline(compute_list_int, compute_pipeline_rid)
-    rendering_device.compute_list_bind_uniform_set(
-        compute_list_int, sprite_data_buffer_uniform_set_rid, 0
-    )
-    push_constants = PackedByteArray()
-    push_constants.encode_float(0, iResolution.x)  # float at bytes 0–3
-    push_constants.encode_float(4, iResolution.y)  # float at bytes 4–7
-    push_constants.encode_u32(8, sprite_data_buffer_array.size()) # uint at bytes 8–11
-    rendering_device.compute_list_push_constants(
-        compute_list_int, 0, push_constants.size(), push_constants
-    )*/
 layout(push_constant, std430) uniform PushConstants {
     vec2 iResolution;    // at byte‐offset 0, occupies bytes 0..7
     uint sprite_count;   // at byte‐offset 8, occupies bytes 8..11
@@ -35,44 +24,17 @@ struct SpriteData {
     vec2  _pad;             //  8 bytes (two floats to align to 32-byte multiples)
 };
 
-/*  sprite_data_buffer_id = rendering_device.storage_buffer_create(
-        SSBO_TOTAL_BYTES, PackedByteArray()
-    )
-    ssbo_uniform = RDUniform.new()
-    ssbo_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_STORAGE_BUFFER
-    ssbo_uniform.binding = 0
-    ssbo_uniform.add_id(sprite_data_buffer_id)*/
 #define SSBO_UNIFORM_BINDING 0
 layout(set = 0, binding = SSBO_UNIFORM_BINDING, std430) readonly buffer ssbo_uniform {
     SpriteData sprites[];
 };
 
-//See:
-/*  perspective_tilt_mask_texture_format = RDTextureFormat.new()
-    perspective_tilt_mask_texture_format.texture_type = RenderingDevice.TEXTURE_TYPE_2D
-    perspective_tilt_mask_texture_format.format = RenderingDevice.DATA_FORMAT_R32_SFLOAT
-    perspective_tilt_mask_texture_format.width = iResolution.x as int
-    perspective_tilt_mask_texture_format.height = iResolution.y as int
-    perspective_tilt_mask_texture_format.depth = 1
-    perspective_tilt_mask_texture_format.array_layers = 1
-    perspective_tilt_mask_texture_format.mipmaps = 1
-    perspective_tilt_mask_texture_format.usage_bits = (
-        RenderingDevice.TEXTURE_USAGE_STORAGE_BIT
-        | RenderingDevice.TEXTURE_USAGE_CAN_UPDATE_BIT
-        | RenderingDevice.TEXTURE_USAGE_SAMPLING_BIT
-    )
-    perspective_tilt_mask_view = RDTextureView.new()
-    perspective_tilt_mask_texture_view_rid = rendering_device.texture_create(
-        perspective_tilt_mask_texture_format, perspective_tilt_mask_view
-    )
-    perspective_tilt_mask_texture = Texture2DRD.new()
-    perspective_tilt_mask_texture.set_texture_rd_rid(perspective_tilt_mask_texture_view_rid)
-    perspective_tilt_mask_uniform = RDUniform.new()
-    perspective_tilt_mask_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE
-    perspective_tilt_mask_uniform.binding = 1
-    perspective_tilt_mask_uniform.add_id(perspective_tilt_mask_texture_view_rid)*/
 #define PERSPECTIVE_TILT_MASK_UNIFORM_BINDING 1
 layout(set = 0, binding = PERSPECTIVE_TILT_MASK_UNIFORM_BINDING, r32f) writeonly uniform image2D perspective_tilt_mask_texture_image_uniform;
+
+#define SPRITE_TEXTURES_BINDING 2      
+#define MAXIMUM_SPRITE_COUNT 16 //TODO: BAD BAD BAD figure out how to properly pass this from cpu side godot    
+layout(set = 0, binding = SPRITE_TEXTURES_BINDING) uniform sampler2D sprite_textures[MAXIMUM_SPRITE_COUNT]; 
 
 //JUMP SHADER COPY!!
 const float MAXIMUM_TILT_ANGLE_ACHIEVED_AT_IMMEDIATE_ASCENSION_AND_FINAL_DESCENT = 0.785398;
@@ -87,18 +49,17 @@ const float MAXIMUM_TILT_ANGLE_ACHIEVED_AT_IMMEDIATE_ASCENSION_AND_FINAL_DESCENT
         || (uv).y > 1.0 - (texel_size).y) \
         return 0.0;
 
-float run_jump_trig_fragment_shader_as_compute_shader(in SpriteData sprite, in vec2 frag_coords) {
+float run_jump_trig_fragment_shader_as_compute_shader(uint sprite_index, in SpriteData sprite, in vec2 frag_coords) {
      if (sprite.altitude_normal <= 0.0) {
         return 0.0;
     } 
     bool ascending = (sprite.ascending > 0.5);
+    //WTF
     vec2 delta_from_center = abs(frag_coords - sprite.center_px);
     if (delta_from_center.x > sprite.half_size_px.x || delta_from_center.y > sprite.half_size_px.y) {
         return 0.0;
     }
-    // → frag_coords is pixel XY on screen
-    // → (center-half_size) is the sprite's bottom-left in pixel coords
-    // → dividing by (half_size * 2) maps the pixel into [0..1]×[0..1] sprite UV
+    //WTF
     vec2 uv = (frag_coords - (sprite.center_px - sprite.half_size_px)) / (sprite.half_size_px * 2.0);
     float jump_phase_progress = sprite.altitude_normal;
     float sprite_tilt_phase_progress = 1.0 - jump_phase_progress;
@@ -137,6 +98,11 @@ float run_jump_trig_fragment_shader_as_compute_shader(in SpriteData sprite, in v
     );
 
     DISCARD_PIXELS_OUTSIDE_OF_ALTERED_UV_BOUNDS(altered_uv, texel_size);
+    float sprite_textures_alpha = texture(sprite_textures[sprite_index], altered_uv).a; 
+    if (sprite_textures_alpha < 0.05) {
+        return 0.0;
+    } 
+
     float perspective_tilt = ascending
             ? sprite_tilt_phase_progress * altered_uv.y
             : sprite_tilt_phase_progress * (1.0 - altered_uv.y);
@@ -153,6 +119,7 @@ void main() {
     float max_perspective_tilt = 0.0;
     for (uint i = 0u; i < push_constants.sprite_count; ++i) {
         float perspective_tilt = run_jump_trig_fragment_shader_as_compute_shader(
+            i,
             sprites[i],
             frag_coord_centers
         );

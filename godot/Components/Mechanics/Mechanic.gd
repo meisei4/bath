@@ -3,6 +3,7 @@ class_name Mechanic
 
 var character: CharacterBody2D
 var animation_shader: ShaderMaterial
+var sprite_texture_id: int  #TODO: jesus christ, this is hacked
 
 
 func process_input(_delta: float) -> void:

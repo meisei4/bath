@@ -60,7 +60,9 @@ func setup_ubmral_zone() -> void:
     UmbralShaderMaterial.set_shader_parameter(
         "umbral_zone_bounds", Vector2(UMBRAL_ZONE_BOUNDS_UV_X, UMBRAL_ZONE_BOUNDS_UV_Y)
     )
-    UmbralShaderMaterial.set_shader_parameter("iChannel1", SpriteAnimations.perspective_tilt_mask_texture)
+    UmbralShaderMaterial.set_shader_parameter(
+        "iChannel1", SpriteAnimations.perspective_tilt_mask_texture
+    )
     #TODO: in Compatibility Mode/opengl, sampling the MainViewport here doesnt result in a framebuffer error BUTTT,
     # it results in this zone in the top left quadrant of the viewport, where there is right triangle on the bottom half of the quadrant that ends up
     # turning the character body 2D's sprite invisible (or very glitchy sampling when MainViewport.use_hdr_2d = true)

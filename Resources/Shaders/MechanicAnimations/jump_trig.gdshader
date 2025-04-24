@@ -84,7 +84,7 @@ void fragment() {
         float L = uv.y;
         //float L = ascending ? uv.y : 1.0 - uv.y;
         if (!ascending) {
-            // Flip the pivot basis for the tilt — switch from bottom to top.
+            // Flip the pivot basis for the tilt - switch from bottom to top.
             L = 1.0 - uv.y;
         }
         // 6) sprite_quad_height_after_tilt_applied = L × cos(θ)
@@ -112,16 +112,16 @@ void fragment() {
         vec2 altered_uv;
         // 11) Convert projected offsets back into standard UV space [0.0 – 1.0]:
         // For the X coordinate, the warp offset was computed relative to the sprite center (UV = 0.5)
-        //   → This results in a signed range of [-0.5 … +0.5]
-        //   → To restore standard UV space, shift it back by 0.5:
+        //   -> This results in a signed range of [-0.5 … +0.5]
+        //   -> To restore standard UV space, shift it back by 0.5:
         altered_uv.x = projected_x_horizontal_squish_from_perspective_tilt + MIDPOINT_UV;
         // For the Y coordinate, tilting occurs around either the bottom or top pivot:
-        // - ascending → pivot is anchored at bottom  (pivot uv = 0.0)
-        // - descending → pivot is anchored at top  (pivot uv = 1.0)
+        // - ascending -> pivot is anchored at bottom  (pivot uv = 0.0)
+        // - descending -> pivot is anchored at top  (pivot uv = 1.0)
         altered_uv.y = ascending
             ? projected_y_vertically_from_perspective_tilt
             : 1.0 - projected_y_vertically_from_perspective_tilt;
-        // 12) Discard samples that fall ≥1 pixel outside of the projected texture’s bounds
+        // 12) Discard samples that fall =>1 pixel outside of the projected texture’s bounds
         //(to avoid sampling outside of a fragment warped quad)
         DISCARD_PIXELS_OUTSIDE_OF_ALTERED_UV_BOUNDS(altered_uv, TEXTURE_PIXEL_SIZE)
         COLOR = texture(iChannel0, altered_uv);
