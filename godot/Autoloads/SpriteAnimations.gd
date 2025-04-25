@@ -31,7 +31,7 @@ var gpu_side_sprite_data_ssbo_uniform_set_rid: RID
 
 const SPRITE_TEXTURES_BINDING: int = 1
 var sprite_textures_uniform: RDUniform
-var sprite_texture_rids: Array[RID]
+var sprite_textures_rids: Array[RID]
 var memory_padding_sprite_textures_rid: RID  # to fill up the unused sprite texture blocks
 var resuable_sampler_state: RDSamplerState
 var resuable_sampler_state_rid: RID
@@ -81,13 +81,58 @@ const WORKGROUP_TILE_PIXELS_X: int = 2  # one work-group covers 2×2 pixels hori
 const WORKGROUP_TILE_PIXELS_Y: int = 2  # one work-group covers 2×2 pixels vertically
 
 
+#TODO: MOVE ALL PUBLIC API ENTRY POINTS SOMEWHERE AND BLACK BOX ALL THE COMPUTE PIPELINE STUFF
+func register_sprite_texture(sprite_texture: Texture2D) -> int:
+    if sprite_textures_rids.size() >= MAXIMUM_SPRITE_COUNT:
+        push_error("Too many sprites registered!")
+        return -1
+    var texture_rd: Texture2DRD = _sprite_texture2d_to_rd(sprite_texture)
+    sprite_textures_rids.append(texture_rd.get_texture_rd_rid())
+    var sprite_data_ssbo: SpriteDataSSBOStruct = SpriteDataSSBOStruct.new()
+    sprite_data_ssbo.center_px = Vector2.ZERO
+    sprite_data_ssbo.half_size_px = Vector2.ONE * 8.0
+    sprite_data_ssbo.altitude_normal = 0.0
+    sprite_data_ssbo.ascending = 0.0
+    cpu_side_sprite_data_ssbo_cache.append(sprite_data_ssbo)
+    _update_gpu_side_sprite_data_ssbo_uniform_set()  #THIS ONLY EVER GETS CALLED WHEN A NEW SPRITE IS ADDED
+    return sprite_textures_rids.size() - 1
+
+
+func update_cpu_side_sprite_data_ssbo_cache(
+    sprite_texture_index: int,
+    center_px: Vector2,
+    half_size_px: Vector2,
+    altitude_normal: float,
+    ascending: float
+) -> void:
+    if sprite_texture_index < 0 or sprite_texture_index >= cpu_side_sprite_data_ssbo_cache.size():
+        push_error("Invalid sprite ID")
+        return
+    cpu_side_sprite_data_ssbo_cache[sprite_texture_index].center_px = center_px
+    cpu_side_sprite_data_ssbo_cache[sprite_texture_index].half_size_px = half_size_px
+    cpu_side_sprite_data_ssbo_cache[sprite_texture_index].altitude_normal = altitude_normal
+    cpu_side_sprite_data_ssbo_cache[sprite_texture_index].ascending = ascending
+    _update_gpu_side_sprite_data_ssbo()
+
+
+
+func debug() -> void:
+    var unserialized_sprite_data_ssbo_bytes: PackedByteArray = rendering_device.buffer_get_data(
+        gpu_side_sprite_data_ssbo_rid, 0, 32
+    )
+    var x = unserialized_sprite_data_ssbo_bytes.decode_float(0)
+    var y = unserialized_sprite_data_ssbo_bytes.decode_float(4)
+    var hn = unserialized_sprite_data_ssbo_bytes.decode_float(16)  # altitude_normal
+    var asc = unserialized_sprite_data_ssbo_bytes.decode_float(20)  # ascending (0|1)
+    print("GPU row 0 centre=", Vector2(x, y), " altitude_normal=", hn, " ascending=", asc)
+
+
 func _ready() -> void:
     _init_rendering_device()
-    _init_compute_shader()
+    _init_compute_shader_pipeline()
     _init_ssbo()
     _init_sprite_textures_and_sampler()
     _init_perspective_tilt_mask_texture()
-    compute_pipeline_rid = rendering_device.compute_pipeline_create(compute_shader_rid)
     #TODO: just a unique way to make sure the tilt mask is computed before anything else is drawn to the screen...
     RenderingServer.frame_pre_draw.connect(_dispatch_compute)
 
@@ -98,12 +143,13 @@ func _init_rendering_device() -> void:
     rendering_device = RenderingServer.get_rendering_device()
 
 
-func _init_compute_shader() -> void:
+func _init_compute_shader_pipeline() -> void:
     #TODO: none of this will work on openGL/compatibility mode, only vulkan
     # in fact: RenderingDevice is not available [...] when using the Compatibility rendering method.
     # https://docs.godotengine.org/en/stable/classes/class_renderingdevice.html#class-renderingdevice
     compute_shader_spirv = compute_shader_file.get_spirv()
     compute_shader_rid = rendering_device.shader_create_from_spirv(compute_shader_spirv)
+    compute_pipeline_rid = rendering_device.compute_pipeline_create(compute_shader_rid)
 
 
 func _init_ssbo() -> void:
@@ -165,61 +211,66 @@ func _init_perspective_tilt_mask_texture() -> void:
     perspective_tilt_mask_uniform.add_id(perspective_tilt_mask_texture_view_rid)
 
 
-#TODO: call this whenever you add a sprite that needs to be targetted by the compute shader
-func register_sprite_texture(sprite_texture: Texture2D) -> int:
-    if sprite_texture_rids.size() >= MAXIMUM_SPRITE_COUNT:
-        push_error("Too many sprites registered!")
-        return -1
-    var texture_rd: Texture2DRD = _sprite_texture2d_to_rd(sprite_texture)
-    sprite_texture_rids.append(texture_rd.get_texture_rd_rid())
-    var sprite_data_ssbo: SpriteDataSSBOStruct = SpriteDataSSBOStruct.new()
-    sprite_data_ssbo.center_px = Vector2.ZERO
-    sprite_data_ssbo.half_size_px = Vector2.ONE * 8.0
-    sprite_data_ssbo.altitude_normal = 0.0
-    sprite_data_ssbo.ascending = 0.0
-    cpu_side_sprite_data_ssbo_cache.append(sprite_data_ssbo)
-    return sprite_texture_rids.size() - 1
+#TODO: the difference between this function and _update_gpu_side_sprite_data_ssbo is such a terminology headache...
+func _update_gpu_side_sprite_data_ssbo_uniform_set() -> void:
+    sprite_textures_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_SAMPLER_WITH_TEXTURE
+    sprite_textures_uniform.binding = SPRITE_TEXTURES_BINDING
+    #TODO: this might be redundant with the padding thats attempted to be added in _update_gpu_side_sprite_data_ssbo
+    for i: int in range(MAXIMUM_SPRITE_COUNT):
+        var sprite_textures_rid: RID = (
+            sprite_textures_rids[i]
+            if i < sprite_textures_rids.size()
+            else memory_padding_sprite_textures_rid
+        )
+        sprite_textures_uniform.add_id(resuable_sampler_state_rid)
+        sprite_textures_uniform.add_id(sprite_textures_rid)
+        gpu_side_sprite_data_ssbo_uniform_set_rid = (rendering_device.uniform_set_create(
+        [sprite_data_ssbo_uniform, sprite_textures_uniform, perspective_tilt_mask_uniform],
+        compute_shader_rid,
+        0
+    ))
 
 
-func _sprite_texture2d_to_rd(sprite_texture: Texture2D) -> Texture2DRD:
-    var sprite_texture_format: RDTextureFormat = RDTextureFormat.new()
-    sprite_texture_format.texture_type = RenderingDevice.TEXTURE_TYPE_2D
-    sprite_texture_format.format = RenderingDevice.DATA_FORMAT_R8G8B8A8_UNORM
-    sprite_texture_format.width = sprite_texture.get_width()
-    sprite_texture_format.height = sprite_texture.get_height()
-    sprite_texture_format.mipmaps = 1
-    sprite_texture_format.usage_bits = (
-        RenderingDevice.TEXTURE_USAGE_SAMPLING_BIT | RenderingDevice.TEXTURE_USAGE_CAN_UPDATE_BIT
+func _update_gpu_side_sprite_data_ssbo() -> void:
+    var serialized_sprite_data_ssbo: PackedFloat32Array = PackedFloat32Array()
+    for sprite_data_ssbo: SpriteDataSSBOStruct in cpu_side_sprite_data_ssbo_cache:
+        (
+            serialized_sprite_data_ssbo
+            . append_array(
+                [
+                    sprite_data_ssbo.center_px.x,
+                    sprite_data_ssbo.center_px.y,
+                    sprite_data_ssbo.half_size_px.x,
+                    sprite_data_ssbo.half_size_px.y,
+                    sprite_data_ssbo.altitude_normal,
+                    sprite_data_ssbo.ascending,
+                    0.0,  # padding total +4 float
+                    0.0  # padding total +4 float = 8 floats padding
+                ]
+            )
+        )
+    #TODO: because we create a completely new serialized ssbo copy in this function everytime, we have to pad it
+    # the other way would be to have a serialized ssbo copy that gets padded in the _init_ssbo function and then whenever we
+    # want to pass new bytes to the gpu, we just update the first N entries of how many sprites exist
+    # The only reason for this is because i like to keep the Struct for readability, in reality we could just
+    # only ever maintain the SSBO as a structured PackedFloat32Array but thats confusing for me
+    var remaining_padding: int = MAXIMUM_SPRITE_COUNT - cpu_side_sprite_data_ssbo_cache.size()
+    if remaining_padding > 0:
+        serialized_sprite_data_ssbo.resize(
+            serialized_sprite_data_ssbo.size() + remaining_padding * 8
+        )
+    var serialized_sprite_data_ssbo_bytes: PackedByteArray = (
+        serialized_sprite_data_ssbo.to_byte_array()
     )
-    var view: RDTextureView = RDTextureView.new()
-    var view_rid: RID = rendering_device.texture_create(sprite_texture_format, view)
-    var sprite_texture_image: Image = sprite_texture.get_image()
-    rendering_device.texture_update(view_rid, 0, sprite_texture_image.get_data())
-    var sprite_texture_rd: Texture2DRD = Texture2DRD.new()
-    sprite_texture_rd.set_texture_rd_rid(view_rid)
-    return sprite_texture_rd
-
-
-#TODO: call this whenever you need to UPDATE a sprite/entity on the CPU side
-func update_cpu_side_sprite_data_ssbo_cache(
-    sprite_texture_index: int,
-    center_px: Vector2,
-    half_size_px: Vector2,
-    altitude_normal: float,
-    ascending: float
-) -> void:
-    if sprite_texture_index < 0 or sprite_texture_index >= cpu_side_sprite_data_ssbo_cache.size():
-        push_error("Invalid sprite ID")
-        return
-    cpu_side_sprite_data_ssbo_cache[sprite_texture_index].center_px = center_px
-    cpu_side_sprite_data_ssbo_cache[sprite_texture_index].half_size_px = half_size_px
-    cpu_side_sprite_data_ssbo_cache[sprite_texture_index].altitude_normal = altitude_normal
-    cpu_side_sprite_data_ssbo_cache[sprite_texture_index].ascending = ascending
+    rendering_device.buffer_update(
+        gpu_side_sprite_data_ssbo_rid,
+        0,
+        serialized_sprite_data_ssbo_bytes.size(),
+        serialized_sprite_data_ssbo_bytes
+    )
 
 
 func _dispatch_compute() -> void:
-    _update_gpu_side_sprite_data_ssbo()
-    _update_gpu_side_sprite_data_ssbo_uniform_set()
     var compute_list_int: int = rendering_device.compute_list_begin()
     rendering_device.compute_list_bind_compute_pipeline(compute_list_int, compute_pipeline_rid)
     rendering_device.compute_list_bind_uniform_set(
@@ -241,77 +292,29 @@ func _dispatch_compute() -> void:
     var groups_z: int = 1
     rendering_device.compute_list_dispatch(compute_list_int, groups_x, groups_y, groups_z)
     rendering_device.compute_list_end()
-    #TODO: this is not allowed when targetting default render device... but textures break when creating a local rendering device..
+    #TODO: this is not allowed when targetting main/global rendering device...
+    # but cpu side textures can not share RID'S with a local rendering device...
+    #TODO: option for later is to look at adding a heavy weight full cpu texture copying
+    #to a local rendering device to allow for more control but risking bloat and stuff
     #rendering_device.submit()
     #rendering_device.sync()  # blocks CPU until GPU finished this queue
 
 
-func _update_gpu_side_sprite_data_ssbo() -> void:
-    var serialized_sprite_data_ssbo: PackedFloat32Array = PackedFloat32Array()
-    for sprite_data_ssbo: SpriteDataSSBOStruct in cpu_side_sprite_data_ssbo_cache:
-        (
-            serialized_sprite_data_ssbo
-            . append_array(
-                [
-                    sprite_data_ssbo.center_px.x,
-                    sprite_data_ssbo.center_px.y,
-                    sprite_data_ssbo.half_size_px.x,
-                    sprite_data_ssbo.half_size_px.y,
-                    sprite_data_ssbo.altitude_normal,
-                    sprite_data_ssbo.ascending,
-                    0.0,  # padding total +4 float
-                    0.0  # padding total +4 float = 8 floats padding
-                    # with padding total size is 32 bytes
-                ]
-            )
-        )
-    var remaining_padding: int = MAXIMUM_SPRITE_COUNT - cpu_side_sprite_data_ssbo_cache.size()
-    if remaining_padding > 0:
-        serialized_sprite_data_ssbo.resize(
-            serialized_sprite_data_ssbo.size() + remaining_padding * 8
-        )
-    var serialized_sprite_data_ssbo_bytes: PackedByteArray = (
-        serialized_sprite_data_ssbo.to_byte_array()
+#TODO: stupid util function...
+func _sprite_texture2d_to_rd(sprite_texture: Texture2D) -> Texture2DRD:
+    var sprite_texture_format: RDTextureFormat = RDTextureFormat.new()
+    sprite_texture_format.texture_type = RenderingDevice.TEXTURE_TYPE_2D
+    sprite_texture_format.format = RenderingDevice.DATA_FORMAT_R8G8B8A8_UNORM
+    sprite_texture_format.width = sprite_texture.get_width()
+    sprite_texture_format.height = sprite_texture.get_height()
+    sprite_texture_format.mipmaps = 1
+    sprite_texture_format.usage_bits = (
+        RenderingDevice.TEXTURE_USAGE_SAMPLING_BIT | RenderingDevice.TEXTURE_USAGE_CAN_UPDATE_BIT
     )
-    rendering_device.buffer_update(
-        gpu_side_sprite_data_ssbo_rid,
-        0,
-        serialized_sprite_data_ssbo_bytes.size(),
-        serialized_sprite_data_ssbo_bytes
-    )
-
-
-func _update_gpu_side_sprite_data_ssbo_uniform_set() -> void:
-    sprite_textures_uniform = _update_sprite_textures_uniform_with_memory_padded_blocks()
-    gpu_side_sprite_data_ssbo_uniform_set_rid = (rendering_device.uniform_set_create(
-        [sprite_data_ssbo_uniform, sprite_textures_uniform, perspective_tilt_mask_uniform],
-        compute_shader_rid,
-        0
-    ))
-
-
-func _update_sprite_textures_uniform_with_memory_padded_blocks() -> RDUniform:
-    var sprite_texture_uniform: RDUniform = RDUniform.new()
-    sprite_texture_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_SAMPLER_WITH_TEXTURE
-    sprite_texture_uniform.binding = SPRITE_TEXTURES_BINDING
-    #TODO: this might be redundant with the padding thats attempted to be added in _update_gpu_side_sprite_data_ssbo
-    for i: int in range(MAXIMUM_SPRITE_COUNT):
-        var sprite_texture_rid: RID = (
-            sprite_texture_rids[i]
-            if i < sprite_texture_rids.size()
-            else memory_padding_sprite_textures_rid
-        )
-        sprite_texture_uniform.add_id(resuable_sampler_state_rid)
-        sprite_texture_uniform.add_id(sprite_texture_rid)
-    return sprite_texture_uniform
-
-
-func debug() -> void:
-    var unserialized_sprite_data_ssbo_bytes: PackedByteArray = rendering_device.buffer_get_data(
-        gpu_side_sprite_data_ssbo_rid, 0, 32
-    )
-    var x = unserialized_sprite_data_ssbo_bytes.decode_float(0)
-    var y = unserialized_sprite_data_ssbo_bytes.decode_float(4)
-    var hn = unserialized_sprite_data_ssbo_bytes.decode_float(16)  # altitude_normal
-    var asc = unserialized_sprite_data_ssbo_bytes.decode_float(20)  # ascending (0|1)
-    print("GPU row 0 centre=", Vector2(x, y), " altitude_normal=", hn, " ascending=", asc)
+    var view: RDTextureView = RDTextureView.new()
+    var view_rid: RID = rendering_device.texture_create(sprite_texture_format, view)
+    var sprite_texture_image: Image = sprite_texture.get_image()
+    rendering_device.texture_update(view_rid, 0, sprite_texture_image.get_data())
+    var sprite_texture_rd: Texture2DRD = Texture2DRD.new()
+    sprite_texture_rd.set_texture_rd_rid(view_rid)
+    return sprite_texture_rd
