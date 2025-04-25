@@ -3,7 +3,7 @@ class_name Mechanic
 
 var character: CharacterBody2D
 var animation_shader: ShaderMaterial
-var sprite_texture_id: int  #TODO: jesus christ, this is hacked
+var sprite_texture_index: int  #TODO: this is hacked, idk cant tell until having multiple sprites
 
 
 func process_input(_delta: float) -> void:

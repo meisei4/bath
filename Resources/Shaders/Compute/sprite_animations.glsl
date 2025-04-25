@@ -2,21 +2,20 @@
 #version 450
 #extension GL_KHR_shader_subgroup_basic : enable  
 
-/*  var groups_x = ceil(iResolution.x / 8)
-    var groups_y = ceil(iResolution.y / 8)
-    var groups_z = 1
-    rendering_device.compute_list_dispatch(cl, groups_x, groups_y, groups_z)
+/*  var groups_x: int = int(ceil(iResolution.x / float(WORKGROUP_TILE_PIXELS_X)))
+    var groups_y: int = int(ceil(iResolution.y / float(WORKGROUP_TILE_PIXELS_Y)))
+    var groups_z: int = 1
+    rendering_device.compute_list_dispatch(compute_list_int, groups_x, groups_y, groups_z)
 */
-layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
+layout(local_size_x = 2, local_size_y = 2, local_size_z = 1) in;
 
 layout(push_constant, std430) uniform PushConstants {
     vec2 iResolution;    // at byte‐offset 0, occupies bytes 0..7
     uint sprite_count;   // at byte‐offset 8, occupies bytes 8..11
     uint _pad;           // at byte‐offset 12, occupies bytes 12..15
-}
-push_constants;
+} push_constants;
 
-struct SpriteData {
+struct SpriteDataSSBO {
     vec2  center_px;        //  8 bytes (two floats)
     vec2  half_size_px;     //  8 bytes (two floats)
     float altitude_normal;  //  4 bytes (one float)
@@ -24,17 +23,18 @@ struct SpriteData {
     vec2  _pad;             //  8 bytes (two floats to align to 32-byte multiples)
 };
 
-#define SSBO_UNIFORM_BINDING 0
-layout(set = 0, binding = SSBO_UNIFORM_BINDING, std430) readonly buffer ssbo_uniform {
-    SpriteData sprites[];
+#define SPRITE_DATA_SSBO_UNIFORM_BINDING 0
+layout(set = 0, binding = SPRITE_DATA_SSBO_UNIFORM_BINDING, std430) readonly buffer sprite_data_ssbo_uniform {
+    SpriteDataSSBO sprites[];
 };
 
-#define PERSPECTIVE_TILT_MASK_UNIFORM_BINDING 1
-layout(set = 0, binding = PERSPECTIVE_TILT_MASK_UNIFORM_BINDING, r32f) writeonly uniform image2D perspective_tilt_mask_texture_image_uniform;
-
-#define SPRITE_TEXTURES_BINDING 2      
+#define SPRITE_TEXTURES_BINDING 1      
 #define MAXIMUM_SPRITE_COUNT 16 //TODO: BAD BAD BAD figure out how to properly pass this from cpu side godot    
-layout(set = 0, binding = SPRITE_TEXTURES_BINDING) uniform sampler2D sprite_textures[MAXIMUM_SPRITE_COUNT]; 
+layout(set = 0, binding = SPRITE_TEXTURES_BINDING) uniform sampler2D sprite_textures_uniform[MAXIMUM_SPRITE_COUNT]; 
+
+#define PERSPECTIVE_TILT_MASK_UNIFORM_BINDING 2
+layout(set = 0, binding = PERSPECTIVE_TILT_MASK_UNIFORM_BINDING, r32f) writeonly uniform image2D perspective_tilt_mask_uniform;
+
 
 //JUMP SHADER COPY!!
 const float MAXIMUM_TILT_ANGLE_ACHIEVED_AT_IMMEDIATE_ASCENSION_AND_FINAL_DESCENT = 0.785398;
@@ -49,7 +49,7 @@ const float MAXIMUM_TILT_ANGLE_ACHIEVED_AT_IMMEDIATE_ASCENSION_AND_FINAL_DESCENT
         || (uv).y > 1.0 - (texel_size).y) \
         return 0.0;
 
-float run_jump_trig_fragment_shader_as_compute_shader(uint sprite_index, in SpriteData sprite, in vec2 frag_coords) {
+float run_jump_trig_fragment_shader_as_compute_shader(uint sprite_index, in SpriteDataSSBO sprite, in vec2 frag_coords) {
      if (sprite.altitude_normal <= 0.0) {
         return 0.0;
     } 
@@ -98,7 +98,7 @@ float run_jump_trig_fragment_shader_as_compute_shader(uint sprite_index, in Spri
     );
 
     DISCARD_PIXELS_OUTSIDE_OF_ALTERED_UV_BOUNDS(altered_uv, texel_size);
-    float sprite_textures_alpha = texture(sprite_textures[sprite_index], altered_uv).a; 
+    float sprite_textures_alpha = texture(sprite_textures_uniform[sprite_index], altered_uv).a; 
     if (sprite_textures_alpha < 0.05) {
         return 0.0;
     } 
@@ -126,7 +126,7 @@ void main() {
         max_perspective_tilt = max(max_perspective_tilt, perspective_tilt);
     }
     imageStore(
-      perspective_tilt_mask_texture_image_uniform,
+      perspective_tilt_mask_uniform,
       frag_coords,
       vec4(max_perspective_tilt, 0.0, 0.0, 0.0)
     );

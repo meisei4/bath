@@ -71,16 +71,13 @@ func process_visual_illusion(_frame_delta: float) -> void:
     )
     sprite_node.material.set_shader_parameter("FOCAL_LENGTH", PARAMETERS.FOCAL_LENGTH)
     _update_sprite_scale(sprite_node, altitude_normal)
-    SpriteAnimations.update_sprite_state(
-        sprite_texture_id,
+    SpriteAnimations.update_cpu_side_sprite_data_ssbo_cache_and_push_to_gpu(
+        sprite_texture_index,
         sprite_node.global_position,
         (sprite_node.texture.get_size() / 2.0) * sprite_node.scale,
         altitude_normal,
         1.0 if is_ascending() else 0.0
     )
-    SpriteAnimations.upload_sprite_data_buffer()
-    #TODO: tilt mask still seems to lag behind exactly one frame
-    SpriteAnimations.dispatch_compute()
 
 
 func _max_altitude() -> float:

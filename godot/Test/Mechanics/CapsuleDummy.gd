@@ -5,11 +5,10 @@ var mechanics: Array[Mechanic] = []
 
 
 func _ready() -> void:
-    #TODO: HACKED
+    #TODO: HACKED?
     var sprite_node: Sprite2D = get_node("Sprite2D") as Sprite2D
-    var sprite_texture_id: int = SpriteAnimations.register_sprite_texture(sprite_node.texture)
-    SpriteAnimations.build_sprite_data_buffer_uniform_set()
-    #TODO: ^^HACKED
+    var sprite_texture_index: int = SpriteAnimations.register_sprite_texture(sprite_node.texture)
+    #TODO: ^^HACKED?
 
     var lateral_movement: LateralMovement = LateralMovement.new()
     lateral_movement.character = self
@@ -18,8 +17,8 @@ func _ready() -> void:
 
     var jump: Jump = Jump.new()
     jump.character = self
-    #TODO: hacked... but the only way to make sure the texture was added above
-    jump.sprite_texture_id = sprite_texture_id
+    #TODO: hacked???... but the only way to make sure the texture was added above
+    jump.sprite_texture_index = sprite_texture_index
     add_child(jump)
     mechanics.append(jump)
 

@@ -1,53 +1,60 @@
-#include "res://Resources/Shaders/Glacier/color.gdshaderinc"
+//APPLIED NOISE FUNKS
 #include "res://Resources/Shaders/Glacier/noise_pure.gdshaderinc"
+//TRANSCENDENTALS
+#define M_PI     3.14159265358979323846
+#define M_PI_4   0.785398163397448309616
+#define TAU      (M_PI + M_PI)
 
-#define NOISE_SCROLL_VELOCITY              vec2(0.0, 0.1)
-#define GLOBAL_COORD_SCALAR                 180.0
+#define NOISE_SCROLL_VELOCITY       vec2(0.0, 0.1)
+#define GLOBAL_COORD_SCALAR         180.0
 
-#define STRETCH_SCALAR_X                1.0
-#define STRETCH_SCALAR_Y                2.0
+#define STRETCH_SCALAR_X            1.0
+#define STRETCH_SCALAR_Y            2.0
 
-#define NOISE_COORD_OFFSET                 vec2(2.0, 0.0)
-#define PERLIN_SOLID_THRESHOLD             -0.03
-#define USE_VORONOI
-    #define VORONOI_SOLID_THRESHOLD             0.34
+#define NOISE_COORD_OFFSET          vec2(2.0, 0.0)
+#define PERLIN_SOLID_THRESHOLD      -0.03
+//#define USE_VORONOI
+    #define VORONOI_SOLID_THRESHOLD 0.34
 
 #define ENABLE_ROTATION
-    #define ROTATION_ANGLE          -PI_4
-    //#define ROTATION_ANGLE        (-PI_4 * 0.5)
-    #define ROTATION_MATRIX         mat2(vec2(cos(ROTATION_ANGLE), -sin(ROTATION_ANGLE)),\
-                                          vec2(sin(ROTATION_ANGLE),  cos(ROTATION_ANGLE)))
+    #define ROTATION_ANGLE          -M_PI_4
+    //#define ROTATION_ANGLE        (-M_PI_4 * 0.5)
+    #define ROTATION_MATRIX         mat2(vec2(cos(ROTATION_ANGLE), -sin(ROTATION_ANGLE)), \
+                                         vec2(sin(ROTATION_ANGLE),  cos(ROTATION_ANGLE)))
 
 #define ENABLE_STRETCH_CORRECTION
-    #define UNIFORM_STRETCH_CORRECTION_SCALAR sqrt(2.0)
-    //#define UNIFORM_STRETCH_CORRECTION_SCALAR (sqrt((pow(STRETCH_SCALAR_X, 2.0) + pow(STRETCH_SCALAR_Y, 2.0)) / 2.0))
+    #define UNIFORM_STRETCH_CORRECTION_SCALAR    sqrt(2.0)
+    //#define UNIFORM_STRETCH_CORRECTION_SCALAR  (sqrt((pow(STRETCH_SCALAR_X, 2.0) \
+    //                                                   + pow(STRETCH_SCALAR_Y, 2.0)) \
+    //                                                   / 2.0))
 
 //#define ENABLE_COMPOSED_AFFINE_TRANSFORMATIONS
-    #define UNIFORM_STRETCH_CORRECTION_AND_ROTATION_COMPOSITION mat2(vec2(1.0,  1.0),  \
-                                                                       vec2(-1.0,  1.0))
+    #define UNIFORM_STRETCH_CORRECTION_AND_ROTATION_COMPOSITION mat2(vec2(1.0,  1.0), \
+                                                                     vec2(-1.0,  1.0))
 
-#define UNIFORM_DEPTH_MARCH_FIRST_STEP_SCALAR    0.0
+#define UNIFORM_DEPTH_MARCH_FIRST_STEP_SCALAR                    0.0
 #define ENABLE_DEPTH_MARCH_FIRST_STEP_SCRAMBLING
-    #define FIRST_STEP_SCRAMBLER_SCALAR          123.456
+    #define FIRST_STEP_SCRAMBLER_SCALAR                          123.456
+
 //DEPTH MARCH STEP SCRAMBLING EXPLANATION:
-//DISABLED
- //───────── slice 0 ─────────   ← all fragments hit the same slice first
- //───────── slice 1 ─────────
- //───────── slice 2 ─────────
+//DISABLED:
+//───────── slice 0 ─────────   <- all fragments hit the same slice first
+//───────── slice 1 ─────────
+//───────── slice 2 ─────────
 
-//ENABLED
- //─────┬──────────┬─────────
- //0.2  │  0.6     │ 0.95   ← each fragment starts somewhere inside slice 0
- //─────┼──────────┼─────────
- //1.2  │  1.6     │ 1.95
- //─────┼──────────┼─────────
- //2.2  │  2.6     │ 2.95
+//ENABLED:
+//─────┬──────────┬─────────
+//0.2  │  0.6     │ 0.95        <- each fragment starts somewhere inside slice 0
+//─────┼──────────┼─────────
+//1.2  │  1.6     │ 1.95
+//─────┼──────────┼─────────
+//2.2  │  2.6     │ 2.95
 
-float sampleNoise(vec2 coord, float localNoiseScale) {
-    //float x_displacement = iTime * NOISE_SCROLL_VELOCITY.x;
-    //float y_displacement = iTime * NOISE_SCROLL_VELOCITY.y;
-    float x_displacement = TIME * NOISE_SCROLL_VELOCITY.x;
-    float y_displacement = TIME * NOISE_SCROLL_VELOCITY.y;
+float sampleNoise(vec2 coord, float localNoiseScale, float iTime) {
+    float x_displacement = iTime * NOISE_SCROLL_VELOCITY.x;
+    float y_displacement = iTime * NOISE_SCROLL_VELOCITY.y;
+    //float x_displacement = TIME * NOISE_SCROLL_VELOCITY.x;
+    //float y_displacement = TIME * NOISE_SCROLL_VELOCITY.y;
     vec2 displaced_coordinate = vec2(
         coord.x + x_displacement,
         coord.y + y_displacement
@@ -80,8 +87,8 @@ float sampleNoise(vec2 coord, float localNoiseScale) {
     return sampled_noise;
 }
 
-bool isSolidAtCoord(vec2 coord, float localNoiseScale) {
-    float noiseValue = sampleNoise(coord, localNoiseScale);
+bool isSolidAtCoord(vec2 coord, float localNoiseScale, float iTime) {
+    float noiseValue = sampleNoise(coord, localNoiseScale, iTime);
     #ifdef USE_VORONOI
         return (noiseValue > VORONOI_SOLID_THRESHOLD);
     #else
