@@ -1,3 +1,4 @@
+#extends WorldEnvironment
 extends Node2D
 class_name ShadowsTest
 
@@ -29,7 +30,15 @@ func _ready() -> void:
     MainViewport = get_viewport()
     MainViewport.use_hdr_2d = true
     MainViewport.disable_3d = true
-    iResolution = get_viewport_rect().size
+    #TODO: experiment with compositor effects for no reason because the issue was the fucking _process vs _physics_process functions
+    #var environment: Environment = Environment.new()
+    #environment.set_background(Environment.BGMode.BG_CANVAS)
+    #self.environment = environment
+    #var tilt_effect: TiltMaskCompositorEffect = TiltMaskCompositorEffect.new()
+    #self.compositor = Compositor.new()
+    #tilt_effect.set_effect_callback_type(CompositorEffect.EFFECT_CALLBACK_TYPE_POST_OPAQUE)
+    #compositor.compositor_effects = [tilt_effect]
+    iResolution = MainViewport.size / 4.0
     BaseCanvasLayer = CanvasLayer.new()
     BaseCanvasLayer.layer = 1
     add_child(BaseCanvasLayer)

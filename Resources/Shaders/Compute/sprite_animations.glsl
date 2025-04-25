@@ -99,7 +99,7 @@ float run_jump_trig_fragment_shader_as_compute_shader(uint sprite_index, in Spri
 
     DISCARD_PIXELS_OUTSIDE_OF_ALTERED_UV_BOUNDS(altered_uv, texel_size);
     float sprite_textures_alpha = texture(sprite_textures_uniform[sprite_index], altered_uv).a; 
-    if (sprite_textures_alpha < 0.05) {
+    if (sprite_textures_alpha == 0.0) {
         return 0.0;
     } 
 

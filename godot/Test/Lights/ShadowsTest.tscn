@@ -1,7 +1,10 @@
-[gd_scene load_steps=2 format=3 uid="uid://ba73yshn08skg"]
+[gd_scene load_steps=3 format=3 uid="uid://pbcjlig1w3s4"]
 
 [ext_resource type="Script" uid="uid://dcpv228fcgck1" path="res://godot/Test/Lights/ShadowsTest.gd" id="1_lcail"]
+[ext_resource type="PackedScene" uid="uid://dv6d43pse6i5l" path="res://godot/Shaders/Glacier/GlacierFlow.tscn" id="2_4xeth"]
 
-[node name="ShadeZoneTest" type="Node2D"]
+[node name="ShadowsTest" type="Node2D"]
 script = ExtResource("1_lcail")
 metadata/_custom_type_script = "uid://dcpv228fcgck1"
+
+[node name="GlacierFlow" parent="." instance=ExtResource("2_4xeth")]

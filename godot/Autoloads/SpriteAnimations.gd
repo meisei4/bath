@@ -39,8 +39,8 @@ var resuable_sampler_state_rid: RID
 const PERSPECTIVE_TILT_MASK_UNIFORM_BINDING: int = 2
 var perspective_tilt_mask_uniform: RDUniform
 var perspective_tilt_mask_texture_format: RDTextureFormat
-var perspective_tilt_mask_texture_view_rid: RID
 var perspective_tilt_mask_view: RDTextureView
+var perspective_tilt_mask_texture_view_rid: RID
 var perspective_tilt_mask_texture: Texture2DRD
 
 var push_constants: PackedByteArray
@@ -87,17 +87,21 @@ func _ready() -> void:
     _init_ssbo()
     _init_sprite_textures_and_sampler()
     _init_perspective_tilt_mask_texture()
-    #TODO: next line is to initially set up the first sprite data ssbo in the gpu (empty data)
-    _update_gpu_side_sprite_data_ssbo_uniform_set()
+    compute_pipeline_rid = rendering_device.compute_pipeline_create(compute_shader_rid)
+    #TODO: just a unique way to make sure the tilt mask is computed before anything else is drawn to the screen...
+    RenderingServer.frame_pre_draw.connect(_dispatch_compute)
 
 
 func _init_rendering_device() -> void:
     iResolution = get_viewport_rect().size
+    #rendering_device = RenderingServer.create_local_rendering_device()
     rendering_device = RenderingServer.get_rendering_device()
 
 
 func _init_compute_shader() -> void:
     #TODO: none of this will work on openGL/compatibility mode, only vulkan
+    # in fact: RenderingDevice is not available [...] when using the Compatibility rendering method.
+    # https://docs.godotengine.org/en/stable/classes/class_renderingdevice.html#class-renderingdevice
     compute_shader_spirv = compute_shader_file.get_spirv()
     compute_shader_rid = rendering_device.shader_create_from_spirv(compute_shader_spirv)
 
@@ -161,21 +165,6 @@ func _init_perspective_tilt_mask_texture() -> void:
     perspective_tilt_mask_uniform.add_id(perspective_tilt_mask_texture_view_rid)
 
 
-func _update_sprite_textures_uniform_with_memory_padded_blocks() -> RDUniform:
-    var sprite_texture_uniform: RDUniform = RDUniform.new()
-    sprite_texture_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_SAMPLER_WITH_TEXTURE
-    sprite_texture_uniform.binding = SPRITE_TEXTURES_BINDING
-    for i: int in range(MAXIMUM_SPRITE_COUNT):
-        var sprite_texture_rid: RID = (
-            sprite_texture_rids[i]
-            if i < sprite_texture_rids.size()
-            else memory_padding_sprite_textures_rid
-        )
-        sprite_texture_uniform.add_id(resuable_sampler_state_rid)
-        sprite_texture_uniform.add_id(sprite_texture_rid)
-    return sprite_texture_uniform
-
-
 #TODO: call this whenever you add a sprite that needs to be targetted by the compute shader
 func register_sprite_texture(sprite_texture: Texture2D) -> int:
     if sprite_texture_rids.size() >= MAXIMUM_SPRITE_COUNT:
@@ -189,7 +178,6 @@ func register_sprite_texture(sprite_texture: Texture2D) -> int:
     sprite_data_ssbo.altitude_normal = 0.0
     sprite_data_ssbo.ascending = 0.0
     cpu_side_sprite_data_ssbo_cache.append(sprite_data_ssbo)
-    _update_gpu_side_sprite_data_ssbo_uniform_set()  #THIS AUTO UPDATES THE GPU SIDE SSBO!!
     return sprite_texture_rids.size() - 1
 
 
@@ -212,18 +200,8 @@ func _sprite_texture2d_to_rd(sprite_texture: Texture2D) -> Texture2DRD:
     return sprite_texture_rd
 
 
-func _update_gpu_side_sprite_data_ssbo_uniform_set() -> void:
-    sprite_textures_uniform = _update_sprite_textures_uniform_with_memory_padded_blocks()
-    gpu_side_sprite_data_ssbo_uniform_set_rid = (rendering_device.uniform_set_create(
-        [sprite_data_ssbo_uniform, sprite_textures_uniform, perspective_tilt_mask_uniform],
-        compute_shader_rid,
-        0
-    ))
-    compute_pipeline_rid = rendering_device.compute_pipeline_create(compute_shader_rid)
-
-
 #TODO: call this whenever you need to UPDATE a sprite/entity on the CPU side
-func update_cpu_side_sprite_data_ssbo_cache_and_push_to_gpu(
+func update_cpu_side_sprite_data_ssbo_cache(
     sprite_texture_index: int,
     center_px: Vector2,
     half_size_px: Vector2,
@@ -237,9 +215,35 @@ func update_cpu_side_sprite_data_ssbo_cache_and_push_to_gpu(
     cpu_side_sprite_data_ssbo_cache[sprite_texture_index].half_size_px = half_size_px
     cpu_side_sprite_data_ssbo_cache[sprite_texture_index].altitude_normal = altitude_normal
     cpu_side_sprite_data_ssbo_cache[sprite_texture_index].ascending = ascending
+
+
+func _dispatch_compute() -> void:
     _update_gpu_side_sprite_data_ssbo()
-    #TODO: here the tilt mask still seems to lag behind exactly one frame at all times
-    _dispatch_compute()
+    _update_gpu_side_sprite_data_ssbo_uniform_set()
+    var compute_list_int: int = rendering_device.compute_list_begin()
+    rendering_device.compute_list_bind_compute_pipeline(compute_list_int, compute_pipeline_rid)
+    rendering_device.compute_list_bind_uniform_set(
+        compute_list_int, gpu_side_sprite_data_ssbo_uniform_set_rid, 0
+    )
+    push_constants = PackedByteArray()
+    push_constants.resize(PUSH_CONSTANTS_BYTE_BLOCK_SIZE)
+    push_constants.encode_float(PUSH_CONSTANTS_BYTE_ALIGNMENT_0, iResolution.x)  # float at bytes 0–3
+    push_constants.encode_float(PUSH_CONSTANTS_BYTE_ALIGNMENT_4, iResolution.y)  # float at bytes 4–7
+    push_constants.encode_u32(
+        PUSH_CONSTANTS_BYTE_ALIGNMENT_8, cpu_side_sprite_data_ssbo_cache.size()
+    )
+    push_constants.encode_u32(PUSH_CONSTANTS_BYTE_ALIGNMENT_12, 0)  # uint at bytes 12–15
+    rendering_device.compute_list_set_push_constant(
+        compute_list_int, push_constants, push_constants.size()
+    )
+    var groups_x: int = int(ceil(iResolution.x / float(WORKGROUP_TILE_PIXELS_X)))
+    var groups_y: int = int(ceil(iResolution.y / float(WORKGROUP_TILE_PIXELS_Y)))
+    var groups_z: int = 1
+    rendering_device.compute_list_dispatch(compute_list_int, groups_x, groups_y, groups_z)
+    rendering_device.compute_list_end()
+    #TODO: this is not allowed when targetting default render device... but textures break when creating a local rendering device..
+    #rendering_device.submit()
+    #rendering_device.sync()  # blocks CPU until GPU finished this queue
 
 
 func _update_gpu_side_sprite_data_ssbo() -> void:
@@ -261,12 +265,11 @@ func _update_gpu_side_sprite_data_ssbo() -> void:
                 ]
             )
         )
-    # pad unused rows so the buffer size stays constant
     var remaining_padding: int = MAXIMUM_SPRITE_COUNT - cpu_side_sprite_data_ssbo_cache.size()
     if remaining_padding > 0:
         serialized_sprite_data_ssbo.resize(
             serialized_sprite_data_ssbo.size() + remaining_padding * 8
-        )  # 8 floats per struct
+        )
     var serialized_sprite_data_ssbo_bytes: PackedByteArray = (
         serialized_sprite_data_ssbo.to_byte_array()
     )
@@ -278,32 +281,29 @@ func _update_gpu_side_sprite_data_ssbo() -> void:
     )
 
 
-func _dispatch_compute() -> void:
-    var compute_list_int: int = rendering_device.compute_list_begin()
-    rendering_device.compute_list_bind_compute_pipeline(compute_list_int, compute_pipeline_rid)
-    rendering_device.compute_list_bind_uniform_set(
-        compute_list_int, gpu_side_sprite_data_ssbo_uniform_set_rid, 0
-    )
-    push_constants = PackedByteArray()
-    push_constants.resize(PUSH_CONSTANTS_BYTE_BLOCK_SIZE)
-    push_constants.encode_float(PUSH_CONSTANTS_BYTE_ALIGNMENT_0, iResolution.x)  # float at bytes 0–3
-    push_constants.encode_float(PUSH_CONSTANTS_BYTE_ALIGNMENT_4, iResolution.y)  # float at bytes 4–7
-    push_constants.encode_u32(
-        PUSH_CONSTANTS_BYTE_ALIGNMENT_8, cpu_side_sprite_data_ssbo_cache.size()
-    )  # uint at bytes 8–11
-    push_constants.encode_u32(PUSH_CONSTANTS_BYTE_ALIGNMENT_12, 0)  # uint at bytes 12–15
-    rendering_device.compute_list_set_push_constant(
-        compute_list_int, push_constants, push_constants.size()
-    )
-    var groups_x: int = int(ceil(iResolution.x / float(WORKGROUP_TILE_PIXELS_X)))
-    var groups_y: int = int(ceil(iResolution.y / float(WORKGROUP_TILE_PIXELS_Y)))
-    var groups_z: int = 1
-    rendering_device.compute_list_dispatch(compute_list_int, groups_x, groups_y, groups_z)
-    rendering_device.compute_list_end()
-    #TODO: this is not allowed when targetting default render device... but textures break when creating a local rendering device..
-    #rendering_device.submit()
-    # optional but safe: ensure the write is visible to later screen-space passes
-    #rendering_device.sync()  # blocks CPU until GPU finished this queue
+func _update_gpu_side_sprite_data_ssbo_uniform_set() -> void:
+    sprite_textures_uniform = _update_sprite_textures_uniform_with_memory_padded_blocks()
+    gpu_side_sprite_data_ssbo_uniform_set_rid = (rendering_device.uniform_set_create(
+        [sprite_data_ssbo_uniform, sprite_textures_uniform, perspective_tilt_mask_uniform],
+        compute_shader_rid,
+        0
+    ))
+
+
+func _update_sprite_textures_uniform_with_memory_padded_blocks() -> RDUniform:
+    var sprite_texture_uniform: RDUniform = RDUniform.new()
+    sprite_texture_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_SAMPLER_WITH_TEXTURE
+    sprite_texture_uniform.binding = SPRITE_TEXTURES_BINDING
+    #TODO: this might be redundant with the padding thats attempted to be added in _update_gpu_side_sprite_data_ssbo
+    for i: int in range(MAXIMUM_SPRITE_COUNT):
+        var sprite_texture_rid: RID = (
+            sprite_texture_rids[i]
+            if i < sprite_texture_rids.size()
+            else memory_padding_sprite_textures_rid
+        )
+        sprite_texture_uniform.add_id(resuable_sampler_state_rid)
+        sprite_texture_uniform.add_id(sprite_texture_rid)
+    return sprite_texture_uniform
 
 
 func debug() -> void:

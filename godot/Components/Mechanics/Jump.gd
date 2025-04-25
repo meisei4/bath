@@ -60,7 +60,6 @@ func process_visual_illusion(_frame_delta: float) -> void:
     var altitude_normal: float = _compute_altitude_normal_in_jump_parabola(
         vertical_position, max_altitude
     )
-
     sprite_node.material.set_shader_parameter("ascending", is_ascending())
     sprite_node.material.set_shader_parameter("altitude_normal", altitude_normal)
     #TODO: figure out how to not have to update these every single frame please
@@ -71,7 +70,7 @@ func process_visual_illusion(_frame_delta: float) -> void:
     )
     sprite_node.material.set_shader_parameter("FOCAL_LENGTH", PARAMETERS.FOCAL_LENGTH)
     _update_sprite_scale(sprite_node, altitude_normal)
-    SpriteAnimations.update_cpu_side_sprite_data_ssbo_cache_and_push_to_gpu(
+    SpriteAnimations.update_cpu_side_sprite_data_ssbo_cache(
         sprite_texture_index,
         sprite_node.global_position,
         (sprite_node.texture.get_size() / 2.0) * sprite_node.scale,

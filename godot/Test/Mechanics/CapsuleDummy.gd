@@ -7,6 +7,7 @@ var mechanics: Array[Mechanic] = []
 func _ready() -> void:
     #TODO: HACKED?
     var sprite_node: Sprite2D = get_node("Sprite2D") as Sprite2D
+    sprite_node.scale *= 4.0
     var sprite_texture_index: int = SpriteAnimations.register_sprite_texture(sprite_node.texture)
     #TODO: ^^HACKED?
 
@@ -23,7 +24,8 @@ func _ready() -> void:
     mechanics.append(jump)
 
 
-func _physics_process(delta: float) -> void:
+#TODO: are you serious, learn wtf physics process actually does, it can cause sprite draws vs compute shaderdraws single frame lag...
+func _process(delta: float) -> void:
     for mechanic: Mechanic in mechanics:
         mechanic.process_input(delta)
         mechanic.process_visual_illusion(delta)
