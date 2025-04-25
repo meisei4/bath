@@ -6,8 +6,8 @@
     #define WATER_COLOR_R                 0.1
     #define WATER_COLOR_G                 0.7
     #define WATER_COLOR_B                 0.8
-    #define WATER_DARKEN_MULTIPLIER       0.5
-    #define WATER_DEPTH_DARKEN_DIVISOR    5.0
+    #define WATER_DARKEN_MULTIPLIER       0.4
+    #define WATER_DEPTH_DARKEN_DIVISOR    9.0
     #define WATER_STATIC_DARKEN_THRESHOLD 12
 
 #define ENABLE_WATER_ANIMATION

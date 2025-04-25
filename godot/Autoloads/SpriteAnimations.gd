@@ -115,15 +115,14 @@ func update_cpu_side_sprite_data_ssbo_cache(
     _update_gpu_side_sprite_data_ssbo()
 
 
-
 func debug() -> void:
     var unserialized_sprite_data_ssbo_bytes: PackedByteArray = rendering_device.buffer_get_data(
         gpu_side_sprite_data_ssbo_rid, 0, 32
     )
-    var x = unserialized_sprite_data_ssbo_bytes.decode_float(0)
-    var y = unserialized_sprite_data_ssbo_bytes.decode_float(4)
-    var hn = unserialized_sprite_data_ssbo_bytes.decode_float(16)  # altitude_normal
-    var asc = unserialized_sprite_data_ssbo_bytes.decode_float(20)  # ascending (0|1)
+    var x: float = unserialized_sprite_data_ssbo_bytes.decode_float(0)
+    var y: float = unserialized_sprite_data_ssbo_bytes.decode_float(4)
+    var hn: float = unserialized_sprite_data_ssbo_bytes.decode_float(16)  # altitude_normal
+    var asc: float = unserialized_sprite_data_ssbo_bytes.decode_float(20)  # ascending (0|1)
     print("GPU row 0 centre=", Vector2(x, y), " altitude_normal=", hn, " ascending=", asc)
 
 
@@ -180,7 +179,6 @@ func _init_sprite_textures_and_sampler() -> void:
     var padding_view: RDTextureView = RDTextureView.new()
     memory_padding_sprite_textures_rid = rendering_device.texture_create(padding_fmt, padding_view)
     rendering_device.texture_update(memory_padding_sprite_textures_rid, 0, img.get_data())
-
     resuable_sampler_state = RDSamplerState.new()
     resuable_sampler_state_rid = rendering_device.sampler_create(resuable_sampler_state)
 
@@ -224,7 +222,7 @@ func _update_gpu_side_sprite_data_ssbo_uniform_set() -> void:
         )
         sprite_textures_uniform.add_id(resuable_sampler_state_rid)
         sprite_textures_uniform.add_id(sprite_textures_rid)
-        gpu_side_sprite_data_ssbo_uniform_set_rid = (rendering_device.uniform_set_create(
+    gpu_side_sprite_data_ssbo_uniform_set_rid = (rendering_device.uniform_set_create(
         [sprite_data_ssbo_uniform, sprite_textures_uniform, perspective_tilt_mask_uniform],
         compute_shader_rid,
         0
@@ -234,20 +232,17 @@ func _update_gpu_side_sprite_data_ssbo_uniform_set() -> void:
 func _update_gpu_side_sprite_data_ssbo() -> void:
     var serialized_sprite_data_ssbo: PackedFloat32Array = PackedFloat32Array()
     for sprite_data_ssbo: SpriteDataSSBOStruct in cpu_side_sprite_data_ssbo_cache:
-        (
-            serialized_sprite_data_ssbo
-            . append_array(
-                [
-                    sprite_data_ssbo.center_px.x,
-                    sprite_data_ssbo.center_px.y,
-                    sprite_data_ssbo.half_size_px.x,
-                    sprite_data_ssbo.half_size_px.y,
-                    sprite_data_ssbo.altitude_normal,
-                    sprite_data_ssbo.ascending,
-                    0.0,  # padding total +4 float
-                    0.0  # padding total +4 float = 8 floats padding
-                ]
-            )
+        serialized_sprite_data_ssbo.append_array(
+            [
+                sprite_data_ssbo.center_px.x,
+                sprite_data_ssbo.center_px.y,
+                sprite_data_ssbo.half_size_px.x,
+                sprite_data_ssbo.half_size_px.y,
+                sprite_data_ssbo.altitude_normal,
+                sprite_data_ssbo.ascending,
+                0.0,  # padding total +4 float
+                0.0  # padding total +4 float = 8 floats padding
+            ]
         )
     #TODO: because we create a completely new serialized ssbo copy in this function everytime, we have to pad it
     # the other way would be to have a serialized ssbo copy that gets padded in the _init_ssbo function and then whenever we
