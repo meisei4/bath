@@ -10,6 +10,8 @@ var iResolution: Vector2
 
 
 func _ready() -> void:
+    #TODO: i just set the default for canvas items to this in the project settings but seriously its annoying
+    self.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
     #var res: Vector2i = Vector2i(855, 480)
     #DisplayServer.window_set_size(res)  #TODO: this doesnt do what you think it does
     #iResolution = res

@@ -7,7 +7,6 @@ var mechanics: Array[Mechanic] = []
 func _ready() -> void:
     #TODO: HACKED?
     var sprite_node: Sprite2D = get_node("Sprite2D") as Sprite2D
-    sprite_node.scale *= 4.0
     var sprite_texture_index: int = SpriteAnimations.register_sprite_texture(sprite_node.texture)
     #TODO: ^^HACKED?
 
