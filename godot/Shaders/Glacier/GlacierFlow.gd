@@ -12,10 +12,8 @@ var iResolution: Vector2
 func _ready() -> void:
     #TODO: i just set the default for canvas items to this in the project settings but seriously its annoying
     self.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-    #var res: Vector2i = Vector2i(855, 480)
-    #DisplayServer.window_set_size(res)  #TODO: this doesnt do what you think it does
-    #iResolution = res
-    iResolution = get_viewport_rect().size
+    #iResolution = get_viewport_rect().size
+    iResolution = Resolution.resolution
     BufferA = ShaderToyUtil.create_buffer_viewport(iResolution)
     BufferAShaderMaterial = ShaderMaterial.new()
     BufferAShaderNode = ColorRect.new()
@@ -30,3 +28,9 @@ func _ready() -> void:
     BufferA.add_child(BufferAShaderNode)
     add_child(BufferA)
     add_child(MainImage)
+
+
+func _process(delta: float) -> void:
+    CollisionMask.iTime += delta
+    #also update your fragment shader material…
+    BufferAShaderMaterial.set_shader_parameter("iTime", CollisionMask.iTime)

@@ -38,7 +38,7 @@ func _ready() -> void:
     #self.compositor = Compositor.new()
     #tilt_effect.set_effect_callback_type(CompositorEffect.EFFECT_CALLBACK_TYPE_POST_OPAQUE)
     #compositor.compositor_effects = [tilt_effect]
-    iResolution = MainViewport.size / 4.0
+    iResolution = Resolution.resolution
     BaseCanvasLayer = CanvasLayer.new()
     BaseCanvasLayer.layer = 1
     add_child(BaseCanvasLayer)

@@ -11,6 +11,8 @@ shader_type canvas_item;
 #include "res://Resources/Shaders/Glacier/color.gdshaderinc"
 uniform vec2 iResolution;
 
+uniform float iTime;
+
 // NOTE: Please only disable parallax if you want to just see the raw noise textures overlayed
 // but keep in mind there is no gating to prevent the depth march,
 #define ENABLE_PARALLAX
@@ -47,7 +49,8 @@ int depthMarch(vec2 normalizedCoord, float strideLength, float firstStepOffset){
         vec2 nextStep = normalizedCoord + vec2(0.0, firstStep / GLOBAL_COORD_SCALAR) * strideLength;
         float localNoiseScale;
         vec2 projectedCoord = projectLayer(nextStep, localNoiseScale);
-        if(isSolidAtCoord(projectedCoord, localNoiseScale, TIME)) {
+       //if(isSolidAtCoord(projectedCoord, localNoiseScale, TIME)) {
+        if(isSolidAtCoord(projectedCoord, localNoiseScale, iTime)) {
             break;
         }
         if(normalizedCoord.y + (float(depthCount) / GLOBAL_COORD_SCALAR) >= iResolution.y) {
@@ -86,16 +89,22 @@ vec3 getTerrainColor(bool isSolid, int depth, vec2 normCoord) {
 
 vec3 applyWater(vec3 color, bool isSolid, int depth, vec2 normCoord) {
     #ifdef ENABLE_WATER
-        return tintAndDarkenWater(color, isSolid, depth, normCoord, TIME);
+        //return tintAndDarkenWater(color, isSolid, depth, normCoord, TIME);
+        return tintAndDarkenWater(color, isSolid, depth, normCoord, iTime);
     #else
         return color;
     #endif
 }
 
+//#define DEBUG_MASK
+
 //void mainImage(out vec4 fragColor, in vec2 fragCoord){
 void fragment() {
     //vec2 normCoord = (fragCoord * 2.0 - iResolution.xy) / iResolution.y;
-    vec2 normCoord = (FRAGCOORD.xy * 2.0 - iResolution.xy) / iResolution.y;
+    //vec2 normCoord = (FRAGCOORD.xy * 2.0 - iResolution.xy) / iResolution.y;
+    vec2 fragCoord = UV * iResolution;
+    // 2) now do exactly your same math
+    vec2 normCoord = (fragCoord * 2.0 - iResolution) / iResolution.y;
     float noiseScale;
     vec3 color;
     #ifdef ENABLE_MODE7
@@ -106,14 +115,23 @@ void fragment() {
     {
         vec2 projectedTopLayerCoord = projectTopLayerForParallax(normCoord, noiseScale);
         float stride                = getStrideLength(normCoord);
-        float firstStepOffset       = getFirstStepOffset(normCoord, TIME);
+        //float firstStepOffset       = getFirstStepOffset(normCoord, TIME);
+        float firstStepOffset       = getFirstStepOffset(normCoord, iTime);
         int   depth                 = depthMarch(normCoord, stride, firstStepOffset);
-        bool  isSolid               = isSolidAtCoord(projectedTopLayerCoord, noiseScale, TIME);
+        //bool  isSolid               = isSolidAtCoord(projectedTopLayerCoord, noiseScale, TIME);
+        bool  isSolid               = isSolidAtCoord(projectedTopLayerCoord, noiseScale, iTime);
         vec3  terrain               = getTerrainColor(isSolid, depth, normCoord);
         vec3  terrainWithWater      = applyWater(terrain, isSolid, depth, normCoord);
         //color = terrainWithWater; //RAW give it a try... its gross... :^)
         color = sqrt(terrainWithWater); //GAMMAMAMA CORREECCTIONNN.... GOOD
     }
-    COLOR = vec4(color.r, color.g, color.b, 1.0);
+    #ifdef DEBUG_MASK
+        // mask = “white if the pixel you’d see is ‘glacier’”
+        // Change the threshold here to match exactly what you consider “solid” on-screen.
+        float m = (color.r > 0.9 ? 1.0 : 0.0);
+        COLOR = vec4(m, 0.0, 0.0, 1.0);
+    #else
+        COLOR = vec4(color.r, color.g, color.b, 1.0);
+    #endif
     //fragColor = vec4(color.r, color.g, color.b, 1.0);
 }

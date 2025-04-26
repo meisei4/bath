@@ -10,7 +10,8 @@ func _ready() -> void:
     character.z_index = 0
     add_child(character)
 
-    var viewport_size: Vector2 = get_viewport().get_visible_rect().size
+    #var viewport_size: Vector2 = get_viewport().get_visible_rect().size
+    var viewport_size: Vector2 = Resolution.resolution
     var sprite_node: Sprite2D = character.get_node("Sprite2D") as Sprite2D
     var sprite_size: Vector2 = sprite_node.texture.get_size()
     character.position = Vector2(viewport_size.x * 0.5, viewport_size.y - sprite_size.y * 0.5)

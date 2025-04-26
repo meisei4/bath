@@ -20,6 +20,7 @@ driver/enable_input=true
 
 [autoload]
 
+Resolution="*res://godot/Autoloads/Resolution.gd"
 AudioEffects="*res://godot/Audio/AudioEffects.gd"
 AudioManager="*res://godot/Audio/AudioManager.gd"
 ComponentsManager="*res://godot/Autoloads/CharacterComponentsManager.gd"
@@ -27,6 +28,7 @@ AudioBus="*res://godot/Audio/AudioBus.gd"
 OcclusionManager="*res://godot/Autoloads/OcclusionManager.gd"
 MechanicManager="*res://godot/Autoloads/MechanicManager.gd"
 SpriteAnimations="*res://godot/Autoloads/SpriteAnimations.gd"
+CollisionMask="*res://godot/Autoloads/CollisionMask.gd"
 
 [debug]
 
@@ -39,12 +41,13 @@ gdscript/warnings/unsafe_call_argument=1
 
 [display]
 
-window/size/viewport_width=1024
-window/size/viewport_height=1536
+window/size/viewport_width=256
+window/size/viewport_height=384
 window/size/resizable=false
 window/size/always_on_top=true
-window/size/sharp_corners=true
-window/stretch/scale=4.0
+window/size/window_width_override=1024
+window/size/window_height_override=1536
+window/stretch/mode="canvas_items"
 
 [editor_plugins]
 

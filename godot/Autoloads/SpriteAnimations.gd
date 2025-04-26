@@ -137,7 +137,7 @@ func _ready() -> void:
 
 
 func _init_rendering_device() -> void:
-    iResolution = get_viewport_rect().size
+    iResolution = Resolution.resolution
     #rendering_device = RenderingServer.create_local_rendering_device()
     rendering_device = RenderingServer.get_rendering_device()
 
@@ -268,6 +268,7 @@ func _update_gpu_side_sprite_data_ssbo() -> void:
 func _dispatch_compute() -> void:
     var compute_list_int: int = rendering_device.compute_list_begin()
     rendering_device.compute_list_bind_compute_pipeline(compute_list_int, compute_pipeline_rid)
+    #TODO: this next line fails if you dont register a sprite ever... bad bad bad
     rendering_device.compute_list_bind_uniform_set(
         compute_list_int, gpu_side_sprite_data_ssbo_uniform_set_rid, 0
     )
