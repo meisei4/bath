@@ -1,4 +1,4 @@
-extends Node2D
+extends StaticBody2D
 
 var iResolution: Vector2
 var rendering_device: RenderingDevice
@@ -30,13 +30,25 @@ const WORKGROUP_TILE_PIXELS_Y: int = 2
 
 var iTime: float
 
+var debug_spr: Sprite2D
+
 
 func _ready() -> void:
     _init_rendering_device()
     _init_compute_shader_pipeline()
     _init_collision_mask_texture()
     RenderingServer.frame_pre_draw.connect(_dispatch_compute)
-    RenderingServer.frame_post_draw.connect(_debug_print_ascii)
+    RenderingServer.frame_post_draw.connect(_on_first_frame)
+
+
+var _polygons_built := false
+func _on_first_frame() -> void:
+    #TODO this draws some collision shapes!! for the first frame only
+    if _polygons_built:
+        return
+    #_polygons_built = true
+    _debug_print_ascii()
+    _generate_collision_polygons()
 
 
 func _init_rendering_device() -> void:
@@ -95,7 +107,6 @@ func _dispatch_compute() -> void:
     var groups_y = int(ceil(iResolution.y / float(WORKGROUP_TILE_PIXELS_Y)))
     rendering_device.compute_list_dispatch(cl, groups_x, groups_y, 1)
     rendering_device.compute_list_end()
-    _generate_collision_polygons()
 
 
 func _debug_print_ascii(tile_width: int = 4, tile_height: int = 8) -> void:
@@ -104,6 +115,11 @@ func _debug_print_ascii(tile_width: int = 4, tile_height: int = 8) -> void:
     var raw_data: PackedByteArray = rendering_device.texture_get_data(
         collision_mask_texture_view_rid, 0
     )
+    var count_nonzero := 0
+    for i in range(0, raw_data.size(), 4):
+        if raw_data.decode_u8(i) != 0:
+            count_nonzero += 1
+    print(" non-zero mask pixels:", count_nonzero)
     var compact_mask: PackedByteArray = PackedByteArray()
     compact_mask.resize(width * height)
     for y in range(height):
@@ -124,10 +140,16 @@ func _debug_print_ascii(tile_width: int = 4, tile_height: int = 8) -> void:
         print(" ", line_text)
 
 
-const TILE_SIZE_PIXELS: int = 4
+const TILE_SIZE_PIXELS: int = 2
 
 
 func _generate_collision_polygons() -> void:
+    for child in get_children():
+        if child is StaticBody2D:
+            remove_child(child)
+            child.queue_free()
+    collision_mask_polygons = []  # assign to the class variable, not `var`
+
     var width: int = int(iResolution.x)
     var height: int = int(iResolution.y)
     var raw_data: PackedByteArray = rendering_device.texture_get_data(
@@ -215,11 +237,19 @@ func _generate_collision_polygons() -> void:
     for boundary_tiles in region_boundaries:
         var center_points: Array = []
         for tile in boundary_tiles:
-            var center_x: float = tile.x * TILE_SIZE_PIXELS + TILE_SIZE_PIXELS * 0.5
-            var center_y: float = tile.y * TILE_SIZE_PIXELS + TILE_SIZE_PIXELS * 0.5
+            var center_x = tile.x * TILE_SIZE_PIXELS + TILE_SIZE_PIXELS * 0.5
+            # invert y so that tile.y=0 (bottom row) maps to y=height
+            var center_y = (iResolution.y as int) - (tile.y * TILE_SIZE_PIXELS + TILE_SIZE_PIXELS * 0.5)
             center_points.append(Vector2(center_x, center_y))
         var hull_points: Array = _compute_convex_hull(center_points)
         collision_mask_polygons.append(hull_points)
+        var body = StaticBody2D.new()
+        add_child(body)
+        var poly = CollisionPolygon2D.new()
+        poly.polygon = hull_points
+        body.add_child(poly)
+        collision_mask_polygons.append(poly)
+    print("Spawned", collision_mask_polygons.size(), "collision bodies.")
 
 
 func _compute_convex_hull(tile_center_points: Array) -> Array:
