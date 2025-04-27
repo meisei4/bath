@@ -5,7 +5,7 @@
 
 layout(local_size_x = 2, local_size_y = 2, local_size_z = 1) in;
 
-layout(push_constant, std430) uniform PushConstants {
+layout(std430, push_constant) uniform PushConstants {
     vec2 iResolution;    // at byte‐offset 0, occupies bytes 0..7
     uint sprite_count;   // at byte‐offset 8, occupies bytes 8..11
     uint _pad;           // at byte‐offset 12, occupies bytes 12..15
@@ -20,7 +20,7 @@ struct SpriteDataSSBO {
 };
 
 #define SPRITE_DATA_SSBO_UNIFORM_BINDING 0
-layout(set = 0, binding = SPRITE_DATA_SSBO_UNIFORM_BINDING, std430) readonly buffer sprite_data_ssbo_uniform {
+layout(std430, set = 0, binding = SPRITE_DATA_SSBO_UNIFORM_BINDING) readonly buffer sprite_data_ssbo_uniform {
     SpriteDataSSBO sprites[];
 };
 
@@ -29,7 +29,7 @@ layout(set = 0, binding = SPRITE_DATA_SSBO_UNIFORM_BINDING, std430) readonly buf
 layout(set = 0, binding = SPRITE_TEXTURES_BINDING) uniform sampler2D sprite_textures_uniform[MAXIMUM_SPRITE_COUNT]; 
 
 #define PERSPECTIVE_TILT_MASK_UNIFORM_BINDING 2
-layout(set = 0, binding = PERSPECTIVE_TILT_MASK_UNIFORM_BINDING, r32f) writeonly uniform image2D perspective_tilt_mask_uniform;
+layout(r32f, set = 0, binding = PERSPECTIVE_TILT_MASK_UNIFORM_BINDING) writeonly uniform image2D perspective_tilt_mask_uniform;
 
 
 #define DISCARD_PIXELS_OUTSIDE_OF_ALTERED_UV_BOUNDS_COMPUTE(uv, texel_size) \

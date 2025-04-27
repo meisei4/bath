@@ -7,14 +7,14 @@
 
 layout(local_size_x = 2, local_size_y = 2, local_size_z = 1) in;
 
-layout(push_constant, std430) uniform PushConstants {
+layout(std430, push_constant) uniform PushConstants {
     vec2 iResolution; // at byte‐offset 0, occupies bytes 0..7
     float iTime;      // at byte‐offset 8, occupies bytes 8..11
     uint _pad;        // at byte‐offset 12, occupies bytes 12..15  
 } push_constants;
 
 #define COLLISION_MASK_SSBO_UNIFORM_BINDING 0
-layout(set = 0, binding = COLLISION_MASK_SSBO_UNIFORM_BINDING, r32ui) writeonly uniform uimage2D collision_mask_ssbo;
+layout(r32ui, set = 0, binding = COLLISION_MASK_SSBO_UNIFORM_BINDING) writeonly uniform uimage2D collision_mask_ssbo;
 
 void main() {
     ivec2 gid = ivec2(gl_GlobalInvocationID.xy);
