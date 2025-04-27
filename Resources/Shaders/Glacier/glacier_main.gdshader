@@ -7,7 +7,8 @@
 // NOTE: There is some commented out shadertoy code throughout, if interested, see shadertoy port here:
 // https://www.shadertoy.com/view/3XfSDX
 shader_type canvas_item;
-#include "res://Resources/Shaders/Glacier/noise_applied.gdshaderinc"
+#include "res://Resources/Shaders/Glacier/noise.gdshaderinc"
+#include "res://Resources/Shaders/Glacier/projections.gdshaderinc"
 #include "res://Resources/Shaders/Glacier/color.gdshaderinc"
 uniform vec2 iResolution;
 
@@ -15,32 +16,11 @@ uniform float iTime;
 
 // NOTE: Please only disable parallax if you want to just see the raw noise textures overlayed
 // but keep in mind there is no gating to prevent the depth march,
-#define ENABLE_PARALLAX
-    #define PARALLAX_PROJECTION_ASYMPTOTIC_DEPTH_SCALAR 6.0
-    #define PARALLAX_NEAR_SCALAR                        0.025
-
-//#define ENABLE_MODE7
-    #define HORIZON_LINE_ZERO_SCREEN_CENTER_UV_ADDITIVE 0.75
-    #define MODE7_VERTICAL_ADDITIVE_SCALAR              0.25
-    #define MODE7_PROJECTION_ASYMPTOTIC_DEPTH_SCALAR    1.0
-    #define MODE7_FAR_SCALAR                            0.005
 
 #define CONSTANT_DEPTH_MARCH_STRIDE_LENGTH              1.0
 #define ENABLE_VARIABLE_STRIDE_LENGTH_FOR_DEPTH_MARCH
     #define VARIABLE_STRIDE_LENGTH_INITIAL_VALUE        2.0
     #define VARIABLE_STRIDE_COMPRESSION_RATE            3.0
-
-vec2 projectLayer(vec2 originalCoord, out float chosenNoiseScale) {
-    #ifdef ENABLE_MODE7
-        chosenNoiseScale = MODE7_FAR_SCALAR;
-        originalCoord.y += MODE7_VERTICAL_ADDITIVE_SCALAR;
-        originalCoord = originalCoord / (MODE7_PROJECTION_ASYMPTOTIC_DEPTH_SCALAR - originalCoord.y);
-    #else
-        chosenNoiseScale = PARALLAX_NEAR_SCALAR;
-        originalCoord = originalCoord / (PARALLAX_PROJECTION_ASYMPTOTIC_DEPTH_SCALAR - originalCoord.y);
-    #endif
-    return originalCoord;
-}
 
 int depthMarch(vec2 normalizedCoord, float strideLength, float firstStepOffset){
     int depthCount = 0;
@@ -61,12 +41,12 @@ int depthMarch(vec2 normalizedCoord, float strideLength, float firstStepOffset){
     return depthCount;
 }
 
-vec2 projectTopLayerForParallax(vec2 normCoord, out float noiseScale) {
-    #ifdef ENABLE_PARALLAX
-        return projectLayer(normCoord, noiseScale);
+float getFirstStepOffset(vec2 normCoord) {
+    #ifdef ENABLE_DEPTH_MARCH_FIRST_STEP_SCRAMBLING
+        //return hash12(normCoord * FIRST_STEP_SCRAMBLER_SCALAR + TIME);
+        return hash12(normCoord * FIRST_STEP_SCRAMBLER_SCALAR + iTime);
     #else
-        noiseScale = PARALLAX_NEAR_SCALAR;
-        return normCoord;
+        return UNIFORM_DEPTH_MARCH_FIRST_STEP_SCALAR;
     #endif
 }
 
@@ -78,25 +58,36 @@ float getStrideLength(vec2 normCoord) {
     #endif
 }
 
-vec3 getTerrainColor(bool isSolid, int depth, vec2 normCoord) {
-    if (isSolid) {
-        return vec3(SOLID_REGION_BRIGHTNESS);
-    } else {
-        float e = float(depth) / WATER_DEPTH_DARKEN_DIVISOR;
-        return pow(vec3(WATER_COLOR_R, WATER_COLOR_G, WATER_COLOR_B), vec3(e));
-    }
+vec3 tintAndDarkenWater(vec3 currentColor, bool isSolid, int depthCount, vec2 normCoord) {
+    if(isSolid) return currentColor;
+    float firstStepOffset = getFirstStepOffset(normCoord);
+    #ifdef ENABLE_WATER_ANIMATION
+        float dynamicThreshold = mix(
+            WATER_ANIM_DEPTH_MIN,
+            WATER_ANIM_DEPTH_MAX,
+            //WATER_ANIM_COS_OFFSET + WATER_ANIM_COS_AMPLITUDE * cos(TAU * iTime * WATER_ANIM_COS_FREQUENCY)
+            WATER_ANIM_COS_OFFSET + WATER_ANIM_COS_AMPLITUDE * cos(TAU * TIME * WATER_ANIM_COS_FREQUENCY)
+        );
+        if(depthCount > int(dynamicThreshold - firstStepOffset)) {
+            currentColor *= WATER_DARKEN_MULTIPLIER;
+        }
+    #else
+        if(depthCount > WATER_STATIC_DARKEN_THRESHOLD) {
+            currentColor *= WATER_DARKEN_MULTIPLIER;
+        }
+    #endif
+    return currentColor;
 }
+
 
 vec3 applyWater(vec3 color, bool isSolid, int depth, vec2 normCoord) {
     #ifdef ENABLE_WATER
-        //return tintAndDarkenWater(color, isSolid, depth, normCoord, TIME);
-        return tintAndDarkenWater(color, isSolid, depth, normCoord, iTime);
+        //return tintAndDarkenWater(color, isSolid, depth, normCoord);
+        return tintAndDarkenWater(color, isSolid, depth, normCoord);
     #else
         return color;
     #endif
 }
-
-//#define DEBUG_MASK
 
 //void mainImage(out vec4 fragColor, in vec2 fragCoord){
 void fragment() {
@@ -116,22 +107,15 @@ void fragment() {
         vec2 projectedTopLayerCoord = projectTopLayerForParallax(normCoord, noiseScale);
         float stride                = getStrideLength(normCoord);
         //float firstStepOffset       = getFirstStepOffset(normCoord, TIME);
-        float firstStepOffset       = getFirstStepOffset(normCoord, iTime);
+        float firstStepOffset       = getFirstStepOffset(normCoord);
         int   depth                 = depthMarch(normCoord, stride, firstStepOffset);
         //bool  isSolid               = isSolidAtCoord(projectedTopLayerCoord, noiseScale, TIME);
         bool  isSolid               = isSolidAtCoord(projectedTopLayerCoord, noiseScale, iTime);
-        vec3  terrain               = getTerrainColor(isSolid, depth, normCoord);
+        vec3  terrain               = getTerrainColorWithWater(isSolid, depth, normCoord);
         vec3  terrainWithWater      = applyWater(terrain, isSolid, depth, normCoord);
         //color = terrainWithWater; //RAW give it a try... its gross... :^)
         color = sqrt(terrainWithWater); //GAMMAMAMA CORREECCTIONNN.... GOOD
     }
-    #ifdef DEBUG_MASK
-        // mask = “white if the pixel you’d see is ‘glacier’”
-        // Change the threshold here to match exactly what you consider “solid” on-screen.
-        float m = (color.r > 0.9 ? 1.0 : 0.0);
-        COLOR = vec4(m, 0.0, 0.0, 1.0);
-    #else
-        COLOR = vec4(color.r, color.g, color.b, 1.0);
-    #endif
+    COLOR = vec4(color.r, color.g, color.b, 1.0);
     //fragColor = vec4(color.r, color.g, color.b, 1.0);
 }

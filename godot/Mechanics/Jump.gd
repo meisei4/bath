@@ -60,15 +60,11 @@ func process_visual_illusion(_frame_delta: float) -> void:
     var altitude_normal: float = _compute_altitude_normal_in_jump_parabola(
         vertical_position, max_altitude
     )
-    sprite_node.material.set_shader_parameter("ascending", is_ascending())
-    sprite_node.material.set_shader_parameter("altitude_normal", altitude_normal)
     #TODO: figure out how to not have to update these every single frame please
     sprite_node.material.set_shader_parameter("iChannel0", sprite_node.texture)
-    sprite_node.material.set_shader_parameter(
-        "MAXIMUM_TILT_ANGLE_ACHIEVED_AT_IMMEDIATE_ASCENSION_AND_FINAL_DESCENT",
-        PARAMETERS.MAXIMUM_TILT_ANGLE_ACHIEVED_AT_IMMEDIATE_ASCENSION_AND_FINAL_DESCENT
-    )
-    sprite_node.material.set_shader_parameter("FOCAL_LENGTH", PARAMETERS.FOCAL_LENGTH)
+    sprite_node.material.set_shader_parameter("ascending", is_ascending())
+    sprite_node.material.set_shader_parameter("altitude_normal", altitude_normal)
+
     _update_sprite_scale(sprite_node, altitude_normal)
     PerspectiveTiltMask.update_cpu_side_sprite_data_ssbo_cache(
         sprite_texture_index,

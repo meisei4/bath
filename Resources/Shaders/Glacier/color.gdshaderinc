@@ -1,6 +1,3 @@
-#include "res://Resources/Shaders/Glacier/noise_applied.gdshaderinc"
-
-
 #define ENABLE_WATER
     // pretty water color palette from: https://www.shadertoy.com/view/MlcGD7 by FabriceNeyret2
     #define WATER_COLOR_R                 0.1
@@ -31,32 +28,20 @@ vec4 getSkyColorMode7(vec2 normCoord) {
     return sqrt(skyGradient);
 }
 
-float getFirstStepOffset(vec2 normCoord, float iTime) {
-    #ifdef ENABLE_DEPTH_MARCH_FIRST_STEP_SCRAMBLING
-        //return hash12(normCoord * FIRST_STEP_SCRAMBLER_SCALAR + TIME);
-        return hash12(normCoord * FIRST_STEP_SCRAMBLER_SCALAR + iTime);
-    #else
-        return UNIFORM_DEPTH_MARCH_FIRST_STEP_SCALAR;
-    #endif
+vec3 getTerrainColorWithWater(bool isSolid, int depth, vec2 normCoord) {
+    if (isSolid) {
+        return vec3(SOLID_REGION_BRIGHTNESS);
+    } else {
+        float e = float(depth) / WATER_DEPTH_DARKEN_DIVISOR;
+        return pow(vec3(WATER_COLOR_R, WATER_COLOR_G, WATER_COLOR_B), vec3(e));
+    }
 }
 
-vec3 tintAndDarkenWater(vec3 currentColor, bool isSolid, int depthCount, vec2 normCoord, float iTime) {
-    if(isSolid) return currentColor;
-    float firstStepOffset = getFirstStepOffset(normCoord, iTime);
-    #ifdef ENABLE_WATER_ANIMATION
-        float dynamicThreshold = mix(
-            WATER_ANIM_DEPTH_MIN,
-            WATER_ANIM_DEPTH_MAX,
-            //WATER_ANIM_COS_OFFSET + WATER_ANIM_COS_AMPLITUDE * cos(TAU * iTime * WATER_ANIM_COS_FREQUENCY)
-            WATER_ANIM_COS_OFFSET + WATER_ANIM_COS_AMPLITUDE * cos(TAU * TIME * WATER_ANIM_COS_FREQUENCY)
-        );
-        if(depthCount > int(dynamicThreshold - firstStepOffset)) {
-            currentColor *= WATER_DARKEN_MULTIPLIER;
-        }
-    #else
-        if(depthCount > WATER_STATIC_DARKEN_THRESHOLD) {
-            currentColor *= WATER_DARKEN_MULTIPLIER;
-        }
-    #endif
-    return currentColor;
+vec3 getTerrainColorBinary(bool isSolid, vec2 normCoord) {
+    if (isSolid) {
+        return vec3(SOLID_REGION_BRIGHTNESS);
+    } else {
+        return vec3(0.0);
+    }
 }
+
