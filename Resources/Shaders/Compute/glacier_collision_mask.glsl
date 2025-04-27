@@ -2,7 +2,7 @@
 #version 450
 #extension GL_KHR_shader_subgroup_basic : enable  
 
-layout(local_size_x = 4, local_size_y = 4, local_size_z = 1) in;
+layout(local_size_x = 2, local_size_y = 2, local_size_z = 1) in;
 
 layout(push_constant, std430) uniform PushConstants {
     vec2 iResolution;   
@@ -11,7 +11,7 @@ layout(push_constant, std430) uniform PushConstants {
 } push_constants;
 
 #define COLLISION_MASK_SSBO_UNIFORM_BINDING 0
-layout(set = 0, binding = COLLISION_MASK_SSBO_UNIFORM_BINDING, rgba8) writeonly uniform image2D collision_mask_ssbo;
+layout(set = 0, binding = COLLISION_MASK_SSBO_UNIFORM_BINDING, r32ui) writeonly uniform uimage2D collision_mask_ssbo;
 
 float hash12(vec2 p) {
     vec3 p3  = fract(vec3(p.xyx) * .1031);
@@ -135,6 +135,10 @@ void main() {
     bool  solidTop     = isSolidAtCoord(projectedTop, localNoiseScale, push_constants.iTime);
     vec3 terrainColor = getTerrainColor(solidTop, normCoord);
     float gammaCorrect = sqrt(terrainColor.r);
-    float maskValue = (gammaCorrect > 0.9) ? 1.0 : 0.0;
-    imageStore(collision_mask_ssbo, gid, vec4(maskValue, 0.0, 0.0, 0.0));
+
+    // float maskValue = (gammaCorrect > 0.9) ? 1.0 : 0.0;
+    // imageStore(collision_mask_ssbo, gid, vec4(maskValue, 0.0, 0.0, 0.0));
+    
+    uint maskValue = (gammaCorrect > 0.9) ? 1u : 0u;
+    imageStore(collision_mask_ssbo, gid, uvec4(maskValue, 0u, 0u, 0u));
 }
