@@ -2,11 +2,6 @@
 #version 450
 #extension GL_KHR_shader_subgroup_basic : enable  
 
-/*  var groups_x: int = int(ceil(iResolution.x / float(WORKGROUP_TILE_PIXELS_X)))
-    var groups_y: int = int(ceil(iResolution.y / float(WORKGROUP_TILE_PIXELS_Y)))
-    var groups_z: int = 1
-    rendering_device.compute_list_dispatch(compute_list_int, groups_x, groups_y, groups_z)
-*/
 layout(local_size_x = 2, local_size_y = 2, local_size_z = 1) in;
 
 layout(push_constant, std430) uniform PushConstants {
