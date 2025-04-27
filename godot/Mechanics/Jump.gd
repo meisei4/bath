@@ -70,7 +70,7 @@ func process_visual_illusion(_frame_delta: float) -> void:
     )
     sprite_node.material.set_shader_parameter("FOCAL_LENGTH", PARAMETERS.FOCAL_LENGTH)
     _update_sprite_scale(sprite_node, altitude_normal)
-    SpriteAnimations.update_cpu_side_sprite_data_ssbo_cache(
+    PerspectiveTiltMask.update_cpu_side_sprite_data_ssbo_cache(
         sprite_texture_index,
         sprite_node.global_position,
         (sprite_node.texture.get_size() / 2.0) * sprite_node.scale,

@@ -70,7 +70,7 @@ func _ready() -> void:
 
 
 func initialize_shadertoy_uniforms_and_textures() -> void:
-    iResolution = get_viewport_rect().size
+    iResolution = Resolution.resolution
     #NoiseTexture.convert(Image.FORMAT_R8)
     #BackgroundTexture.convert(Image.FORMAT_RGBA8)
     #CausticsTexture.convert(Image.FORMAT_R8)

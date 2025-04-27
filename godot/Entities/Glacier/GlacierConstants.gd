@@ -1,6 +1,7 @@
 extends Node
 class_name GlacierConstants
 
+#TODO: fix all of this to work with the singleton Resolution, too lazy to right now...
 const TILE_SIZE_1D: int = 8
 const SUBDIVISION_FACTOR: int = 2
 const DS_RESOLUTION: Vector2i = Vector2i(256, 384)

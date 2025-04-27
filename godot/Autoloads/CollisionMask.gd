@@ -42,6 +42,8 @@ func _ready() -> void:
 
 
 var _polygons_built := false
+
+
 func _on_first_frame() -> void:
     #TODO this draws some collision shapes!! for the first frame only
     if _polygons_built:
@@ -239,7 +241,9 @@ func _generate_collision_polygons() -> void:
         for tile in boundary_tiles:
             var center_x = tile.x * TILE_SIZE_PIXELS + TILE_SIZE_PIXELS * 0.5
             # invert y so that tile.y=0 (bottom row) maps to y=height
-            var center_y = (iResolution.y as int) - (tile.y * TILE_SIZE_PIXELS + TILE_SIZE_PIXELS * 0.5)
+            var center_y = (
+                (iResolution.y as int) - (tile.y * TILE_SIZE_PIXELS + TILE_SIZE_PIXELS * 0.5)
+            )
             center_points.append(Vector2(center_x, center_y))
         var hull_points: Array = _compute_convex_hull(center_points)
         collision_mask_polygons.append(hull_points)

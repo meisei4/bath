@@ -2,12 +2,12 @@ extends Node2D
 class_name SoundEnvelope
 
 var BufferAShaderNode: ColorRect
-var BufferAShader: Shader = load("res://Resources/Shaders/Audio/envelope_buffer.gdshader")
+var BufferAShader: Shader = load("res://Resources/Shaders/Audio/BufferA_sound_envelope.gdshader")
 #var BufferAShader: Shader = load("res://Resources/Shaders/Audio/optimized_envelope_buffer_a.gdshader")
 var BufferAShaderMaterial: ShaderMaterial
 
 var BufferBShaderNode: ColorRect
-var BufferBShader: Shader = load("res://Resources/Shaders/Audio/envelope_image.gdshader")
+var BufferBShader: Shader = load("res://Resources/Shaders/Audio/Image_sound_envelope.gdshader")
 #var BufferBShader: Shader = load("res://Resources/Shaders/Audio/optimized_envelope_buffer_b.gdshader")
 var BufferBShaderMaterial: ShaderMaterial
 
@@ -25,10 +25,7 @@ var iTime: float = 0.0
 
 
 func _ready() -> void:
-    var res: Vector2i = Vector2i(855, 480)
-    DisplayServer.window_set_size(res)  #TODO: this doesnt do what you think it does
-    iResolution = res
-    #iResolution = get_viewport_rect().size
+    iResolution = Resolution.resolution
     BufferA = ShaderToyUtil.create_buffer_viewport(iResolution)
     BufferAShaderMaterial = ShaderMaterial.new()
     BufferAShaderNode = ColorRect.new()
@@ -50,12 +47,12 @@ func _ready() -> void:
     MainImage.texture = BufferB.get_texture()
     MainImage.flip_v = true
     #var music_resource: AudioStream = load(AudioConsts.SHADERTOY_MUSIC_TRACK_EXPERIMENT)
-    #var music_resource: AudioStream = load(AudioConsts.HELLION)
+    var music_resource: AudioStream = load(AudioConsts.HELLION)
     #var music_resource: AudioStream = load(AudioConsts.BEETH)
-    #AudioManager.play_music(music_resource, 0.0)
-    var input_resource: AudioStreamMicrophone = AudioStreamMicrophone.new()
-    AudioManager.play_input(input_resource, 0.0)
+    AudioManager.play_music(music_resource, 0.0)
 
+    #var input_resource: AudioStreamMicrophone = AudioStreamMicrophone.new()
+    #AudioManager.play_input(input_resource, 0.0)
     #TODO: ^^^ ew, figure out how to perhaps make it more obvious that the audio texture can target whatever audio bus...
     waveform_texture = WaveformTexture.new()  #TODO: this has to target a specific audio bus internally, figure out a better way
 

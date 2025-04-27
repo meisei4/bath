@@ -8,7 +8,8 @@ const INPUT_POOL_SIZE: int = 1
 
 const bus_volumes: Dictionary[AudioBus.BUS, float] = {
     #TODO: WHEN USING THE REROUTED VIRTUAL DEVICE AS MICROPHONE INPUT SET THE MASTER AUDIO BUS TO -80.0 to avoid infinite routing feedback
-    AudioBus.BUS.MASTER: -80.0,
+    AudioBus.BUS.MASTER: 0.0,
+    #AudioBus.BUS.MASTER: -80.0,
     AudioBus.BUS.SFX: 0.0,
     AudioBus.BUS.MUSIC: 0.0,
     AudioBus.BUS.INPUT: 0.0

@@ -2,14 +2,14 @@
 extends Node2D
 class_name ShadowsTest
 
-var UmbralShader: Shader = load("res://Resources/Shaders/Light/umbral_zone.gdshader")
+var UmbralShader: Shader = load("res://Resources/Shaders/Shadows/umbral_zone.gdshader")
 var UmbralShaderNode: ColorRect
 var UmbralShaderMaterial: ShaderMaterial
 var UmbralBackBuffer: BackBufferCopy
 const UMBRAL_ZONE_BOUNDS_UV_X: float = 0.5
 const UMBRAL_ZONE_BOUNDS_UV_Y: float = 1.0
 
-var DitherShader: Shader = load("res://Resources/Shaders/Light/dither_zone.gdshader")
+var DitherShader: Shader = load("res://Resources/Shaders/Shadows/dither_zone.gdshader")
 var BayerTexture: Image = Image.load_from_file("res://Assets/Textures/bayer.png")
 var DitherShaderNode: ColorRect
 var DitherShaderMaterial: ShaderMaterial
@@ -47,6 +47,7 @@ func _ready() -> void:
     # zones, because dither is going to serve as a penumbral gradient perhaps
     setup_ubmral_zone()
     setup_dither_zone()
+    add_glacier_flow_test_scene()
     add_jump_mechanic_test_scene()
 
 
@@ -70,7 +71,7 @@ func setup_ubmral_zone() -> void:
         "umbral_zone_bounds", Vector2(UMBRAL_ZONE_BOUNDS_UV_X, UMBRAL_ZONE_BOUNDS_UV_Y)
     )
     UmbralShaderMaterial.set_shader_parameter(
-        "iChannel1", SpriteAnimations.perspective_tilt_mask_texture
+        "iChannel1", PerspectiveTiltMask.perspective_tilt_mask_texture
     )
     #TODO: in Compatibility Mode/opengl, sampling the MainViewport here doesnt result in a framebuffer error BUTTT,
     # it results in this zone in the top left quadrant of the viewport, where there is right triangle on the bottom half of the quadrant that ends up
@@ -123,3 +124,13 @@ func add_jump_mechanic_test_scene() -> void:
     #TODO: because in the shader we target the main viewport with MainViewport/get_viewport().get_texture()
     # we must add the mechanics test scene with its sprite to the main root node/i.e. the main viewport
     add_child(mechanics_test)
+
+
+func add_glacier_flow_test_scene() -> void:
+    var glacier_flow_test_scene: PackedScene = (
+        preload("res://godot/Test/Shaders/Glacier/GlacierFlow.tscn") as PackedScene
+    )
+    var glacier_flow_test: GlacierFlow = glacier_flow_test_scene.instantiate() as GlacierFlow
+    #TODO: because in the shader we target the main viewport with MainViewport/get_viewport().get_texture()
+    # we must add the mechanics test scene with its sprite to the main root node/i.e. the main viewport
+    add_child(glacier_flow_test)

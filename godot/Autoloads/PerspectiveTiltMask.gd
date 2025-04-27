@@ -3,7 +3,7 @@ extends Node2D
 var iResolution: Vector2
 var rendering_device: RenderingDevice
 var compute_shader_file: RDShaderFile = load(
-    "res://Resources/Shaders/Compute/sprite_animations.glsl"
+    "res://Resources/Shaders/Compute/perspective_tilt_mask.glsl"
 )
 var compute_shader_spirv: RDShaderSPIRV
 var compute_shader_rid: RID
@@ -138,7 +138,6 @@ func _ready() -> void:
 
 func _init_rendering_device() -> void:
     iResolution = Resolution.resolution
-    #rendering_device = RenderingServer.create_local_rendering_device()
     rendering_device = RenderingServer.get_rendering_device()
 
 

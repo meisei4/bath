@@ -4,15 +4,11 @@ class_name TestScene
 const MOVE_SPEED: int = 10
 
 var camera: Camera2D
-var width: int = 256
-var height: int = 384
 var scale_factor: int = 2  # Scale factor (e.g., 2 for 2x scaling) just to see the size better
 
 
 func _ready() -> void:
-    get_window().size = Vector2i(width * scale_factor, height * scale_factor)
     center_viewport()
-    OcclusionManager.scan_and_attach_occluders(self)
 
 
 func center_viewport() -> void:

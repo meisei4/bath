@@ -6,7 +6,7 @@ render_mode blend_disabled;
 uniform vec2 iResolution;
 uniform sampler2D iChannel0; //the envelope buffer
 
-#define LINE_RENDER_WIDTH 0.75
+#define LINE_RENDER_WIDTH 0.25
 #define LINE_RENDER_MARGIN (LINE_RENDER_WIDTH * 2.0) // amount of thickness (in fragment size/single pixel) that surrounds both sides of the wave signal lines
 #define MAX_DISTANCE 1e6 // some stupid number to just initialize the min distance to closest wave signal logic
 

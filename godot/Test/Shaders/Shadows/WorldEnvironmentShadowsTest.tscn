@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://4lug00aht4bo"]
 
-[ext_resource type="Script" uid="uid://dcpv228fcgck1" path="res://godot/Test/Lights/ShadowsTest.gd" id="1_h7fon"]
+[ext_resource type="Script" uid="uid://dcpv228fcgck1" path="res://godot/Test/Shaders/Shadows/ShadowsTest.gd" id="1_h7fon"]
 
 [node name="WorldEnvironmentShadowsTest" type="WorldEnvironment"]
 script = ExtResource("1_h7fon")

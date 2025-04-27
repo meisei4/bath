@@ -7,7 +7,7 @@ var mechanics: Array[Mechanic] = []
 func _ready() -> void:
     #TODO: HACKED?
     var sprite_node: Sprite2D = get_node("Sprite2D") as Sprite2D
-    var sprite_texture_index: int = SpriteAnimations.register_sprite_texture(sprite_node.texture)
+    var sprite_texture_index: int = PerspectiveTiltMask.register_sprite_texture(sprite_node.texture)
     #TODO: ^^HACKED?
 
     var lateral_movement: LateralMovement = LateralMovement.new()
