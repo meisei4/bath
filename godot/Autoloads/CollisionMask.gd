@@ -35,7 +35,7 @@ var iTime: float
 
 
 func generate_collision_polygons() -> void:
-    #debug_print_ascii()
+    debug_print_ascii()
     var width: int = int(ComputeShaderLayer.iResolution.x)
     var height: int = int(ComputeShaderLayer.iResolution.y)
     var tile_column_count: int = ComputeShaderLayer._calculate_tile_column_count(
