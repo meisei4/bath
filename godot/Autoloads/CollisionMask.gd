@@ -133,7 +133,7 @@ func _init_pools() -> void:
     collision_polygon_hulls_pool.resize(MAX_COLLISION_SHAPES)
     for i in range(MAX_COLLISION_SHAPES):
         var hull_buf: PackedVector2Array
-        hull_buf.resize(0)  # empty
+        hull_buf.resize(0)
         collision_polygon_hulls_pool[i] = hull_buf
 
 

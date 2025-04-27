@@ -36,6 +36,6 @@ void main() {
     // float maskValue = (gammaCorrect > 0.9) ? 1.0 : 0.0;
     // imageStore(collision_mask_ssbo, gid, vec4(maskValue, 0.0, 0.0, 0.0));
     
-    uint maskValue = (gammaCorrect > 0.9) ? 1u : 0u;
+    uint maskValue = (gammaCorrect > SOLID_REGION_BRIGHTNESS) ? 1u : 0u;
     imageStore(collision_mask_ssbo, gid, uvec4(maskValue, 0u, 0u, 0u));
 }
