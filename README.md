@@ -1,28 +1,45 @@
-You need rust for this project to work:
-
-```bash
-# Linux (distro-independent)
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-
-# Windows
+This project uses the Rust GDExtension (https://godot-rust.github.io/) to accelerate compute‐shader <-> physics utilities in Godot 4.4.x.
+Before opening the project, make sure you have Rust and Cargo installed so that the extension can be built.
+## 1. Install Rust & Cargo
+### Windows (winget)
+```powershell
 winget install --id=Rustlang.Rustup -e
-
-# macOS
-brew install rustup
 ```
 
-before opening godot, please install rust/rustup, and run the following in the projects `rust` directory:
-
+### Linux (any distro)
 ```bash
-cargo build
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source "$HOME/.cargo/env"
 ```
 
-Before commiting please run:
+### macOS (Homebrew)
+```bash
+brew install rustup
+rustup-init
+source "$HOME/.cargo/env"
+```
+
+## 2. Build the Rust GDExtension
+1. Change into the `rust` directory:
+    ```bash
+    cd rust
+    ```
+2. For a debug build (default):
+    ```bash
+    cargo build
+    ```
+    
+> The compiled dynamic library (`.dll` / `.so` / `.dylib`) will be placed in `rust/target/{debug,release}` and is automatically referenced by `rust_bath.gdextension`.
+
+## 3. Open in Godot
+1. Launch Godot 4 (MUST BE IN FORWARD+, compatibility is not supported yet because of compute shaders)
+2. Open `project.godot` at the project root.
+3. The GDExtension will load the Rust library on startup.
+
+
+## 4. Code Formatting
+Before committing any changes, run this in the bath main project directory:
 ```bash
 gdformat --use-spaces=4 .
 ```
-
-just for consistency between updates...
-
-
-
+This keeps GDScript files formatted consistently across the repo.
