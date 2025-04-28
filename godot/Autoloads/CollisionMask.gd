@@ -8,12 +8,8 @@ var compute_shader_spirv: RDShaderSPIRV
 var compute_shader_rid: RID
 var compute_pipeline_rid: RID
 
-const MAX_COLLISION_SHAPES: int = 12
+const MAX_COLLISION_SHAPES: int = 16
 var collision_mask_polygons_pool: Array[CollisionPolygon2D] = []
-var collision_polygon_hulls_pool: Array[PackedVector2Array] = []
-var pixel_mask_array_pool: PackedByteArray = PackedByteArray()
-var tile_solidness_array_pool: PackedByteArray = PackedByteArray()
-var visited_array_pool: PackedByteArray = PackedByteArray()
 
 var collision_mask_uniform_set_rid: RID
 
@@ -33,67 +29,47 @@ const PUSH_CONSTANTS_BYTE_ALIGNMENT_12: int = 12
 
 var iTime: float
 
+const TILE_SIZE_PIXELS: int = 2
+
 
 func generate_collision_polygons() -> void:
-    #debug_print_ascii()
     var width: int = int(ComputeShaderLayer.iResolution.x)
     var height: int = int(ComputeShaderLayer.iResolution.y)
-    var tile_column_count: int = ComputeShaderLayer._calculate_tile_column_count(
-        width, ComputeShaderLayer.TILE_SIZE_PIXELS
-    )
-    var tile_row_count: int = ComputeShaderLayer._calculate_tile_row_count(
-        height, ComputeShaderLayer.TILE_SIZE_PIXELS
-    )
-
-    var raw_pixel_data: PackedByteArray = ComputeShaderLayer.rendering_device.texture_get_data(
+    var raw_pixel_data: PackedByteArray = ComputeShaderLayer.rd.texture_get_data(
         collision_mask_texture_view_rid, 0
     )
-    #_update_pixel_mask_array_pool_rgba8_or_r32ui(raw_pixel_data, width, height)
-    ComputeShaderLayer._update_pixel_mask_array_pool_r8ui(raw_pixel_data, width, height)
-    tile_solidness_array_pool = ComputeShaderLayer.util.update_tile_solidness_array(pixel_mask_array_pool, width, height, tile_column_count, tile_row_count, ComputeShaderLayer.TILE_SIZE_PIXELS)
-    var connected_regions: Array[PackedVector2Array] = ComputeShaderLayer.util.find_all_connected_regions_in_tile_array_packed(tile_solidness_array_pool, tile_column_count, tile_row_count)
-    #var used: int = ComputeShaderLayer._compute_hull_pool_cpu_with_region_cache(connected_regions)
-    var used: int = ComputeShaderLayer._compute_hull_pool_cpu(connected_regions)
-    ComputeShaderLayer._update_polygons_from_hulls(used)
+    var collision_polygons: Array[PackedVector2Array] = (
+        ComputeShaderLayer
+        . rust_util
+        . compute_collision_polygons(
+            raw_pixel_data, width, height, TILE_SIZE_PIXELS
+        )
+    )
+    _update_polygons(collision_polygons)
+    debug_print_ascii(raw_pixel_data)
+
+
+func _update_polygons(collision_polygons: Array[PackedVector2Array]) -> void:
+    for i: int in range(MAX_COLLISION_SHAPES):
+        var collision_polygon: CollisionPolygon2D = collision_mask_polygons_pool[i]
+        if i < collision_polygons.size():
+            collision_polygon.disabled = false
+            collision_polygon.polygon = collision_polygons[i]
+        else:
+            collision_polygon.disabled = true
+            collision_polygon.polygon = []
 
 
 func _ready() -> void:
-    _init_collision_polygons()
+    _init_collision_polygon_pool()
     _init_compute_shader_pipeline()
     _init_collision_mask_texture()
-    _init_pools()
     _init_collision_mask_uniform_set()
-    #RenderingServer.frame_pre_draw.connect(_dispatch_compute)
-    #RenderingServer.frame_post_draw.connect(generate_collision_polygons)
-
-    #GPU OFFLOAD OF HULL COMPUTATIONS ATTEMPT???
-    #GpuOffloadCollisionMask._init_andrew_hull_compute_pipeline()
-    #GpuOffloadCollisionMask._init_andrew_hull_ssbos()
-    #GpuOffloadCollisionMask._init_andrew_hull_uniform_set()
+    RenderingServer.frame_pre_draw.connect(_dispatch_compute)
+    RenderingServer.frame_post_draw.connect(generate_collision_polygons)
 
 
-func _init_pools() -> void:
-    var w: int = int(ComputeShaderLayer.iResolution.x)
-    var h: int = int(ComputeShaderLayer.iResolution.y)
-    pixel_mask_array_pool.resize(w * h)
-    var cols: int = ComputeShaderLayer._calculate_tile_column_count(
-        w, ComputeShaderLayer.TILE_SIZE_PIXELS
-    )
-    var rows: int = ComputeShaderLayer._calculate_tile_row_count(
-        h, ComputeShaderLayer.TILE_SIZE_PIXELS
-    )
-    tile_solidness_array_pool.resize(cols * rows)
-    visited_array_pool.resize(cols * rows)
-
-    collision_polygon_hulls_pool.clear()
-    collision_polygon_hulls_pool.resize(MAX_COLLISION_SHAPES)
-    for i: int in range(MAX_COLLISION_SHAPES):
-        var hull_buf: PackedVector2Array
-        hull_buf.resize(0)
-        collision_polygon_hulls_pool[i] = hull_buf
-
-
-func _init_collision_polygons() -> void:
+func _init_collision_polygon_pool() -> void:
     for i: int in range(MAX_COLLISION_SHAPES):
         var static_body: StaticBody2D = StaticBody2D.new()
         add_child(static_body)
@@ -105,12 +81,8 @@ func _init_collision_polygons() -> void:
 
 func _init_compute_shader_pipeline() -> void:
     compute_shader_spirv = compute_shader_file.get_spirv()
-    compute_shader_rid = ComputeShaderLayer.rendering_device.shader_create_from_spirv(
-        compute_shader_spirv
-    )
-    compute_pipeline_rid = ComputeShaderLayer.rendering_device.compute_pipeline_create(
-        compute_shader_rid
-    )
+    compute_shader_rid = ComputeShaderLayer.rd.shader_create_from_spirv(compute_shader_spirv)
+    compute_pipeline_rid = ComputeShaderLayer.rd.compute_pipeline_create(compute_shader_rid)
 
 
 func _init_collision_mask_texture() -> void:
@@ -134,7 +106,7 @@ func _init_collision_mask_texture() -> void:
         | RenderingDevice.TEXTURE_USAGE_CAN_COPY_FROM_BIT
     )
     collision_mask_view = RDTextureView.new()
-    collision_mask_texture_view_rid = ComputeShaderLayer.rendering_device.texture_create(
+    collision_mask_texture_view_rid = ComputeShaderLayer.rd.texture_create(
         collision_mask_texture_format, collision_mask_view
     )
     collision_mask_texture = Texture2DRD.new()
@@ -148,7 +120,7 @@ func _init_collision_mask_texture() -> void:
 
 func _init_collision_mask_uniform_set() -> void:
     #TODO: this is gross in CollisionMask AND PerspectiveTiltMask
-    collision_mask_uniform_set_rid = ComputeShaderLayer.rendering_device.uniform_set_create(
+    collision_mask_uniform_set_rid = ComputeShaderLayer.rd.uniform_set_create(
         [collision_mask_uniform], compute_shader_rid, 0
     )
 
@@ -166,17 +138,19 @@ func _dispatch_compute() -> void:
     )
 
 
-func debug_print_ascii(tile_width: int = 4, tile_height: int = 8) -> void:
+func debug_print_ascii(
+    raw_pixel_data: PackedByteArray, tile_width: int = 4, tile_height: int = 8
+) -> void:
     var width: int = int(ComputeShaderLayer.iResolution.x)
     var height: int = int(ComputeShaderLayer.iResolution.y)
     var nonzero_pixel_count: int = 0
-    for index: int in range(pixel_mask_array_pool.size()):
-        if pixel_mask_array_pool[index] == 1:
+    for index: int in range(raw_pixel_data.size()):
+        if raw_pixel_data[index] == 1:
             nonzero_pixel_count += 1
     print(" non-zero mask pixels:", nonzero_pixel_count)
 
-    var tile_column_count: int = ComputeShaderLayer._calculate_tile_column_count(width, tile_width)
-    var tile_row_count: int = ComputeShaderLayer._calculate_tile_row_count(height, tile_height)
+    var tile_column_count: int = _calculate_tile_column_count(width, tile_width)
+    var tile_row_count: int = _calculate_tile_row_count(height, tile_height)
     print(
         "ASCII square:",
         tile_column_count,
@@ -197,7 +171,13 @@ func debug_print_ascii(tile_width: int = 4, tile_height: int = 8) -> void:
             var sample_x_position: int = clamp(
                 column_index * tile_width + tile_width / 2, 0, width - 1
             )
-            line_text += (
-                "#" if pixel_mask_array_pool[source_y * width + sample_x_position] == 1 else "."
-            )
+            line_text += ("#" if raw_pixel_data[source_y * width + sample_x_position] == 1 else ".")
         print(" ", line_text)
+
+
+func _calculate_tile_column_count(image_width: int, tile_size: int) -> int:
+    return int((image_width + tile_size - 1) / tile_size)
+
+
+func _calculate_tile_row_count(image_height: int, tile_size: int) -> int:
+    return int((image_height + tile_size - 1) / tile_size)

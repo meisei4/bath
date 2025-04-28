@@ -2,7 +2,6 @@
 #version 450
 #include "res://Resources/Shaders/Glacier/noise.gdshaderinc"
 #include "res://Resources/Shaders/Glacier/projections.gdshaderinc"
-#include "res://Resources/Shaders/Glacier/color.gdshaderinc"
 #extension GL_KHR_shader_subgroup_basic : enable  
 
 layout(local_size_x = 2, local_size_y = 2, local_size_z = 1) in;
@@ -30,9 +29,6 @@ void main() {
     float localNoiseScale;
     vec2  projectedTop = projectTopLayerForParallax(normCoord, localNoiseScale);
     bool  solidTop     = isSolidAtCoord(projectedTop, localNoiseScale, push_constants.iTime);
-    vec3 terrainColor  = getTerrainColorBinary(solidTop, normCoord);
-    float gammaCorrect = sqrt(terrainColor.r);
-    
-    uint maskValue = (gammaCorrect > SOLID_REGION_BRIGHTNESS) ? 1u : 0u;
-    imageStore(collision_mask_ssbo, gid, uvec4(maskValue, 0u, 0u, 0u));
+    uint solid = solidTop ? 1u : 0u;    
+    imageStore(collision_mask_ssbo, gid, uvec4(solid, 0u, 0u, 0u));
 }

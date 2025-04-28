@@ -98,16 +98,12 @@ func _init_compute_shader_pipeline() -> void:
     # in fact: RenderingDevice is not available [...] when using the Compatibility rendering method.
     # https://docs.godotengine.org/en/stable/classes/class_renderingdevice.html#class-renderingdevice
     compute_shader_spirv = compute_shader_file.get_spirv()
-    compute_shader_rid = ComputeShaderLayer.rendering_device.shader_create_from_spirv(
-        compute_shader_spirv
-    )
-    compute_pipeline_rid = ComputeShaderLayer.rendering_device.compute_pipeline_create(
-        compute_shader_rid
-    )
+    compute_shader_rid = ComputeShaderLayer.rd.shader_create_from_spirv(compute_shader_spirv)
+    compute_pipeline_rid = ComputeShaderLayer.rd.compute_pipeline_create(compute_shader_rid)
 
 
 func _init_ssbo() -> void:
-    gpu_side_sprite_data_ssbo_rid = ComputeShaderLayer.rendering_device.storage_buffer_create(
+    gpu_side_sprite_data_ssbo_rid = ComputeShaderLayer.rd.storage_buffer_create(
         SPRITE_DATA_SSBO_TOTAL_BYTES, PackedByteArray()
     )
     sprite_data_ssbo_uniform = RDUniform.new()
@@ -132,16 +128,12 @@ func _init_sprite_textures_and_sampler() -> void:
         RenderingDevice.TEXTURE_USAGE_SAMPLING_BIT | RenderingDevice.TEXTURE_USAGE_CAN_UPDATE_BIT
     )
     var padding_view: RDTextureView = RDTextureView.new()
-    memory_padding_sprite_textures_rid = ComputeShaderLayer.rendering_device.texture_create(
+    memory_padding_sprite_textures_rid = ComputeShaderLayer.rd.texture_create(
         padding_fmt, padding_view
     )
-    ComputeShaderLayer.rendering_device.texture_update(
-        memory_padding_sprite_textures_rid, 0, img.get_data()
-    )
+    ComputeShaderLayer.rd.texture_update(memory_padding_sprite_textures_rid, 0, img.get_data())
     resuable_sampler_state = RDSamplerState.new()
-    resuable_sampler_state_rid = ComputeShaderLayer.rendering_device.sampler_create(
-        resuable_sampler_state
-    )
+    resuable_sampler_state_rid = ComputeShaderLayer.rd.sampler_create(resuable_sampler_state)
 
 
 func _init_perspective_tilt_mask_texture() -> void:
@@ -159,7 +151,7 @@ func _init_perspective_tilt_mask_texture() -> void:
         | RenderingDevice.TEXTURE_USAGE_SAMPLING_BIT
     )
     perspective_tilt_mask_view = RDTextureView.new()
-    perspective_tilt_mask_texture_view_rid = ComputeShaderLayer.rendering_device.texture_create(
+    perspective_tilt_mask_texture_view_rid = ComputeShaderLayer.rd.texture_create(
         perspective_tilt_mask_texture_format, perspective_tilt_mask_view
     )
     perspective_tilt_mask_texture = Texture2DRD.new()
@@ -183,15 +175,11 @@ func _update_gpu_side_sprite_data_ssbo_uniform_set() -> void:
         )
         sprite_textures_uniform.add_id(resuable_sampler_state_rid)
         sprite_textures_uniform.add_id(sprite_textures_rid)
-    gpu_side_sprite_data_ssbo_uniform_set_rid = (
-        ComputeShaderLayer
-        . rendering_device
-        . uniform_set_create(
-            [sprite_data_ssbo_uniform, sprite_textures_uniform, perspective_tilt_mask_uniform],
-            compute_shader_rid,
-            0
-        )
-    )
+    gpu_side_sprite_data_ssbo_uniform_set_rid = (ComputeShaderLayer.rd.uniform_set_create(
+        [sprite_data_ssbo_uniform, sprite_textures_uniform, perspective_tilt_mask_uniform],
+        compute_shader_rid,
+        0
+    ))
 
 
 func _update_gpu_side_sprite_data_ssbo() -> void:
@@ -222,7 +210,7 @@ func _update_gpu_side_sprite_data_ssbo() -> void:
     var serialized_sprite_data_ssbo_bytes: PackedByteArray = (
         serialized_sprite_data_ssbo.to_byte_array()
     )
-    ComputeShaderLayer.rendering_device.buffer_update(
+    ComputeShaderLayer.rd.buffer_update(
         gpu_side_sprite_data_ssbo_rid,
         0,
         serialized_sprite_data_ssbo_bytes.size(),
@@ -246,5 +234,5 @@ func _dispatch_compute() -> void:
     # but cpu side textures can not share RID'S with a local rendering device...
     #TODO: option for later is to look at adding a heavy weight full cpu texture copying
     #to a local rendering device to allow for more control but risking bloat and stuff
-    #rendering_device.submit()
-    #rendering_device.sync()  # blocks CPU until GPU finished this queue
+    #rd.submit()
+    #rd.sync()  # blocks CPU until GPU finished this queue
