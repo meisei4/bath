@@ -1,4 +1,4 @@
-#define ENABLE_WATER
+//#define ENABLE_WATER
     // pretty water color palette from: https://www.shadertoy.com/view/MlcGD7 by FabriceNeyret2
     #define WATER_COLOR_R                 0.1
     #define WATER_COLOR_G                 0.7
@@ -7,7 +7,7 @@
     #define WATER_DEPTH_DARKEN_DIVISOR    9.0
     #define WATER_STATIC_DARKEN_THRESHOLD 12
 
-#define ENABLE_WATER_ANIMATION
+//#define ENABLE_WATER_ANIMATION
     #define WATER_ANIM_DEPTH_MIN          8.0
     #define WATER_ANIM_DEPTH_MAX          30.0
     #define WATER_ANIM_COS_OFFSET         0.5

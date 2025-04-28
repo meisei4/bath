@@ -67,28 +67,28 @@ float voronoi_edge_fast(vec2 p) {
 
 #define NOISE_COORD_OFFSET          vec2(2.0, 0.0)
 #define PERLIN_SOLID_THRESHOLD      -0.03
-//#define USE_VORONOI
+#define USE_VORONOI
     #define VORONOI_SOLID_THRESHOLD 0.34
 
-#define ENABLE_ROTATION
+//#define ENABLE_ROTATION
     #define ROTATION_ANGLE          -M_PI_4
     //#define ROTATION_ANGLE        (-M_PI_4 * 0.5)
     #define ROTATION_MATRIX         mat2(vec2(cos(ROTATION_ANGLE), -sin(ROTATION_ANGLE)), \
                                          vec2(sin(ROTATION_ANGLE),  cos(ROTATION_ANGLE)))
 
-#define ENABLE_STRETCH_CORRECTION
+//#define ENABLE_STRETCH_CORRECTION
     #define UNIFORM_STRETCH_CORRECTION_SCALAR    sqrt(2.0)
     /*
     #define UNIFORM_STRETCH_CORRECTION_SCALAR  (sqrt((pow(STRETCH_SCALAR_X, 2.0) \
                                                        + pow(STRETCH_SCALAR_Y, 2.0)) \
                                                        / 2.0))
    */
-//#define ENABLE_COMPOSED_AFFINE_TRANSFORMATIONS
+#define ENABLE_COMPOSED_AFFINE_TRANSFORMATIONS
     #define UNIFORM_STRETCH_CORRECTION_AND_ROTATION_COMPOSITION mat2(vec2(1.0,  1.0), \
                                                                      vec2(-1.0,  1.0))
 
 #define UNIFORM_DEPTH_MARCH_FIRST_STEP_SCALAR                    0.0
-#define ENABLE_DEPTH_MARCH_FIRST_STEP_SCRAMBLING
+//#define ENABLE_DEPTH_MARCH_FIRST_STEP_SCRAMBLING
     #define FIRST_STEP_SCRAMBLER_SCALAR                          123.456
 
 //DEPTH MARCH STEP SCRAMBLING EXPLANATION:

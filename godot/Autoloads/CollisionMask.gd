@@ -34,8 +34,77 @@ const PUSH_CONSTANTS_BYTE_ALIGNMENT_12: int = 12
 var iTime: float
 
 
+class RegionCacheEntry:
+    var tileCoordinatesList: PackedVector2Array = PackedVector2Array()
+    var centroidPosition: Vector2 = Vector2()
+    var minimumTileY: int = 0
+    var collisionShapePolygon: PackedVector2Array = PackedVector2Array()
+
+
+var region_cache_identifier_list: Array[int] = []
+var region_cache_entry_list: Array[RegionCacheEntry] = []
+var next_region_identifier: int = 0
+
+
+func matchAndCacheRegions(regionTileLists: Array[PackedVector2Array]) -> Array[int]:
+    var new_identifier_list: Array[int] = []
+    var new_entry_list: Array[RegionCacheEntry] = []
+    var assigned_identifiers: Array[int] = []
+
+    for regionTiles: PackedVector2Array in regionTileLists:
+        var sumOfPositions: Vector2 = Vector2(0, 0)
+        for tilePos: Vector2 in regionTiles:
+            sumOfPositions += tilePos
+        var centroidPos: Vector2 = sumOfPositions / float(regionTiles.size())
+
+        var bestMatchIdentifier: int = -1
+        var bestMatchDistance: float = 1e9
+        for cacheIndex: int in range(region_cache_identifier_list.size()):
+            var existingIdentifier: int = region_cache_identifier_list[cacheIndex]
+            var existingEntry: RegionCacheEntry = region_cache_entry_list[cacheIndex]
+            var distance: float = existingEntry.centroidPosition.distance_to(centroidPos)
+            if distance < 5.0 and distance < bestMatchDistance:
+                bestMatchDistance = distance
+                bestMatchIdentifier = existingIdentifier
+
+        if bestMatchIdentifier != -1:
+            var existingIndex: int = region_cache_identifier_list.find(bestMatchIdentifier)
+            var entryToUpdate: RegionCacheEntry = region_cache_entry_list[existingIndex]
+            entryToUpdate.tileCoordinatesList = regionTiles
+            entryToUpdate.centroidPosition = centroidPos
+
+            new_identifier_list.append(bestMatchIdentifier)
+            new_entry_list.append(entryToUpdate)
+            assigned_identifiers.append(bestMatchIdentifier)
+        else:
+            var newIdentifier: int = next_region_identifier
+            next_region_identifier += 1
+
+            var newEntry: RegionCacheEntry = RegionCacheEntry.new()
+            newEntry.tileCoordinatesList = regionTiles
+            newEntry.centroidPosition = centroidPos
+            newEntry.minimumTileY = computeMinimumTileY(regionTiles)
+            newEntry.collisionShapePolygon = PackedVector2Array()
+
+            new_identifier_list.append(newIdentifier)
+            new_entry_list.append(newEntry)
+            assigned_identifiers.append(newIdentifier)
+
+    region_cache_identifier_list = new_identifier_list
+    region_cache_entry_list = new_entry_list
+
+    return assigned_identifiers
+
+
+func computeMinimumTileY(regionTiles: PackedVector2Array) -> int:
+    var minimumY: int = int(1e9)
+    for tilePos: Vector2 in regionTiles:
+        minimumY = min(minimumY, int(tilePos.y))
+    return minimumY
+
+
 func generate_collision_polygons() -> void:
-    debug_print_ascii()
+    #debug_print_ascii()
     var width: int = int(ComputeShaderLayer.iResolution.x)
     var height: int = int(ComputeShaderLayer.iResolution.y)
     var tile_column_count: int = ComputeShaderLayer._calculate_tile_column_count(
@@ -57,16 +126,41 @@ func generate_collision_polygons() -> void:
         ComputeShaderLayer
         . _find_all_connected_regions_in_tile_array_packed(tile_column_count, tile_row_count)
     )
-    var boundary_tile_lists: Array[PackedVector2Array] = (
-        ComputeShaderLayer
-        . _find_boundary_tiles_for_each_region_packed(
-            connected_regions, tile_solidness_array_pool, tile_column_count, tile_row_count
-        )
-    )
-    var used: int = ComputeShaderLayer._compute_hull_pool_gpu(boundary_tile_lists)
+#####################TODO: this is new from cahching attempts
+    var region_identifier_list: Array[int] = matchAndCacheRegions(connected_regions)
+    var used: int = 0
+    for region_index: int in range(region_identifier_list.size()):
+        var cache_entry: RegionCacheEntry = region_cache_entry_list[region_index]
+        if cache_entry.collisionShapePolygon.is_empty():
+            cache_entry.collisionShapePolygon = (
+                ComputeShaderLayer
+                . compute_full_region_shape_marching_squares(cache_entry.tileCoordinatesList)
+            )
+            cache_entry.minimumTileY = computeMinimumTileY(cache_entry.tileCoordinatesList)
+        else:
+            var new_minimum_y: int = computeMinimumTileY(cache_entry.tileCoordinatesList)
+            var delta_tiles: int = new_minimum_y - cache_entry.minimumTileY
+            var delta_pixels: int = delta_tiles * ComputeShaderLayer.TILE_SIZE_PIXELS
+            for vert_index: int in range(cache_entry.collisionShapePolygon.size()):
+                var vpos: Vector2 = cache_entry.collisionShapePolygon[vert_index]
+                vpos.y -= delta_pixels
+                cache_entry.collisionShapePolygon[vert_index] = vpos
+            cache_entry.minimumTileY = new_minimum_y
+        if used < MAX_COLLISION_SHAPES:
+            collision_polygon_hulls_pool[used] = cache_entry.collisionShapePolygon
+        used += 1
+##############################3
+    #var used: int = ComputeShaderLayer._compute_hull_pool_marching_squares(connected_regions)
+
+    #var boundary_tile_lists: Array[PackedVector2Array] = (
+    #ComputeShaderLayer
+    #. _find_boundary_tiles_for_each_region_packed(
+    #connected_regions, tile_solidness_array_pool, tile_column_count, tile_row_count
+    #)
+    #)
+    #var used: int = ComputeShaderLayer._compute_hull_pool_gpu(boundary_tile_lists)
     #var used: int = ComputeShaderLayer._compute_hull_pool_gpu_optimized(boundary_tile_lists)
     #var used: int = ComputeShaderLayer._compute_hull_pool_cpu(boundary_tile_lists)
-    #var used: int = _compute_collision_polygons_marching_squares(tile_column_count, tile_row_count, TILE_SIZE_PIXELS)
     ComputeShaderLayer._update_polygons_from_hulls(used)
 
 
@@ -120,11 +214,11 @@ func _ready() -> void:
     RenderingServer.frame_post_draw.connect(generate_collision_polygons)
 
     #GPU OFFLOAD OF HULL COMPUTATIONS
-    _init_hull_compute_pipeline()
+    #_init_hull_compute_pipeline()
     #_init_hull_ssbos_optimized()
     #_init_hull_uniform_set_optimized()
-    _init_hull_ssbos()
-    _init_hull_uniform_set()
+    #_init_hull_ssbos()
+    #_init_hull_uniform_set()
 
 
 func _init_pools() -> void:
@@ -247,42 +341,6 @@ func _init_hull_compute_pipeline() -> void:
     )
 
 
-func _init_hull_ssbos_optimized() -> void:
-    var maxRegions = MAX_COLLISION_SHAPES
-    var maxPts = MAX_HULL_POINTS
-
-    # — boundary SSBO: all regions × max points × 8 bytes
-    var boundary_capacity = maxRegions * maxPts * 8
-    var bdata = PackedByteArray()
-    bdata.resize(boundary_capacity)
-    boundary_ssbo_rid = ComputeShaderLayer.rendering_device.storage_buffer_create(
-        boundary_capacity, bdata
-    )
-    print("→ boundary SSBO capacity:", boundary_capacity)
-
-    # — meta SSBO: one (offset,uint) pair = 8 bytes per region
-    var meta_capacity = maxRegions * 8
-    var mdata = PackedByteArray()
-    mdata.resize(meta_capacity)
-    meta_ssbo_rid = ComputeShaderLayer.rendering_device.storage_buffer_create(meta_capacity, mdata)
-    print("→ meta     SSBO capacity:", meta_capacity)
-
-    # — result SSBO:
-    #    counts: maxRegions×4 bytes
-    #    pad   : to next 8‐byte boundary
-    #    array : maxRegions×maxPts×8 bytes
-    var counts_bytes = maxRegions * 4
-    var pad = (8 - (counts_bytes % 8)) % 8
-    var array_bytes = maxRegions * maxPts * 8
-    var result_capacity = counts_bytes + pad + array_bytes
-    var rdata = PackedByteArray()
-    rdata.resize(result_capacity)
-    result_ssbo_rid = ComputeShaderLayer.rendering_device.storage_buffer_create(
-        result_capacity, rdata
-    )
-    print("→ result   SSBO capacity:", result_capacity)
-
-
 func _init_hull_ssbos() -> void:
     # boundary & sorted both hold up to MAX_HULL_POINTS vec2's → 8 bytes each
     var boundary_size: int = MAX_HULL_POINTS * 8
@@ -306,23 +364,6 @@ func _init_hull_ssbos() -> void:
     rdata.resize(result_size)
     print("→ result   SSBO capacity:", rdata.size())  # should print 2056
     result_ssbo_rid = ComputeShaderLayer.rendering_device.storage_buffer_create(result_size, rdata)
-
-
-func _init_hull_uniform_set_optimized() -> void:
-    hull_boundary_uniform.binding = 0
-    hull_boundary_uniform.add_id(boundary_ssbo_rid)
-    hull_meta_uniform = RDUniform.new()
-    hull_meta_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_STORAGE_BUFFER
-    hull_meta_uniform.binding = 1
-    hull_meta_uniform.add_id(meta_ssbo_rid)
-
-    # skip binding 2 (or reuse if you want)
-    hull_result_uniform.binding = 2
-    hull_result_uniform.add_id(result_ssbo_rid)
-
-    hull_uniform_set_rid = ComputeShaderLayer.rendering_device.uniform_set_create(
-        [hull_boundary_uniform, hull_meta_uniform, hull_result_uniform], andrew_shader_rid, 0
-    )
 
 
 func _init_hull_uniform_set() -> void:

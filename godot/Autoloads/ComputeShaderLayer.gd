@@ -90,94 +90,46 @@ func _compute_hull_pool_cpu(boundary_tile_lists: Array[PackedVector2Array]) -> i
             continue
         CollisionMask.collision_polygon_hulls_pool[used].append_array(convex_hull_point_list)
         used += 1
+
     return used
+
+
+func compute_full_region_shape_marching_squares(
+    region_tiles: PackedVector2Array
+) -> PackedVector2Array:
+    # 1) Compute the integer bounding box of the tiles
+    var minimum_tile_x: float = INF
+    var minimum_tile_y: float = INF
+    var maximum_tile_x: float = -INF
+    var maximum_tile_y: float = -INF
+    for tile: Vector2 in region_tiles:
+        minimum_tile_x = min(minimum_tile_x, tile.x)
+        minimum_tile_y = min(minimum_tile_y, tile.y)
+        maximum_tile_x = max(maximum_tile_x, tile.x)
+        maximum_tile_y = max(maximum_tile_y, tile.y)
+    var width_in_tiles: int = int(maximum_tile_x - minimum_tile_x + 1)
+    var height_in_tiles: int = int(maximum_tile_y - minimum_tile_y + 1)
+
+    var mask: PackedByteArray = PackedByteArray()
+    mask.resize(width_in_tiles * height_in_tiles)
+    for tile: Vector2 in region_tiles:
+        var local_x: int = int(tile.x - minimum_tile_x)
+        var local_y: int = int(tile.y - minimum_tile_y)
+        mask[local_y * width_in_tiles + local_x] = 1
+
+    # 3) Trace the outline via marching-squares
+    var origin: Vector2i = Vector2i(int(minimum_tile_x), int(minimum_tile_y))
+    var polygon: PackedVector2Array = marchingSquaresContour(
+        mask, width_in_tiles, height_in_tiles, TILE_SIZE_PIXELS, origin
+    )
+    if polygon.size() >= MIN_VERTICIES_FOR_ANDREW:
+        polygon = _compute_convex_hull_andrew(polygon)
+
+    return polygon
 
 
 const MIN_REGION_TILES: int = 20  # skip really tiny islands
 const MIN_HULL_AREA: float = 50.0  # in pixel² (or whatever unit you want)
-
-
-#TODO: fix this its borked as fuck
-func _compute_hull_pool_gpu_optimized(boundary_tile_lists) -> int:
-    var center_lists = []
-    for tiles in boundary_tile_lists:
-        if tiles.size() < MIN_REGION_TILES:
-            continue
-        var centers = _convert_boundary_tiles_to_center_point_list(
-            tiles, TILE_SIZE_PIXELS, ComputeShaderLayer.iResolution
-        )
-        if centers.size() > CollisionMask.MAX_HULL_POINTS:
-            continue
-        center_lists.append(centers)
-        if center_lists.size() >= CollisionMask.MAX_COLLISION_SHAPES:
-            break
-    var regionCount = center_lists.size()
-
-    #— Flatten all points into one big SSBO, and build metadata
-    var totalPoints = 0
-    for pts in center_lists:
-        totalPoints += pts.size()
-    var bigBoundary = PackedByteArray()
-    bigBoundary.resize(totalPoints * 8)
-    var meta = PackedByteArray()
-    meta.resize(regionCount * 8)
-    var writeOff = 0
-    for i in range(regionCount):
-        var pts = center_lists[i]
-        # offset = element‐index, length = count
-        meta.encode_u32(i * 8 + 0, writeOff / 8)
-        meta.encode_u32(i * 8 + 4, pts.size())
-        var chunk = pts.to_byte_array()
-        for k in range(chunk.size()):
-            bigBoundary[writeOff + k] = chunk[k]
-        writeOff += chunk.size()
-
-    ComputeShaderLayer.rendering_device.buffer_update(
-        CollisionMask.boundary_ssbo_rid, 0, bigBoundary.size(), bigBoundary
-    )
-    ComputeShaderLayer.rendering_device.buffer_update(
-        CollisionMask.meta_ssbo_rid, 0, meta.size(), meta
-    )
-
-    #— Dispatch one compute
-    var cl = ComputeShaderLayer.rendering_device.compute_list_begin()
-    ComputeShaderLayer.rendering_device.compute_list_bind_compute_pipeline(
-        cl, CollisionMask.andrew_pipeline_rid
-    )
-    ComputeShaderLayer.rendering_device.compute_list_bind_uniform_set(
-        cl, CollisionMask.hull_uniform_set_rid, 0
-    )
-    var pc = PackedByteArray()
-    pc.resize(4)
-    pc.encode_u32(0, CollisionMask.MAX_HULL_POINTS)
-    ComputeShaderLayer.rendering_device.compute_list_set_push_constant(cl, pc, pc.size())
-    ComputeShaderLayer.rendering_device.compute_list_dispatch(cl, regionCount, 1, 1)
-    ComputeShaderLayer.rendering_device.compute_list_end()
-
-    #— Figure out the proper padding for 8-byte alignment
-    var headerBytes = regionCount * 4
-    var pad = (8 - (headerBytes % 8)) % 8
-
-    #— Download the whole result SSBO at once
-    var resultSize = headerBytes + pad + regionCount * CollisionMask.MAX_HULL_POINTS * 8
-    var allResults = ComputeShaderLayer.rendering_device.buffer_get_data(
-        CollisionMask.result_ssbo_rid, 0, resultSize
-    )
-
-    #— Unpack each region’s hull
-    CollisionMask.collision_polygon_hulls_pool.clear()
-    for i in range(regionCount):
-        var count = allResults.decode_u32(i * 4)
-        var hull = PackedVector2Array()
-        hull.resize(count)
-        # start of this region’s vec2 block:
-        var base = headerBytes + pad + i * CollisionMask.MAX_HULL_POINTS * 8
-        for j in range(count):
-            var x = allResults.decode_float(base + j * 8 + 0)
-            var y = allResults.decode_float(base + j * 8 + 4)
-            hull[j] = Vector2(x, y)
-        CollisionMask.collision_polygon_hulls_pool[i] = hull
-    return regionCount
 
 
 func _compute_hull_pool_gpu(boundary_tile_lists: Array[PackedVector2Array]) -> int:
@@ -381,12 +333,6 @@ func _convert_boundary_tiles_to_center_point_list(
     return center_points
 
 
-#TODO: fuck with this later, its a very important algo for graphics anyways, needs proper focus. stop getting carried away!!
-#func _compute_collision_polygons_marching_squares(
-#tile_column_count: int, tile_row_count: int, tile_size_pixels: int) -> void:
-#pass
-
-
 func _compute_convex_hull_jarvis(tile_center_points: PackedVector2Array) -> PackedVector2Array:
     var point_count: int = tile_center_points.size()
     if point_count < MIN_VERTICIES_FOR_JARVIS:
@@ -558,3 +504,101 @@ func _sprite_texture2d_to_rd(sprite_texture: Texture2D) -> Texture2DRD:
     var sprite_texture_rd: Texture2DRD = Texture2DRD.new()
     sprite_texture_rd.set_texture_rd_rid(view_rid)
     return sprite_texture_rd
+
+
+func marchingSquaresContour(
+    tileMask: PackedByteArray,
+    tileColumnCount: int,
+    tileRowCount: int,
+    tileSizeInPixels: int,
+    originTileCoordinate: Vector2i
+) -> PackedVector2Array:
+    var contourVertices: PackedVector2Array = PackedVector2Array()
+    var directionOffsetList: Array[Vector2] = [
+        Vector2(1, 0), Vector2(0, 1), Vector2(-1, 0), Vector2(0, -1)
+    ]
+    var directionCount: int = directionOffsetList.size()
+
+    var startingTileCoordinate: Vector2 = Vector2(-1, -1)
+    for rowIndex: int in range(tileRowCount):
+        for columnIndex: int in range(tileColumnCount):
+            var arrayIndex: int = rowIndex * tileColumnCount + columnIndex
+            if tileMask[arrayIndex] == 1:
+                for directionVector: Vector2 in directionOffsetList:
+                    var neighborTileX: int = columnIndex + int(directionVector.x)
+                    var neighborTileY: int = rowIndex + int(directionVector.y)
+                    var isOutsideMask: bool = (
+                        neighborTileX < 0
+                        or neighborTileX >= tileColumnCount
+                        or neighborTileY < 0
+                        or neighborTileY >= tileRowCount
+                    )
+                    var neighborIndex: int = neighborTileY * tileColumnCount + neighborTileX
+                    var isEmptyNeighbor: bool = false
+                    if not isOutsideMask:
+                        isEmptyNeighbor = (tileMask[neighborIndex] == 0)
+                    if isOutsideMask or isEmptyNeighbor:
+                        startingTileCoordinate = Vector2(columnIndex, rowIndex)
+                        break
+
+                if startingTileCoordinate.x >= 0:
+                    break
+
+        if startingTileCoordinate.x >= 0:
+            break
+    # end for rowIndex
+
+    # if no boundary tile found, return empty contour
+    if startingTileCoordinate.x < 0:
+        return contourVertices
+    # end if
+
+    # 2) Walk the boundary until we return to the start
+    var currentTileCoordinate: Vector2 = startingTileCoordinate
+    var previousDirectionIndex: int = directionCount - 1  # start by “looking right”
+    while true:
+        for searchOffset: int in range(directionCount):
+            var testDirectionIndex: int = (previousDirectionIndex + searchOffset) % directionCount
+            var directionVector: Vector2 = directionOffsetList[testDirectionIndex]
+            var testTileX: int = int(currentTileCoordinate.x) + int(directionVector.x)
+            var testTileY: int = int(currentTileCoordinate.y) + int(directionVector.y)
+            var isInsideBounds: bool = (
+                testTileX >= 0
+                and testTileX < tileColumnCount
+                and testTileY >= 0
+                and testTileY < tileRowCount
+            )
+            var testIndex: int = testTileY * tileColumnCount + testTileX
+            if isInsideBounds and tileMask[testIndex] == 1:
+                # compute world‐space position on the shared edge
+                var pixelX: float = (
+                    (
+                        (originTileCoordinate.x + currentTileCoordinate.x)
+                        + (1 if directionVector.x > 0 else 0)
+                    )
+                    * tileSizeInPixels
+                )
+                var pixelY: float = (
+                    iResolution.y
+                    - (
+                        (
+                            (originTileCoordinate.y + currentTileCoordinate.y)
+                            + (1 if directionVector.y < 0 else 0)
+                        )
+                        * tileSizeInPixels
+                    )
+                )
+                contourVertices.append(Vector2(pixelX, pixelY))
+
+                # step to the next tile and update direction
+                currentTileCoordinate = Vector2(testTileX, testTileY)
+                previousDirectionIndex = (testDirectionIndex + directionCount - 1) % directionCount
+                break
+            # end if
+        # end for searchOffset
+
+        # stop when we loop back to the start tile
+        if currentTileCoordinate == startingTileCoordinate:
+            break
+
+    return contourVertices
