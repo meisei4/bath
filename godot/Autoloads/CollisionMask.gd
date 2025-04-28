@@ -134,7 +134,7 @@ func generate_collision_polygons() -> void:
         if cache_entry.collisionShapePolygon.is_empty():
             cache_entry.collisionShapePolygon = (
                 ComputeShaderLayer
-                . compute_full_region_shape_marching_squares(cache_entry.tileCoordinatesList)
+                . compute_convex_hull_marching_squares(cache_entry.tileCoordinatesList)
             )
             cache_entry.minimumTileY = computeMinimumTileY(cache_entry.tileCoordinatesList)
         else:
@@ -157,46 +157,9 @@ func generate_collision_polygons() -> void:
     #      connected_regions, tile_solidness_array_pool, tile_column_count, tile_row_count
     #   )
     #)
-    #var used: int = ComputeShaderLayer._compute_andrew_hull_pool_gpu(boundary_tile_lists)
+    #var used: int = ComputeShaderLayer._compute_hull_pool_gpu(boundary_tile_lists)
     #var used: int = ComputeShaderLayer._compute_hull_pool_cpu(boundary_tile_lists)
     ComputeShaderLayer._update_polygons_from_hulls(used)
-
-
-func debug_print_ascii(tile_width: int = 4, tile_height: int = 8) -> void:
-    var width: int = int(ComputeShaderLayer.iResolution.x)
-    var height: int = int(ComputeShaderLayer.iResolution.y)
-    var nonzero_pixel_count: int = 0
-    for index: int in range(pixel_mask_array_pool.size()):
-        if pixel_mask_array_pool[index] == 1:
-            nonzero_pixel_count += 1
-    print(" non-zero mask pixels:", nonzero_pixel_count)
-
-    var tile_column_count: int = ComputeShaderLayer._calculate_tile_column_count(width, tile_width)
-    var tile_row_count: int = ComputeShaderLayer._calculate_tile_row_count(height, tile_height)
-    print(
-        "ASCII square:",
-        tile_column_count,
-        "×",
-        tile_row_count,
-        "(tile_w=",
-        tile_width,
-        ", tile_h=",
-        tile_height,
-        ")"
-    )
-
-    for row_index: int in range(tile_row_count):
-        var sample_y_position: int = clamp(row_index * tile_height + tile_height / 2, 0, height - 1)
-        var source_y: int = height - 1 - sample_y_position
-        var line_text: String = ""
-        for column_index: int in range(tile_column_count):
-            var sample_x_position: int = clamp(
-                column_index * tile_width + tile_width / 2, 0, width - 1
-            )
-            line_text += (
-                "#" if pixel_mask_array_pool[source_y * width + sample_x_position] == 1 else "."
-            )
-        print(" ", line_text)
 
 
 func _ready() -> void:
@@ -306,3 +269,40 @@ func _dispatch_compute() -> void:
     ComputeShaderLayer.dispatch_compute(
         compute_pipeline_rid, collision_mask_uniform_set_rid, push_constants
     )
+
+
+func debug_print_ascii(tile_width: int = 4, tile_height: int = 8) -> void:
+    var width: int = int(ComputeShaderLayer.iResolution.x)
+    var height: int = int(ComputeShaderLayer.iResolution.y)
+    var nonzero_pixel_count: int = 0
+    for index: int in range(pixel_mask_array_pool.size()):
+        if pixel_mask_array_pool[index] == 1:
+            nonzero_pixel_count += 1
+    print(" non-zero mask pixels:", nonzero_pixel_count)
+
+    var tile_column_count: int = ComputeShaderLayer._calculate_tile_column_count(width, tile_width)
+    var tile_row_count: int = ComputeShaderLayer._calculate_tile_row_count(height, tile_height)
+    print(
+        "ASCII square:",
+        tile_column_count,
+        "×",
+        tile_row_count,
+        "(tile_w=",
+        tile_width,
+        ", tile_h=",
+        tile_height,
+        ")"
+    )
+
+    for row_index: int in range(tile_row_count):
+        var sample_y_position: int = clamp(row_index * tile_height + tile_height / 2, 0, height - 1)
+        var source_y: int = height - 1 - sample_y_position
+        var line_text: String = ""
+        for column_index: int in range(tile_column_count):
+            var sample_x_position: int = clamp(
+                column_index * tile_width + tile_width / 2, 0, width - 1
+            )
+            line_text += (
+                "#" if pixel_mask_array_pool[source_y * width + sample_x_position] == 1 else "."
+            )
+        print(" ", line_text)

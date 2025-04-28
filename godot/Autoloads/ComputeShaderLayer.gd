@@ -93,7 +93,178 @@ func _compute_hull_pool_cpu(boundary_tile_lists: Array[PackedVector2Array]) -> i
     return used
 
 
-func compute_full_region_shape_marching_squares(
+func _compute_hull_pool_gpu(boundary_tile_lists: Array[PackedVector2Array]) -> int:
+    const MIN_REGION_TILES: int = 20
+    const MIN_HULL_AREA: float = 50.0
+    for hull_arr: PackedVector2Array in CollisionMask.collision_polygon_hulls_pool:
+        hull_arr.clear()
+
+    var used: int = 0
+    for region_index: int in range(boundary_tile_lists.size()):
+        var tiles: PackedVector2Array = boundary_tile_lists[region_index]
+        print("\n— Region ", region_index, " tiles=", tiles.size())
+        if tiles.size() < MIN_REGION_TILES:
+            print("    • skipped: < MIN_REGION_TILES (", MIN_REGION_TILES, ")")
+            continue
+
+        var centers: PackedVector2Array = _convert_boundary_tiles_to_center_point_list(
+            tiles, TILE_SIZE_PIXELS, ComputeShaderLayer.iResolution
+        )
+        print("    • center points N=", centers.size())
+        if centers.size() > CollisionMask.MAX_HULL_POINTS:
+            print(
+                "    • skipped: N(",
+                centers.size(),
+                ") > MAX_HULL_POINTS (",
+                CollisionMask.MAX_HULL_POINTS,
+                ")"
+            )
+            continue
+        print("    • GPU hull start: N=", centers.size())
+        var hull: PackedVector2Array = CollisionMask._compute_hull_gpu(centers)
+        print("    • GPU hull points=", hull.size())
+
+        if hull.size() < MIN_VERTICIES_FOR_CONVEX_HULL:
+            print(
+                "    • skipped: < MIN_VERTICIES_FOR_CONVEX_HULL (",
+                MIN_VERTICIES_FOR_CONVEX_HULL,
+                ")"
+            )
+            continue
+
+        var area: float = 0.0
+        for i: int in range(hull.size()):
+            var j: int = (i + 1) % hull.size()
+            area += hull[i].x * hull[j].y - hull[j].x * hull[i].y
+        area = abs(area) * 0.5
+        print("    • hull area=", area)
+
+        if area < MIN_HULL_AREA:
+            print("    • skipped: area <", MIN_HULL_AREA)
+            continue
+
+        print("    • accepted; sample pts:")
+        for k: int in range(min(4, hull.size())):
+            print("       [", k, "] =", hull[k])
+
+        CollisionMask.collision_polygon_hulls_pool[used].append_array(hull)
+        used += 1
+        if used >= CollisionMask.MAX_COLLISION_SHAPES:
+            break
+    return used
+
+
+func _update_polygons_from_hulls(used: int) -> void:
+    for i: int in range(CollisionMask.MAX_COLLISION_SHAPES):
+        var collision_mask_polygon: CollisionPolygon2D = (
+            CollisionMask.collision_mask_polygons_pool[i]
+        )
+        if i < used:
+            var hull_verticies: Array = CollisionMask.collision_polygon_hulls_pool[i]
+            collision_mask_polygon.disabled = false
+            collision_mask_polygon.polygon = hull_verticies
+        else:
+            CollisionMask.collision_mask_polygons_pool[i].disabled = true
+            CollisionMask.collision_mask_polygons_pool[i].polygon = []
+
+
+func _compute_convex_hull_jarvis(tile_center_points: PackedVector2Array) -> PackedVector2Array:
+    var point_count: int = tile_center_points.size()
+    if point_count < MIN_VERTICIES_FOR_JARVIS:
+        return tile_center_points.duplicate()
+    var leftmost_index: int = 0
+    for i: int in range(1, point_count):
+        var p: Vector2 = tile_center_points[i]
+        var q: Vector2 = tile_center_points[leftmost_index]
+        if p.x < q.x or (p.x == q.x and p.y < q.y):
+            leftmost_index = i
+
+    var hull_points: PackedVector2Array = PackedVector2Array()
+    hull_points.resize(0)
+    var current_index: int = leftmost_index
+    while true:
+        hull_points.append(tile_center_points[current_index])
+        var next_index: int = (current_index + 1) % point_count
+        for j: int in range(point_count):
+            if (
+                _orientation(
+                    tile_center_points[current_index],
+                    tile_center_points[next_index],
+                    tile_center_points[j]
+                )
+                == -1
+            ):
+                next_index = j
+        current_index = next_index
+        if current_index == leftmost_index:
+            break
+    return hull_points
+
+
+func _compute_convex_hull_andrew(boundaryPointList: PackedVector2Array) -> PackedVector2Array:
+    var numberOfPoints: int = boundaryPointList.size()
+    if numberOfPoints < MIN_VERTICIES_FOR_ANDREW:
+        return boundaryPointList.duplicate()
+
+    var sortablePointList: Array[Vector2] = []
+    sortablePointList.resize(numberOfPoints)
+    for indexPosition: int in range(numberOfPoints):
+        sortablePointList[indexPosition] = boundaryPointList[indexPosition]
+
+    sortablePointList.sort_custom(_andrew_compare)
+
+    var lowerHullPointStack: Array[Vector2] = []
+    for currentPoint: Vector2 in sortablePointList:
+        while (
+            lowerHullPointStack.size() >= 2
+            and (
+                _orientation(
+                    lowerHullPointStack[lowerHullPointStack.size() - 2],
+                    lowerHullPointStack[lowerHullPointStack.size() - 1],
+                    currentPoint
+                )
+                <= 0
+            )
+        ):
+            lowerHullPointStack.pop_back()
+        lowerHullPointStack.append(currentPoint)
+
+    var upperHullPointStack: Array[Vector2] = []
+    for reverseIndex: int in range(numberOfPoints - 1, -1, -1):
+        var currentPoint: Vector2 = sortablePointList[reverseIndex]
+        while (
+            upperHullPointStack.size() >= 2
+            and (
+                _orientation(
+                    upperHullPointStack[upperHullPointStack.size() - 2],
+                    upperHullPointStack[upperHullPointStack.size() - 1],
+                    currentPoint
+                )
+                <= 0
+            )
+        ):
+            upperHullPointStack.pop_back()
+        upperHullPointStack.append(currentPoint)
+
+    lowerHullPointStack.pop_back()
+    upperHullPointStack.pop_back()
+    var combinedHullPointList: Array[Vector2] = lowerHullPointStack + upperHullPointStack
+
+    var resultHullArray: PackedVector2Array = PackedVector2Array()
+    resultHullArray.resize(combinedHullPointList.size())
+    for indexPosition: int in range(combinedHullPointList.size()):
+        resultHullArray[indexPosition] = combinedHullPointList[indexPosition]
+
+    return resultHullArray
+
+
+func _andrew_compare(point_a: Vector2, point_b: Vector2) -> bool:
+    if point_a.x == point_b.x:
+        return point_a.y < point_b.y
+    return point_a.x < point_b.x
+
+
+func compute_convex_hull_marching_squares(
     region_tiles: PackedVector2Array
 ) -> PackedVector2Array:
     var minimum_tile_x: float = INF
@@ -125,20 +296,6 @@ func compute_full_region_shape_marching_squares(
     return polygon
 
 
-func _update_polygons_from_hulls(used: int) -> void:
-    for i: int in range(CollisionMask.MAX_COLLISION_SHAPES):
-        var collision_mask_polygon: CollisionPolygon2D = (
-            CollisionMask.collision_mask_polygons_pool[i]
-        )
-        if i < used:
-            var hull_verticies: Array = CollisionMask.collision_polygon_hulls_pool[i]
-            collision_mask_polygon.disabled = false
-            collision_mask_polygon.polygon = hull_verticies
-        else:
-            CollisionMask.collision_mask_polygons_pool[i].disabled = true
-            CollisionMask.collision_mask_polygons_pool[i].polygon = []
-
-
 func _update_pixel_mask_array_pool_rgba8_or_r32ui(
     raw_data: PackedByteArray, width: int, height: int
 ) -> void:
@@ -156,12 +313,6 @@ func _update_pixel_mask_array_pool_r8ui(raw_data: PackedByteArray, width: int, h
     var total_pixels: int = width * height
     for i: int in range(total_pixels):
         CollisionMask.pixel_mask_array_pool[i] = 1 if raw_data[i] != 0 else 0
-
-
-func _disable_all_collision_polygons() -> void:
-    for poly: CollisionPolygon2D in CollisionMask.collision_mask_polygons_pool:
-        poly.disabled = true
-        poly.polygon = []
 
 
 func _update_tile_solidness_array(
@@ -264,163 +415,6 @@ func _convert_boundary_tiles_to_center_point_list(
         var inverted_y: float = image_height - (tile.y * tile_size + tile_size * 0.5)
         center_points[i] = Vector2(center_x, inverted_y)
     return center_points
-
-
-func _compute_convex_hull_jarvis(tile_center_points: PackedVector2Array) -> PackedVector2Array:
-    var point_count: int = tile_center_points.size()
-    if point_count < MIN_VERTICIES_FOR_JARVIS:
-        return tile_center_points.duplicate()
-    var leftmost_index: int = 0
-    for i: int in range(1, point_count):
-        var p: Vector2 = tile_center_points[i]
-        var q: Vector2 = tile_center_points[leftmost_index]
-        if p.x < q.x or (p.x == q.x and p.y < q.y):
-            leftmost_index = i
-
-    var hull_points: PackedVector2Array = PackedVector2Array()
-    hull_points.resize(0)
-    var current_index: int = leftmost_index
-    while true:
-        hull_points.append(tile_center_points[current_index])
-        var next_index: int = (current_index + 1) % point_count
-        for j: int in range(point_count):
-            if (
-                _orientation(
-                    tile_center_points[current_index],
-                    tile_center_points[next_index],
-                    tile_center_points[j]
-                )
-                == -1
-            ):
-                next_index = j
-        current_index = next_index
-        if current_index == leftmost_index:
-            break
-    return hull_points
-
-
-func _compute_convex_hull_andrew(boundaryPointList: PackedVector2Array) -> PackedVector2Array:
-    var numberOfPoints: int = boundaryPointList.size()
-    if numberOfPoints < MIN_VERTICIES_FOR_ANDREW:
-        return boundaryPointList.duplicate()
-
-    var sortablePointList: Array[Vector2] = []
-    sortablePointList.resize(numberOfPoints)
-    for indexPosition: int in range(numberOfPoints):
-        sortablePointList[indexPosition] = boundaryPointList[indexPosition]
-
-    sortablePointList.sort_custom(_andrew_compare)
-
-    var lowerHullPointStack: Array[Vector2] = []
-    for currentPoint: Vector2 in sortablePointList:
-        while (
-            lowerHullPointStack.size() >= 2
-            and (
-                _orientation(
-                    lowerHullPointStack[lowerHullPointStack.size() - 2],
-                    lowerHullPointStack[lowerHullPointStack.size() - 1],
-                    currentPoint
-                )
-                <= 0
-            )
-        ):
-            lowerHullPointStack.pop_back()
-        lowerHullPointStack.append(currentPoint)
-
-    var upperHullPointStack: Array[Vector2] = []
-    for reverseIndex: int in range(numberOfPoints - 1, -1, -1):
-        var currentPoint: Vector2 = sortablePointList[reverseIndex]
-        while (
-            upperHullPointStack.size() >= 2
-            and (
-                _orientation(
-                    upperHullPointStack[upperHullPointStack.size() - 2],
-                    upperHullPointStack[upperHullPointStack.size() - 1],
-                    currentPoint
-                )
-                <= 0
-            )
-        ):
-            upperHullPointStack.pop_back()
-        upperHullPointStack.append(currentPoint)
-
-    lowerHullPointStack.pop_back()
-    upperHullPointStack.pop_back()
-    var combinedHullPointList: Array[Vector2] = lowerHullPointStack + upperHullPointStack
-
-    var resultHullArray: PackedVector2Array = PackedVector2Array()
-    resultHullArray.resize(combinedHullPointList.size())
-    for indexPosition: int in range(combinedHullPointList.size()):
-        resultHullArray[indexPosition] = combinedHullPointList[indexPosition]
-
-    return resultHullArray
-
-
-func _andrew_compare(point_a: Vector2, point_b: Vector2) -> bool:
-    if point_a.x == point_b.x:
-        return point_a.y < point_b.y
-    return point_a.x < point_b.x
-
-
-func _compute_andrew_hull_pool_gpu(boundary_tile_lists: Array[PackedVector2Array]) -> int:
-    const MIN_REGION_TILES: int = 20
-    const MIN_HULL_AREA: float = 50.0
-    for hull_arr: PackedVector2Array in CollisionMask.collision_polygon_hulls_pool:
-        hull_arr.clear()
-
-    var used: int = 0
-    for region_index: int in range(boundary_tile_lists.size()):
-        var tiles: PackedVector2Array = boundary_tile_lists[region_index]
-        print("\n— Region ", region_index, " tiles=", tiles.size())
-        if tiles.size() < MIN_REGION_TILES:
-            print("    • skipped: < MIN_REGION_TILES (", MIN_REGION_TILES, ")")
-            continue
-
-        var centers: PackedVector2Array = _convert_boundary_tiles_to_center_point_list(
-            tiles, TILE_SIZE_PIXELS, ComputeShaderLayer.iResolution
-        )
-        print("    • center points N=", centers.size())
-        if centers.size() > CollisionMask.MAX_HULL_POINTS:
-            print(
-                "    • skipped: N(",
-                centers.size(),
-                ") > MAX_HULL_POINTS (",
-                CollisionMask.MAX_HULL_POINTS,
-                ")"
-            )
-            continue
-        print("    • GPU hull start: N=", centers.size())
-        var hull: PackedVector2Array = CollisionMask._compute_hull_gpu(centers)
-        print("    • GPU hull points=", hull.size())
-
-        if hull.size() < MIN_VERTICIES_FOR_CONVEX_HULL:
-            print(
-                "    • skipped: < MIN_VERTICIES_FOR_CONVEX_HULL (",
-                MIN_VERTICIES_FOR_CONVEX_HULL,
-                ")"
-            )
-            continue
-
-        var area: float = 0.0
-        for i: int in range(hull.size()):
-            var j: int = (i + 1) % hull.size()
-            area += hull[i].x * hull[j].y - hull[j].x * hull[i].y
-        area = abs(area) * 0.5
-        print("    • hull area=", area)
-
-        if area < MIN_HULL_AREA:
-            print("    • skipped: area <", MIN_HULL_AREA)
-            continue
-
-        print("    • accepted; sample pts:")
-        for k: int in range(min(4, hull.size())):
-            print("       [", k, "] =", hull[k])
-
-        CollisionMask.collision_polygon_hulls_pool[used].append_array(hull)
-        used += 1
-        if used >= CollisionMask.MAX_COLLISION_SHAPES:
-            break
-    return used
 
 
 func _orientation(a: Vector2, b: Vector2, c: Vector2) -> int:
