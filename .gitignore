@@ -65,6 +65,24 @@ venv/
 __pycache__/
 *.pyc
 
-python_bath/audio/output/track_metadata.json
+# -------------------------------------------------------------------
+# Rust build artifacts (in your `rust/` subfolder)
+# -------------------------------------------------------------------
 
+# Ignore all Cargo build outputs (debug, release, incremental, docs, etc.)
+/rust/target/
+
+# Optional: if you don't want to check in the lockfile, uncomment:
+/rust/Cargo.lock
+
+# Miscellaneous Rust‐generated files
+**/*.rlib
+**/*.rmeta
+**/CACHEDIR.TAG
+
+# -------------------------------------------------------------------
+# Existing project-specific exceptions
+# -------------------------------------------------------------------
+
+python_bath/audio/output/track_metadata.json
 python_bath/audio/output/trim_metadata.json
