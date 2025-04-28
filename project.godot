@@ -29,6 +29,7 @@ MechanicManager="*res://godot/Autoloads/MechanicManager.gd"
 ComputeShaderLayer="*res://godot/Autoloads/ComputeShaderLayer.gd"
 PerspectiveTiltMask="*res://godot/Autoloads/PerspectiveTiltMask.gd"
 CollisionMask="*res://godot/Autoloads/CollisionMask.gd"
+GpuOffloadCollisionMask="*res://godot/Autoloads/GpuOffloadCollisionMask.gd"
 
 [debug]
 

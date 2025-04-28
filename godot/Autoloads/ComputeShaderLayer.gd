@@ -28,15 +28,14 @@ var iResolution: Vector2
 #     each containing     local_size_x × local_size_y × local_size_z
 #     threads.
 
-const WORKGROUP_TILE_PIXELS_X: int = 2  # one work-group covers 2×2 pixels horizontally
-const WORKGROUP_TILE_PIXELS_Y: int = 2  # one work-group covers 2×2 pixels vertically
+const WORKGROUP_TILE_PIXELS_X: int = 2
+const WORKGROUP_TILE_PIXELS_Y: int = 2
 
 
 func _ready() -> void:
     _init_rendering_device()
 
 
-#UTIL STUFF FOR Render pipeline...
 func _init_rendering_device() -> void:
     rendering_device = RenderingServer.get_rendering_device()
     iResolution = Resolution.resolution
@@ -97,7 +96,6 @@ func _compute_hull_pool_cpu(boundary_tile_lists: Array[PackedVector2Array]) -> i
 func compute_full_region_shape_marching_squares(
     region_tiles: PackedVector2Array
 ) -> PackedVector2Array:
-    # 1) Compute the integer bounding box of the tiles
     var minimum_tile_x: float = INF
     var minimum_tile_y: float = INF
     var maximum_tile_x: float = -INF
@@ -117,7 +115,6 @@ func compute_full_region_shape_marching_squares(
         var local_y: int = int(tile.y - minimum_tile_y)
         mask[local_y * width_in_tiles + local_x] = 1
 
-    # 3) Trace the outline via marching-squares
     var origin: Vector2i = Vector2i(int(minimum_tile_x), int(minimum_tile_y))
     var polygon: PackedVector2Array = marchingSquaresContour(
         mask, width_in_tiles, height_in_tiles, TILE_SIZE_PIXELS, origin
@@ -126,69 +123,6 @@ func compute_full_region_shape_marching_squares(
         polygon = _compute_convex_hull_andrew(polygon)
 
     return polygon
-
-
-const MIN_REGION_TILES: int = 20  # skip really tiny islands
-const MIN_HULL_AREA: float = 50.0  # in pixel² (or whatever unit you want)
-
-
-func _compute_hull_pool_gpu(boundary_tile_lists: Array[PackedVector2Array]) -> int:
-    for hull_arr: PackedVector2Array in CollisionMask.collision_polygon_hulls_pool:
-        hull_arr.clear()
-
-    var used: int = 0
-    for region_index: int in range(boundary_tile_lists.size()):
-        var tiles: PackedVector2Array = boundary_tile_lists[region_index]
-        print("\n— Region ", region_index, " tiles=", tiles.size())
-        if tiles.size() < MIN_REGION_TILES:
-            print("    • skipped: < MIN_REGION_TILES (", MIN_REGION_TILES, ")")
-            continue
-
-        var centers: PackedVector2Array = _convert_boundary_tiles_to_center_point_list(
-            tiles, TILE_SIZE_PIXELS, ComputeShaderLayer.iResolution
-        )
-        print("    • center points N=", centers.size())
-        if centers.size() > CollisionMask.MAX_HULL_POINTS:
-            print(
-                "    • skipped: N(",
-                centers.size(),
-                ") > MAX_HULL_POINTS (",
-                CollisionMask.MAX_HULL_POINTS,
-                ")"
-            )
-            continue
-        print("    • GPU hull start: N=", centers.size())
-        var hull: PackedVector2Array = CollisionMask._compute_hull_gpu(centers)
-        print("    • GPU hull points=", hull.size())
-
-        if hull.size() < MIN_VERTICIES_FOR_CONVEX_HULL:
-            print(
-                "    • skipped: < MIN_VERTICIES_FOR_CONVEX_HULL (",
-                MIN_VERTICIES_FOR_CONVEX_HULL,
-                ")"
-            )
-            continue
-
-        var area: float = 0.0
-        for i: int in range(hull.size()):
-            var j: int = (i + 1) % hull.size()
-            area += hull[i].x * hull[j].y - hull[j].x * hull[i].y
-        area = abs(area) * 0.5
-        print("    • hull area=", area)
-
-        if area < MIN_HULL_AREA:
-            print("    • skipped: area <", MIN_HULL_AREA)
-            continue
-
-        print("    • accepted; sample pts:")
-        for k: int in range(min(4, hull.size())):
-            print("       [", k, "] =", hull[k])
-
-        CollisionMask.collision_polygon_hulls_pool[used].append_array(hull)
-        used += 1
-        if used >= CollisionMask.MAX_COLLISION_SHAPES:
-            break
-    return used
 
 
 func _update_polygons_from_hulls(used: int) -> void:
@@ -200,7 +134,6 @@ func _update_polygons_from_hulls(used: int) -> void:
             var hull_verticies: Array = CollisionMask.collision_polygon_hulls_pool[i]
             collision_mask_polygon.disabled = false
             collision_mask_polygon.polygon = hull_verticies
-            #TODO: update transform???????? polys do that automatically?
         else:
             CollisionMask.collision_mask_polygons_pool[i].disabled = true
             CollisionMask.collision_mask_polygons_pool[i].polygon = []
@@ -228,7 +161,7 @@ func _update_pixel_mask_array_pool_r8ui(raw_data: PackedByteArray, width: int, h
 func _disable_all_collision_polygons() -> void:
     for poly: CollisionPolygon2D in CollisionMask.collision_mask_polygons_pool:
         poly.disabled = true
-        poly.polygon = []  # <-- clear out old verts
+        poly.polygon = []
 
 
 func _update_tile_solidness_array(
@@ -429,6 +362,67 @@ func _andrew_compare(point_a: Vector2, point_b: Vector2) -> bool:
     return point_a.x < point_b.x
 
 
+func _compute_andrew_hull_pool_gpu(boundary_tile_lists: Array[PackedVector2Array]) -> int:
+    const MIN_REGION_TILES: int = 20
+    const MIN_HULL_AREA: float = 50.0
+    for hull_arr: PackedVector2Array in CollisionMask.collision_polygon_hulls_pool:
+        hull_arr.clear()
+
+    var used: int = 0
+    for region_index: int in range(boundary_tile_lists.size()):
+        var tiles: PackedVector2Array = boundary_tile_lists[region_index]
+        print("\n— Region ", region_index, " tiles=", tiles.size())
+        if tiles.size() < MIN_REGION_TILES:
+            print("    • skipped: < MIN_REGION_TILES (", MIN_REGION_TILES, ")")
+            continue
+
+        var centers: PackedVector2Array = _convert_boundary_tiles_to_center_point_list(
+            tiles, TILE_SIZE_PIXELS, ComputeShaderLayer.iResolution
+        )
+        print("    • center points N=", centers.size())
+        if centers.size() > CollisionMask.MAX_HULL_POINTS:
+            print(
+                "    • skipped: N(",
+                centers.size(),
+                ") > MAX_HULL_POINTS (",
+                CollisionMask.MAX_HULL_POINTS,
+                ")"
+            )
+            continue
+        print("    • GPU hull start: N=", centers.size())
+        var hull: PackedVector2Array = CollisionMask._compute_hull_gpu(centers)
+        print("    • GPU hull points=", hull.size())
+
+        if hull.size() < MIN_VERTICIES_FOR_CONVEX_HULL:
+            print(
+                "    • skipped: < MIN_VERTICIES_FOR_CONVEX_HULL (",
+                MIN_VERTICIES_FOR_CONVEX_HULL,
+                ")"
+            )
+            continue
+
+        var area: float = 0.0
+        for i: int in range(hull.size()):
+            var j: int = (i + 1) % hull.size()
+            area += hull[i].x * hull[j].y - hull[j].x * hull[i].y
+        area = abs(area) * 0.5
+        print("    • hull area=", area)
+
+        if area < MIN_HULL_AREA:
+            print("    • skipped: area <", MIN_HULL_AREA)
+            continue
+
+        print("    • accepted; sample pts:")
+        for k: int in range(min(4, hull.size())):
+            print("       [", k, "] =", hull[k])
+
+        CollisionMask.collision_polygon_hulls_pool[used].append_array(hull)
+        used += 1
+        if used >= CollisionMask.MAX_COLLISION_SHAPES:
+            break
+    return used
+
+
 func _orientation(a: Vector2, b: Vector2, c: Vector2) -> int:
     var cross_product: float = (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)
     if cross_product > 0.0:
@@ -546,16 +540,12 @@ func marchingSquaresContour(
 
         if startingTileCoordinate.x >= 0:
             break
-    # end for rowIndex
 
-    # if no boundary tile found, return empty contour
     if startingTileCoordinate.x < 0:
         return contourVertices
-    # end if
 
-    # 2) Walk the boundary until we return to the start
     var currentTileCoordinate: Vector2 = startingTileCoordinate
-    var previousDirectionIndex: int = directionCount - 1  # start by “looking right”
+    var previousDirectionIndex: int = directionCount - 1
     while true:
         for searchOffset: int in range(directionCount):
             var testDirectionIndex: int = (previousDirectionIndex + searchOffset) % directionCount
@@ -570,7 +560,6 @@ func marchingSquaresContour(
             )
             var testIndex: int = testTileY * tileColumnCount + testTileX
             if isInsideBounds and tileMask[testIndex] == 1:
-                # compute world‐space position on the shared edge
                 var pixelX: float = (
                     (
                         (originTileCoordinate.x + currentTileCoordinate.x)
@@ -589,15 +578,10 @@ func marchingSquaresContour(
                     )
                 )
                 contourVertices.append(Vector2(pixelX, pixelY))
-
-                # step to the next tile and update direction
                 currentTileCoordinate = Vector2(testTileX, testTileY)
                 previousDirectionIndex = (testDirectionIndex + directionCount - 1) % directionCount
                 break
-            # end if
-        # end for searchOffset
 
-        # stop when we loop back to the start tile
         if currentTileCoordinate == startingTileCoordinate:
             break
 
