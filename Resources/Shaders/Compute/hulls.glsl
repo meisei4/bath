@@ -19,16 +19,16 @@ layout(std430, binding = HULL_SORTED_SSBO_BINDING) buffer HullSortedSSBO {
 
 #define HULL_RESULT_SSBO_BINDING 2
 layout(std430, binding = HULL_RESULT_SSBO_BINDING) buffer HullResultSSBO {
-    uint hullCount;          // byte‐offset 0
-    uint __pad;         // byte‐offset 4 (this brings us to 8)
-    vec2 resultHullArray[];  // starts at byte‐offset 4
+    uint hullCount;     
+    uint __pad;      
+    vec2 resultHullArray[]; 
 };
 
 
 layout(push_constant) uniform PushConstants {
-    int numberOfPoints;          // = boundaryPointList.length()
-    int minVerticesForAndrew;    // e.g. 3
-    int maxHullPoints;           // must be ≤ MAX_HULL_POINTS
+    int numberOfPoints; 
+    int minVerticesForAndrew;    
+    int maxHullPoints;
 } push_constants;
 
 float orientation(vec2 a, vec2 b, vec2 c) {
@@ -108,5 +108,5 @@ void main() {
         resultHullArray[w++] = upperHull[i];
     }
     hullCount = uint(w);
-    __pad = 0; // not strictly necessary, but keeps your data well-defined
+    __pad = 0; 
  }

@@ -91,6 +91,13 @@ float voronoi_edge_fast(vec2 p) {
 //#define ENABLE_DEPTH_MARCH_FIRST_STEP_SCRAMBLING
     #define FIRST_STEP_SCRAMBLER_SCALAR                          123.456
 
+//TODO: the following characters get complaints when imported into glsl compute shader and then imported into godot
+// it works fine but just a lot of errors in the output because of this ascii table
+//U+2500  ─   BOX DRAWINGS LIGHT HORIZONTAL
+//U+2502  │   BOX DRAWINGS LIGHT VERTICAL
+//U+252C  ┬   BOX DRAWINGS LIGHT DOWN AND HORIZONTAL
+//U+253C  ┼   BOX DRAWINGS LIGHT VERTICAL AND HORIZONTAL
+
 //DEPTH MARCH STEP SCRAMBLING EXPLANATION:
 //DISABLED:
 //───────── slice 0 ─────────   <- all fragments hit the same slice first
