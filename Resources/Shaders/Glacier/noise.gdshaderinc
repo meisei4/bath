@@ -67,7 +67,7 @@ float voronoi_edge_fast(vec2 p) {
 
 #define NOISE_COORD_OFFSET          vec2(2.0, 0.0)
 #define PERLIN_SOLID_THRESHOLD      -0.03
-#define USE_VORONOI
+//#define USE_VORONOI
     #define VORONOI_SOLID_THRESHOLD 0.34
 
 //#define ENABLE_ROTATION
