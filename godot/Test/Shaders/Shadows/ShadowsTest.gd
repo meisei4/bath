@@ -49,7 +49,6 @@ func _ready() -> void:
     setup_dither_zone()
 
 
-
 func setup_ubmral_zone() -> void:
     var umbral_zone_instance: UmbralZone = UmbralZone.new()
     var screen_space_umbral_zone_bounds_x: float = iResolution.x * UMBRAL_ZONE_BOUNDS_UV_X

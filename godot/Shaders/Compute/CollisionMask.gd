@@ -41,9 +41,7 @@ func generate_collision_polygons() -> void:
     var collision_polygons: Array[PackedVector2Array] = (
         ComputeShaderLayer
         . rust_util
-        . compute_collision_polygons(
-            raw_pixel_data, width, height, TILE_SIZE_PIXELS
-        )
+        . compute_collision_polygons(raw_pixel_data, width, height, TILE_SIZE_PIXELS)
     )
     _update_polygons(collision_polygons)
     debug_print_ascii(raw_pixel_data)

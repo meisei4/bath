@@ -43,13 +43,15 @@ func add_shadows_test_scene() -> void:
     shadows_test = shadows_scene.instantiate() as ShadowsTest
     #TODO: this is silly because now it adds order dependency in the node tree, but ill figure it out later
     add_child(shadows_test)
-    shadows_test.UmbralShaderMaterial.set_shader_parameter("iChannel1", tilt_mask.perspective_tilt_mask_texture)
+    shadows_test.UmbralShaderMaterial.set_shader_parameter(
+        "iChannel1", tilt_mask.perspective_tilt_mask_texture
+    )
 
 
 func add_jump_mechanic_test_scene() -> void:
-    var mechanics_scene: PackedScene =preload("res://godot/Test/Mechanics/MechanicsTest.tscn")
+    var mechanics_scene: PackedScene = preload("res://godot/Test/Mechanics/MechanicsTest.tscn")
     mechanics_test = mechanics_scene.instantiate() as MechanicsTest
-    mechanics_test.tilt_mask = tilt_mask #TODO: HACKED ew ew ew
+    mechanics_test.tilt_mask = tilt_mask  #TODO: HACKED ew ew ew
     add_child(mechanics_test)
 
 
@@ -57,6 +59,7 @@ func add_glacier_flow_test_scene() -> void:
     var glacier_scene: PackedScene = preload("res://godot/Test/Shaders/Glacier/GlacierFlow.tscn")
     glacier_flow = glacier_scene.instantiate() as GlacierFlow
     add_child(glacier_flow)
+
 
 #TODO: this is old as heck particles, i can write it so much better now that i know shaders more, this actually sucks,
 # putting it in for fun though

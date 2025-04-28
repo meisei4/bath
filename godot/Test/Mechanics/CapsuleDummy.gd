@@ -4,8 +4,9 @@ class_name CapsuleDummy
 var mechanics: Array[Mechanic] = []
 var tilt_mask: PerspectiveTiltMask
 
+
 func _ready() -> void:
-    if (tilt_mask == null):
+    if tilt_mask == null:
         tilt_mask = PerspectiveTiltMask.new()
     #TODO: HACKED?
     var sprite_node: Sprite2D = get_node("Sprite2D") as Sprite2D
