@@ -20,7 +20,7 @@ source "$HOME/.cargo/env"
 ```
 
 ## 2. Build the Rust GDExtension
-1. Change into the `rust` directory:
+1. Change into the `rust` directory (IN THIS PROJECT, like the actual rust directory in this git repo):
     ```bash
     cd rust
     ```
