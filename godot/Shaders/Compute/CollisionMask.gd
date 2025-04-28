@@ -1,5 +1,5 @@
 extends Node2D
-#class_name CollisionMask
+class_name CollisionMask
 
 var compute_shader_file: RDShaderFile = load(
     "res://Resources/Shaders/Compute/glacier_collision_mask.glsl"
@@ -8,7 +8,7 @@ var compute_shader_spirv: RDShaderSPIRV
 var compute_shader_rid: RID
 var compute_pipeline_rid: RID
 
-const MAX_COLLISION_SHAPES: int = 16
+const MAX_COLLISION_SHAPES: int = 10
 var collision_mask_polygons_pool: Array[CollisionPolygon2D] = []
 
 var collision_mask_uniform_set_rid: RID

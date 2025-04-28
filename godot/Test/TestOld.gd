@@ -1,5 +1,5 @@
 extends Node2D
-class_name TestScene
+class_name TestOld
 
 const MOVE_SPEED: int = 10
 

@@ -28,9 +28,3 @@ func _ready() -> void:
     BufferA.add_child(BufferAShaderNode)
     add_child(BufferA)
     add_child(MainImage)
-
-
-func _process(delta: float) -> void:
-    CollisionMask.iTime += delta
-    #also update your fragment shader material…
-    BufferAShaderMaterial.set_shader_parameter("iTime", CollisionMask.iTime)

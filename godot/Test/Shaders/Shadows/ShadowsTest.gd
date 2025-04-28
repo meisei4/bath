@@ -47,8 +47,7 @@ func _ready() -> void:
     # zones, because dither is going to serve as a penumbral gradient perhaps
     setup_ubmral_zone()
     setup_dither_zone()
-    add_glacier_flow_test_scene()
-    add_jump_mechanic_test_scene()
+
 
 
 func setup_ubmral_zone() -> void:
@@ -69,9 +68,6 @@ func setup_ubmral_zone() -> void:
     UmbralShaderMaterial.set_shader_parameter("iResolution", iResolution)
     UmbralShaderMaterial.set_shader_parameter(
         "umbral_zone_bounds", Vector2(UMBRAL_ZONE_BOUNDS_UV_X, UMBRAL_ZONE_BOUNDS_UV_Y)
-    )
-    UmbralShaderMaterial.set_shader_parameter(
-        "iChannel1", PerspectiveTiltMask.perspective_tilt_mask_texture
     )
     #TODO: in Compatibility Mode/opengl, sampling the MainViewport here doesnt result in a framebuffer error BUTTT,
     # it results in this zone in the top left quadrant of the viewport, where there is right triangle on the bottom half of the quadrant that ends up
@@ -113,24 +109,3 @@ func setup_dither_zone() -> void:
     DitherBackBuffer.copy_mode = BackBufferCopy.COPY_MODE_VIEWPORT
     DitherBackBuffer.add_child(DitherShaderNode)
     BaseCanvasLayer.add_child(DitherBackBuffer)
-
-
-func add_jump_mechanic_test_scene() -> void:
-    #TODO: put mechanics in the tree dynamically or statically
-    var mechanics_test_scene: PackedScene = (
-        preload("res://godot/Test/Mechanics/MechanicsTest.tscn") as PackedScene
-    )
-    var mechanics_test: MechanicsTest = mechanics_test_scene.instantiate() as MechanicsTest
-    #TODO: because in the shader we target the main viewport with MainViewport/get_viewport().get_texture()
-    # we must add the mechanics test scene with its sprite to the main root node/i.e. the main viewport
-    add_child(mechanics_test)
-
-
-func add_glacier_flow_test_scene() -> void:
-    var glacier_flow_test_scene: PackedScene = (
-        preload("res://godot/Test/Shaders/Glacier/GlacierFlow.tscn") as PackedScene
-    )
-    var glacier_flow_test: GlacierFlow = glacier_flow_test_scene.instantiate() as GlacierFlow
-    #TODO: because in the shader we target the main viewport with MainViewport/get_viewport().get_texture()
-    # we must add the mechanics test scene with its sprite to the main root node/i.e. the main viewport
-    add_child(glacier_flow_test)

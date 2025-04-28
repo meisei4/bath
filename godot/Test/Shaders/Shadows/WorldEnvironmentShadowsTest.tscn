@@ -1,4 +1,4 @@
-[gd_scene load_steps=2 format=3 uid="uid://4lug00aht4bo"]
+[gd_scene load_steps=2 format=3 uid="uid://cmp61dljo5erp"]
 
 [ext_resource type="Script" uid="uid://dcpv228fcgck1" path="res://godot/Test/Shaders/Shadows/ShadowsTest.gd" id="1_h7fon"]
 

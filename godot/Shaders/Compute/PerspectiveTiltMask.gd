@@ -1,5 +1,5 @@
 extends Node2D
-#class_name PerspectiveTiltMask
+class_name PerspectiveTiltMask
 
 var compute_shader_file: RDShaderFile = load(
     "res://Resources/Shaders/Compute/perspective_tilt_mask.glsl"

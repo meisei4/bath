@@ -2,12 +2,15 @@ extends CharacterBody2D
 class_name CapsuleDummy
 
 var mechanics: Array[Mechanic] = []
-
+var tilt_mask: PerspectiveTiltMask
 
 func _ready() -> void:
+    if (tilt_mask == null):
+        tilt_mask = PerspectiveTiltMask.new()
     #TODO: HACKED?
     var sprite_node: Sprite2D = get_node("Sprite2D") as Sprite2D
-    var sprite_texture_index: int = PerspectiveTiltMask.register_sprite_texture(sprite_node.texture)
+    #TODO: this just got even more hacked hahahah, will fix it later
+    var sprite_texture_index: int = tilt_mask.register_sprite_texture(sprite_node.texture)
     #TODO: ^^HACKED?
 
     var lateral_movement: LateralMovement = LateralMovement.new()

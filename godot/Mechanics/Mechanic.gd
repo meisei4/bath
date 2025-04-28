@@ -1,7 +1,7 @@
 extends Node
 class_name Mechanic
 
-var character: CharacterBody2D
+var character: CapsuleDummy
 var animation_shader: ShaderMaterial
 var sprite_texture_index: int  #TODO: this is hacked, idk cant tell until having multiple sprites
 

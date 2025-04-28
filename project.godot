@@ -27,8 +27,6 @@ ComponentsManager="*res://godot/Autoloads/CharacterComponentsManager.gd"
 AudioBus="*res://godot/Audio/AudioBus.gd"
 MechanicManager="*res://godot/Autoloads/MechanicManager.gd"
 ComputeShaderLayer="*res://godot/Autoloads/ComputeShaderLayer.gd"
-PerspectiveTiltMask="*res://godot/Autoloads/PerspectiveTiltMask.gd"
-CollisionMask="*res://godot/Autoloads/CollisionMask.gd"
 
 [debug]
 
