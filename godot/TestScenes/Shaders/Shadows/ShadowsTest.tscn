@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3 uid="uid://pbcjlig1w3s4"]
+
+[ext_resource type="Script" uid="uid://dcpv228fcgck1" path="res://godot/TestScenes/Shaders/Shadows/ShadowsTest.gd" id="1_lcail"]
+
+[node name="ShadowsTest" type="Node2D"]
+script = ExtResource("1_lcail")
+metadata/_custom_type_script = "uid://dcpv228fcgck1"

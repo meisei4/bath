@@ -1,9 +1,0 @@
-[gd_scene load_steps=2 format=3 uid="uid://db8iqll0whhv"]
-
-[ext_resource type="Script" uid="uid://cobtglvjbfe3e" path="res://godot/Test/Audio/MusicTest.gd" id="1_svr7p"]
-
-[node name="MusicTest" type="Control"]
-layout_mode = 3
-anchors_preset = 0
-script = ExtResource("1_svr7p")
-metadata/_custom_type_script = "uid://cobtglvjbfe3e"

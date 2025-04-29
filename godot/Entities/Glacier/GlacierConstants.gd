@@ -2,9 +2,8 @@ extends Node
 class_name GlacierConstants
 
 #TODO: fix all of this to work with the singleton Resolution, too lazy to right now...
-const TILE_SIZE_1D: int = 8
-const SUBDIVISION_FACTOR: int = 2
-const DS_RESOLUTION: Vector2i = Vector2i(256, 384)
+const TILE_SIZE_1D: int = 4
+const SUBDIVISION_FACTOR: int = 4
 const IMAGE_TEXTURE_SIZE: Vector2i = Vector2i(TILE_SIZE_1D, TILE_SIZE_1D)
 const TEXTURE_REGION_SIZE: Vector2i = Vector2i(TILE_SIZE_1D, TILE_SIZE_1D)
 const MARGIN: Vector2i = (TEXTURE_REGION_SIZE - IMAGE_TEXTURE_SIZE) / 2
@@ -13,9 +12,9 @@ const TILE_SIZE: Vector2i = IMAGE_TEXTURE_SIZE
 const GRID_TILE_SIZE: Vector2i = Vector2i(1, 1)
 const ATLAS_SEPARATION: Vector2i = Vector2i(0, 0)
 
-const TOTAL_GRID_WIDTH_IN_TILES: int = 32 * SUBDIVISION_FACTOR
-const TOTAL_GRID_HEIGHT_IN_TILES: int = 48 * SUBDIVISION_FACTOR
-const GLACIER_HEIGHT_IN_TILES: int = 16 * SUBDIVISION_FACTOR
+const TOTAL_GRID_WIDTH_IN_TILES: int = 16 * SUBDIVISION_FACTOR
+const TOTAL_GRID_HEIGHT_IN_TILES: int = 24 * SUBDIVISION_FACTOR
+const GLACIER_HEIGHT_IN_TILES: int = 8 * SUBDIVISION_FACTOR
 
 const SOURCE_ID: int = 234
 

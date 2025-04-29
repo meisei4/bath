@@ -1,0 +1,46 @@
+[gd_scene load_steps=9 format=3 uid="uid://dwpcwke04tlr"]
+
+[ext_resource type="Script" uid="uid://b7ucrt8ynrevb" path="res://godot/TestScenes/TestOld.gd" id="1_tc2ck"]
+[ext_resource type="PackedScene" uid="uid://df7d3yxentwdh" path="res://godot/TestScenes/Shaders/Particles/SnowfallParticles.tscn" id="2_v3v32"]
+[ext_resource type="Script" uid="uid://5u8sw6c1dmi7" path="res://godot/Entities/Characters/Iruka.gd" id="3_ol82d"]
+[ext_resource type="Script" uid="uid://cc28m2wpv6ur3" path="res://godot/Entities/Characters/CharacterData/CharacterComponents.gd" id="4_4oard"]
+[ext_resource type="PackedScene" uid="uid://dtxdm6aiao7c1" path="res://Resources/TileMaps/WaterBody.tscn" id="5_gv7ki"]
+[ext_resource type="Script" uid="uid://b85osbgh3dxkl" path="res://godot/TestScenes/Audio/SFXTest.gd" id="6_3l853"]
+[ext_resource type="Script" uid="uid://cobtglvjbfe3e" path="res://godot/TestScenes/Audio/MusicTest.gd" id="7_20gjh"]
+[ext_resource type="Script" uid="uid://bc1od7n580e3g" path="res://godot/TestScenes/Audio/AudioZoning/AudioZoneTest.gd" id="8_gl4dk"]
+
+[node name="TestOld" type="Node2D"]
+script = ExtResource("1_tc2ck")
+
+[node name="SnowfallParticles" parent="." instance=ExtResource("2_v3v32")]
+
+[node name="Iruka" type="CharacterBody2D" parent="."]
+script = ExtResource("3_ol82d")
+
+[node name="CharacterComponents" type="Node2D" parent="Iruka"]
+script = ExtResource("4_4oard")
+
+[node name="WaterBody" parent="." instance=ExtResource("5_gv7ki")]
+z_index = -2
+
+[node name="SFXTest" type="Control" parent="."]
+visible = false
+layout_mode = 3
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
+script = ExtResource("6_3l853")
+
+[node name="MusicTest" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
+script = ExtResource("7_20gjh")
+
+[node name="AudioZoneTest" type="Button" parent="."]
+offset_left = 219.0
+offset_top = -355.0
+offset_right = 227.0
+offset_bottom = -347.0
+script = ExtResource("8_gl4dk")
