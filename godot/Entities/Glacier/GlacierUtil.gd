@@ -1,6 +1,8 @@
 extends Node
 class_name GlacierUtil
 
+#TODO: MOVE ALL OF THIS TO RUST GDEXTENSION
+
 
 static func CELL_ABOVE(cell_position: Vector2i) -> Vector2i:
     return cell_position + GlacierConstants.UP

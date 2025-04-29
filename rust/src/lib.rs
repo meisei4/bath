@@ -20,9 +20,8 @@ struct RustUtil {
 
 #[godot_api]
 impl RustUtil {
-    /// Entry‐point: compute collision polygons for an image mask.
     #[func]
-    pub fn compute_collision_polygons(
+    pub fn compute_concave_collision_polygons(
         &self,
         raw_pixel_mask: PackedByteArray,
         image_width_pixels: i32,
@@ -33,25 +32,54 @@ impl RustUtil {
         let width: usize = image_width_pixels as usize;
         let height: usize = image_height_pixels as usize;
         let tile_size: usize = tile_edge_length as usize;
+        let mut godot_polygons_array: Array<PackedVector2Array> = Array::new();
 
-        let (columns, rows) = collision_mask_util::compute_tile_grid_size(width, height, tile_size);
-
-        let hulls: Vec<Vec<Vector2>> = collision_mask_util::generate_collision_polygons(
+        let concave_polygons: Vec<Vec<Vector2>> = collision_mask_util::generate_concave_collision_polygons_pixel_perfect(
             &pixel_data,
             (width, height),
-            (columns, rows),
             tile_size,
         );
 
-        let mut godot_polygons_array: Array<PackedVector2Array> = Array::new();
-        for hull in hulls {
-            let mut packed_hull: PackedVector2Array = PackedVector2Array::new();
-            for point in hull {
-                packed_hull.push(point);
+        for concave_polygon in concave_polygons {
+            let mut packed_polygon: PackedVector2Array = PackedVector2Array::new();
+            for point in concave_polygon {
+                packed_polygon.push(point);
             }
-            godot_polygons_array.push(&packed_hull);
+            godot_polygons_array.push(&packed_polygon);
         }
 
         godot_polygons_array
     }
+
+    #[func]
+    pub fn compute_convex_collision_polygons(
+        &self,
+        raw_pixel_mask: PackedByteArray,
+        image_width_pixels: i32,
+        image_height_pixels: i32,
+        tile_edge_length: i32,
+    ) -> Array<PackedVector2Array> {
+        let pixel_data: Vec<u8> = raw_pixel_mask.to_vec();
+        let width: usize = image_width_pixels as usize;
+        let height: usize = image_height_pixels as usize;
+        let tile_size: usize = tile_edge_length as usize;
+        let mut godot_polygons_array: Array<PackedVector2Array> = Array::new();
+
+        let convex_polygons: Vec<Vec<Vector2>> = collision_mask_util::generate_convex_collision_polygons_pixel_perfect(
+            &pixel_data,
+            (width, height),
+            tile_size,
+        );
+
+        for convex_polygon in convex_polygons {
+            let mut packed_polygon: PackedVector2Array = PackedVector2Array::new();
+            for point in convex_polygon {
+                packed_polygon.push(point);
+            }
+            godot_polygons_array.push(&packed_polygon);
+        }
+
+        godot_polygons_array
+    }
+
 }

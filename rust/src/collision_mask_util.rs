@@ -1,344 +1,139 @@
 use godot::builtin::Vector2;
-use std::collections::VecDeque;
 
-pub fn compute_tile_grid_size(
-    image_width_pixels: usize,
-    image_height_pixels: usize,
-    tile_edge_length: usize,
-) -> (usize, usize) {
-    let number_of_tile_columns = (image_width_pixels + tile_edge_length - 1) / tile_edge_length;
-    let number_of_tile_rows    = (image_height_pixels + tile_edge_length - 1) / tile_edge_length;
-    (number_of_tile_columns, number_of_tile_rows)
-}
 
-pub fn generate_collision_polygons(
+pub fn generate_concave_collision_polygons_pixel_perfect(
     pixel_mask_slice: &[u8],
-    (image_width_pixels, image_height_pixels): (usize, usize),
-    (number_of_tile_columns, number_of_tile_rows): (usize, usize),
-    tile_edge_length: usize,
+    (w, h): (usize, usize),
+    _tile_edge_length: usize,
 ) -> Vec<Vec<Vector2>> {
-    let solidness_map = create_solidness_map(
-        pixel_mask_slice,
-        image_width_pixels,
-        image_height_pixels,
-        number_of_tile_columns,
-        number_of_tile_rows,
-        tile_edge_length,
-    );
+    let mut polygons = Vec::new();
+    let mut visited = vec![false; w * h];
 
-    let connected_regions = find_all_connected_regions(
-        &solidness_map,
-        number_of_tile_columns,
-        number_of_tile_rows,
-    );
-
-    let mut polygons: Vec<Vec<Vector2>> = Vec::new();
-    for region_tiles in connected_regions {
-        let contour = trace_region_contour(&region_tiles, tile_edge_length, image_height_pixels);
-        let hull    = compute_convex_hull_monotone_chain(&contour);
-        if hull.len() >= 3 {
-            polygons.push(hull);
+    for y in 0..h {
+        for x in 0..w {
+            let idx = y * w + x;
+            if pixel_mask_slice[idx] == 1
+               && !visited[idx]
+               && is_boundary_pixel(pixel_mask_slice, w, h, x, y)
+            {
+                let raw = trace_boundary(pixel_mask_slice, w, h, x, y, &mut visited);
+                // collapse straight runs into single corners:
+                let simple = filter_colinear(&raw);
+                if simple.len() >= 3 {
+                    polygons.push(simple);
+                }
+            }
         }
     }
-
     polygons
 }
 
-pub fn create_solidness_map(
-    pixel_mask_slice: &[u8],
-    image_width_pixels: usize,
-    image_height_pixels: usize,
-    number_of_tile_columns: usize,
-    number_of_tile_rows: usize,
-    tile_edge_length: usize,
-) -> Vec<u8> {
-    let total_tiles = number_of_tile_columns * number_of_tile_rows;
-    let mut map = vec![0u8; total_tiles];
-
-    for row in 0..number_of_tile_rows {
-        for col in 0..number_of_tile_columns {
-            if check_if_tile_has_solid_pixel(
-                pixel_mask_slice,
-                image_width_pixels,
-                image_height_pixels,
-                col,
-                row,
-                tile_edge_length,
-            ) {
-                map[row * number_of_tile_columns + col] = 1;
-            }
+fn filter_colinear(contour: &[Vector2]) -> Vec<Vector2> {
+    let n = contour.len();
+    if n < 3 { return contour.to_vec() }
+    let eps = 0.001; // tiny tolerance
+    let mut out = Vec::with_capacity(n);
+    for i in 0..n {
+        let a = contour[(i + n - 1) % n];
+        let b = contour[i];
+        let c = contour[(i + 1) % n];
+        // cross-product z of AB×BC:
+        let cross = (b.x - a.x) * (c.y - b.y) - (b.y - a.y) * (c.x - b.x);
+        if cross.abs() > eps {
+            out.push(b);
         }
     }
-
-    map
+    out
 }
 
-pub fn find_all_connected_regions(
-    solidness_map_slice: &[u8],
-    number_of_tile_columns: usize,
-    number_of_tile_rows: usize,
-) -> Vec<Vec<(usize, usize)>> {
-    let total_tiles = number_of_tile_columns * number_of_tile_rows;
-    let mut visited = vec![false; total_tiles];
-    let mut regions = Vec::new();
 
-    for row in 0..number_of_tile_rows {
-        for col in 0..number_of_tile_columns {
-            let idx = row * number_of_tile_columns + col;
-            if solidness_map_slice[idx] == 1 && !visited[idx] {
-                let mut region = Vec::new();
-                flood_fill_connected_region(
-                    solidness_map_slice,
-                    number_of_tile_columns,
-                    number_of_tile_rows,
-                    col,
-                    row,
-                    &mut visited,
-                    &mut region,
-                );
-                regions.push(region);
-            }
+fn is_boundary_pixel(mask: &[u8], w: usize, h: usize, x: usize, y: usize) -> bool {
+    let neighbors = [
+        (x as isize + 1, y as isize),
+        (x as isize - 1, y as isize),
+        (x as isize, y as isize + 1),
+        (x as isize, y as isize - 1),
+    ];
+    for (nx, ny) in neighbors {
+        if nx < 0 || ny < 0 || nx >= w as isize || ny >= h as isize {
+            return true;
         }
-    }
-
-    regions
-}
-
-fn check_if_tile_has_solid_pixel(
-    pixel_mask_slice: &[u8],
-    image_width_pixels: usize,
-    image_height_pixels: usize,
-    tile_column: usize,
-    tile_row: usize,
-    tile_edge_length: usize,
-) -> bool {
-    let start_x = tile_column * tile_edge_length;
-    let end_x   = ((tile_column + 1) * tile_edge_length).min(image_width_pixels);
-    let start_y = tile_row    * tile_edge_length;
-    let end_y   = ((tile_row + 1)  * tile_edge_length).min(image_height_pixels);
-
-    for y in start_y..end_y {
-        for x in start_x..end_x {
-            let pixel_index = y * image_width_pixels + x;
-            if pixel_mask_slice[pixel_index] == 1 {
-                return true;
-            }
+        if mask[ny as usize * w + nx as usize] == 0 {
+            return true;
         }
     }
     false
 }
 
-fn flood_fill_connected_region(
-    solidness_map_slice: &[u8],
-    number_of_tile_columns: usize,
-    number_of_tile_rows: usize,
-    start_column: usize,
-    start_row: usize,
-    visited_flags: &mut [bool],
-    out_region_tiles: &mut Vec<(usize, usize)>,
-) {
-    let mut queue = VecDeque::new();
-    queue.push_back((start_column, start_row));
-    visited_flags[start_row * number_of_tile_columns + start_column] = true;
-
-    while let Some((current_x, current_y)) = queue.pop_front() {
-        out_region_tiles.push((current_x, current_y));
-
-        for (dx, dy) in &[(1isize,0),(-1,0),(0,1),(0,-1)] {
-            let nx = current_x as isize + dx;
-            let ny = current_y as isize + dy;
-            if nx >= 0 && ny >= 0 {
-                let ux = nx as usize;
-                let uy = ny as usize;
-                if ux < number_of_tile_columns && uy < number_of_tile_rows {
-                    let nidx = uy * number_of_tile_columns + ux;
-                    if solidness_map_slice[nidx] == 1 && !visited_flags[nidx] {
-                        visited_flags[nidx] = true;
-                        queue.push_back((ux, uy));
-                    }
-                }
-            }
-        }
-    }
-}
-
-
-const CARDINAL_DIRECTIONS: [(isize, isize); 4] = [
-    (1, 0),    // right
-    (0, 1),    // down
-    (-1, 0),   // left
-    (0, -1),   // up
-];
-
-struct RegionBounds {
-    min_column: usize,
-    min_row: usize,
-    max_column: usize,
-    max_row: usize,
-}
-
-pub fn trace_region_contour(
-    region_tiles: &[(usize, usize)],
-    tile_edge_length: usize,
-    image_height_pixels: usize,
+fn trace_boundary(
+    mask: &[u8],
+    w: usize,
+    h: usize,
+    sx: usize,
+    sy: usize,
+    visited: &mut [bool],
 ) -> Vec<Vector2> {
-    if region_tiles.is_empty() {
-        return Vec::new();
-    }
-
-    let region_bounds = compute_region_bounds(region_tiles);
-    let (grid_width, grid_height) =
-        compute_grid_dimensions(&region_bounds);
-    let region_mask =
-        build_region_mask(region_tiles, &region_bounds, grid_width, grid_height);
-    let (start_column, start_row) =
-        find_contour_start_tile(region_tiles, &region_bounds, grid_width, grid_height, &region_mask);
-
-    follow_region_contour(
-        start_column,
-        start_row,
-        &region_bounds,
-        grid_width,
-        grid_height,
-        tile_edge_length,
-        image_height_pixels,
-        &region_mask,
-    )
-}
-
-fn compute_region_bounds(
-    region_tiles: &[(usize, usize)],
-) -> RegionBounds {
-    let min_column = region_tiles.iter().map(|&(c, _)| c).min().unwrap();
-    let max_column = region_tiles.iter().map(|&(c, _)| c).max().unwrap();
-    let min_row    = region_tiles.iter().map(|&(_, r)| r).min().unwrap();
-    let max_row    = region_tiles.iter().map(|&(_, r)| r).max().unwrap();
-    RegionBounds {
-        min_column,
-        min_row,
-        max_column,
-        max_row,
-    }
-}
-
-fn compute_grid_dimensions(
-    bounds: &RegionBounds,
-) -> (usize /*width*/, usize /*height*/) {
-    let width_in_tiles  = bounds.max_column - bounds.min_column + 1;
-    let height_in_tiles = bounds.max_row    - bounds.min_row    + 1;
-    (width_in_tiles, height_in_tiles)
-}
-
-fn build_region_mask(
-    region_tiles: &[(usize, usize)],
-    bounds: &RegionBounds,
-    grid_width: usize,
-    grid_height: usize,
-) -> Vec<u8> {
-    let mut mask_vector = vec![0u8; grid_width * grid_height];
-    for &(tile_column, tile_row) in region_tiles {
-        let local_x = tile_column - bounds.min_column;
-        let local_y = tile_row    - bounds.min_row;
-        mask_vector[local_y * grid_width + local_x] = 1;
-    }
-    mask_vector
-}
-
-fn find_contour_start_tile(
-    region_tiles: &[(usize, usize)],
-    bounds: &RegionBounds,
-    grid_width: usize,
-    grid_height: usize,
-    mask_vector: &[u8],
-) -> (usize /*start_column*/, usize /*start_row*/) {
-    for &(tile_column, tile_row) in region_tiles {
-        let local_x = tile_column - bounds.min_column;
-        let local_y = tile_row    - bounds.min_row;
-        for &(delta_x, delta_y) in &CARDINAL_DIRECTIONS {
-            let neighbor_x = local_x as isize + delta_x;
-            let neighbor_y = local_y as isize + delta_y;
-            if neighbor_x < 0
-                || neighbor_y < 0
-                || neighbor_x as usize >= grid_width
-                || neighbor_y as usize >= grid_height
-                || mask_vector[neighbor_y as usize * grid_width + neighbor_x as usize] == 0
-            {
-                return (tile_column, tile_row);
-            }
-        }
-    }
-    (bounds.min_column, bounds.min_row)
-}
-
-fn follow_region_contour(
-    start_tile_column: usize,
-    start_tile_row: usize,
-    bounds: &RegionBounds,
-    grid_width: usize,
-    grid_height: usize,
-    tile_edge_length: usize,
-    image_height_pixels: usize,
-    mask_vector: &[u8],
-) -> Vec<Vector2> {
-    let mut contour_points = Vec::new();
-    let mut current_local_x = start_tile_column - bounds.min_column;
-    let mut current_local_y = start_tile_row    - bounds.min_row;
-    let mut previous_direction_index = CARDINAL_DIRECTIONS.len() - 1;
+    let mut contour = Vec::new();
+    let mut x = sx;
+    let mut y = sy;
+    let mut dir = 3;
 
     loop {
-        let mut moved_to_next_cell = false;
+        let idx = y * w + x;
+        visited[idx] = true;
+        contour.push(Vector2::new(x as f32 + 0.5, y as f32 + 0.5));
 
-        for step_offset in 0..CARDINAL_DIRECTIONS.len() {
-            let candidate_direction_index =
-                (previous_direction_index + step_offset) % CARDINAL_DIRECTIONS.len();
-            let (delta_x, delta_y) = CARDINAL_DIRECTIONS[candidate_direction_index];
-
-            let next_local_x_isize = current_local_x as isize + delta_x;
-            let next_local_y_isize = current_local_y as isize + delta_y;
-
-            if next_local_x_isize >= 0
-                && next_local_y_isize >= 0
-                && (next_local_x_isize as usize) < grid_width
-                && (next_local_y_isize as usize) < grid_height
-            {
-                let next_index = next_local_y_isize as usize * grid_width
-                    + next_local_x_isize as usize;
-                if mask_vector[next_index] == 1 {
-                    let offset_for_x = if delta_x > 0 { 1 } else { 0 };
-                    let offset_for_y = if delta_y < 0 { 1 } else { 0 };
-                    let world_x = ((bounds.min_column + current_local_x) + offset_for_x)
-                        * tile_edge_length;
-                    let world_y = image_height_pixels
-                        - ((bounds.min_row + current_local_y) + offset_for_y)
-                            * tile_edge_length;
-
-                    contour_points.push(Vector2::new(world_x as f32, world_y as f32));
-
-                    current_local_x = next_local_x_isize as usize;
-                    current_local_y = next_local_y_isize as usize;
-                    previous_direction_index = (candidate_direction_index
-                        + CARDINAL_DIRECTIONS.len()
-                        - 1)
-                        % CARDINAL_DIRECTIONS.len();
-
-                    moved_to_next_cell = true;
+        let mut found = false;
+        for i in 0..4 {
+            let nd = (dir + 3 + i) % 4;
+            let (dx, dy) = match nd {
+                0 => (1isize, 0),   // right
+                1 => (0, 1),        // down
+                2 => (-1, 0),       // left
+                3 => (0, -1),       // up
+                _ => unreachable!(),
+            };
+            let nx = x as isize + dx;
+            let ny = y as isize + dy;
+            if nx >= 0 && ny >= 0 && (nx as usize) < w && (ny as usize) < h {
+                let nidx = ny as usize * w + nx as usize;
+                if mask[nidx] == 1 {
+                    x = nx as usize;
+                    y = ny as usize;
+                    dir = nd;
+                    found = true;
                     break;
                 }
             }
         }
 
-        if !moved_to_next_cell
-            || (current_local_x == start_tile_column - bounds.min_column
-                && current_local_y == start_tile_row    - bounds.min_row)
-        {
+        if !found || (x == sx && y == sy) {
             break;
         }
     }
 
-    contour_points
+    contour
 }
 
-pub fn compute_convex_hull_monotone_chain(
+
+pub fn generate_convex_collision_polygons_pixel_perfect(
+    pixel_mask_slice: &[u8],
+    (w, h): (usize, usize),
+    tile_edge_length: usize,
+) -> Vec<Vec<Vector2>> {
+    let contours = generate_concave_collision_polygons_pixel_perfect(pixel_mask_slice, (w, h), tile_edge_length);
+    let mut hulls = Vec::with_capacity(contours.len());
+    for contour in contours {
+        let hull = compute_convex_hull_monotone_chain(&contour);
+        if hull.len() >= 3 {
+            hulls.push(hull);
+        }
+    }
+    hulls
+}
+
+
+fn compute_convex_hull_monotone_chain(
     boundary_points_slice: &[Vector2],
 ) -> Vec<Vector2> {
     if boundary_points_slice.len() < 3 {

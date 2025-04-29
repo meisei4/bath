@@ -1,7 +1,7 @@
 extends Node
 class_name Mechanic
 
-var character: CapsuleDummy
+var character_body: CapsuleDummy
 var animation_shader: ShaderMaterial
 var sprite_texture_index: int  #TODO: this is hacked, idk cant tell until having multiple sprites
 
@@ -27,14 +27,14 @@ func apply_mechanic_animation_shader(shader_path: String) -> void:
 
 
 func get_sprite_for_visual_illusion() -> Sprite2D:
-    for child: Node in character.get_children():
+    for child: Node in character_body.get_children():
         if child is Sprite2D:
             return child
     return null
 
 
 func get_collision_object_for_processing() -> CollisionShape2D:
-    for child: Node in character.get_children():
+    for child: Node in character_body.get_children():
         if child is CollisionShape2D:
             return child
     return null

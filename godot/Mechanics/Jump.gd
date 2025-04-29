@@ -49,7 +49,7 @@ func _apply_forward_movement(time_scaled_delta: float) -> void:
     var forward_movement_pixel_units: float = SpacetimeContext.to_physical_space(
         forward_movement_world_units
     )
-    character.position.y = character.position.y - forward_movement_pixel_units
+    character_body.position.y = character_body.position.y - forward_movement_pixel_units
 
 
 func process_visual_illusion(_frame_delta: float) -> void:
@@ -64,12 +64,11 @@ func process_visual_illusion(_frame_delta: float) -> void:
     sprite_node.material.set_shader_parameter("iChannel0", sprite_node.texture)
     sprite_node.material.set_shader_parameter("ascending", is_ascending())
     sprite_node.material.set_shader_parameter("altitude_normal", altitude_normal)
-
     _update_sprite_scale(sprite_node, altitude_normal)
-    character.tilt_mask.update_cpu_side_sprite_data_ssbo_cache(
+    ComputeShaderSignalManager.visual_illusion_updated.emit(
         sprite_texture_index,
         sprite_node.global_position,
-        (sprite_node.texture.get_size() / 2.0) * sprite_node.scale,
+        (sprite_node.texture.get_size() * 0.5) * sprite_node.scale,
         altitude_normal,
         1.0 if is_ascending() else 0.0
     )

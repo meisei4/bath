@@ -2,30 +2,23 @@ extends CharacterBody2D
 class_name CapsuleDummy
 
 var mechanics: Array[Mechanic] = []
-var tilt_mask: PerspectiveTiltMask
 
 
 func _ready() -> void:
-    if tilt_mask == null:
-        tilt_mask = PerspectiveTiltMask.new()
-        add_child(tilt_mask)
-    #TODO: HACKED?
-    var sprite_node: Sprite2D = get_node("Sprite2D") as Sprite2D
-    #TODO: this just got even more hacked hahahah, will fix it later
-    var sprite_texture_index: int = tilt_mask.register_sprite_texture(sprite_node.texture)
-    #TODO: ^^HACKED?
-
+    ComputeShaderSignalManager.register_character_body(self)
     var lateral_movement: LateralMovement = LateralMovement.new()
-    lateral_movement.character = self
+    lateral_movement.character_body = self
     add_child(lateral_movement)
     mechanics.append(lateral_movement)
 
     var jump: Jump = Jump.new()
-    jump.character = self
-    #TODO: hacked???... but the only way to make sure the texture was added above
-    jump.sprite_texture_index = sprite_texture_index
+    jump.character_body = self
     add_child(jump)
     mechanics.append(jump)
+
+
+func _physics_process(_delta: float) -> void:
+    move_and_slide()
 
 
 #TODO: are you serious, learn wtf physics process actually does, it can cause sprite draws vs compute shaderdraws single frame lag...

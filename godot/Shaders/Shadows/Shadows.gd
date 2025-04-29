@@ -1,6 +1,6 @@
 #extends WorldEnvironment
 extends Node2D
-class_name ShadowsTest
+class_name Shadows
 
 var UmbralShader: Shader = load("res://Resources/Shaders/Shadows/umbral_zone.gdshader")
 var UmbralShaderNode: ColorRect
@@ -24,8 +24,6 @@ var MainViewport: Viewport
 var BaseCanvasLayer: CanvasLayer
 var UpperCanvasLayer: CanvasLayer
 
-var tilt_mask: PerspectiveTiltMask
-
 
 func _ready() -> void:
     RenderingServer.set_default_clear_color(Color.MIDNIGHT_BLUE)
@@ -44,7 +42,6 @@ func _ready() -> void:
     BaseCanvasLayer = CanvasLayer.new()
     BaseCanvasLayer.layer = 1
     add_child(BaseCanvasLayer)
-
     #TODO: always apply umbral zone first if there are overlaps in the
     # zones, because dither is going to serve as a penumbral gradient perhaps
     setup_ubmral_zone()
@@ -70,12 +67,7 @@ func setup_ubmral_zone() -> void:
     UmbralShaderMaterial.set_shader_parameter(
         "umbral_zone_bounds", Vector2(UMBRAL_ZONE_BOUNDS_UV_X, UMBRAL_ZONE_BOUNDS_UV_Y)
     )
-    #TODO: HACKED below
-    if tilt_mask != null:
-        UmbralShaderMaterial.set_shader_parameter(
-            "iChannel1", tilt_mask.perspective_tilt_mask_texture
-        )
-
+    ComputeShaderSignalManager.register_umbral_shadow(UmbralShaderMaterial)
     #TODO: in Compatibility Mode/opengl, sampling the MainViewport here doesnt result in a framebuffer error BUTTT,
     # it results in this zone in the top left quadrant of the viewport, where there is right triangle on the bottom half of the quadrant that ends up
     # turning the character body 2D's sprite invisible (or very glitchy sampling when MainViewport.use_hdr_2d = true)

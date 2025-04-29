@@ -65,4 +65,4 @@ func _apply_cosmic_friction(time: float) -> void:
 func _move_character(time: float) -> void:
     var delta_world_units: float = current_velocity * time
     var delta_pixels: float = SpacetimeContext.to_physical_space(delta_world_units)
-    character.position.x += delta_pixels
+    character_body.position.x += delta_pixels

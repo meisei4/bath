@@ -11,7 +11,7 @@ func _ready() -> void:
         "      XXXX      ",
         "    X......X    ",
         "  X..........X  ",
-        " X.....XX.....X ",
+        " X.....WW.....X ",
         "X..............X",
         "X..............X",
         "X..............X",
@@ -33,16 +33,22 @@ func _ready() -> void:
         "    X......X    ",
         "      XXXX      "
     ]
-
+    var opaque_pixels: PackedVector2Array = PackedVector2Array()
     for y: int in range(shape.size()):
         var line: String = shape[y]
         for x: int in range(sprite_width):
             var char: String = line[x]
             var pixel_color: Color = Color(0, 0, 0, 0)
-            if char == "X" or char == "x":
+            if char == "X":
                 pixel_color = Color.BLACK
+                var center_x = x - sprite_width * 0.5 + 0.5
+                var center_y = y - sprite_height * 0.5 + 0.5
+                opaque_pixels.append(Vector2(center_x, center_y))
+            elif char == "W":
+                pixel_color = Color.DARK_GRAY
             elif char == ".":
                 pixel_color = Color.WHITE
+
             image.set_pixel(x, y, pixel_color)
 
     image.save_png("res://Assets/Sprites/capsule.png")
@@ -62,12 +68,13 @@ func _ready() -> void:
     character_body.add_child(sprite)
     sprite.owner = character_body
 
+    var convex_hull: PackedVector2Array = Geometry2D.convex_hull(opaque_pixels)
     var collision: CollisionShape2D = CollisionShape2D.new()
     collision.name = "CollisionShape2D"
-    var rect_shape: RectangleShape2D = RectangleShape2D.new()
-    rect_shape.extents = Vector2(sprite_width, sprite_height)
-    collision.shape = rect_shape
-    collision.position = Vector2(0, 0)
+    var convex_polygon: ConvexPolygonShape2D = ConvexPolygonShape2D.new()
+    convex_polygon.points = convex_hull
+    collision.shape = convex_polygon
+    collision.position = Vector2.ZERO
     character_body.add_child(collision)
     collision.owner = character_body
 

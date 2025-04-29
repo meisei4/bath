@@ -29,6 +29,8 @@ void main() {
     float localNoiseScale;
     vec2  projectedTop = projectTopLayerForParallax(normCoord, localNoiseScale);
     bool  solidTop     = isSolidAtCoord(projectedTop, localNoiseScale, push_constants.iTime);
-    uint solid = solidTop ? 1u : 0u;    
-    imageStore(collision_mask_ssbo, gid, uvec4(solid, 0u, 0u, 0u));
+    uint solid = solidTop ? 1u : 0u;
+    //TODO: godot y-down flip 
+    ivec2 flipped = ivec2(gid.x, int(push_constants.iResolution.y) - gid.y - 1);
+    imageStore(collision_mask_ssbo, flipped, uvec4(solid, 0u, 0u, 0u));
 }
