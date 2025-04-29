@@ -13,7 +13,7 @@ layout(std430, push_constant) uniform PushConstants {
 } push_constants;
 
 #define COLLISION_MASK_SSBO_UNIFORM_BINDING 0
-layout(r32ui, set = 0, binding = COLLISION_MASK_SSBO_UNIFORM_BINDING) writeonly uniform uimage2D collision_mask_ssbo;
+layout(r8ui, set = 0, binding = COLLISION_MASK_SSBO_UNIFORM_BINDING) writeonly uniform uimage2D collision_mask_ssbo;
 
 void main() {
     ivec2 gid = ivec2(gl_GlobalInvocationID.xy);
