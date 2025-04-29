@@ -44,7 +44,6 @@ func _handle_movement() -> void:
         var collision: KinematicCollision2D = self.get_slide_collision(i)
 
 
-
 func _handle_actions() -> void:
     #if Input.is_action_just_pressed("jump"):
     pass

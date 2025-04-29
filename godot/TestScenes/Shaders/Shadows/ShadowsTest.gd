@@ -26,8 +26,8 @@ var UpperCanvasLayer: CanvasLayer
 
 var tilt_mask: PerspectiveTiltMask
 
-func _ready() -> void:
 
+func _ready() -> void:
     RenderingServer.set_default_clear_color(Color.MIDNIGHT_BLUE)
     MainViewport = get_viewport()
     MainViewport.use_hdr_2d = true
@@ -71,8 +71,10 @@ func setup_ubmral_zone() -> void:
         "umbral_zone_bounds", Vector2(UMBRAL_ZONE_BOUNDS_UV_X, UMBRAL_ZONE_BOUNDS_UV_Y)
     )
     #TODO: HACKED below
-    if (tilt_mask != null):
-        UmbralShaderMaterial.set_shader_parameter("iChannel1", tilt_mask.perspective_tilt_mask_texture)
+    if tilt_mask != null:
+        UmbralShaderMaterial.set_shader_parameter(
+            "iChannel1", tilt_mask.perspective_tilt_mask_texture
+        )
 
     #TODO: in Compatibility Mode/opengl, sampling the MainViewport here doesnt result in a framebuffer error BUTTT,
     # it results in this zone in the top left quadrant of the viewport, where there is right triangle on the bottom half of the quadrant that ends up

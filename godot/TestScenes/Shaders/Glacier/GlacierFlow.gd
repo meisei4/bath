@@ -30,7 +30,7 @@ func _ready() -> void:
     BufferA.add_child(BufferAShaderNode)
     add_child(BufferA)
     add_child(MainImage)
-    if (collision_mask == null):
+    if collision_mask == null:
         collision_mask = CollisionMask.new()
         add_child(collision_mask)
 

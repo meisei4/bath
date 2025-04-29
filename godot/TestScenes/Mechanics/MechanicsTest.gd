@@ -5,11 +5,12 @@ var tilt_mask: PerspectiveTiltMask
 
 
 func _ready() -> void:
-    if (tilt_mask == null):
+    if tilt_mask == null:
         tilt_mask = PerspectiveTiltMask.new()
         add_child(tilt_mask)
     var capsule_scene: PackedScene = (
-        ResourceLoader.load("res://godot/TestScenes/Entities/Characters/CapsuleDummy.tscn") as PackedScene
+        ResourceLoader.load("res://godot/TestScenes/Entities/Characters/CapsuleDummy.tscn")
+        as PackedScene
     )
     var capsule_dummy: CapsuleDummy = capsule_scene.instantiate() as CapsuleDummy
     capsule_dummy.z_index = 1
