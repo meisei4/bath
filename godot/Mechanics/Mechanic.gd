@@ -5,6 +5,8 @@ var character_body: CapsuleDummy
 var animation_shader: ShaderMaterial
 var sprite_texture_index: int  #TODO: this is hacked, idk cant tell until having multiple sprites
 
+var visuals_enabled: bool = true
+
 
 func process_input(_delta: float) -> void:
     pass
@@ -18,12 +20,13 @@ func process_collision_shape(_delta: float) -> void:
     pass
 
 
-func apply_mechanic_animation_shader(shader_path: String) -> void:
+func apply_mechanic_animation_shader(_shader: Shader) -> void:
     var sprite: Sprite2D = get_sprite_for_visual_illusion()
-    var shader_material: ShaderMaterial = ShaderMaterial.new()
-    shader_material.shader = load(shader_path)
-    sprite.material = shader_material
-    animation_shader = shader_material
+    if animation_shader == null:
+        animation_shader = ShaderMaterial.new()
+        animation_shader.shader = _shader
+
+    sprite.material = animation_shader
 
 
 func get_sprite_for_visual_illusion() -> Sprite2D:

@@ -3,6 +3,8 @@ class_name Jump
 
 @export var PARAMETERS: JumpData
 
+const JUMP_SHADER: Shader = preload("res://Resources/Shaders/MechanicAnimations/jump_trig.gdshader")
+
 enum JumpPhase { GROUNDED, ASCENDING, DESCENDING }  #TODO: i dont want to add an APEX_FLOAT phase but maybe...
 var current_phase: JumpPhase
 var vertical_speed: float
@@ -15,12 +17,12 @@ func _ready() -> void:
     vertical_position = 0.0
     vertical_speed = 0.0
     _set_phase(JumpPhase.GROUNDED)
-    apply_mechanic_animation_shader("res://Resources/Shaders/MechanicAnimations/jump_trig.gdshader")
+    apply_mechanic_animation_shader(JUMP_SHADER)
     MechanicManager.jump.connect(_on_jump)
 
 
 func process_input(frame_delta: float) -> void:
-    var time_scaled_delta: float = SpacetimeContext.apply_time_scale(frame_delta)
+    var time_scaled_delta: float = SpacetimeManager.apply_time_scale(frame_delta)
     _apply_gravity_and_drag(time_scaled_delta)
     _update_altitude(time_scaled_delta)
     if _should_land():
@@ -33,7 +35,7 @@ func _apply_gravity_and_drag(time_scaled_delta: float) -> void:
     if is_airborne():
         var gravity: float = _get_effective_gravity()
         vertical_speed -= gravity * time_scaled_delta
-        vertical_speed = SpacetimeContext.apply_universal_drag(vertical_speed, time_scaled_delta)
+        vertical_speed = SpacetimeManager.apply_universal_drag(vertical_speed, time_scaled_delta)
 
 
 func _update_altitude(time_scaled_delta: float) -> void:
@@ -46,7 +48,7 @@ func _update_altitude(time_scaled_delta: float) -> void:
 
 func _apply_forward_movement(time_scaled_delta: float) -> void:
     var forward_movement_world_units: float = PARAMETERS.FORWARD_SPEED * time_scaled_delta
-    var forward_movement_pixel_units: float = SpacetimeContext.to_physical_space(
+    var forward_movement_pixel_units: float = SpacetimeManager.to_physical_space(
         forward_movement_world_units
     )
     character_body.position.y = character_body.position.y - forward_movement_pixel_units
@@ -54,7 +56,7 @@ func _apply_forward_movement(time_scaled_delta: float) -> void:
 
 func process_visual_illusion(_frame_delta: float) -> void:
     var sprite_node: Sprite2D = get_sprite_for_visual_illusion()
-    var vertical_offset_pixels: float = SpacetimeContext.to_physical_space(vertical_position)
+    var vertical_offset_pixels: float = SpacetimeManager.to_physical_space(vertical_position)
     sprite_node.position.y = -vertical_offset_pixels
     var max_altitude: float = _max_altitude()
     var altitude_normal: float = _compute_altitude_normal_in_jump_parabola(
@@ -115,6 +117,8 @@ func process_collision_shape(_delta: float) -> void:
 
 
 func _on_jump() -> void:
+    apply_mechanic_animation_shader(JUMP_SHADER)
+    visuals_enabled = true
     if !is_airborne():
         vertical_speed = PARAMETERS.INITIAL_JUMP_VELOCITY
         _set_phase(JumpPhase.ASCENDING)
@@ -148,6 +152,11 @@ func _handle_landing() -> void:
     vertical_position = 0.0
     vertical_speed = 0.0
     _set_phase(JumpPhase.GROUNDED)
+    MechanicManager.resume_swim.emit()
+    #TODO: you have no idea how to transition between mechanic's shaders, figure it out
+
+
+# visuals_enabled = false
 
 
 func _set_phase(new_phase: JumpPhase) -> void:
@@ -159,5 +168,5 @@ func _get_effective_gravity() -> float:
     return (
         PARAMETERS.OVERRIDE_GRAVITY
         if PARAMETERS.OVERRIDE_GRAVITY > 0.0
-        else SpacetimeContext.GRAVITY
+        else SpacetimeManager.GRAVITY
     )

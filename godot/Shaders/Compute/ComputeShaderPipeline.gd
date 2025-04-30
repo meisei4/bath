@@ -31,7 +31,7 @@ func _init_compute_shader_pipeline() -> void:
 
 func _init_rendering_device() -> void:
     rendering_device = RenderingServer.get_rendering_device()
-    iResolution = Resolution.resolution
+    iResolution = ResolutionManager.resolution
 
 
 func _init_uniform_set() -> void:

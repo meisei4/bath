@@ -30,7 +30,7 @@ func _initialize_particle_material() -> void:
     set_param_max(CPUParticles2D.PARAM_RADIAL_ACCEL, -9.8)
 
     self.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
-    self.emission_rect_extents = Resolution.resolution  #TODO: ???? WHAT? EXTENTS IS A kind of radius for a rectangle, not the actual WxH, half of that
+    self.emission_rect_extents = ResolutionManager.resolution  #TODO: ???? WHAT? EXTENTS IS A kind of radius for a rectangle, not the actual WxH, half of that
 
     self.color_ramp = Gradient.new()
     self.color_ramp.add_point(0.0, Color(Color.WHITE, 0.9))

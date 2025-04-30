@@ -20,7 +20,7 @@ uniform sampler2D iChannel3;                // ripple heightmap
 #define SHOW_BACKGROUND
 //#define RIPPLE_EFFECT
 
-#define PARALLAX_ZOOM  4.0   
+#define PARALLAX_ZOOM  4.0
 
 vec2 normalizeCoord(vec2 uv) {
     float aspect = iResolution.x / iResolution.y;
@@ -33,7 +33,7 @@ vec2 denormalizeCoord(vec2 norm) {
     return norm * 0.5 + 0.5;
 }
 
-//TODO: figure out how to fix the wrapping to not destroy the projection 
+//TODO: figure out how to fix the wrapping to not destroy the projection
 #define SCROLL_PHASE_DURATION 8.0
 
 vec2 scrollInNormSpace(vec2 norm, vec2 velUV, vec2 offUV, float noiseScale) {
@@ -48,8 +48,8 @@ vec2 scrollInNormSpace(vec2 norm, vec2 velUV, vec2 offUV, float noiseScale) {
     );
     float cycle = SCROLL_PHASE_DURATION * 2.0;
     float t     = mod(TIME, cycle);
-    float wave  = (t < SCROLL_PHASE_DURATION) 
-                  ? t 
+    float wave  = (t < SCROLL_PHASE_DURATION)
+                  ? t
                   : (cycle - t);
     vec2 disp = velNorm * wave;
     return norm + offNorm + disp;
@@ -68,7 +68,7 @@ vec4 sample_disp_map_projected(
     vec2   vel = velUV * PARALLAX_ZOOM;
     vec2   off = offUV * PARALLAX_ZOOM;
     vec2 sc = scrollInNormSpace(norm, vel, off, noiseScale);
-    float dummy; 
+    float dummy;
     vec2 pr = projectTopLayerForParallax(sc, dummy);
     vec2 uv = denormalizeCoord(pr);
     float v = texture(tex, uv).r;
@@ -87,7 +87,7 @@ vec4 sample_background_with_disp_map_projected(
     vec2  w      = vec2(disp.r * warp * 2.0 * aspect * PARALLAX_ZOOM,
                        disp.r * warp * 2.0 * PARALLAX_ZOOM);
     vec2  sc     = norm + w;
-    float dummy; 
+    float dummy;
     vec2 pr = projectTopLayerForParallax(sc, dummy);
     vec2 uv = denormalizeCoord(pr);
     return texture(tex, uv);

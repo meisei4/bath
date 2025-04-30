@@ -1,8 +1,11 @@
 extends Node
+#class_name MechanicManager
 
 signal left_lateral_movement
 signal right_lateral_movement
 signal jump
+signal ascend_to_surface
+signal resume_swim
 
 
 func _process(_delta: float) -> void:
@@ -15,4 +18,6 @@ func _process(_delta: float) -> void:
 #TODO: this is just for testing the difference between InputMap (per frame polling) vs InputEvent direct signal handling access
 func _unhandled_input(event: InputEvent) -> void:
     if event is InputEventKey and event.pressed and event.keycode == Key.KEY_SPACE:
+        #TODO: mechanics transitions are hard as heck...
+        #ascend_to_surface.emit()
         jump.emit()

@@ -31,8 +31,8 @@ func _on_move_right_triggered() -> void:
 
 
 func process_input(delta: float) -> void:
-    var time: float = SpacetimeContext.apply_time_scale(delta)
-    current_velocity = SpacetimeContext.apply_universal_drag(current_velocity, time)
+    var time: float = SpacetimeManager.apply_time_scale(delta)
+    current_velocity = SpacetimeManager.apply_universal_drag(current_velocity, time)
     _apply_movement_input(time)
     _apply_cosmic_friction(time)
     _move_character(time)
@@ -55,7 +55,7 @@ func _apply_movement_input(time: float) -> void:
 
 
 func _apply_cosmic_friction(time: float) -> void:
-    var friction_amount: float = SpacetimeContext.COSMIC_FRICTION * time
+    var friction_amount: float = SpacetimeManager.COSMIC_FRICTION * time
     if current_velocity > 0.0:
         current_velocity = max(0.0, current_velocity - friction_amount)
     elif current_velocity < 0.0:
@@ -64,5 +64,5 @@ func _apply_cosmic_friction(time: float) -> void:
 
 func _move_character(time: float) -> void:
     var delta_world_units: float = current_velocity * time
-    var delta_pixels: float = SpacetimeContext.to_physical_space(delta_world_units)
+    var delta_pixels: float = SpacetimeManager.to_physical_space(delta_world_units)
     character_body.position.x += delta_pixels

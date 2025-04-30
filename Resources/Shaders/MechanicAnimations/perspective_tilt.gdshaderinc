@@ -2,6 +2,12 @@
 #define NEGATE_TILT_ANGLE -1.0
 #define MAXIMUM_TILT_ANGLE_ACHIEVED_AT_IMMEDIATE_ASCENSION_AND_FINAL_DESCENT 0.785398
 #define FOCAL_LENGTH 1.0
+#define DISCARD_PIXELS_OUTSIDE_OF_ALTERED_UV_BOUNDS_FRAG(uv, texel_size) \
+    if ((uv).x < (texel_size).x \
+        || (uv).x > 1.0 - (texel_size).x \
+        || (uv).y < (texel_size).y \
+        || (uv).y > 1.0 - (texel_size).y) \
+        discard;
 
 void compute_perspective_tilt(
     in vec2 uv,

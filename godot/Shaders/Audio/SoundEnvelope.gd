@@ -25,7 +25,7 @@ var iTime: float = 0.0
 
 
 func _ready() -> void:
-    iResolution = Resolution.resolution
+    iResolution = ResolutionManager.resolution
     BufferA = ShaderToyUtil.create_buffer_viewport(iResolution)
     BufferAShaderMaterial = ShaderMaterial.new()
     BufferAShaderNode = ColorRect.new()

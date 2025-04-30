@@ -76,9 +76,7 @@ func _on_iceberg_cluster_formed(cluster_id: int, iceberg_cluster: Array[Vector2i
             (iceberg_cell - iceberg_cluster_anchor_in_tile_coordinates)
             * GlacierConstants.TILE_SIZE_1D
         )
-        water_shader.iceberg_tile_positions.append(
-            local_position_in_iceberg_cluster_bounding_box
-        )
+        water_shader.iceberg_tile_positions.append(local_position_in_iceberg_cluster_bounding_box)
     var end_index: int = water_shader.iceberg_tile_positions.size()
     water_shader.cluster_offsets.append(start_index)
     water_shader.cluster_offsets.append(end_index)

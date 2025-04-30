@@ -16,7 +16,7 @@ func _ready() -> void:
     ComputeShaderSignalManager.register_glacier_flow(self)
     #TODO: i just set the default for canvas items to this in the project settings but seriously its annoying
     self.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-    iResolution = Resolution.resolution
+    iResolution = ResolutionManager.resolution
     BufferA = ShaderToyUtil.create_buffer_viewport(iResolution)
     BufferAShaderMaterial = ShaderMaterial.new()
     BufferAShaderNode = ColorRect.new()

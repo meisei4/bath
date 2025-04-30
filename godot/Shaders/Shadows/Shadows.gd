@@ -38,7 +38,7 @@ func _ready() -> void:
     #self.compositor = Compositor.new()
     #tilt_effect.set_effect_callback_type(CompositorEffect.EFFECT_CALLBACK_TYPE_POST_OPAQUE)
     #compositor.compositor_effects = [tilt_effect]
-    iResolution = Resolution.resolution
+    iResolution = ResolutionManager.resolution
     BaseCanvasLayer = CanvasLayer.new()
     BaseCanvasLayer.layer = 1
     add_child(BaseCanvasLayer)
@@ -82,7 +82,6 @@ func setup_ubmral_zone() -> void:
     UmbralBackBuffer.add_child(UmbralShaderNode)
     BaseCanvasLayer.add_child(UmbralBackBuffer)
     #BaseCanvasLayer.add_child(UmbralShaderNode)
-
 
 
 func setup_dither_zone() -> void:
