@@ -1,12 +1,12 @@
 extends Node2D
-class_name WaterCaustics
+class_name Water
 
 var RippleShaderNode: ColorRect
 var RippleShader: Shader = load("res://Resources/Shaders/Water/finite_approx_ripple.gdshader")
 var RippleShaderMaterial: ShaderMaterial
 
 var WaterShaderNode: ColorRect
-var WaterShader: Shader = load("res://Resources/Shaders/Water/water_caustics.gdshader")
+var WaterShader: Shader = load("res://Resources/Shaders/Water/water.gdshader")
 var WaterShaderMaterial: ShaderMaterial
 
 var NoiseTexture: Image = Image.load_from_file("res://Assets/Textures/gray_noise_small.png")
@@ -19,6 +19,8 @@ var MainImage: TextureRect
 
 var iResolution: Vector2
 
+#TODO: get all this non sense out of here and just pass it in from collision shapes or something later
+# need to completely rewrite the water shader to be decoupled from ripple entities
 var iceberg_previous_positions: PackedVector2Array = PackedVector2Array()
 var iceberg_current_positions: PackedVector2Array = PackedVector2Array()
 var iceberg_target_positions: PackedVector2Array = PackedVector2Array()

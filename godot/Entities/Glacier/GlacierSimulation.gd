@@ -9,7 +9,7 @@ var hydrofracture_manager: HydrofractureManager = HydrofractureManager.new()
 var iceberg_manager: IcebergManager = IcebergManager.new()
 var fracturing_timer: Timer = Timer.new()
 
-var water_caustics_shader: WaterCaustics = WaterCaustics.new()
+var water_shader: Water = Water.new()
 
 
 func _ready() -> void:
@@ -18,8 +18,8 @@ func _ready() -> void:
     fracturing_timer.timeout.connect(_on_simulation_tick)
     add_child(fracturing_timer)
     fracturing_timer.start()
-    water_caustics_shader.z_index = -1
-    add_child(water_caustics_shader)
+    water_shader.z_index = -1
+    add_child(water_shader)
     iceberg_manager.iceberg_cluster_formed.connect(_on_iceberg_cluster_formed)
     iceberg_manager.iceberg_cluster_moved.connect(_on_iceberg_cluster_moved)
     iceberg_manager.force_fracture_glacier_cell.connect(
@@ -65,23 +65,23 @@ func _on_iceberg_cluster_formed(cluster_id: int, iceberg_cluster: Array[Vector2i
     )
 
     (
-        water_caustics_shader
+        water_shader
         . update_iceberg_clusters_anchor_position_from_discrete_tile_space_to_continious_interpolated_screen_space(
             cluster_id, iceberg_cluster_anchor_in_tile_coordinates
         )
     )
-    var start_index: int = water_caustics_shader.iceberg_tile_positions.size()
+    var start_index: int = water_shader.iceberg_tile_positions.size()
     for iceberg_cell: Vector2i in iceberg_cluster:
         var local_position_in_iceberg_cluster_bounding_box: Vector2 = (
             (iceberg_cell - iceberg_cluster_anchor_in_tile_coordinates)
             * GlacierConstants.TILE_SIZE_1D
         )
-        water_caustics_shader.iceberg_tile_positions.append(
+        water_shader.iceberg_tile_positions.append(
             local_position_in_iceberg_cluster_bounding_box
         )
-    var end_index: int = water_caustics_shader.iceberg_tile_positions.size()
-    water_caustics_shader.cluster_offsets.append(start_index)
-    water_caustics_shader.cluster_offsets.append(end_index)
+    var end_index: int = water_shader.iceberg_tile_positions.size()
+    water_shader.cluster_offsets.append(start_index)
+    water_shader.cluster_offsets.append(end_index)
     var sfx_res: AudioStream = load(AudioConsts.SFX_469_SPLASH)
     AudioManager.play_sfx(sfx_res, -3.0)
     update_dirty_tiles()
@@ -91,7 +91,7 @@ func _on_iceberg_cluster_moved(
     cluster_id: int, iceberg_cluster_anchor_tile_coordinates: Vector2i
 ) -> void:
     (
-        water_caustics_shader
+        water_shader
         . update_iceberg_clusters_anchor_position_from_discrete_tile_space_to_continious_interpolated_screen_space(
             cluster_id, iceberg_cluster_anchor_tile_coordinates
         )

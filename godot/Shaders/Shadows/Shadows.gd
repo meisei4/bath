@@ -81,6 +81,8 @@ func setup_ubmral_zone() -> void:
     UmbralBackBuffer.copy_mode = BackBufferCopy.COPY_MODE_VIEWPORT
     UmbralBackBuffer.add_child(UmbralShaderNode)
     BaseCanvasLayer.add_child(UmbralBackBuffer)
+    #BaseCanvasLayer.add_child(UmbralShaderNode)
+
 
 
 func setup_dither_zone() -> void:
@@ -108,3 +110,4 @@ func setup_dither_zone() -> void:
     DitherBackBuffer.copy_mode = BackBufferCopy.COPY_MODE_VIEWPORT
     DitherBackBuffer.add_child(DitherShaderNode)
     BaseCanvasLayer.add_child(DitherBackBuffer)
+    #BaseCanvasLayer.add_child(DitherShaderNode)

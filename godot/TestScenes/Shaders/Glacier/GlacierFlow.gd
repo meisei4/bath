@@ -8,6 +8,7 @@ var BufferA: SubViewport
 var MainImage: TextureRect
 var iResolution: Vector2
 
+var iChannel0: Texture
 var iTime: float
 
 
@@ -23,7 +24,10 @@ func _ready() -> void:
     BufferAShaderMaterial.shader = BufferAShader
     BufferAShaderNode.material = BufferAShaderMaterial
     BufferAShaderMaterial.set_shader_parameter("iResolution", iResolution)
-
+    #TODO: this is really bad... I need to completely revamp the water shader to work with the glacier water correctly...
+    #var water_projected: WaterProjected = WaterProjected.new()
+    #add_child(water_projected)
+    #BufferAShaderMaterial.set_shader_parameter("iChannel0", water_projected.get_water_texture())
     MainImage = TextureRect.new()
     MainImage.texture = BufferA.get_texture()
     MainImage.flip_v = true

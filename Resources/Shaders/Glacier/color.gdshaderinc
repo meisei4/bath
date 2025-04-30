@@ -1,4 +1,4 @@
-//#define ENABLE_WATER
+#define ENABLE_WATER
     // pretty water color palette from: https://www.shadertoy.com/view/MlcGD7 by FabriceNeyret2
     #define WATER_COLOR_R                 0.1
     #define WATER_COLOR_G                 0.7

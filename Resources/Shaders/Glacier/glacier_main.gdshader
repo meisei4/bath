@@ -11,6 +11,7 @@ shader_type canvas_item;
 #include "res://Resources/Shaders/Glacier/projections.gdshaderinc"
 #include "res://Resources/Shaders/Glacier/color.gdshaderinc"
 uniform vec2 iResolution;
+uniform sampler2D iChannel0: filter_nearest; // ← this will become our water background
 
 uniform float iTime;
 
@@ -115,6 +116,12 @@ void fragment() {
         vec3  terrainWithWater      = applyWater(terrain, isSolid, depth, normCoord);
         //color = terrainWithWater; //RAW give it a try... its gross... :^)
         color = sqrt(terrainWithWater); //GAMMAMAMA CORREECCTIONNN.... GOOD
+        //TODO: add the water projected texture somehow...
+        //vec3 water = texture(iChannel0, UV * 0.5).rgb;
+        //vec3 waterWithCaustics = color + water * 0.5;
+        //color = isSolid
+            //? color
+            //: waterWithCaustics;
     }
     COLOR = vec4(color.r, color.g, color.b, 1.0);
     //fragColor = vec4(color.r, color.g, color.b, 1.0);

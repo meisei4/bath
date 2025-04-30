@@ -1,11 +1,12 @@
 shader_type canvas_item;
 
 #include "res://Resources/Shaders/Water/constants.gdshaderinc"
+#include "res://Resources/Shaders/Glacier/projections.gdshaderinc"
 uniform vec2 iResolution;
 
-uniform sampler2D iChannel0: repeat_enable, filter_linear_mipmap; //"file://assets/textures/gray_noise_small.png"  // noise displacement map (red channel)
-uniform sampler2D iChannel1: repeat_enable, filter_linear_mipmap; //"file://assets/textures/rocks.jpg"             // background texture (full-color)
-uniform sampler2D iChannel2: repeat_enable, filter_linear_mipmap; //"file://assets/textures/pebbles.png"           // caustics displacement map (red channel)
+uniform sampler2D iChannel0: repeat_enable;//, filter_nearest; //"file://assets/textures/gray_noise_small.png"  // noise displacement map (red channel)
+uniform sampler2D iChannel1: repeat_enable;//, filter_nearest; //"file://assets/textures/rocks.jpg"             // background texture (full-color)
+uniform sampler2D iChannel2: repeat_enable;//, filter_nearest; //"file://assets/textures/pebbles.png"           // caustics displacement map (red channel)
 uniform sampler2D iChannel3; // this will be the viewport texture/buffer that holds the ripple feedback heightmap
 
 // debug macros
@@ -85,6 +86,7 @@ float compute_effective_opacity(
    return alpha;
 }
 
+#define PARALLAX_ZOOM 16.0
 void fragment(){
 //void mainImage(out vec4 frag_color, in vec2 frag_coord) {
     vec2 uv = vec2(FRAGCOORD.x, iResolution.y - FRAGCOORD.y) / iResolution.xy;
@@ -142,8 +144,11 @@ void fragment(){
     #endif
 
     #ifdef SHOW_BACKGROUND
-        //basic dicplacement map integration
-        background = sample_background_with_disp_map(iChannel1, uv, noise_disp_map_1, BACKGROUND_DISP_WARP_FACTOR);
+        background = sample_background_with_disp_map(
+            iChannel1, uv,
+            noise_disp_map_1,
+            BACKGROUND_DISP_WARP_FACTOR
+        );
     #endif
 
     float alpha = compute_effective_opacity(
