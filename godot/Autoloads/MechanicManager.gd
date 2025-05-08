@@ -3,7 +3,7 @@ extends Node
 
 signal left_lateral_movement
 signal right_lateral_movement
-signal jump_signal
+signal jump_override
 
 enum State { SWIM, SWIM_ASCEND, JUMP }
 
@@ -17,9 +17,22 @@ var controller: Controller
 var active_shader: Shader
 
 
+func register_controller(body: CapsuleDummy) -> void:
+    controller = Controller.new()
+    controller.character = body
+    for mechanic_type: Mechanic.TYPE in controller.character.mechanics.keys():
+        var mechanic: Mechanic = controller.character.mechanics[mechanic_type]
+        var is_passive_mechanic: bool = mechanic_type == Mechanic.TYPE.LATERAL_MOVEMENT
+        mechanic.set_process(is_passive_mechanic)
+        mechanic.set_physics_process(is_passive_mechanic)
+
+    _activate_mechanic(controller.character.mechanics[Mechanic.TYPE.SWIM])
+    set_process(true)  #only run this entire manager when a controller is registered
+
+
 func _ready() -> void:
-    jump_signal.connect(_on_jump)
     set_process(false)
+    jump_override.connect(_on_jump_override)
 
 
 func _process(delta: float) -> void:
@@ -43,20 +56,7 @@ func _handle_input() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
     if event is InputEventKey and event.pressed and event.keycode == Key.KEY_SPACE:
-        jump_signal.emit()
-
-
-func register_controller(body: CapsuleDummy) -> void:
-    controller = Controller.new()
-    controller.character = body
-    for mechanic_type: Mechanic.TYPE in controller.character.mechanics.keys():
-        var mechanic: Mechanic = controller.character.mechanics[mechanic_type]
-        var is_passive_mechanic: bool = mechanic_type == Mechanic.TYPE.LATERAL_MOVEMENT
-        mechanic.set_process(is_passive_mechanic)
-        mechanic.set_physics_process(is_passive_mechanic)
-
-    _activate_mechanic(controller.character.mechanics[Mechanic.TYPE.SWIM])
-    set_process(true)  #only run this entire manager when a controller is registered
+        jump_override.emit()
 
 
 func _activate_mechanic(next_mechanic: Mechanic) -> void:
@@ -97,12 +97,12 @@ func _switch_state(next_state: State) -> void:
             controller.character.mechanics[Mechanic.TYPE.JUMP]._on_jump()  #TODO: bad design
 
 
-func _on_jump() -> void:
+func _on_jump_override() -> void:  #TODO: bad naming
     if controller.state == State.SWIM:
         _switch_state(State.SWIM_ASCEND)
 
 
-func _jump(delta: float) -> void:
+func _jump(delta: float) -> void:  #TODO: bad naming
     var jump: Jump = controller.character.mechanics[Mechanic.TYPE.JUMP] as Jump
     _run_mechanic(jump, delta)
     if jump._is_grounded():
