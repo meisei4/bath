@@ -71,7 +71,7 @@ func _handle_beat_detection() -> void:
 
     var current_bar_index: int = _detected_beat_index / time_signature
     rhythm_indicator.emit(_detected_beat_index, current_bar_index, BPM)
-    print("▶️ Beat #", _detected_beat_index, " Bar #", current_bar_index, "  BPM=", BPM)
+    #print("▶️ Beat #", _detected_beat_index, " Bar #", current_bar_index, "  BPM=", BPM)
     _detected_beat_index += 1
 
 

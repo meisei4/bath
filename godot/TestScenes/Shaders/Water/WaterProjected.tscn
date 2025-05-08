@@ -1,7 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://dis83nsli1m0i"]
 
-[ext_resource type="Script" uid="uid://ych4iylm1p7u" path="res://godot/Shaders/Water/WaterProjected.gd" id="1_ml6q8"]
+[ext_resource type="Script" uid="uid://dup66et4p2w86" path="res://godot/Shaders/Water/WaterProjected.gd" id="1_ml6q8"]
 
 [node name="WaterProjected" type="Node2D"]
 script = ExtResource("1_ml6q8")
-metadata/_custom_type_script = "uid://ych4iylm1p7u"

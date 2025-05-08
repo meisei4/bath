@@ -1,7 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://dsd5unpns3k16"]
 
-[ext_resource type="Script" uid="uid://dhge1f0dy14as" path="res://godot/Shaders/Compute/PerspectiveTiltMask.gd" id="1_t08d6"]
+[ext_resource type="Script" uid="uid://drs5v5wtxefxi" path="res://godot/Shaders/Compute/PerspectiveTiltMask.gd" id="1_t08d6"]
 
 [node name="PerspectiveTiltMask" type="Node2D"]
 script = ExtResource("1_t08d6")
-metadata/_custom_type_script = "uid://dhge1f0dy14as"

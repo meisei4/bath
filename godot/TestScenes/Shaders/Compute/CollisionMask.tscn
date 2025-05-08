@@ -1,7 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://xk3vh2atafop"]
 
-[ext_resource type="Script" uid="uid://hhj2mlsr5ib3" path="res://godot/Shaders/Compute/CollisionMask.gd" id="1_6h3sj"]
+[ext_resource type="Script" uid="uid://e65uxbcr0deu" path="res://godot/Shaders/Compute/CollisionMask.gd" id="1_6h3sj"]
 
 [node name="CollisionMask" type="Node2D"]
 script = ExtResource("1_6h3sj")
-metadata/_custom_type_script = "uid://hhj2mlsr5ib3"

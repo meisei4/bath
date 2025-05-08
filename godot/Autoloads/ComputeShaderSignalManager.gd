@@ -52,10 +52,11 @@ func _configure_character_body(_character_body: CapsuleDummy) -> void:
     var sprite_node: Sprite2D = _character_body.get_node("Sprite2D") as Sprite2D
     var tex: Texture2D = sprite_node.texture
     var index: int = perspective_tilt_mask.register_sprite_texture(tex)
-    for mechanic: Mechanic in _character_body.mechanics:
-        if mechanic is Jump:
-            mechanic.sprite_texture_index = index
-            break
+    for mechanic_type: Mechanic.TYPE in _character_body.mechanics.keys():
+        match mechanic_type:
+            Mechanic.TYPE.JUMP:
+                _character_body.mechanics[mechanic_type].sprite_texture_index = index
+                break
 
 
 func register_collision_mask(_collision_mask: CollisionMask) -> void:

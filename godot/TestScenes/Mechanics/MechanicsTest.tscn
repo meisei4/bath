@@ -1,7 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://bq2o0bc07hgiy"]
 
-[ext_resource type="Script" uid="uid://du7hn8l440yal" path="res://godot/TestScenes/Mechanics/MechanicsTest.gd" id="1_cc7p8"]
+[ext_resource type="Script" uid="uid://bqshmyubmhsnm" path="res://godot/TestScenes/Mechanics/MechanicsTest.gd" id="1_cc7p8"]
 
 [node name="MechanicsTest" type="Node2D"]
 script = ExtResource("1_cc7p8")
-metadata/_custom_type_script = "uid://du7hn8l440yal"

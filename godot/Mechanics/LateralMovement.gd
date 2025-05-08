@@ -13,13 +13,9 @@ var stretch_timer: float = 0.0
 
 func _ready() -> void:
     #apply_mechanic_animation_shader("res://Resources/Shaders/MechanicAnimations/mechanic_animations.gdshader")
+    #TODO: these signals and the mechanics manager direct calls to process input are hurting my head, I think things are being ran twice per frame?
     MechanicManager.left_lateral_movement.connect(_on_move_left_triggered)
     MechanicManager.right_lateral_movement.connect(_on_move_right_triggered)
-
-
-func _process(delta: float) -> void:
-    process_input(delta)
-    process_visual_illusion(delta)
 
 
 func _on_move_left_triggered() -> void:

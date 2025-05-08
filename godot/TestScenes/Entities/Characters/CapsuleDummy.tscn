@@ -1,7 +1,7 @@
 [gd_scene load_steps=4 format=3 uid="uid://bmt44tetvmqol"]
 
-[ext_resource type="Script" uid="uid://b0y0vf7cnjyk6" path="res://godot/Entities/Characters/CapsuleDummy.gd" id="1_teul3"]
-[ext_resource type="Texture2D" uid="uid://b16h75h2kypwc" path="res://Assets/Sprites/capsule.png" id="2_rv5mx"]
+[ext_resource type="Script" uid="uid://od3hojk68g2e" path="res://godot/Entities/Characters/CapsuleDummy.gd" id="1_teul3"]
+[ext_resource type="Texture2D" uid="uid://ckgqwg6yky1er" path="res://Assets/Sprites/capsule.png" id="2_rv5mx"]
 
 [sub_resource type="ConvexPolygonShape2D" id="ConvexPolygonShape2D_2oyg2"]
 points = PackedVector2Array(-7.5, -7.5, -5.5, -9.5, -1.5, -11.5, 1.5, -11.5, 5.5, -9.5, 7.5, -7.5, 7.5, 7.5, 5.5, 9.5, 1.5, 11.5, -1.5, 11.5, -5.5, 9.5, -7.5, 7.5, -7.5, -7.5)

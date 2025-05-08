@@ -45,8 +45,8 @@ window/size/viewport_width=256
 window/size/viewport_height=384
 window/size/resizable=false
 window/size/always_on_top=true
-window/size/window_width_override=1024
-window/size/window_height_override=1536
+window/size/window_width_override=768
+window/size/window_height_override=1152
 window/stretch/mode="canvas_items"
 
 [editor_plugins]

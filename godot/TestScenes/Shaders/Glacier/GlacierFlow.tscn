@@ -1,7 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://dv6d43pse6i5l"]
 
-[ext_resource type="Script" uid="uid://b1qg11x6o33tu" path="res://godot/Shaders/Glacier/GlacierFlow.gd" id="1_kr85k"]
+[ext_resource type="Script" uid="uid://dev10j4yc3jo8" path="res://godot/Shaders/Glacier/GlacierFlow.gd" id="1_kr85k"]
 
 [node name="GlacierFlow" type="Node2D"]
 script = ExtResource("1_kr85k")
-metadata/_custom_type_script = "uid://b1qg11x6o33tu"
