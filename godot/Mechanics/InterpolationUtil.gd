@@ -14,6 +14,10 @@ static func smooth_damp(
     return Vector2(output, velocity)
 
 
-static func depth_normal(current_depth: float, max_depth: float) -> float:
+static func depth_normal_pow(current_depth: float, max_depth: float) -> float:
     var depth: float = clamp(-current_depth / abs(max_depth), 0.0, 1.0)
     return pow(depth, 2.2)
+
+
+static func depth_normal(current_depth: float, max_depth: float) -> float:
+    return clamp(-current_depth / abs(max_depth), 0.0, 1.0)

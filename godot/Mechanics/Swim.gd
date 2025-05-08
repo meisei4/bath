@@ -51,21 +51,12 @@ func process_input(delta: float) -> void:
 
 func _update_depth(delta: float) -> void:
     var step: float = DEPTH_SPEED * delta
-    current_depth_position = clamp(
-        move_toward(current_depth_position, target_depth_position, step),
-        MAX_DIVE_DEPTH,
-        LEVEL_DEPTH
-    )
-
-    if target_depth_position == LEVEL_DEPTH:
-        if current_depth_position > MAX_DIVE_DEPTH:
-            _set_phase(DivePhase.ASCENDING)
-    else:
-        if current_depth_position < LEVEL_DEPTH:
-            _set_phase(DivePhase.DIVING)
-
-    if abs(current_depth_position - LEVEL_DEPTH) == 0.0:
+    current_depth_position = move_toward(current_depth_position, target_depth_position, step)
+    const THRESHOLD: float = 0.001
+    if abs(current_depth_position - LEVEL_DEPTH) < THRESHOLD:
         _set_phase(DivePhase.LEVEL)
+        return
+    _set_phase(DivePhase.ASCENDING if target_depth_position == LEVEL_DEPTH else DivePhase.DIVING)
 
 
 func process_visual_illusion(_frame_delta: float) -> void:
@@ -87,20 +78,11 @@ func process_visual_illusion(_frame_delta: float) -> void:
     )
 
 
-func _update_sprite_scale(sprite: Sprite2D, depth_normal: float, frame_delta: float) -> void:
-    var scale_min: float = 0.25
+func _update_sprite_scale(sprite: Sprite2D, depth_normal: float, _frame_delta: float) -> void:
+    var scale_min: float = 0.5
     var scale_max: float = 1.0
-    var target_scale: float = lerp(scale_max, scale_min, depth_normal)
-    var current_scale: float = 1.0
-    var scale_velocity: float = 0.0
-    var scale_smoothing_time: float = 0.025
-    var result: Vector2 = InterpolationUtil.smooth_damp(
-        current_scale, target_scale, scale_velocity, scale_smoothing_time, frame_delta
-    )
-    current_scale = result.x
-    scale_velocity = result.y
-
-    sprite.scale = Vector2.ONE * current_scale
+    var smooth_depth = smoothstep(0.0, 1.0, depth_normal)
+    sprite.scale = Vector2.ONE * lerp(scale_max, scale_min, smooth_depth)
 
 
 func is_diving() -> bool:
