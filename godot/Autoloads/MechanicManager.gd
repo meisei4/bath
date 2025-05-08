@@ -14,12 +14,11 @@ class Controller:
 
 
 var controller: Controller
-
 var active_shader: Shader
 
 
 func _ready() -> void:
-    jump_signal.connect(_on_jump_signal)
+    jump_signal.connect(_on_jump)
     set_process(false)
 
 
@@ -56,11 +55,11 @@ func register_controller(body: CapsuleDummy) -> void:
         mechanic.set_process(is_passive_mechanic)
         mechanic.set_physics_process(is_passive_mechanic)
 
-    _activate(controller.character.mechanics[Mechanic.TYPE.SWIM])
+    _activate_mechanic(controller.character.mechanics[Mechanic.TYPE.SWIM])
     set_process(true)  #only run this entire manager when a controller is registered
 
 
-func _activate(next_mechanic: Mechanic) -> void:
+func _activate_mechanic(next_mechanic: Mechanic) -> void:
     for mechanic_type: Mechanic.TYPE in controller.character.mechanics.keys():
         var mechanic: Mechanic = controller.character.mechanics[mechanic_type]
         if mechanic_type == Mechanic.TYPE.LATERAL_MOVEMENT:  #TODO: bad design
@@ -75,10 +74,11 @@ func _activate(next_mechanic: Mechanic) -> void:
 
     var sprite: Sprite2D = next_mechanic.get_sprite()
     if sprite:
-        if sprite.material == null:
+        if sprite.material:
+            sprite.material.shader = shader
+            active_shader = shader
+        else:
             sprite.material = ShaderMaterial.new()
-        sprite.material.shader = shader
-        active_shader = shader
 
 
 func _run_mechanic(mechanic: Mechanic, delta: float) -> void:
@@ -91,26 +91,15 @@ func _switch_state(next_state: State) -> void:
     controller.state = next_state
     match next_state:
         State.SWIM, State.SWIM_ASCEND:
-            _activate(controller.character.mechanics[Mechanic.TYPE.SWIM])
+            _activate_mechanic(controller.character.mechanics[Mechanic.TYPE.SWIM])
         State.JUMP:
-            _activate(controller.character.mechanics[Mechanic.TYPE.JUMP])
+            _activate_mechanic(controller.character.mechanics[Mechanic.TYPE.JUMP])
             controller.character.mechanics[Mechanic.TYPE.JUMP]._on_jump()  #TODO: bad design
 
 
-func _on_jump_signal() -> void:
+func _on_jump() -> void:
     if controller.state == State.SWIM:
         _switch_state(State.SWIM_ASCEND)
-
-
-func _swim_ascend(delta: float) -> void:
-    var swim: Swim = controller.character.mechanics[Mechanic.TYPE.SWIM] as Swim
-    if swim.target_depth_position < 0.99:
-        swim.target_depth_position = 1.0
-        swim._set_phase(Swim.DivePhase.ASCENDING)
-
-    _run_mechanic(swim, delta)
-    if swim.current_depth_position >= 0.99:
-        _switch_state(State.JUMP)
 
 
 func _jump(delta: float) -> void:
@@ -118,3 +107,14 @@ func _jump(delta: float) -> void:
     _run_mechanic(jump, delta)
     if jump._is_grounded():
         _switch_state(State.SWIM)
+
+
+func _swim_ascend(delta: float) -> void:
+    var swim: Swim = controller.character.mechanics[Mechanic.TYPE.SWIM] as Swim
+    if swim.target_depth_position != Swim.LEVEL_DEPTH:
+        swim.target_depth_position = Swim.LEVEL_DEPTH
+        swim._set_phase(Swim.DivePhase.ASCENDING)
+
+    _run_mechanic(swim, delta)
+    if swim.current_depth_position >= Swim.LEVEL_DEPTH:
+        _switch_state(State.JUMP)

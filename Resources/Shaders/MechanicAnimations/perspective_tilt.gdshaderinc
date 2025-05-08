@@ -13,8 +13,10 @@ void compute_perspective_tilt(
     in vec2 uv,
     in float altitude_normal,
     in bool ascending,
+    in float max_tilt_angle,
     out vec2 altered_uv,
     out float perspective_tilt //TODO: this is unused in the frag shader, only used in compute shader
+
 ) {
     // 1) normalized 0->1 fraction through jump cycle (0 = lift‑off/land, 1 = apex, back to 0 for landing)
     float jump_phase_progress = altitude_normal;
@@ -22,7 +24,7 @@ void compute_perspective_tilt(
     float sprite_tilt_phase_progress = 1.0 - jump_phase_progress;
     // 3) Calculate tilt angle based on jump progress (0 at apex, max at ground)
     // 3) TODO: this is still hurting my head
-    float current_tilt_angle = sprite_tilt_phase_progress * MAXIMUM_TILT_ANGLE_ACHIEVED_AT_IMMEDIATE_ASCENSION_AND_FINAL_DESCENT;
+    float current_tilt_angle = sprite_tilt_phase_progress * max_tilt_angle;
     // 4) Negate to tilt sprite toward the screen (pseudo-3D lean)
     // 4) TODO: idk why but it needs to happen... because of the mess i got myself into up until not
     current_tilt_angle = NEGATE_TILT_ANGLE * current_tilt_angle;

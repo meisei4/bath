@@ -3,7 +3,7 @@ extends Node
 
 signal rhythm_indicator(beat_index: int, bar_index: int, beats_per_minute: float)
 
-var time_signature: int = 4
+var time_signature: int = 8
 var onset_detection_threshold: float = 0.1  # Minimum rise in audio level to count as a beat
 var audio_capture_interval_seconds: float = 0.0333333  # Seconds per capture (~30 Hz)
 
@@ -59,7 +59,7 @@ func _handle_beat_detection() -> void:
             _interval_history_milliseconds.pop_front()
 
         var total_interval_milliseconds: float = 0.0
-        for interval in _interval_history_milliseconds:
+        for interval: float in _interval_history_milliseconds:
             total_interval_milliseconds += interval
 
         var average_interval_milliseconds: float = (

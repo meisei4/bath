@@ -4,6 +4,8 @@ uniform vec2 iResolution;
 uniform sampler2D iChannel0: filter_nearest;
 uniform float depth_normal;
 uniform bool ascending;
+const float max_tilt_angle = MAXIMUM_TILT_ANGLE_ACHIEVED_AT_IMMEDIATE_ASCENSION_AND_FINAL_DESCENT;
+
 
 void fragment() {
 //void mainImage(out vec4 frag_color, in vec2 frag_coord) {
@@ -19,6 +21,7 @@ void fragment() {
             uv,
             depth_normal,
             ascending,
+            max_tilt_angle,
             altered_uv,
             perspective_tilt
         );

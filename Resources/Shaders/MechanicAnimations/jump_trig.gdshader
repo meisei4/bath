@@ -7,6 +7,8 @@ uniform vec2 iResolution;
 uniform sampler2D iChannel0: filter_nearest; //TODO: figure out filtering stuff with all the shaders for consistency
 uniform float altitude_normal; //value from 0 -> 1 -> 0 tracing the jump state as a normal scale for altitude
 uniform bool  ascending;
+const float max_tilt_angle = MAXIMUM_TILT_ANGLE_ACHIEVED_AT_IMMEDIATE_ASCENSION_AND_FINAL_DESCENT;
+
 
 void fragment() {
 //void mainImage(out vec4 frag_color, in vec2 frag_coord) {
@@ -22,6 +24,7 @@ void fragment() {
             uv,
             altitude_normal,
             ascending,
+            max_tilt_angle,
             altered_uv,
             perspective_tilt
         );
