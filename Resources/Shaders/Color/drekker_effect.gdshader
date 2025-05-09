@@ -66,7 +66,7 @@ float compute_local_cell_progress_x(float uv_x, float grid_width_in_columns) {
                                            .     |
                                         .        |
                                  . . .         0 |
-        <---------------.-.--*-'-'----------------+
+        <---------------.-.--*-'-'---------------+
         | 1      . . .
         |     .
         |   .
@@ -83,23 +83,23 @@ Definition of `compute_vertical_curvature_hyperbolic()`:
          = k · (1/x – 1/(1–x))
 
            k · (1 – 2x)
-         = ———————
+         = ------------
            x · (1 – x)
 
 BEHAVIOR/BOUNDS/LIMITS:
     x -> 0:
-             k · (1)       k
-    f(x) =  ————  =  ——  -> +∞ (+INFINITY)
-             x · (1)      x
+             k · (1)        k
+    f(x) =  ---------  =  -----  -> +∞ (+INFINITY)
+             x · (1)        x
 
     x == 0.5:
       numerator = k · (1 – 2 · 0.5) = 0
             -> f(0.5) = 0
 
     x -> 1⁻:
-      f(x) =  k · (1 – 2 · 1)      -k · (1)       –k
-             ————————  =  —————  =  ——  -> -∞ (-INFINITY)
-                1 · (1 – x)         1 – x        1 – x
+      f(x) =  k · (1 – 2 · 1)      -k · (1)      –k
+             ----------------- =  --------- =  -------  -> -∞ (-INFINITY)
+                1 · (1 – x)         1 – x       1 – x
 */
 float compute_horizontal_hyperbolic_curvature(float cell_progress_x) {
     float left_curve_downwards    = HYPERBOLIC_AMPLITUDE * ((1.0 / cell_progress_x) - 1.0);
@@ -166,12 +166,12 @@ float compute_vertical_cubic_thickness(float local_cell_progress_y) {
 }
 
 vec4 sample_uv_in_grid_space(vec2 uv, vec2 grid_dimensions) {
-    float column_index                   = compute_discrete_column_index(uv.x, grid_dimensions.x);
+    float column_index                    = compute_discrete_column_index(uv.x, grid_dimensions.x);
     float local_cell_progress_x           = compute_local_cell_progress_x(uv.x, grid_dimensions.x);
     float horizontal_hyperbolic_curvature = compute_horizontal_hyperbolic_curvature(local_cell_progress_x);
 
     float vertical_row_shift_per_column    = LOCAL_CELL_SPACE_VERTICAL_SHIFT_SCALAR * column_index;
-    float row_index                       = compute_discrete_row_index(uv.y, vertical_row_shift_per_column, grid_dimensions.y, horizontal_hyperbolic_curvature);
+    float row_index                        = compute_discrete_row_index(uv.y, vertical_row_shift_per_column, grid_dimensions.y, horizontal_hyperbolic_curvature);
     float local_cell_progress_y            = compute_local_cell_progress_y(uv.y, vertical_row_shift_per_column, grid_dimensions.y, horizontal_hyperbolic_curvature);
 
     float phase_shifted_local_cell_progress_y = local_cell_progress_y - LOCAL_CELL_SPACE_CENTER_OFFSET;
