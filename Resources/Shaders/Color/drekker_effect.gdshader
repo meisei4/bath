@@ -3,7 +3,7 @@ shader_type canvas_item;
 //render_mode blend_disabled; THIS WILL MAYBE MAKE THE ALPHA CHANNEL 1.0 assignment not needed/optimized???
 
 //TODO: MAY 9th next time explore more with macros to separate out each of the transformations performed to truly
-// be able to visualize what each operation is in charge of 
+// be able to visualize what each operation is in charge of
 uniform vec2 iResolution;
 uniform sampler2D iChannel0: filter_nearest_mipmap, repeat_enable;
 
@@ -125,7 +125,7 @@ float compute_local_cell_progress_y(float uv_y, float vertical_row_shift_per_col
 }
 
 /*
-Phase shifted local cell space vertical CUBIC thickening 
+Phase shifted local cell space vertical CUBIC thickening
 thickest between cells, thinnest in the middle of cells
   f(y)=y³
                     ^ +0.125            *
