@@ -15,7 +15,7 @@ const float TEXTURE_LOD_BASE_LEVEL        = 0.0;
 const float DEFAULT_GRID_COLUMNS          = 11.0;
 const float DEFAULT_GRID_ROWS             = 7.0;
 const float GRID_CELLS_OUTER_PADDING        = 0.10;
-// THE MARGINS ARE STILL COMPUTED FROM x= 0.0 origin, so to get the
+// THE MARGINS ARE ALL COMPUTED FROM x= 0.0 origin, so to get the
 // LEFT side of the cell you just take x origin + 0.10
 const float GRID_CELLS_LATERAL_MARGIN_LEFT  = 0.10;
 // RIGHT side of the cell you just take x origin + 1.0 - 0.10 = 0.90
@@ -106,20 +106,20 @@ float compute_hyperbolic_curvature(float cell_progress_x) {
 }
 
 float compute_discrete_row_index(float uv_y, float column_index, vec2 grid_dimensions, float curvature) {
-    float staggered_y      = uv_y + column_index * GRID_COLUMNS_VERTICAL_SHIFT_SCALAR;
-    float row_units_y      = staggered_y * grid_dimensions.y;
-    float curved_y         = row_units_y + curvature;
-    float discrete_row_index = floor(curved_y);
-
-    return discrete_row_index;
+    float shifted_uv_y               = uv_y + column_index * GRID_COLUMNS_VERTICAL_SHIFT_SCALAR;
+    float shifted_row_units_y        = shifted_uv_y * grid_dimensions.y;
+    float curved_shifted_row_units_y = shifted_row_units_y + curvature;
+    float discrete_row_index_after_shift_and_curve = floor(curved_shifted_row_units_y);
+    return discrete_row_index_after_shift_and_curve;
 }
 
 float compute_cell_progress_y(float uv_y,float column_index, vec2 grid_dimensions,float curvature) {
-    float staggered_y     = uv_y + column_index * GRID_COLUMNS_VERTICAL_SHIFT_SCALAR;
-    float row_units_y     = staggered_y * grid_dimensions.y;
-    float curved_y        = row_units_y + curvature;
-    float curved_y_offset = fract(curved_y) - GRID_CELL_CENTER_OFFSET;
-    return curved_y_offset;
+    float shifted_uv_y               = uv_y + column_index * GRID_COLUMNS_VERTICAL_SHIFT_SCALAR;
+    float shifted_row_units_y        = shifted_uv_y * grid_dimensions.y;
+    float curved_shifted_row_units_y = shifted_row_units_y + curvature;
+    //TODO: why is this offset by center of cell?
+    float half_cell_progress_y_after_shift_and_curve = fract(curved_shifted_row_units_y) - GRID_CELL_CENTER_OFFSET;
+    return half_cell_progress_y_after_shift_and_curve;
 }
 
 // TODO: start here tomorrow i have no idea whats happening, and how this results in the fat middle of the cell
@@ -145,11 +145,11 @@ vec4 sample_grid_at_fragment(vec2 uv, vec2 grid_dimensions) {
     float u = column_normal;
     float v = row_normal + scaled_vertical_thickness - vertical_shift_per_column;
 
-    vec4 color = textureLod(iChannel0, vec2(u,v), TEXTURE_LOD_BASE_LEVEL);
+    vec4 src_color = textureLod(iChannel0, vec2(u,v), TEXTURE_LOD_BASE_LEVEL);
 
-    CLEAR_CELL_BORDERS_ALPHA(color, cell_progress_x, cell_progress_y);
+    CLEAR_CELL_BORDERS_ALPHA(src_color, cell_progress_x, cell_progress_y);
 
-    return color;
+    return src_color;
 }
 
 vec2 advance_weyl_sequence(vec2 current_sequence_state) {
@@ -162,16 +162,15 @@ vec4 super_sample_with_weyl_sequence_jitter(vec2 frag_coord, vec2 grid_dimension
     vec4 weyl_sequence_jitter   = vec4(0.0);
     int  remaining_pixels_in_super_sample = SUPERSAMPLE_ANTI_ALIASING_PIXELS_PER_SAMPLE;
     vec2 current_sequence_state = WEYL_SEQUENCE_JITTER_INITIAL_STATE;
-
     while (remaining_pixels_in_super_sample > 0) {
         current_sequence_state = advance_weyl_sequence(current_sequence_state);
+        //TODO: why is this offset by center of cell?
         vec2 jitter_offset     = current_sequence_state - GRID_CELL_CENTER_OFFSET;
         vec2 sample_coord      = frag_coord + jitter_offset;
         vec2 uv                = sample_coord / iResolution.y;
         weyl_sequence_jitter   = weyl_sequence_jitter + sample_grid_at_fragment(uv, grid_dimensions);
         remaining_pixels_in_super_sample = remaining_pixels_in_super_sample - 1;
     }
-
     return weyl_sequence_jitter;
 }
 
