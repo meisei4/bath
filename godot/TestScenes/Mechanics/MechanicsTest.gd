@@ -20,4 +20,4 @@ func _ready() -> void:
     MechanicManager.register_controller(capsule_dummy)
 
     var music_resource: AudioStream = load(AudioConsts.HELLION_MP3)
-    AudioManager.play_music(music_resource, 0.0)
+    #AudioManager.play_music(music_resource, 0.0)
