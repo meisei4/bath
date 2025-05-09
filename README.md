@@ -1,3 +1,10 @@
+##NEW SETTINGS THINGS:
+## in order to centralize resolution settings i have introduced an optional project settings override config file, read about it to learn about it plox:
+Best description of the issue i was trying to solve (caused by different scene contexts, and even different device screen sizes causing ugly behavior with the window sizes):
+https://github.com/meisei4/bath/blob/main/godot/Autoloads/ResolutionManager.gd
+new file:
+https://github.com/meisei4/bath/blob/main/experimental_resolution_override.cfg
+
 This project uses the Rust GDExtension (https://godot-rust.github.io/) to accelerate compute‐shader <-> physics utilities in Godot 4.4.x.
 Before opening the project, make sure you have Rust and Cargo installed so that the extension can be built.
 ## 1. Install Rust & Cargo
