@@ -83,13 +83,13 @@ Definition of `compute_vertical_curvature_hyperbolic()`:
          = k · (1/x – 1/(1–x))
 
            k · (1 – 2x)
-         = ———————————
+         = ———————
            x · (1 – x)
 
 BEHAVIOR/BOUNDS/LIMITS:
     x -> 0:
-            k · (1)       k
-    f(x) =  ————————  =  ————  -> +∞ (+INFINITY)
+             k · (1)       k
+    f(x) =  ————  =  ——  -> +∞ (+INFINITY)
              x · (1)      x
 
     x == 0.5:
@@ -98,7 +98,7 @@ BEHAVIOR/BOUNDS/LIMITS:
 
     x -> 1⁻:
       f(x) =  k · (1 – 2 · 1)      -k · (1)       –k
-             —————————————————  =  —————————  =  ——————  -> -∞ (-INFINITY)
+             ————————  =  —————  =  ——  -> -∞ (-INFINITY)
                 1 · (1 – x)         1 – x        1 – x
 */
 float compute_horizontal_hyperbolic_curvature(float cell_progress_x) {
@@ -217,7 +217,7 @@ vec4 super_sample_with_weyl_sequence_jitter(vec2 frag_coord, vec2 grid_dimension
 void fragment() {
 //void mainImage(out vec4 frag_color, in vec2 frag_coord) {
     vec2 frag_coord     = vec2(UV.x * iResolution.x,
-                              UV.y * iResolution.y);
+                               UV.y * iResolution.y);
     vec2 uv             = frag_coord / iResolution.y;
     //vec2 uv           = frag_coord / iResolution.y;
     vec2 grid_dimensions = compute_grid_dimensions();
