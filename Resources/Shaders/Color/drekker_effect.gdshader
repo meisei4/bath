@@ -1,7 +1,9 @@
 shader_type canvas_item;
+render_mode blend_disabled; // TODO you have to do this if you want to send feedback vals in the alpha channel idiot
+
 //this is a verbose study of cotterrzz max drecker reproduction https://www.shadertoy.com/view/33SSDm
 uniform vec2 iResolution;
-uniform sampler2D iChannel0: filter_linear_mipmap, repeat_enable;
+uniform sampler2D iChannel0: filter_nearest_mipmap, repeat_enable;
 
 const int   SUPERSAMPLE_COUNT                 = 64;
 const float SUPERSAMPLE_COUNT_F               = float(SUPERSAMPLE_COUNT);
@@ -126,8 +128,7 @@ vec4 super_sample_with_weyl_sequence_jitter(vec2 frag_coord, vec2 grid_dimension
 void fragment() {
 //void mainImage(out vec4 frag_color, in vec2 frag_coord) {
     vec2 uv              = UV;
-    vec2 frag_coord      = uv * iResolution;
-
+    vec2 frag_coord      = uv * iResolution.y;
     //vec2 uv            = frag_coord / iResolution.y;
     vec2 grid_dimensions = compute_grid_dimensions();
     vec4 color = sample_grid_at_fragment(uv, grid_dimensions);
