@@ -1,39 +1,29 @@
 //this is a verbose study of cotterrzz max drecker reproduction https://www.shadertoy.com/view/33SSDm
 shader_type canvas_item;
 //render_mode blend_disabled; THIS WILL MAYBE MAKE THE ALPHA CHANNEL 1.0 assignment not needed/optimized???
+#include "res://Resources/Shaders/Color/supersampling.gdshaderinc"
 
-//TODO: MAY 9th next time explore more with macros to separate out each of the transformations performed to truly
-// be able to visualize what each operation is in charge of
 uniform vec2 iResolution;
 uniform sampler2D iChannel0: filter_nearest_mipmap, repeat_enable;
 
 const float TEXTURE_LOD_BASE_LEVEL = 0.0;
 
-const float GRID_COLUMNS          = 11.0;
-const float GRID_ROWS             = 7.0;
+const float GRID_COLUMNS           = 11.0;
+const float GRID_ROWS              = 7.0;
 
-const float LOCAL_CELL_SPACE_UPPER_AND_LOWER_PADDING = 0.10;
-const float LOCAL_CELL_SPACE_MARGIN_LEFT  = 0.10; // 10% margin on the left
-const float LOCAL_CELL_SPACE_MARGIN_RIGHT = 0.90; // remember this is from x origin, to achieve 10% margin on the right
-const float LOCAL_CELL_SPACE_CENTER_OFFSET         = 0.5; // center of a grid cell
-const float LOCAL_CELL_SPACE_VERTICAL_SHIFT_SCALAR = 0.10; //shift vertically by 10% of the grid's row height
+const float LOCAL_CELL_SPACE_UPPER_AND_LOWER_BOUNDARY = 0.10;
+const float LOCAL_CELL_SPACE_BOUNDARY_LEFT            = 0.10; // 10% margin on the left
+const float LOCAL_CELL_SPACE_BOUNDARY_RIGHT           = 0.90; // remember this is from x origin, to achieve 10% margin on the right
+const float LOCAL_CELL_SPACE_VERTICAL_SHIFT_SCALAR    = 0.10; //shift vertically by 10% of the grid's row height
 
-//TODO: study this more
-const float HYPERBOLIC_AMPLITUDE                = 0.01;
-//TODO: figure out how to perhaps integrate a more intuitive scalar that beefs up the vertical thickness effect
-const float THICKNESS_AMPLITUDE                 = 100.0;
+//TODO: try different amplitudes and perhaps figure out different curvature functions to work with
+const float HYPERBOLIC_AMPLITUDE = 0.01;
+const float THICKNESS_AMPLITUDE  = 200.0;
 
-//TODO: haha
-const int   SUPERSAMPLE_ANTI_ALIASING_PIXELS_PER_SAMPLE = 64;
-const float SUPERSAMPLE_ANTI_ALIASING_PIXELS_PER_SAMPLE_F = float(SUPERSAMPLE_ANTI_ALIASING_PIXELS_PER_SAMPLE);
-const vec2  WEYL_SEQUENCE_JITTER_INITIAL_STATE = vec2(LOCAL_CELL_SPACE_CENTER_OFFSET);
-const vec2  WEYL_SEQUENCE_STEP                = vec2(0.754877669, 0.569840296);
-
-
-#define CLEAR_CELL_BORDERS_ALPHA(color, x, y) {                   \
-            if ( abs(y) > LOCAL_CELL_SPACE_UPPER_AND_LOWER_PADDING \
-               || (x)   < LOCAL_CELL_SPACE_MARGIN_LEFT            \
-               || (x)   > LOCAL_CELL_SPACE_MARGIN_RIGHT) {       \
+#define ALPHA_CLEAR_TEXELS_OUTSIDE_CELL_BOUNDARIES(color, x, y) {                   \
+            if ( abs(y) > LOCAL_CELL_SPACE_UPPER_AND_LOWER_BOUNDARY \
+               || (x)   < LOCAL_CELL_SPACE_BOUNDARY_LEFT            \
+               || (x)   > LOCAL_CELL_SPACE_BOUNDARY_RIGHT) {       \
                 (color).a = 0.0;                               \
             }                                                \
         }
@@ -54,8 +44,7 @@ float compute_local_cell_progress_x(float uv_x, float grid_width_in_columns) {
     return local_cell_progress_x;
 }
 
-/// TODO: THE BELOW MATH IS ALL WRONG ITS APPROACHING 1 vs apporaching 0,
-/// and i messed it up in ascii, fix it later, the texture gets flipped in
+/// mirrored on accident, i messed it up in ascii, fix it later, the texture gets flipped in
 /// the viewport so i messed up the orientation and that messed up my understanding of the limits...
 /*
                                                . ^ INFINITY +∞
@@ -77,7 +66,7 @@ float compute_local_cell_progress_x(float uv_x, float grid_width_in_columns) {
         v
 
 Let k (kappa?) = HYPERBOLIC_AMPLITUDE
-Definition of `compute_vertical_curvature_hyperbolic()`:
+Definition of compute_vertical_curvature_hyperbolic():
     f(x) = left_curve_downwards – right_curve_upwards
          = (k/x – k) – (k/(1–x) – k)
          = k · (1/x – 1/(1–x))
@@ -136,7 +125,7 @@ thickest between cells, thinnest in the middle of cells
                     |             **
                     |           **
                     | 0    ****
-–0.5 ----------------+------------------ +0.5
+–0.5 ---------------+------------------ +0.5
            ****     |
        **           |
      **             |
@@ -174,7 +163,7 @@ vec4 sample_uv_in_grid_space(vec2 uv, vec2 grid_dimensions) {
     float row_index                        = compute_discrete_row_index(uv.y, vertical_row_shift_per_column, grid_dimensions.y, horizontal_hyperbolic_curvature);
     float local_cell_progress_y            = compute_local_cell_progress_y(uv.y, vertical_row_shift_per_column, grid_dimensions.y, horizontal_hyperbolic_curvature);
 
-    float phase_shifted_local_cell_progress_y = local_cell_progress_y - LOCAL_CELL_SPACE_CENTER_OFFSET;
+    float phase_shifted_local_cell_progress_y = local_cell_progress_y - NORMAL_CENTER_OFFSET;
     float vertical_cubic_thickness            = compute_vertical_cubic_thickness(phase_shifted_local_cell_progress_y);
     float vertical_cubic_thickness_normal     = vertical_cubic_thickness / iResolution.y;
     float amplified_vertical_thickness        = THICKNESS_AMPLITUDE * vertical_cubic_thickness_normal;
@@ -185,32 +174,46 @@ vec4 sample_uv_in_grid_space(vec2 uv, vec2 grid_dimensions) {
     float v = row_normal + amplified_vertical_thickness - vertical_row_shift_per_column;
 
     vec4 src_color = textureLod(iChannel0, vec2(u,v), TEXTURE_LOD_BASE_LEVEL);
-
-    CLEAR_CELL_BORDERS_ALPHA(src_color, local_cell_progress_x, local_cell_progress_y);
-
+    ALPHA_CLEAR_TEXELS_OUTSIDE_CELL_BOUNDARIES(src_color, local_cell_progress_x, local_cell_progress_y);
     return src_color;
 }
 
-vec2 advance_weyl_sequence(vec2 current_sequence_state) {
-    vec2 next_sequence_state          = current_sequence_state + WEYL_SEQUENCE_STEP.yx;
-    vec2 next_sequence_state_fraction = fract(next_sequence_state);
-    return next_sequence_state_fraction;
+
+vec4 uniform_supersample(vec2 frag_coord, vec2 grid_dimensions) {
+    vec4 uniform_distribution = vec4(0.0);
+    int  remaining_subpixels_in_supersample     = UNIFORM_SUPERSAMPLE_RESOLUTION_SUBPIXEL_SAMPLES_PER_PIXEL;
+    #ifdef DISTRIBUTE_WITH_FRACTIONAL_STEP
+        vec2  current_uniform_subpixel_position = UNIFORM_SUPERSAMPLE_DISTRIBUTION_INITIAL_OFFSET_FRACTIONAL;
+    #else
+        vec2  current_uniform_subpixel_position = UNIFORM_SUPERSAMPLE_DISTRIBUTION_INITIAL_OFFSET_ROW_MAJOR;
+    #endif
+
+    while (remaining_subpixels_in_supersample > 0) {
+        #ifdef DISTRIBUTE_WITH_FRACTIONAL_STEP
+            current_uniform_subpixel_position = position_uniform_subpixel_fractional_stepping(current_uniform_subpixel_position);
+        #else
+            current_uniform_subpixel_position = position_uniform_subpixel_normal_stepping(current_uniform_subpixel_position);
+        #endif
+        vec2 sample_coord                  = frag_coord + current_uniform_subpixel_position;
+        vec2 uv                            = sample_coord / iResolution.y;
+        uniform_distribution               = uniform_distribution + sample_uv_in_grid_space(uv, grid_dimensions);
+        remaining_subpixels_in_supersample = remaining_subpixels_in_supersample - 1;
+    }
+    return uniform_distribution / UNIFORM_SUPERSAMPLE_RESOLUTION_SUBPIXEL_SAMPLES_PER_PIXEL_F;
 }
 
-vec4 super_sample_with_weyl_sequence_jitter(vec2 frag_coord, vec2 grid_dimensions) {
-    vec4 weyl_sequence_jitter   = vec4(0.0);
-    int  remaining_pixels_in_super_sample = SUPERSAMPLE_ANTI_ALIASING_PIXELS_PER_SAMPLE;
-    vec2 current_sequence_state = WEYL_SEQUENCE_JITTER_INITIAL_STATE;
-    while (remaining_pixels_in_super_sample > 0) {
-        current_sequence_state = advance_weyl_sequence(current_sequence_state);
-        //TODO: why is this offset by center of cell?
-        vec2 jitter_offset     = current_sequence_state - LOCAL_CELL_SPACE_CENTER_OFFSET;
-        vec2 sample_coord      = frag_coord + jitter_offset;
-        vec2 uv                = sample_coord / iResolution.y;
-        weyl_sequence_jitter   = weyl_sequence_jitter + sample_uv_in_grid_space(uv, grid_dimensions);
-        remaining_pixels_in_super_sample = remaining_pixels_in_super_sample - 1;
+vec4 jitter_supersample(vec2 frag_coord, vec2 grid_dimensions) {
+    vec4 jittered_distribution  = vec4(0.0);
+    int  remaining_subpixels_in_supersample = JITTERED_SUPERSAMPLE_RESOLUTION_SUBPIXEL_SAMPLES_PER_PIXEL;
+    vec2 current_jitter_subpixel_position   = JITTERED_SUPERSAMPLE_DISTRIBUTION_INITIAL_OFFSET;
+    while (remaining_subpixels_in_supersample > 0) {
+        current_jitter_subpixel_position    = position_jitter_subpixel(current_jitter_subpixel_position);
+        vec2 sample_coord                   = frag_coord + current_jitter_subpixel_position;
+        vec2 uv                             = sample_coord / iResolution.y;
+        jittered_distribution               = jittered_distribution + sample_uv_in_grid_space(uv, grid_dimensions);
+        remaining_subpixels_in_supersample  = remaining_subpixels_in_supersample - 1;
     }
-    return weyl_sequence_jitter;
+    return jittered_distribution / JITTERED_SUPERSAMPLE_RESOLUTION_SUBPIXEL_SAMPLES_PER_PIXEL_F;
 }
 
 #define BORDER_CLEARING
@@ -230,10 +233,39 @@ void fragment() {
     } else
     #endif //HACK...
     {
-        src_color = super_sample_with_weyl_sequence_jitter(frag_coord, grid_dimensions);
-        src_color = src_color / SUPERSAMPLE_ANTI_ALIASING_PIXELS_PER_SAMPLE_F;
-        src_color.a = 1.0; // HARDCODE STRAIGHT ALPHA BLEND TO NOT OCCUR (i.e. destination.rgb * 0.0)
+        #ifdef UNIFORM_SUPERSAMPLE
+            src_color = uniform_supersample(frag_coord, grid_dimensions);
+        #endif
+        #ifdef JITTERED_SUPERSAMPLE
+            src_color = jitter_supersample(frag_coord, grid_dimensions);
+        #endif
+        src_color.a = 1.0;
         COLOR = src_color;
         //frag_color = src_color;
     }
 }
+
+// SPACE DENOMINATIONS:
+//1. CANVAS NORMAL UV
+//  - frag_coord ∈ [0…iResolution.xy] (pixels)
+//  - uv = frag_coord / iResolution.y ∈ [0…(iResolution.x/iResolution.y)]×[0…1]
+
+//2. LOCAL CELL NORMAL
+//  - local_cell_progress_x/y ∈ [0…1]
+//  - used by sample_uv_in_grid_space to pick which texel and apply hyperbolic/cubic warps.
+
+//3. SUBPIXEL NORMAL
+//  - store a normalized position ∈ [0…1) in current_*_subpixel_position
+//  - then subtract LOCAL_CELL_SPACE_CENTER_OFFSET (0.5) → [-0.5…+0.5] so that
+
+// IF ALL floating point numbers are integer_part + fraction_part: e.g. 1.5 = 1 + (1/2) = 1 + 0.5
+// then to get the fraction part you just do:
+//float fract(float x) {
+    //int integer_part = floor(x)
+    //float fraction_part = x - integer_part
+    //return fraction_part;
+//}
+
+
+//https://en.wikipedia.org/wiki/Supersampling
+// ^^ check out the techniques!!
