@@ -1,32 +1,36 @@
 //this is a verbose study of cotterrzz max drecker reproduction https://www.shadertoy.com/view/33SSDm
 shader_type canvas_item;
-//render_mode blend_disabled; THIS WILL MAYBE MAKE THE ALPHA CHANNEL 1.0 assignment not needed/optimized???
+render_mode blend_disabled; //THIS WILL MAYBE MAKE THE ALPHA CHANNEL 1.0 assignment not needed/optimized???
 #include "res://Resources/Shaders/Color/supersampling.gdshaderinc"
 
 uniform vec2 iResolution;
 uniform sampler2D iChannel0: filter_nearest_mipmap, repeat_enable;
 
-const float TEXTURE_LOD_BASE_LEVEL = 0.0;
+#define TEXTURE_LOD_BASE_LEVEL 0.0
+#define GRID_COLUMNS           2.0
+#define GRID_ROWS              4.0
 
-const float GRID_COLUMNS           = 11.0;
-const float GRID_ROWS              = 7.0;
+#define MARGIN 0.1 //TODO: this doesnt have enough effect to justify existing
 
-const float LOCAL_CELL_SPACE_UPPER_AND_LOWER_BOUNDARY = 0.10;
-const float LOCAL_CELL_SPACE_BOUNDARY_LEFT            = 0.10; // 10% margin on the left
-const float LOCAL_CELL_SPACE_BOUNDARY_RIGHT           = 0.90; // remember this is from x origin, to achieve 10% margin on the right
-const float LOCAL_CELL_SPACE_VERTICAL_SHIFT_SCALAR    = 0.10; //shift vertically by 10% of the grid's row height
+#define LOCAL_CELL_SPACE_UPPER_AND_LOWER_BOUNDARY MARGIN
+#define LOCAL_CELL_SPACE_BOUNDARY_LEFT            MARGIN// 10% margin on the left
+#define LOCAL_CELL_SPACE_BOUNDARY_RIGHT           1.0 - MARGIN // remember this is from x origin, to achieve 10% margin on the right subtract from 1
+#define LOCAL_CELL_SPACE_VERTICAL_SHIFT_SCALAR    0.10//shift vertically by 10% of the grid's row height
 
 //TODO: try different amplitudes and perhaps figure out different curvature functions to work with
-const float HYPERBOLIC_AMPLITUDE = 0.01;
-const float THICKNESS_AMPLITUDE  = 200.0;
+#define HYPERBOLIC_AMPLITUDE 0.01
+#define THICKNESS_AMPLITUDE  200.0
 
-#define ALPHA_CLEAR_TEXELS_OUTSIDE_CELL_BOUNDARIES(color, x, y) {                   \
+#define ALPHA_CLEAR_TEXELS_OUTSIDE_CELL_BOUNDARIES(color, x, y) {  \
             if ( abs(y) > LOCAL_CELL_SPACE_UPPER_AND_LOWER_BOUNDARY \
                || (x)   < LOCAL_CELL_SPACE_BOUNDARY_LEFT            \
                || (x)   > LOCAL_CELL_SPACE_BOUNDARY_RIGHT) {       \
                 (color).a = 0.0;                               \
             }                                                \
         }
+                //(color).r = 1.0;                               \
+                //(color).g = 0.0;                               \
+                //(color).b = 0.0;                               \
 
 vec2 compute_grid_dimensions() {
     return vec2(GRID_COLUMNS, GRID_ROWS);
@@ -154,6 +158,19 @@ float compute_vertical_cubic_thickness(float local_cell_progress_y) {
     return local_cell_progress_y * local_cell_progress_y * local_cell_progress_y;
 }
 
+vec4 debug_cell_shapes(float local_cell_progress_x, float local_cell_progress_y){
+    float bw = 10.0 / iResolution.y;  // 2‐pixel border
+    bool nearLeft   = local_cell_progress_x < bw;
+    bool nearRight  = local_cell_progress_x > 1.0 - bw;
+    bool nearBottom = local_cell_progress_y < bw;
+    bool nearTop    = local_cell_progress_y > 1.0 - bw;
+
+    if (nearLeft || nearRight || nearBottom || nearTop) {
+        return vec4(1.0, 0.0, 0.0, 1.0);
+    }
+    return vec4(0.0, 0.0, 0.0, 0.0);
+}
+
 vec4 sample_uv_in_grid_space(vec2 uv, vec2 grid_dimensions) {
     float column_index                    = compute_discrete_column_index(uv.x, grid_dimensions.x);
     float local_cell_progress_x           = compute_local_cell_progress_x(uv.x, grid_dimensions.x);
@@ -173,27 +190,18 @@ vec4 sample_uv_in_grid_space(vec2 uv, vec2 grid_dimensions) {
     float u = column_normal;
     float v = row_normal + amplified_vertical_thickness - vertical_row_shift_per_column;
 
-    vec4 src_color = textureLod(iChannel0, vec2(u,v), TEXTURE_LOD_BASE_LEVEL);
+    vec4 src_color = debug_cell_shapes(local_cell_progress_x, local_cell_progress_y);
+    src_color += textureLod(iChannel0, vec2(u,v), TEXTURE_LOD_BASE_LEVEL);
     ALPHA_CLEAR_TEXELS_OUTSIDE_CELL_BOUNDARIES(src_color, local_cell_progress_x, local_cell_progress_y);
     return src_color;
 }
 
-
-vec4 uniform_supersample(vec2 frag_coord, vec2 grid_dimensions) {
+vec4 uniform_supersample(vec2 frag_coord, vec2 grid_dimensions, ) {
     vec4 uniform_distribution = vec4(0.0);
-    int  remaining_subpixels_in_supersample     = UNIFORM_SUPERSAMPLE_RESOLUTION_SUBPIXEL_SAMPLES_PER_PIXEL;
-    #ifdef DISTRIBUTE_WITH_FRACTIONAL_STEP
-        vec2  current_uniform_subpixel_position = UNIFORM_SUPERSAMPLE_DISTRIBUTION_INITIAL_OFFSET_FRACTIONAL;
-    #else
-        vec2  current_uniform_subpixel_position = UNIFORM_SUPERSAMPLE_DISTRIBUTION_INITIAL_OFFSET_ROW_MAJOR;
-    #endif
-
+    int  remaining_subpixels_in_supersample = UNIFORM_SUPERSAMPLE_RESOLUTION_SUBPIXEL_SAMPLES_PER_PIXEL;
+    vec2  current_uniform_subpixel_position = INITIAL_UNIFORM_STEP;
     while (remaining_subpixels_in_supersample > 0) {
-        #ifdef DISTRIBUTE_WITH_FRACTIONAL_STEP
-            current_uniform_subpixel_position = position_uniform_subpixel_fractional_stepping(current_uniform_subpixel_position);
-        #else
-            current_uniform_subpixel_position = position_uniform_subpixel_normal_stepping(current_uniform_subpixel_position);
-        #endif
+        current_uniform_subpixel_position = UNIFORM_STEP(current_uniform_subpixel_position);
         vec2 sample_coord                  = frag_coord + current_uniform_subpixel_position;
         vec2 uv                            = sample_coord / iResolution.y;
         uniform_distribution               = uniform_distribution + sample_uv_in_grid_space(uv, grid_dimensions);
@@ -216,7 +224,9 @@ vec4 jitter_supersample(vec2 frag_coord, vec2 grid_dimensions) {
     return jittered_distribution / JITTERED_SUPERSAMPLE_RESOLUTION_SUBPIXEL_SAMPLES_PER_PIXEL_F;
 }
 
-#define BORDER_CLEARING
+#define SUPERSAMPLE(frag_coord, grid_dimensions)   jitter_supersample(frag_coord, grid_dimensions)
+//#define SUPERSAMPLE(frag_coord, grid_dimensions) uniform_supersample(frag_coord, grid_dimensions)
+
 void fragment() {
 //void mainImage(out vec4 frag_color, in vec2 frag_coord) {
     vec2 frag_coord     = vec2(UV.x * iResolution.x,
@@ -225,21 +235,13 @@ void fragment() {
     //vec2 uv           = frag_coord / iResolution.y;
     vec2 grid_dimensions = compute_grid_dimensions();
     vec4 src_color = sample_uv_in_grid_space(uv, grid_dimensions);
-    #ifdef BORDER_CLEARING
     if (src_color.a > 0.0) {
-        src_color.a = 1.0; // HARDCODE STRAIGHT ALPHA BLEND TO NOT OCCUR (i.e. destination.rgb * 0.0)
+        //src_color.a = 1.0; // HARDCODE STRAIGHT ALPHA BLEND TO NOT OCCUR (i.e. destination.rgb * 0.0)
         COLOR = src_color;
         //frag_color = src_color;
-    } else
-    #endif //HACK...
-    {
-        #ifdef UNIFORM_SUPERSAMPLE
-            src_color = uniform_supersample(frag_coord, grid_dimensions);
-        #endif
-        #ifdef JITTERED_SUPERSAMPLE
-            src_color = jitter_supersample(frag_coord, grid_dimensions);
-        #endif
-        src_color.a = 1.0;
+    } else {
+        src_color = SUPERSAMPLE(frag_coord, grid_dimensions);
+        //src_color.a = 1.0;
         COLOR = src_color;
         //frag_color = src_color;
     }
