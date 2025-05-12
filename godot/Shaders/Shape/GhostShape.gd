@@ -1,10 +1,10 @@
 extends Node2D
-class_name DrekkerColor
+class_name GhostShape
 
-var SampleTexture: Image = Image.load_from_file("res://Assets/Textures/icebergs.jpg")
+var SampleTexture: Image = Image.load_from_file("res://Assets/Textures/bayer.png")
 
 var BufferAShaderNode: ColorRect
-var BufferAShader: Shader = load("res://Resources/Shaders/Color/drekker_effect.gdshader")
+var BufferAShader: Shader = load("res://Resources/Shaders/Shape/ghost.gdshader")
 var BufferAShaderMaterial: ShaderMaterial
 var BufferA: SubViewport
 var MainImage: TextureRect
