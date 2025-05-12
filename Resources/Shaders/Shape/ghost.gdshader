@@ -9,16 +9,16 @@ uniform sampler2D iChannel0: filter_nearest_mipmap, repeat_enable;
 const float SCALE             = 2.0;                     // zoom factor for tile grid
 const vec2  TILE_SIZE         = vec2(1.0) / SCALE;       // size of one tile in UV space
 const vec2  TARGET_TILE       = vec2(0.0, 0.0);           // base tile index
-const vec2  MOVE_TILE         = vec2(1.33, 0.5);          // offset tile index
+const vec2  MOVE_TILE         = vec2(0.18, 0.5);          // offset tile index
 const vec2  ORIGIN            = (TARGET_TILE + MOVE_TILE) * TILE_SIZE;
 
 const float DX_AMP            = 0.02;    // horizontal wave amplitude
 const float DX_FREQ           = 6.0;     // horizontal wave spatial frequency
-const float DX_SPEED          = 80.0;   // horizontal wave temporal frequency
+const float DX_SPEED          = 100.0;   // horizontal wave temporal frequency
 
 const float DY_AMP            = 0.10;    // vertical wave amplitude
 const float DY_FREQ           = 8.0;     // vertical wave spatial frequency
-const float DY_SPEED          = 2.3;     // vertical wave temporal frequency
+const float DY_SPEED          = 1.3;     // vertical wave temporal frequency
 
 const float CIRCLE_RADIUS     = 0.35;    // radius of circular mask
 const float EDGE_SOFT         = 0.01;    // softness width for smooth edge
