@@ -1,7 +1,7 @@
 extends Node2D
 class_name Drekker
 
-var SampleTexture: Image = Image.load_from_file("res://Assets/Textures/rocks.jpg")
+var SampleTexture: Image = Image.load_from_file("res://Assets/Textures/icebergs.jpg")
 
 var BufferAShaderNode: ColorRect
 var BufferAShader: Shader = load("res://Resources/Shaders/Color/drekker_effect.gdshader")

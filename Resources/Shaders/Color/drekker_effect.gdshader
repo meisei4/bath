@@ -6,31 +6,39 @@ render_mode blend_disabled; //THIS WILL MAYBE MAKE THE ALPHA CHANNEL 1.0 assignm
 uniform vec2 iResolution;
 uniform sampler2D iChannel0: filter_nearest_mipmap, repeat_enable;
 
-#define TEXTURE_LOD_BASE_LEVEL 0.0
-#define GRID_COLUMNS           2.0
-#define GRID_ROWS              4.0
-
-#define MARGIN 0.1 //TODO: this doesnt have enough effect to justify existing
-
-#define LOCAL_CELL_SPACE_UPPER_AND_LOWER_BOUNDARY MARGIN
-#define LOCAL_CELL_SPACE_BOUNDARY_LEFT            MARGIN// 10% margin on the left
-#define LOCAL_CELL_SPACE_BOUNDARY_RIGHT           1.0 - MARGIN // remember this is from x origin, to achieve 10% margin on the right subtract from 1
-#define LOCAL_CELL_SPACE_VERTICAL_SHIFT_SCALAR    0.10//shift vertically by 10% of the grid's row height
+//TODO: this scalar is suppose to shift the cells but it has a phase/period where it just loops in on itself
+// Im am not sure the bounds to make it fully reprpoduce a purely unique shift cycle
+//#define LOCAL_CELL_SPACE_VERTICAL_SHIFT_SCALAR    0.125
+#define LOCAL_CELL_SPACE_VERTICAL_SHIFT_SCALAR    0.0125
 
 //TODO: try different amplitudes and perhaps figure out different curvature functions to work with
-#define HYPERBOLIC_AMPLITUDE 0.01
-#define THICKNESS_AMPLITUDE  200.0
+#define HYPERBOLIC_AMPLITUDE 0.008
+float hyper(float column_index){
+    float hyper = HYPERBOLIC_AMPLITUDE;
+    return hyper;
+}
+#define CUBIC_SQUISH_SCALAR  90.0
+#define NORMAL_OFFSET_MAIN   0.5
 
-#define ALPHA_CLEAR_TEXELS_OUTSIDE_CELL_BOUNDARIES(color, x, y) {  \
-            if ( abs(y) > LOCAL_CELL_SPACE_UPPER_AND_LOWER_BOUNDARY \
-               || (x)   < LOCAL_CELL_SPACE_BOUNDARY_LEFT            \
-               || (x)   > LOCAL_CELL_SPACE_BOUNDARY_RIGHT) {       \
-                (color).a = 0.0;                               \
-            }                                                \
-        }
-                //(color).r = 1.0;                               \
-                //(color).g = 0.0;                               \
-                //(color).b = 0.0;                               \
+//#define DEBUG
+#define DEBUG_LINE_THICKNESS_INNER 30.0
+#define DEBUG_LINE_THICKNESS_OUTER 10.0
+#define WHITE vec4(1.0, 1.0, 1.0, 1.0)
+#define CLEAR vec4(0.0, 0.0, 0.0, 0.0)
+#define GREENISH vec4(0.5, 1.0, 0.5, 1.0)
+#define VIOLET vec4(1.0, 0.0, 0.5, 1.0)
+
+vec4 debug_cell_border(float local_cell_progress_x, float local_cell_progress_y){
+    float bw = DEBUG_LINE_THICKNESS_OUTER / iResolution.y;
+    bool nearLeft   = local_cell_progress_x < bw;
+    bool nearRight  = local_cell_progress_x > 1.0 - bw;
+    bool nearBottom = local_cell_progress_y < bw;
+    bool nearTop    = local_cell_progress_y > 1.0 - bw;
+    if (nearLeft || nearRight || nearBottom || nearTop) {
+        return WHITE;
+    }
+    return CLEAR;
+}
 
 vec2 compute_grid_dimensions() {
     return vec2(GRID_COLUMNS, GRID_ROWS);
@@ -94,11 +102,32 @@ BEHAVIOR/BOUNDS/LIMITS:
              ----------------- =  --------- =  -------  -> -∞ (-INFINITY)
                 1 · (1 – x)         1 – x       1 – x
 */
-float compute_horizontal_hyperbolic_curvature(float cell_progress_x) {
-    float left_curve_downwards    = HYPERBOLIC_AMPLITUDE * ((1.0 / cell_progress_x) - 1.0);
-    float right_curve_upwards     = HYPERBOLIC_AMPLITUDE * ((1.0 / (1.0 - cell_progress_x)) - 1.0);
+float compute_horizontal_hyperbolic_curvature(float hyperbolic_amplitude, float cell_progress_x) {
+    float left_curve_downwards    = hyperbolic_amplitude * ((1.0 / cell_progress_x) - 1.0);
+    float right_curve_upwards     = hyperbolic_amplitude * ((1.0 / (1.0 - cell_progress_x)) - 1.0);
     float curvature               = left_curve_downwards - right_curve_upwards;
     return curvature;
+}
+
+vec4 debug_hyper_plot(float column_index, float local_x, float local_y) {
+    float curv  = compute_horizontal_hyperbolic_curvature(hyper(column_index), local_x);
+    float normC = clamp((curv / HYPERBOLIC_AMPLITUDE + 1.0) * 0.5, 0.0, 1.0);
+
+    float inner = DEBUG_LINE_THICKNESS_INNER / iResolution.y;
+    float outer = DEBUG_LINE_THICKNESS_OUTER / iResolution.y;
+    float d     = abs(local_y - normC);
+
+    float dashCount = 50.0;
+    bool dash      = mod(floor(local_x * dashCount), 2.0) < 1.0;
+
+    if (!dash) {
+        if (d < inner) {
+            return GREENISH;
+        } else if (d < outer) {
+            return CLEAR;
+        }
+    }
+    return CLEAR;
 }
 
 float compute_discrete_row_index(float uv_y, float vertical_row_shift_per_column, float grid_height_in_rows, float horizontal_hyperbolic_curvature) {
@@ -129,7 +158,7 @@ thickest between cells, thinnest in the middle of cells
                     |             **
                     |           **
                     | 0    ****
-–0.5 ---------------+------------------ +0.5
+–0.5 ---------------+------------------ +0.5　<---from--the--right--- I think that you imagine this is the diretcion you are looking at this curve in 3d somehow
            ****     |
        **           |
      **             |
@@ -154,44 +183,73 @@ Local cell Y is offset to achieve the thickness phasing between each cell VERTIC
 +0.50     0.125       0.125                          1.00
 */
 
-float compute_vertical_cubic_thickness(float local_cell_progress_y) {
+float compute_vertical_cubic_color_squish(float local_cell_progress_y) {
     return local_cell_progress_y * local_cell_progress_y * local_cell_progress_y;
 }
 
-vec4 debug_cell_shapes(float local_cell_progress_x, float local_cell_progress_y){
-    float bw = 10.0 / iResolution.y;  // 2‐pixel border
-    bool nearLeft   = local_cell_progress_x < bw;
-    bool nearRight  = local_cell_progress_x > 1.0 - bw;
-    bool nearBottom = local_cell_progress_y < bw;
-    bool nearTop    = local_cell_progress_y > 1.0 - bw;
+vec4 debug_cubic_plot(float local_x, float local_y) {
+    float phaseY = local_y - NORMAL_OFFSET_MAIN;
+    float squish  = compute_vertical_cubic_color_squish(phaseY);
+    float normT  = clamp(squish, 0.0, 1.0);
 
-    if (nearLeft || nearRight || nearBottom || nearTop) {
-        return vec4(1.0, 0.0, 0.0, 1.0);
+    float inner = DEBUG_LINE_THICKNESS_INNER / iResolution.y;
+    float outer = DEBUG_LINE_THICKNESS_OUTER / iResolution.y;
+    float d     = abs(local_y - normT);
+    bool dash = mod(floor(local_x * 50.0), 2.0) < 1.0;
+
+    if (d < inner && dash) {
+        return VIOLET;
+    } else if (d < outer) {
+        return CLEAR;
     }
-    return vec4(0.0, 0.0, 0.0, 0.0);
+    return CLEAR;
 }
 
 vec4 sample_uv_in_grid_space(vec2 uv, vec2 grid_dimensions) {
     float column_index                    = compute_discrete_column_index(uv.x, grid_dimensions.x);
     float local_cell_progress_x           = compute_local_cell_progress_x(uv.x, grid_dimensions.x);
-    float horizontal_hyperbolic_curvature = compute_horizontal_hyperbolic_curvature(local_cell_progress_x);
+    float horizontal_hyperbolic_curvature = compute_horizontal_hyperbolic_curvature(hyper(column_index), local_cell_progress_x);
+    //float horizontal_hyperbolic_curvature = 0.0;
 
     float vertical_row_shift_per_column    = LOCAL_CELL_SPACE_VERTICAL_SHIFT_SCALAR * column_index;
     float row_index                        = compute_discrete_row_index(uv.y, vertical_row_shift_per_column, grid_dimensions.y, horizontal_hyperbolic_curvature);
     float local_cell_progress_y            = compute_local_cell_progress_y(uv.y, vertical_row_shift_per_column, grid_dimensions.y, horizontal_hyperbolic_curvature);
 
     float phase_shifted_local_cell_progress_y = local_cell_progress_y - NORMAL_CENTER_OFFSET;
-    float vertical_cubic_thickness            = compute_vertical_cubic_thickness(phase_shifted_local_cell_progress_y);
-    float vertical_cubic_thickness_normal     = vertical_cubic_thickness / iResolution.y;
-    float amplified_vertical_thickness        = THICKNESS_AMPLITUDE * vertical_cubic_thickness_normal;
+    float cubic_color_squish_cell_space       = compute_vertical_cubic_color_squish(local_cell_progress_y);
+    //float cubic_color_squish_cell_space     = 0.0;
+    float cubic_color_squish_normal           = cubic_color_squish_cell_space / iResolution.y;
+    float cubic_color_squish_scaled           = CUBIC_SQUISH_SCALAR * cubic_color_squish_normal;
 
     float column_normal = column_index / grid_dimensions.x;
     float row_normal    = row_index    / grid_dimensions.y;
     float u = column_normal;
-    float v = row_normal + amplified_vertical_thickness - vertical_row_shift_per_column;
+    float v = row_normal + cubic_color_squish_scaled - vertical_row_shift_per_column;
+    vec4 texture_color = textureLod(iChannel0, vec2(u,v), TEXTURE_LOD_BASE_LEVEL);
 
-    vec4 src_color = debug_cell_shapes(local_cell_progress_x, local_cell_progress_y);
-    src_color += textureLod(iChannel0, vec2(u,v), TEXTURE_LOD_BASE_LEVEL);
+    ALPHA_CLEAR_TEXELS_OUTSIDE_CELL_BOUNDARIES(texture_color, local_cell_progress_x, local_cell_progress_y);
+
+    vec4 src_color = texture_color;
+
+    #ifdef DEBUG
+        vec4 border_debug = debug_cell_border(local_cell_progress_x, local_cell_progress_y);
+        vec4 hyperplot_debug  = debug_hyper_plot(column_index, local_cell_progress_x, local_cell_progress_y);
+        vec4 cubicplot_debug  = debug_cubic_plot(local_cell_progress_x, local_cell_progress_y);
+        src_color.rgb = mix(src_color.rgb, border_debug.rgb, border_debug.a);
+        src_color.rgb = mix(src_color.rgb, hyperplot_debug.rgb,  hyperplot_debug.a);
+        src_color.rgb = mix(src_color.rgb, cubicplot_debug.rgb,  cubicplot_debug.a);
+        //NOTE on mix again..
+        /*
+        src_color.rgb = mix(src_color.rgb, hyperplot_debug.rgb,  hyperplot_debug.a);
+
+        ^this is the same as the following:
+
+        float a = hyperplot_debug.a;
+        src_color.r = src_color.r * (1.0 - a) + hyperplot_debug.r * a;
+        src_color.g = src_color.g * (1.0 - a) + hyperplot_debug.g * a;
+        src_color.b = src_color.b * (1.0 - a) + hyperplot_debug.b * a;
+        */
+    #endif
     ALPHA_CLEAR_TEXELS_OUTSIDE_CELL_BOUNDARIES(src_color, local_cell_progress_x, local_cell_progress_y);
     return src_color;
 }
