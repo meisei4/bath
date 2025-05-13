@@ -58,6 +58,7 @@ float compute_perspective_tilt_mask_for_sprite(in uint sprite_index, in SpriteDa
         uv,
         sprite.altitude_normal,
         (sprite.ascending > 0.5),
+        MAXIMUM_TILT_ANGLE_ACHIEVED_AT_IMMEDIATE_ASCENSION_AND_FINAL_DESCENT,
         altered_uv,
         perspective_tilt
     );
