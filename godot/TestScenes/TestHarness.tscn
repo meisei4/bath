@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://yf8wnlan0xq1"]
 
-[ext_resource type="Script" uid="uid://c5gbl155he1j4" path="res://godot/TestScenes/TestHarness.gd" id="1_d84ge"]
+[ext_resource type="Script" uid="uid://1d61ssd0ybcn" path="res://godot/TestScenes/TestHarness.gd" id="1_d84ge"]
 
 [node name="TestHarness" type="Node2D"]
 script = ExtResource("1_d84ge")

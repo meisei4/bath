@@ -21,7 +21,7 @@ func _ready() -> void:
 
 func configure_audio_zone(_audio_zone: AudioZone) -> void:
     _audio_zone.global_position = self.global_position
-    _audio_zone.stream = preload(MUSIC_TRACK_1)
+    #_audio_zone.stream = preload(MUSIC_TRACK_1)
     _audio_zone.max_effect_distance = 300.0
     _audio_zone.effects_enabled = true
     _audio_zone.effect_min_value = 0.0

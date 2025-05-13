@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://bvas0d7c87cnf"]
 
-[ext_resource type="Texture2D" uid="uid://cg4ec5cq4ifh8" path="res://Assets/Sprites/Dolphin2.png" id="1_wxglx"]
+[ext_resource type="Texture2D" uid="uid://dmcp44sk83vx" path="res://Assets/Sprites/Dolphin2.png" id="1_wxglx"]
 
 [node name="Polygon2D" type="Polygon2D"]
 texture_filter = 1
