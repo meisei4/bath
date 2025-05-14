@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3 uid="uid://c2fmio0xgum5u"]
+
+[ext_resource type="Script" uid="uid://ojku06yyo6gv" path="res://godot/Shaders/Audio/WaveformVisualizer.gd" id="1_h1yrc"]
+
+[node name="WaveformVisualizer" type="Node2D"]
+script = ExtResource("1_h1yrc")
+metadata/_custom_type_script = "uid://ojku06yyo6gv"

@@ -1,6 +1,6 @@
 shader_type canvas_item;
 //TODO: alpha is dead channel, hope it doesnt fuck with stuff
-//render_mode blend_disabled; // TODO you have to do this if you want to send feedback vals in the alpha channel idiot
+render_mode blend_disabled; // TODO you have to do this if you want to send feedback vals in the alpha channel idiot
 
 //#iChannel0 "file://assets/audio/Hellion_v2.ogg"
 //#iChannel0 "file://assets/audio/experiment.mp3"

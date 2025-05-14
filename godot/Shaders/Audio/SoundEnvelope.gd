@@ -2,13 +2,13 @@ extends Node2D
 class_name SoundEnvelope
 
 var BufferAShaderNode: ColorRect
-var BufferAShader: Shader = load("res://Resources/Shaders/Audio/BufferA_sound_envelope.gdshader")
-#var BufferAShader: Shader = load("res://Resources/Shaders/Audio/optimized_envelope_buffer_a.gdshader")
+var BufferAShader: Shader = load("res://Resources/Shaders/Audio/SoundEnvelopeWIP/BufferA_sound_envelope.gdshader")
+#var BufferAShader: Shader = load("res://Resources/Shaders/Audio/SoundEnvelopeWIP/optimized_envelope_buffer_a.gdshader")
 var BufferAShaderMaterial: ShaderMaterial
 
 var BufferBShaderNode: ColorRect
-var BufferBShader: Shader = load("res://Resources/Shaders/Audio/Image_sound_envelope.gdshader")
-#var BufferBShader: Shader = load("res://Resources/Shaders/Audio/optimized_envelope_buffer_b.gdshader")
+var BufferBShader: Shader = load("res://Resources/Shaders/Audio/SoundEnvelopeWIP/Image_sound_envelope.gdshader")
+#var BufferBShader: Shader = load("res://Resources/Shaders/Audio/SoundEnvelopeWIP/optimized_envelope_buffer_b.gdshader")
 var BufferBShaderMaterial: ShaderMaterial
 
 var waveform_texture: WaveformTexture

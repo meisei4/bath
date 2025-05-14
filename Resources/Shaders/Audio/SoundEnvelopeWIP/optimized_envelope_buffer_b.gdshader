@@ -1,7 +1,7 @@
 shader_type canvas_item;
 render_mode blend_disabled;
 
-#include "res://Resources/Shaders/Audio/utils.gdshaderinc"
+#include "res://Resources/Shaders/Audio/SoundEnvelopeWIP/utils.gdshaderinc"
 
 uniform vec2 iResolution;
 uniform int iFrame;
