@@ -3,7 +3,7 @@ extends Node
 
 signal rhythm_indicator(beat_index: int, bar_index: int, beats_per_minute: float)
 
-var time_signature: int = 8
+var time_signature: int = 4
 var onset_detection_threshold: float = 0.1  # Minimum rise in audio level to count as a beat
 var audio_capture_interval_seconds: float = 0.0333333  # Seconds per capture (~30 Hz)
 
@@ -26,8 +26,8 @@ func _ready() -> void:
 func _initialize_audio_capture() -> void:
     _audio_effect_capture = AudioEffectCapture.new()
     _audio_effect_capture.buffer_length = audio_capture_interval_seconds
-    var music_bus_index: int = AudioBus.get_bus_index(AudioBus.BUS.MUSIC)
-    AudioServer.add_bus_effect(music_bus_index, _audio_effect_capture)
+    var master_bus_index: int = AudioBus.get_bus_index(AudioBus.BUS.MASTER)
+    AudioServer.add_bus_effect(master_bus_index, _audio_effect_capture)
 
 
 func _process(delta_time: float) -> void:

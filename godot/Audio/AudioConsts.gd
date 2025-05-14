@@ -46,9 +46,10 @@ const SFX_545_METAL_ICE_SHARD_DUPLICATE: String = "res://Resources/Audio/SFX/545
 const SFX_135_BUBBLY_DOWNFALL_DROWN: String = "res://Resources/Audio/SFX/135_bubbly_downfall_drown.wav"
 
 const HELLION_MP3: String = "res://Resources/Audio/Hellion.mp3"
+const SHADERTOY_MUSIC_TRACK_EXPERIMENT: String = "res://Resources/Audio/shadertoy_music_experiment.mp3"
+
 const HELLION: String = "res://Resources/Audio/Music/Hellion_v2.ogg"
 const BEETH: String = "res://Resources/Audio/Music/beethoven_4.ogg"
-const SHADERTOY_MUSIC_TRACK_EXPERIMENT: String = "res://Resources/Audio/Music/experiment.mp3"
 
 const MUSIC_TRACK_1: String = "res://Resources/Audio/Music/trimmed_10___What_You_Want_00-40-25_00-41-40.mp3"
 const MUSIC_TRACK_2: String = "res://Resources/Audio/Music/trimmed_01___Only_Shallow_00-03-40_00-04-17.mp3"

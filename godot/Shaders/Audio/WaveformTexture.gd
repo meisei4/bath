@@ -4,21 +4,14 @@ class_name WaveformTexture
 var audio_texture: ImageTexture
 var audio_image: Image
 var waveform_audio_effect_capture: AudioEffectCapture
+var waveform_data: PackedFloat32Array
 
 var TARGET_AUDIO_BUS: AudioBus.BUS = AudioBus.BUS.MUSIC
 #var TARGET_AUDIO_BUS: AudioBus.BUS = AudioBus.BUS.INPUT
 
-var waveform_data: PackedFloat32Array  #TODO: use these as uniforms perhaps later if it improves performance
-#Bottom row (y = 1): Center is at (1 + 0.5) / 2 = 0.75
-#Thus, in ShaderToy:
-#Sampling at y = 0.75 fetches the raw waveform data.
-const TEXTURE_HEIGHT: int = 2  #y = 0 is fft spectrum, y= 1 is raw wave data
+const TEXTURE_HEIGHT: int = 1
 const BUFFER_SIZE: int = 512
-const SAMPLE_RATE: float = 48000.0  #TODO: figure out how to get this to actually be shadertoy matched
-const AUDIO_DECIBEL_FLOOR: float = -80.0  # some default "quietest" decibel level (near silence) in the audio.
-const AUDIO_DECIBEL_CIELING: float = 0.0  #the loudest?? is it just from the AudioBus attribute???
-
-const WAVEFORM_ROW: int = 1
+const WAVEFORM_ROW: int = 0
 const DEAD_CHANNEL: float = 0.0
 
 

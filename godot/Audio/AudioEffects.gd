@@ -26,10 +26,15 @@ const DEFAULT_REVERB: Dictionary[String, float] = {
 }
 
 
-func add_effect(bus: AudioBus.BUS, effect: AudioEffect) -> void:
+#TODO: i dont understand what the fuck the at_position is, but look at how to make AudioEffectSpectrumAnalyzerInstance
+# AudioEffectSpectrumAnalyzerInstance what is it!!!!!???
+#AudioEffectSpectrumAnalyzerInstance HWAT>>>>????? EHHH??????
+func add_effect(bus: AudioBus.BUS, effect: AudioEffect) -> int:
+    var at_position: int = 0
     var bus_idx: int = AudioBus.get_bus_index(bus)
-    AudioServer.add_bus_effect(bus_idx, effect)
+    AudioServer.add_bus_effect(bus_idx, effect, at_position)
     print("Added ", effect.get_class(), " effect to bus: ", bus)
+    return at_position
 
 
 func remove_effect(bus: AudioBus.BUS, effect_type: String) -> void:
