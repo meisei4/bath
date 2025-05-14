@@ -6,6 +6,7 @@ render_mode blend_disabled;
 uniform vec2 iResolution;
 uniform sampler2D iChannel0: hint_screen_texture;
 uniform sampler2D iChannel1; //audio texture
+uniform float cpu_next_envelope[DOWNSCALED_TARGET_NUMBER_OF_WAVEFORM_SEGMENTS];
 
 #define WAVEFORM_SAMPLE_COUNT 512 //TODO: derive this from the actual ShaderToyAudioTexture constants??? it doesnt even need to 512?
 #define WAVEFORM_SAMPLE_COUNT_F float(WAVEFORM_SAMPLE_COUNT)
@@ -28,6 +29,7 @@ uniform sampler2D iChannel1; //audio texture
 
 // RATE (percentage of the frame rate/gpu screen pass) of how fast you want to propagate/update the envelope snapshots (historical lines)
 #define PROPAGATION_RATE_FRAME 0.5 // coupled to frame rate e.g. for 30fps, every 6 frames (20% of 30fps) = 6/30 fps -> propagation occurs every 0.2 seconds, i.e. ~5 times per second. propagate the injected waveforms upwards through the envelope snapshots
+
 
 float compute_normalized_sample_coordinate_for_downscaled_segment_in_1D(float segment_index, float sample_index) {
     float sample_coordinate_on_1D_x_axis = segment_index * WAVEFORM_SAMPLES_PER_SEGMENT_F + sample_index + WAVEFORM_SEGMENT_CENTERING_OFFSET;
@@ -74,6 +76,8 @@ void fragment() {
             //at segment_index = DOWNSCALED_TARGET_NUMBER_OF_WAVEFORM_SEGMENTS exactly (because the last segment index is actually DOWNSCALED_TARGET_NUMBER_OF_WAVEFORM_SEGMENTS_F - 1
             int segment_index_in_discrete_space = int(floor(uv.x * DOWNSCALED_TARGET_NUMBER_OF_WAVEFORM_SEGMENTS_F));
             float next_envelope = sample_audio_texture_waveform_data(segment_index_in_discrete_space);
+            //float next_envelope = cpu_next_envelope[segment_index_in_discrete_space];
+
             //float injection_blend_intensity_coefficient = mod(iTime, INJECTION_BLEND_CYCLE_REFRESH_RATE_IN_SECONDS) / INJECTION_BLEND_CYCLE_REFRESH_RATE_IN_SECONDS;
             //float injection_blend_intensity_coefficient = mod(TIME, INJECTION_BLEND_CYCLE_REFRESH_RATE_IN_SECONDS) / INJECTION_BLEND_CYCLE_REFRESH_RATE_IN_SECONDS;
             float injection_blend_intensity_coefficient = 1.0;

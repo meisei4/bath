@@ -1,8 +1,9 @@
 #define DOWNSCALED_TARGET_NUMBER_OF_WAVEFORM_SEGMENTS 96
 #define DOWNSCALED_TARGET_NUMBER_OF_WAVEFORM_SEGMENTS_F float(DOWNSCALED_TARGET_NUMBER_OF_WAVEFORM_SEGMENTS)
 #define NUMBER_OF_HISTORICAL_ENVELOPE_SNAPSHOTS 5
+#define NUMBER_OF_HISTORICAL_ENVELOPE_SNAPSHOTS_F float(NUMBER_OF_HISTORICAL_ENVELOPE_SNAPSHOTS)
 #define AMPLITUDE_SCALE 100.0
-#define ISOMETRIC_ZOOM 1.0
+#define ISOMETRIC_ZOOM 3.0
 #define ROW_SPACING 16.0 //THE FUCK THIS CAUSES ARTIFACTS IN THE CLEARING AFTER 5 ROWS IF ITS 12 or something
 
 #define UNUSED_FEEDBACK_CHANNEL 0.0
@@ -48,3 +49,5 @@ float distance_to_line(vec2 pixel_coordinate, vec2 line_start, vec2 line_end) {
     vec2 closest_point = line_start + clamped_projection_factor * line_vector;
     return distance(pixel_coordinate, closest_point);
 }
+
+

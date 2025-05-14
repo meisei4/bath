@@ -5,10 +5,10 @@ var audio_texture: ImageTexture
 var audio_image: Image
 var waveform_audio_effect_capture: AudioEffectCapture
 
-#var TARGET_AUDIO_BUS: AudioBus.BUS = AudioBus.BUS.MUSIC
-var TARGET_AUDIO_BUS: AudioBus.BUS = AudioBus.BUS.INPUT
+var TARGET_AUDIO_BUS: AudioBus.BUS = AudioBus.BUS.MUSIC
+#var TARGET_AUDIO_BUS: AudioBus.BUS = AudioBus.BUS.INPUT
 
-var waveform_data: Array[float]  #TODO: use these as uniforms perhaps later if it improves performance
+var waveform_data: PackedFloat32Array  #TODO: use these as uniforms perhaps later if it improves performance
 #Bottom row (y = 1): Center is at (1 + 0.5) / 2 = 0.75
 #Thus, in ShaderToy:
 #Sampling at y = 0.75 fetches the raw waveform data.
