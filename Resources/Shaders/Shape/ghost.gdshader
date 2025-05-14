@@ -1,65 +1,148 @@
-// this is a verbose, constant-driven rewrite with “smooth” ASCII diagrams and detailed explanations
 shader_type canvas_item;
-render_mode blend_disabled; //THIS WILL MAYBE MAKE THE ALPHA CHANNEL 1.0 assignment not needed/optimized???
+render_mode blend_disabled;
 
 uniform vec2   iResolution;
 //uniform float  iTime;
 uniform sampler2D iChannel0: filter_nearest_mipmap, repeat_enable;
 
-const float SCALE             = 2.0;                     // zoom factor for tile grid
-const vec2  TILE_SIZE         = vec2(1.0) / SCALE;       // size of one tile in UV space
-const vec2  TARGET_TILE       = vec2(0.0, 0.0);           // base tile index
-const vec2  MOVE_TILE         = vec2(0.18, 0.5);          // offset tile index
-const vec2  ORIGIN            = (TARGET_TILE + MOVE_TILE) * TILE_SIZE;
+#define HALF 0.5
+#define GRID_SCALE               2.0
+#define GRID_CELL_SIZE           (vec2(1.0) / GRID_SCALE)
+#define GRID_ORIGIN_INDEX        vec2(0.0)
+#define GRID_ORIGIN_OFFSET_CELLS vec2(1.33, 0.5)
+#define GRID_ORIGIN_UV_OFFSET    ((GRID_ORIGIN_INDEX + GRID_ORIGIN_OFFSET_CELLS) * GRID_CELL_SIZE)
+#define CELL_DRIFT_AMPLITUDE    0.2
+//   • Units: grid‐space UV units
+//   • Domain ~[0.0–1.0] (0 = no drift, 1 = very strong drift)
+//   • Controls how far each cell “wobbles” over time
+#define LIGHT_WAVE_SPATIAL_FREQ_X     8.0
+#define LIGHT_WAVE_SPATIAL_FREQ_Y     8.0
+//   • Units: radians per cell
+//   • Domain >0 (higher = more crests per cell)
+#define LIGHT_WAVE_TEMPORAL_FREQ_X    80.0
+#define LIGHT_WAVE_TEMPORAL_FREQ_Y    2.3
+//   • Units: radians per second
+//   • Domain >0 (higher = faster animation)
+#define LIGHT_WAVE_AMPLITUDE_X        0.03
+#define LIGHT_WAVE_AMPLITUDE_Y        0.1
+//   • Units: grid‐space UV offset
+//   • Domain ~[0.0–0.5] (small to subtle; >0.2 very wavy)
+//   • Max horizontal or vertical displacement per wave
+#define UMBRAL_MASK_OUTER_RADIUS     0.40  // bad name this is not for the umbral mask but rather the whole grid!
+#define UMBRAL_MASK_INNER_RADIUS     0.08
+//   • Region inside which mask is solid (no fade)
+#define UMBRAL_MASK_FADE_BAND         0.025
+//   • Width of the fade band between inner & outer radius
+#define UMBRAL_MASK_CENTER           vec2(HALF, HALF)
+#define UMBRAL_MASK_OFFSET_X         (-UMBRAL_MASK_OUTER_RADIUS /1.0)
+#define UMBRAL_MASK_OFFSET_Y         (-UMBRAL_MASK_OUTER_RADIUS)
+#define UMBRAL_MASK_PHASE_COEFFICIENT_X  0.6
+#define UMBRAL_MASK_PHASE_COEFFICIENT_Y  0.2
+#define UMBRAL_MASK_WAVE_AMPLITUDE_X     0.1
+#define UMBRAL_MASK_WAVE_AMPLITUDE_Y     0.1
 
-const float DX_AMP            = 0.02;    // horizontal wave amplitude
-const float DX_FREQ           = 6.0;     // horizontal wave spatial frequency
-const float DX_SPEED          = 100.0;   // horizontal wave temporal frequency
+#define DITHER_TEXTURE_SCALE    8.0
+#define DITHER_BLEND_FACTOR     0.75
 
-const float DY_AMP            = 0.10;    // vertical wave amplitude
-const float DY_FREQ           = 8.0;     // vertical wave spatial frequency
-const float DY_SPEED          = 1.3;     // vertical wave temporal frequency
+vec2 uv_to_grid_space(vec2 uv, float time) {
+    uv = uv - GRID_ORIGIN_UV_OFFSET;
+    vec2 grid_coords = uv * GRID_SCALE;
+    return grid_coords;
+}
 
-const float CIRCLE_RADIUS     = 0.35;    // radius of circular mask
-const float EDGE_SOFT         = 0.01;    // softness width for smooth edge
+vec2 warp_and_drift_cell(vec2 grid_coords, float time) {
+    return CELL_DRIFT_AMPLITUDE * sin(time + grid_coords.yx);
+}
 
-const float BAYER_SCALE       = 8.0;
-const float DITHER_WEIGHT     = 0.75;
+vec2 spatial_phase(vec2 grid_coords) {
+    return vec2(
+        grid_coords.y * LIGHT_WAVE_SPATIAL_FREQ_X,
+        grid_coords.x * LIGHT_WAVE_SPATIAL_FREQ_Y
+    );
+}
+
+vec2 temporal_phase(float time) {
+    return vec2(
+        time * LIGHT_WAVE_TEMPORAL_FREQ_X,
+        time * LIGHT_WAVE_TEMPORAL_FREQ_Y
+    );
+}
+
+vec2 add_phase(vec2 phase) {
+    float offset_x = LIGHT_WAVE_AMPLITUDE_X * cos(phase.x);
+    float offset_y = LIGHT_WAVE_AMPLITUDE_Y * sin(phase.y);
+    return vec2(offset_x, offset_y);
+}
+
+vec4 light_radial_fade(vec2 grid_coords, vec2 center, float radius, float feather) {
+    float distance_from_center = length(grid_coords - center);
+    float fade_start = radius - feather;
+    float alpha = 1.0 - smoothstep(fade_start, radius, distance_from_center);
+    vec4 lightball = vec4(clamp(alpha, 0.0, 1.0));
+    return lightball;
+}
+
+vec2 add_umbral_mask_phase(float time){
+    vec2 phase = vec2(0.0);
+    phase.x = UMBRAL_MASK_WAVE_AMPLITUDE_X * LIGHT_WAVE_SPATIAL_FREQ_X;
+    phase.y = UMBRAL_MASK_WAVE_AMPLITUDE_Y * LIGHT_WAVE_SPATIAL_FREQ_Y + time * LIGHT_WAVE_TEMPORAL_FREQ_Y;
+    return phase;
+}
+
+vec2 umbral_mask_position(float x_phase_coefficient, float y_phase_coefficient, vec2 mask_phase) {
+    float mask_pos_x = x_phase_coefficient * cos(mask_phase.x);
+    float mask_pos_y = y_phase_coefficient * sin(mask_phase.y);
+    vec2 offset_mask = vec2(mask_pos_x, mask_pos_y) + UMBRAL_MASK_CENTER;
+    return offset_mask;
+}
+
+vec4 add_umbral_mask(vec4 src_color, vec2 grid_coords, vec2 mask_center) {
+    vec2  mask_pos  = mask_center + vec2(UMBRAL_MASK_OFFSET_X, UMBRAL_MASK_OFFSET_Y);
+    float dist        = length(grid_coords - mask_pos);
+    float half_dist   = dist * HALF;
+    float mask        = smoothstep(UMBRAL_MASK_INNER_RADIUS, UMBRAL_MASK_OUTER_RADIUS, half_dist);
+    vec4  applied_mask = src_color * mask;
+    return applied_mask;
+}
+
+vec4 add_dither(vec4 src_color, vec2 frag_coord) {
+    vec2 dither_uv = frag_coord / DITHER_TEXTURE_SCALE;
+    float dither_sample = texture(iChannel0, dither_uv).r;
+    vec4 dither_mask = vec4(dither_sample);
+    vec4 binary = step(dither_mask, src_color);
+    vec4 applied_dither = mix(src_color, binary, DITHER_BLEND_FACTOR);
+    return applied_dither;
+}
 
 //void mainImage(out vec4 frag_color, in vec2 frag_coord) {
 void fragment() {
-    vec2 frag_coord = UV * iResolution;
-    vec2 uv        = frag_coord / iResolution.yy;
-    vec2 local = (uv - ORIGIN) * SCALE;
-    float t = TIME;
-    //float t = iTime;
-    float x_jittered_time = t * DX_SPEED;
-    float y_jittered_time = t * DY_SPEED;
+    //float time        = iTime;
+    float time        = TIME;
+    vec2 frag_coord   = FRAGCOORD.xy;
+    vec2 uv           = frag_coord / vec2(iResolution.y);
 
-    float dx = DX_AMP * cos(local.y * DX_FREQ + uv.y + x_jittered_time );
-    float dy = DY_AMP * sin(local.x * DY_FREQ + y_jittered_time);
-    local.x += dx;
-    local.y += dy;
+    //prepare base grid cell warping and drifting
+    vec2 grid_coords  = uv_to_grid_space(uv, time);
+    vec2 grid_phase   = vec2(0.0);
+    grid_phase       += spatial_phase(grid_coords);
+    grid_phase       += temporal_phase(time);
+    grid_coords      += add_phase(grid_phase);
+    grid_coords      += warp_and_drift_cell(grid_coords, time);
 
-    local.xy += sin(y_jittered_time + local.yx)*.3;
+    //set up light ball inside target grid cell
+    vec4 lightball    = light_radial_fade(grid_coords, UMBRAL_MASK_CENTER, UMBRAL_MASK_OUTER_RADIUS, UMBRAL_MASK_FADE_BAND);
+    vec4 src_color    = lightball;
 
-    float distance_to_local = length(local - vec2(0.5));
-    float mask  = smoothstep(CIRCLE_RADIUS, CIRCLE_RADIUS - EDGE_SOFT, distance_to_local);
+    //set up umbral mask to be drawn on top of transformed light ball
+    vec2 umbral_mask_phase = vec2(0.0);
+    umbral_mask_phase     += add_umbral_mask_phase(time);
+    vec2 umbral_mask_pos   = umbral_mask_position(UMBRAL_MASK_PHASE_COEFFICIENT_X, UMBRAL_MASK_PHASE_COEFFICIENT_Y, umbral_mask_phase);
 
-    vec2 centerOffset = vec2(
-        DX_AMP * cos(0.9 * DX_FREQ + uv.y + x_jittered_time),
-        DY_AMP * cos(0.2 * DY_FREQ + y_jittered_time)
-    );
-    vec2 shapeCenter = vec2(0.5) + centerOffset;
-    vec2 lightPos    = shapeCenter + vec2(-CIRCLE_RADIUS/2.5, -CIRCLE_RADIUS);
-    float lightD     = length(local - lightPos);
-    float shade      = smoothstep(0.1, CIRCLE_RADIUS, lightD * 0.5);
-    float bayer_threshold = texture(iChannel0, frag_coord / BAYER_SCALE).r;
-    vec4 masked_color = vec4(mask * shade);
-    vec4 dithered_color = step(bayer_threshold, masked_color);
-    vec4 src_color = mix(masked_color, dithered_color, DITHER_WEIGHT);
-
-    //src_color.a = 1.0;
-    //frag_color = src_color;
+    //add the umbral mask to the light ball
+    src_color         = add_umbral_mask(src_color, grid_coords, umbral_mask_pos);
+    src_color         = add_dither(src_color, frag_coord);
+    //frag_color.a      = 1.0;
+    COLOR.a      = 1.0;
+    //frag_color        = src_color;
     COLOR = src_color;
 }
