@@ -57,7 +57,10 @@ func _process(_delta: float) -> void:
 
 
 func _on_onset_event(
-    onset_index: int, time_since_previous_onset: float, onsets_per_minute: float
+    onset_index: int,
+    time_since_previous_onset: float,
+    onsets_per_minute: float,
+    current_playback_time_seconds: float
 ) -> void:
     BufferAShaderMaterial.set_shader_parameter("onsets_per_minute", onsets_per_minute)
 

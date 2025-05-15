@@ -134,4 +134,3 @@ void fragment() {
     COLOR = max(COLOR, src_color);
     COLOR.a = 1.0;
 }
-
