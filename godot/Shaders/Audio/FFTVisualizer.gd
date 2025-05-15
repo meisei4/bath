@@ -2,16 +2,22 @@ extends Node2D
 class_name FFTVisualizer
 
 var BufferAShaderNode: ColorRect
-var BufferAShader: Shader = load("res://Resources/Shaders/Audio/fft.gdshader")
+#var BufferAShader: Shader = load("res://Resources/Shaders/Audio/fft.gdshader")
+#TODO quick hack for tsting before i go to bed start here tomorrow
+var BufferAShader: Shader = load("res://Resources/Shaders/Audio/ioi.gdshader")
+
 var BufferAShaderMaterial: ShaderMaterial
 
-var audio_texture: FFTTexture
+#var audio_texture: FFTTexture
+var audio_texture: IOITexture
 
 var BufferA: SubViewport
 var MainImage: TextureRect
 
 var iResolution: Vector2
 var iChannel0: Texture
+
+var tempo: TempoDimension
 
 
 func _ready() -> void:
@@ -29,11 +35,14 @@ func _ready() -> void:
     MainImage.flip_v = true
     var music_resource: AudioStream = load(AudioConsts.SHADERTOY_MUSIC_TRACK_EXPERIMENT)
     AudioPoolManager.play_music(music_resource)
-    audio_texture = FFTTexture.new()
+    #audio_texture = FFTTexture.new()
+    audio_texture = IOITexture.new()
+    tempo = TempoDimension.new()
     BufferA.add_child(BufferAShaderNode)
     add_child(BufferA)
     add_child(MainImage)
     add_child(audio_texture)
+    add_child(tempo)
 
 
 func _process(_delta: float) -> void:

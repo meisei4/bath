@@ -2,14 +2,6 @@ extends Node
 class_name TempoDimension
 #https://staff.aist.go.jp/m.goto/PAPER/IEEEPROC200804goto.pdf
 
-signal tempo_grid(
-    beat_index_within_bar: int,
-    beat_phase_within_current_beat: float,
-    beats_per_minute_true_tempo: float,
-    seconds_per_beat_true_tempo: float,
-    seconds_per_bar_true_tempo: float
-)
-
 const ANALYSIS_WINDOW_DURATION_SECONDS: float = 4.0
 const HISTOGRAM_BIN_DURATION_MILLISECONDS: int = 20
 const MINIMUM_TEMPO_BPM: float = 60.0
@@ -68,7 +60,7 @@ func _process(delta_time_seconds: float) -> void:
         global_beat_counter % MusicDimensionsManager.TIME_SIGNATURE_NUMERATOR
     )
 
-    tempo_grid.emit(
+    MusicDimensionsManager.tempo_event.emit(
         beat_index_within_bar,
         beat_phase_within_current_beat,
         beats_per_minute_true_tempo,
@@ -124,6 +116,8 @@ func _update_true_tempo_estimate(current_time_seconds: float) -> void:
         beats_per_minute_true_tempo = lerp(
             beats_per_minute_true_tempo, dominant_bpm_raw, TEMPORAL_SMOOTHING_COEFFICIENT
         )
+
+    MusicDimensionsManager.update_true_tempo.emit(ioi_vote_counts, most_voted_bin_index)
 
 
 func _align_internal_metronome_if_needed(current_time_seconds: float) -> void:

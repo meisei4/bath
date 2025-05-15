@@ -1,7 +1,21 @@
 extends Node
 #class_name MusicDimensionsManager
 
-signal onset_event(onset_index: int, time_since_previous_onset: float, onsets_per_minute: float)
+signal onset_event(
+    onset_index: int,
+    time_since_previous_onset: float,
+    onsets_per_minute: float,
+    current_playback_time_seconds: float
+)
+
+signal tempo_event(
+    beat_index_within_bar: int,
+    beat_phase_within_current_beat: float,
+    beats_per_minute_true_tempo: float,
+    seconds_per_beat_true_tempo: float,
+    seconds_per_bar_true_tempo: float
+)
+signal update_true_tempo(ioi_vote_counts: PackedInt32Array, most_voted_bin_index: int)
 
 const PERCUSSIVE_FREQUENCY_LOWER_BOUND_HZ: float = 20.0
 const PERCUSSIVE_FREQUENCY_UPPER_BOUND_HZ: float = 150.0
@@ -101,7 +115,9 @@ func _emit_rhythm_signals() -> void:
     if average_interval > 0.0:
         onsets_per_minute = SECONDS_PER_MINUTE / average_interval
 
-    onset_event.emit(onset_event_counter, time_since_previous_onset, onsets_per_minute)
+    onset_event.emit(
+        onset_event_counter, time_since_previous_onset, onsets_per_minute, current_playback_time
+    )
     onset_event_counter += 1
     time_of_previous_onset = current_playback_time
 
