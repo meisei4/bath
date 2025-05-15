@@ -18,8 +18,7 @@ var audio_texture: FFTTexture
 
 
 func _ready() -> void:
-    MusicDimensionsManager.beat_detected.connect(_on_beat_detected)
-    MusicDimensionsManager.tempo_detected.connect(_on_tempo_detected)
+    MusicDimensionsManager.onset_event.connect(_on_onset_event)
 
     iResolution = ResolutionManager.resolution
     BufferA = ShaderToyUtil.create_buffer_viewport(iResolution)
@@ -50,8 +49,10 @@ func _process(_delta: float) -> void:
     BufferAShaderMaterial.set_shader_parameter("iChannel1", iChannel0)
 
 
-func _on_beat_detected(beat_index: int, delta_time: float, bpm: float) -> void:
-    BufferAShaderMaterial.set_shader_parameter("bpm", bpm)
+func _on_onset_event(
+    onset_index: int, time_since_previous_onset: float, onsets_per_minute: float
+) -> void:
+    BufferAShaderMaterial.set_shader_parameter("onsets_per_minute", onsets_per_minute)
 
 
 func _on_tempo_detected(
@@ -62,6 +63,7 @@ func _on_tempo_detected(
     seconds_per_subdivision: float,
     seconds_per_bar: float
 ) -> void:
+    #TODO: this is dead until i get a proper IOI signal and then can start subdividing
     BufferAShaderMaterial.set_shader_parameter("time_signature", time_signature)
     BufferAShaderMaterial.set_shader_parameter("subdivisions_per_beat", subdivisions_per_beat)
     BufferAShaderMaterial.set_shader_parameter("seconds_per_beat", seconds_per_beat)
