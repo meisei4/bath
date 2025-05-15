@@ -4,4 +4,3 @@
 
 [node name="AudioZoneGen" type="Node"]
 script = ExtResource("1_gmwqa")
-metadata/_custom_type_script = "uid://hba5w8rssjof"

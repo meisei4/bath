@@ -89,44 +89,44 @@ func _on_button_play_music_pressed() -> void:
     var music_path: String = music_list[selected_index]
     var music_res: AudioStream = load(music_path) as AudioStream
     if music_res:
-        AudioManager.play_music(music_res, 1.0)
+        AudioPoolManager.play_music(music_res, 1.0)
         print("Playing: " + music_path)
 
 
 func _on_button_stop_all_music_pressed() -> void:
-    AudioManager.stop_music()
+    AudioPoolManager.stop_music()
     print("All music stopped.")
 
 
 func _on_button_enable_reverb_music_pressed() -> void:
-    AudioEffects.add_reverb(AudioBus.BUS.MUSIC)
+    AudioEffectManager.add_reverb(AudioBus.BUS.MUSIC)
     effects_label_music.text = "Active Effects: Reverb Enabled"
 
 
 func _on_button_disable_reverb_music_pressed() -> void:
-    AudioEffects.remove_effect(AudioBus.BUS.MUSIC, "AudioEffectReverb")
+    AudioEffectManager.remove_effect(AudioBus.BUS.MUSIC, "AudioEffectReverb")
     effects_label_music.text = "Active Effects: None"
 
 
 func _on_button_enable_dist_music_pressed() -> void:
-    AudioEffects.add_distortion(AudioBus.BUS.MUSIC)
+    AudioEffectManager.add_distortion(AudioBus.BUS.MUSIC)
     effects_label_music.text = "Active Effects: Distortion Enabled"
 
 
 func _on_button_disable_dist_music_pressed() -> void:
-    AudioEffects.remove_effect(AudioBus.BUS.MUSIC, "AudioEffectDistortion")
+    AudioEffectManager.remove_effect(AudioBus.BUS.MUSIC, "AudioEffectDistortion")
     effects_label_music.text = "Active Effects: None"
 
 
 func _on_button_increase_pitch_pressed() -> void:
     current_pitch += PITCH_STEP
     current_pitch = clamp(current_pitch, MIN_PITCH, MAX_PITCH)
-    AudioEffects.set_pitch_shift(AudioBus.BUS.MUSIC, current_pitch)
+    AudioEffectManager.set_pitch_shift(AudioBus.BUS.MUSIC, current_pitch)
     print("Pitch increased to: ", current_pitch)
 
 
 func _on_button_decrease_pitch_pressed() -> void:
     current_pitch -= PITCH_STEP
     current_pitch = clamp(current_pitch, MIN_PITCH, MAX_PITCH)
-    AudioEffects.set_pitch_shift(AudioBus.BUS.MUSIC, current_pitch)
+    AudioEffectManager.set_pitch_shift(AudioBus.BUS.MUSIC, current_pitch)
     print("Pitch decreased to: ", current_pitch)

@@ -18,7 +18,7 @@ var audio_texture: FFTTexture
 
 
 func _ready() -> void:
-    MusicDimensionsManager.rhythm_indicator.connect(_on_rhythm_indicator)
+    MusicDimensionsManager.beat_detected.connect(_on_beat_detected)
     iResolution = ResolutionManager.resolution
     BufferA = ShaderToyUtil.create_buffer_viewport(iResolution)
     BufferAShaderMaterial = ShaderMaterial.new()
@@ -32,7 +32,7 @@ func _ready() -> void:
 
     #var music_resource: AudioStream = load(AudioConsts.HELLION_MP3)
     var music_resource: AudioStream = load(AudioConsts.SHADERTOY_MUSIC_TRACK_EXPERIMENT)
-    AudioManager.play_music(music_resource)
+    AudioPoolManager.play_music(music_resource)
     audio_texture = FFTTexture.new()
     MainImage = TextureRect.new()
     MainImage.texture = BufferA.get_texture()
@@ -48,7 +48,5 @@ func _process(_delta: float) -> void:
     BufferAShaderMaterial.set_shader_parameter("iChannel1", iChannel0)
 
 
-#TODO: so this gests triggered after like 15 econds of the song and then the shader crashes randomly?
-# I imagine there is something insane going on with the audio busses that i need to figure out
-func _on_rhythm_indicator(beat_index: int, bar_index: int, beats_per_minute: float) -> void:
-    BufferAShaderMaterial.set_shader_parameter("bpm", beats_per_minute)
+func _on_beat_detected(beat_index: int, delta_time: float, bpm: float) -> void:
+    BufferAShaderMaterial.set_shader_parameter("bpm", bpm)

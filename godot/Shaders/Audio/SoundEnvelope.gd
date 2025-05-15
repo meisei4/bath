@@ -55,7 +55,7 @@ func _ready() -> void:
     #var music_resource: AudioStream = load(AudioConsts.SHADERTOY_MUSIC_TRACK_EXPERIMENT)
     var music_resource: AudioStream = load(AudioConsts.HELLION_MP3)
     #var music_resource: AudioStream = load(AudioConsts.BEETH)
-    AudioManager.play_music(music_resource, 0.0)
+    AudioPoolManager.play_music(music_resource, 0.0)
 
     #var input_resource: AudioStreamMicrophone = AudioStreamMicrophone.new()
     #AudioManager.play_input(input_resource, 0.0)

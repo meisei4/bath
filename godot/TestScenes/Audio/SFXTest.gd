@@ -105,29 +105,29 @@ func _on_button_play_pressed() -> void:
     if sfx_path:
         var sfx_res: AudioStream = load(sfx_path) as AudioStream
         if sfx_res:
-            AudioManager.play_sfx(sfx_res)
+            AudioPoolManager.play_sfx(sfx_res)
             _update_active_sounds(sfx_path, "AudioConsts.SFX")
 
 
 func _on_button_stop_all_pressed() -> void:
-    AudioManager.stop_all_sfx()
+    AudioPoolManager.stop_all_sfx()
     active_sounds_box.queue_redraw()
 
 
 func _on_button_enable_reverb_pressed() -> void:
-    AudioEffects.add_reverb(AudioBus.BUS.SFX)
+    AudioEffectManager.add_reverb(AudioBus.BUS.SFX)
 
 
 func _on_button_disable_reverb_pressed() -> void:
-    AudioEffects.remove_effect(AudioBus.BUS.SFX, "AudioEffectReverb")
+    AudioEffectManager.remove_effect(AudioBus.BUS.SFX, "AudioEffectReverb")
 
 
 func _on_button_enable_dist_pressed() -> void:
-    AudioEffects.add_distortion(AudioBus.BUS.SFX)
+    AudioEffectManager.add_distortion(AudioBus.BUS.SFX)
 
 
 func _on_button_disable_dist_pressed() -> void:
-    AudioEffects.remove_effect(AudioBus.BUS.SFX, "AudioEffectDistortion")
+    AudioEffectManager.remove_effect(AudioBus.BUS.SFX, "AudioEffectDistortion")
 
 
 func _update_active_sounds(sfx_name: String, bus_name: String) -> void:
@@ -146,7 +146,7 @@ func _update_active_sounds(sfx_name: String, bus_name: String) -> void:
 
 
 func _stop_specific_sound(sfx_name: String) -> void:
-    AudioManager.stop_sfx(sfx_name)
+    AudioPoolManager.stop_sfx(sfx_name)
     for child: Node in active_sounds_box.get_children():
         if child is HBoxContainer:
             var h_box_container: HBoxContainer = child as HBoxContainer

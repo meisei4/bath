@@ -21,8 +21,8 @@ driver/enable_input=true
 [autoload]
 
 ResolutionManager="*res://godot/Autoloads/ResolutionManager.gd"
-AudioEffects="*res://godot/Audio/AudioEffects.gd"
-AudioManager="*res://godot/Autoloads/AudioManager.gd"
+AudioEffectManager="*res://godot/Autoloads/AudioEffectManager.gd"
+AudioPoolManager="*res://godot/Autoloads/AudioPoolManager.gd"
 AudioBus="*res://godot/Audio/AudioBus.gd"
 MusicDimensionsManager="*res://godot/Autoloads/MusicDimensionsManager.gd"
 ComponentsManager="*res://godot/Autoloads/CharacterComponentsManager.gd"

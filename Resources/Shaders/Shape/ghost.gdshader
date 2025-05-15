@@ -12,27 +12,15 @@ uniform sampler2D iChannel0: filter_nearest_mipmap, repeat_enable;
 #define GRID_ORIGIN_OFFSET_CELLS vec2(1.33, 0.5)
 #define GRID_ORIGIN_UV_OFFSET    ((GRID_ORIGIN_INDEX + GRID_ORIGIN_OFFSET_CELLS) * GRID_CELL_SIZE)
 #define CELL_DRIFT_AMPLITUDE    0.2
-//   • Units: grid‐space UV units
-//   • Domain ~[0.0–1.0] (0 = no drift, 1 = very strong drift)
-//   • Controls how far each cell “wobbles” over time
 #define LIGHT_WAVE_SPATIAL_FREQ_X     8.0
 #define LIGHT_WAVE_SPATIAL_FREQ_Y     8.0
-//   • Units: radians per cell
-//   • Domain >0 (higher = more crests per cell)
 #define LIGHT_WAVE_TEMPORAL_FREQ_X    80.0
 #define LIGHT_WAVE_TEMPORAL_FREQ_Y    2.3
-//   • Units: radians per second
-//   • Domain >0 (higher = faster animation)
 #define LIGHT_WAVE_AMPLITUDE_X        0.03
 #define LIGHT_WAVE_AMPLITUDE_Y        0.1
-//   • Units: grid‐space UV offset
-//   • Domain ~[0.0–0.5] (small to subtle; >0.2 very wavy)
-//   • Max horizontal or vertical displacement per wave
-#define UMBRAL_MASK_OUTER_RADIUS     0.40  // bad name this is not for the umbral mask but rather the whole grid!
-#define UMBRAL_MASK_INNER_RADIUS     0.08
-//   • Region inside which mask is solid (no fade)
+#define UMBRAL_MASK_OUTER_RADIUS      0.40
+#define UMBRAL_MASK_INNER_RADIUS      0.08
 #define UMBRAL_MASK_FADE_BAND         0.025
-//   • Width of the fade band between inner & outer radius
 #define UMBRAL_MASK_CENTER           vec2(HALF, HALF)
 #define UMBRAL_MASK_OFFSET_X         (-UMBRAL_MASK_OUTER_RADIUS /1.0)
 #define UMBRAL_MASK_OFFSET_Y         (-UMBRAL_MASK_OUTER_RADIUS)
@@ -40,7 +28,6 @@ uniform sampler2D iChannel0: filter_nearest_mipmap, repeat_enable;
 #define UMBRAL_MASK_PHASE_COEFFICIENT_Y  0.2
 #define UMBRAL_MASK_WAVE_AMPLITUDE_X     0.1
 #define UMBRAL_MASK_WAVE_AMPLITUDE_Y     0.1
-
 #define DITHER_TEXTURE_SCALE    8.0
 #define DITHER_BLEND_FACTOR     0.75
 
@@ -132,13 +119,11 @@ void fragment() {
     //set up light ball inside target grid cell
     vec4 lightball    = light_radial_fade(grid_coords, UMBRAL_MASK_CENTER, UMBRAL_MASK_OUTER_RADIUS, UMBRAL_MASK_FADE_BAND);
     vec4 src_color    = lightball;
-
     //set up umbral mask to be drawn on top of transformed light ball
     vec2 umbral_mask_phase = vec2(0.0);
     umbral_mask_phase     += add_umbral_mask_phase(time);
     vec2 umbral_mask_pos   = umbral_mask_position(UMBRAL_MASK_PHASE_COEFFICIENT_X, UMBRAL_MASK_PHASE_COEFFICIENT_Y, umbral_mask_phase);
 
-    //add the umbral mask to the light ball
     src_color         = add_umbral_mask(src_color, grid_coords, umbral_mask_pos);
     src_color         = add_dither(src_color, frag_coord);
     //frag_color.a      = 1.0;

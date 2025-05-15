@@ -28,7 +28,7 @@ func _ready() -> void:
     MainImage.texture = BufferA.get_texture()
     MainImage.flip_v = true
     var music_resource: AudioStream = load(AudioConsts.SHADERTOY_MUSIC_TRACK_EXPERIMENT)
-    AudioManager.play_music(music_resource)
+    AudioPoolManager.play_music(music_resource)
     audio_texture = FFTTexture.new()
     BufferA.add_child(BufferAShaderNode)
     add_child(BufferA)

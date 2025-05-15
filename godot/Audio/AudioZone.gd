@@ -21,9 +21,11 @@ func _ready() -> void:
     self.audio_bus = AudioBus.BUS.MUSIC
 
     if effects_enabled:
-        AudioEffects.add_distortion(audio_bus, AudioEffects.DEFAULT_DISTORTION)
-        AudioEffects.add_reverb(audio_bus, AudioEffects.DEFAULT_REVERB)
-        AudioEffects.set_pitch_shift(audio_bus, AudioEffects.DEFAULT_PITCH_SHIFT["pitch_scale"])
+        AudioEffectManager.add_distortion(audio_bus, AudioEffectManager.DEFAULT_DISTORTION)
+        AudioEffectManager.add_reverb(audio_bus, AudioEffectManager.DEFAULT_REVERB)
+        AudioEffectManager.set_pitch_shift(
+            audio_bus, AudioEffectManager.DEFAULT_PITCH_SHIFT["pitch_scale"]
+        )
 
     if self.stream:
         self.play()
@@ -67,25 +69,27 @@ func apply_custom_volume(effect_strength: float) -> void:
 
 func adjust_distortion(effect_strength: float) -> void:
     var config: Dictionary = {
-        "drive": lerp(0.0, AudioEffects.DEFAULT_DISTORTION["drive"], effect_strength),
-        "pre_gain_db": lerp(0.0, AudioEffects.DEFAULT_DISTORTION["pre_gain_db"], effect_strength),
-        "post_gain_db": lerp(0.0, AudioEffects.DEFAULT_DISTORTION["post_gain_db"], effect_strength)
+        "drive": lerp(0.0, AudioEffectManager.DEFAULT_DISTORTION["drive"], effect_strength),
+        "pre_gain_db":
+        lerp(0.0, AudioEffectManager.DEFAULT_DISTORTION["pre_gain_db"], effect_strength),
+        "post_gain_db":
+        lerp(0.0, AudioEffectManager.DEFAULT_DISTORTION["post_gain_db"], effect_strength)
     }
-    AudioEffects.update_distortion(audio_bus, config)
+    AudioEffectManager.update_distortion(audio_bus, config)
 
 
 func adjust_reverb(effect_strength: float) -> void:
     var config: Dictionary = {
-        "wet": lerp(0.0, AudioEffects.DEFAULT_REVERB["wet"], effect_strength),
-        "room_size": lerp(0.0, AudioEffects.DEFAULT_REVERB["room_size"], effect_strength),
-        "damping": lerp(0.0, AudioEffects.DEFAULT_REVERB["damping"], effect_strength)
+        "wet": lerp(0.0, AudioEffectManager.DEFAULT_REVERB["wet"], effect_strength),
+        "room_size": lerp(0.0, AudioEffectManager.DEFAULT_REVERB["room_size"], effect_strength),
+        "damping": lerp(0.0, AudioEffectManager.DEFAULT_REVERB["damping"], effect_strength)
     }
-    AudioEffects.update_reverb(audio_bus, config)
+    AudioEffectManager.update_reverb(audio_bus, config)
 
 
 func adjust_pitch_shift(effect_strength: float) -> void:
     current_pitch = lerp(0.5, 2.0, effect_strength)  # Pitch shifts between 0.5 and 2.0
-    AudioEffects.set_pitch_shift(audio_bus, current_pitch)
+    AudioEffectManager.set_pitch_shift(audio_bus, current_pitch)
 
 
 func enable_dynamic_distortion() -> void:

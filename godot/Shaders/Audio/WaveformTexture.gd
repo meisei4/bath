@@ -1,6 +1,8 @@
 extends Node
 class_name WaveformTexture
 
+#TODO: look at moving this to the MusicDimensionsManager when ready, currently this whole thing
+# and the SoundEnvelope is put on hold because its very unoptimized
 var audio_texture: ImageTexture
 var audio_image: Image
 var waveform_audio_effect_capture: AudioEffectCapture
@@ -33,7 +35,7 @@ func prepare_waveform_audio_effect_capture() -> void:
     waveform_audio_effect_capture.buffer_length = 0.01666666666  #TODO: 1/60 this is bat shit and results in unaligned injection and propagation somehow?
     #waveform_audio_effect_capture.buffer_length = 0.03333333333  #TODO: 1/30 this aligns kind of with the frame rate and thus the injection intervals and propagation??
     #waveform_audio_effect_capture.buffer_length = 0.06666666666 #TODO: 1/15 this is bat shit and results in unaligned injection and propagation somehow?
-    AudioEffects.add_effect(TARGET_AUDIO_BUS, waveform_audio_effect_capture)
+    AudioEffectManager.add_effect(TARGET_AUDIO_BUS, waveform_audio_effect_capture)
     waveform_data.resize(BUFFER_SIZE)
 
 

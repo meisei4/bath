@@ -1,90 +1,145 @@
 extends Node
 #class_name MusicDimensionsManager
 
-signal rhythm_indicator(beat_index: int, bar_index: int, beats_per_minute: float)
+signal beat_detected(beat_index: int, time_since_last_beat_in_seconds: float, bpm: float)
 
-var time_signature: int = 4
-var onset_detection_threshold: float = 0.1  # Minimum rise in audio level to count as a beat
-var audio_capture_interval_seconds: float = 0.0333333  # Seconds per capture (~30 Hz)
+var SAMPLE_RATE: float = AudioServer.get_mix_rate()  # query real mix rate
 
-const CAPTURE_SAMPLE_COUNT: int = 512
-const INTERVAL_HISTORY_MAX: int = 8
+const FREQUENCY_LOWER_BOUND_HERTZ: float = 20.0
+const FREQUENCY_UPPER_BOUND_HERTZ: float = 150.0
+const ABSOLUTE_FLOOR_LEVEL: float = 0.01
+const RELATIVE_THRESHOLD_RATIO: float = 0.5
 
-var _audio_effect_capture: AudioEffectCapture = null
-var _previous_audio_level: float = 0.0
-var _last_onset_time_milliseconds: float = 0.0
-var _interval_history_milliseconds: Array[float] = []
-var _detected_beat_index: int = 0
+const HISTORY_BUFFER_MAXIMUM_SIZE: int = 45
 
-var BPM: float = 120.0
+const MDN_MIN_AUDIO_DECIBEL: float = -100.0  #match WebAudio defaults
+const MDN_MAX_AUDIO_DECIBEL: float = -30.0  #match WebAudio defaults
+const MDN_SMOOTHING: float = 0.8
+
+var spectrum_analyzer_instance: AudioEffectSpectrumAnalyzerInstance
+var previous_smoothed_level: float = 0.0
+var level_history_buffer: PackedFloat32Array = PackedFloat32Array()
+var history_levels_sum: float = 0.0
+var total_frame_counter: int = 0
+var last_beat_frame_counter: int = 0
+var beat_event_counter: int = 0
+var last_beat_time_seconds: float = 0.0
+
+var TARGET_AUDIO_BUS: AudioBus.BUS = AudioBus.BUS.MUSIC
+#var TARGET_AUDIO_BUS: AudioBus.BUS = AudioBus.BUS.INPUT
 
 
 func _ready() -> void:
-    _initialize_audio_capture()
+    var bus_index: int = AudioBus.get_bus_index(AudioBus.BUS.MASTER)
+    #var bus_index: int = AudioBus.get_bus_index(TARGET_AUDIO_BUS)
+    var spectrum_analyzer_effect: AudioEffectSpectrumAnalyzer = AudioEffectSpectrumAnalyzer.new()
+    spectrum_analyzer_effect.fft_size = AudioEffectSpectrumAnalyzer.FFTSize.FFT_SIZE_2048
+    #spectrum_analyzer_effect.fft_size = AudioEffectSpectrumAnalyzer.FFTSize.FFT_SIZE_1024
+    AudioEffectManager.add_effect(bus_index, spectrum_analyzer_effect)
+    # EFFECTS ARE ALWAYS ADDED ON THE END OF EXISTING EFFECT ORDER!!!
+    var effect_index: int = AudioServer.get_bus_effect_count(bus_index) - 1  # index by 0
+    spectrum_analyzer_instance = AudioServer.get_bus_effect_instance(bus_index, effect_index)
+    print(
+        "[BeatManager] using frequency_range=",
+        FREQUENCY_LOWER_BOUND_HERTZ,
+        "-",
+        FREQUENCY_UPPER_BOUND_HERTZ,
+        "Hz"
+    )
 
 
-func _initialize_audio_capture() -> void:
-    _audio_effect_capture = AudioEffectCapture.new()
-    _audio_effect_capture.buffer_length = audio_capture_interval_seconds
-    var master_bus_index: int = AudioBus.get_bus_index(AudioBus.BUS.MASTER)
-    AudioServer.add_bus_effect(master_bus_index, _audio_effect_capture)
+func _process(frame_delta_time: float) -> void:
+    total_frame_counter += 1
+    var smoothed_level: float = compute_smoothed_level_for_frequency_range(
+        FREQUENCY_LOWER_BOUND_HERTZ, FREQUENCY_UPPER_BOUND_HERTZ, previous_smoothed_level
+    )
+    var level_rise_amount: float = smoothed_level - previous_smoothed_level
+    level_history_buffer.append(smoothed_level)
+    history_levels_sum += smoothed_level
 
+    if level_history_buffer.size() > HISTORY_BUFFER_MAXIMUM_SIZE:
+        history_levels_sum -= level_history_buffer[0]
+        level_history_buffer.remove_at(0)
 
-func _process(delta_time: float) -> void:
-    if not _audio_effect_capture.can_get_buffer(CAPTURE_SAMPLE_COUNT):
-        return
+    var average_history_level: float = history_levels_sum / level_history_buffer.size()
+    var relative_rise_amount: float = smoothed_level - average_history_level
+    var relative_rise_ratio: float = 0.0
+    if average_history_level > 0.0:
+        relative_rise_ratio = relative_rise_amount / average_history_level
 
-    var captured_frames: PackedVector2Array = _audio_effect_capture.get_buffer(CAPTURE_SAMPLE_COUNT)
-    var sum_absolute_levels: float = 0.0
-    for frame: Vector2 in captured_frames:
-        sum_absolute_levels += abs(frame.x)  # assume mono in .x
-
-    var current_audio_level: float = sum_absolute_levels / float(CAPTURE_SAMPLE_COUNT)
-    var audio_level_rise: float = current_audio_level - _previous_audio_level
-
-    if audio_level_rise > onset_detection_threshold:
-        _handle_beat_detection()
-
-    _previous_audio_level = current_audio_level
-
-
-func _handle_beat_detection() -> void:
-    var precise_time_seconds: float = _get_precise_audio_playback_time()
-    var precise_time_milliseconds: float = precise_time_seconds * 1000.0
-
-    if _last_onset_time_milliseconds > 0.0:
-        var interval_milliseconds: float = precise_time_milliseconds - _last_onset_time_milliseconds
-        _interval_history_milliseconds.append(interval_milliseconds)
-        if _interval_history_milliseconds.size() > INTERVAL_HISTORY_MAX:
-            _interval_history_milliseconds.pop_front()
-
-        var total_interval_milliseconds: float = 0.0
-        for interval: float in _interval_history_milliseconds:
-            total_interval_milliseconds += interval
-
-        var average_interval_milliseconds: float = (
-            total_interval_milliseconds / float(_interval_history_milliseconds.size())
+    if smoothed_level > ABSOLUTE_FLOOR_LEVEL and relative_rise_ratio > RELATIVE_THRESHOLD_RATIO:
+        print(
+            "[BeatManager] ➤ BEAT! smoothed_level=",
+            smoothed_level,
+            " relative_rise_ratio=",
+            relative_rise_ratio,
+            " frames_since_last_beat=",
+            total_frame_counter - last_beat_frame_counter
         )
-        BPM = 60000.0 / average_interval_milliseconds
+        _register_beat_event()
 
-    _last_onset_time_milliseconds = precise_time_milliseconds
-
-    var current_bar_index: int = _detected_beat_index / time_signature
-    rhythm_indicator.emit(_detected_beat_index, current_bar_index, BPM)
-    #print("▶️ Beat #", _detected_beat_index, " Bar #", current_bar_index, "  BPM=", BPM)
-    _detected_beat_index += 1
+    previous_smoothed_level = smoothed_level
 
 
-static func _get_precise_audio_playback_time() -> float:
-    for music_player: AudioStreamPlayer in AudioManager.music_pool:
+func _register_beat_event() -> void:
+    var current_playback_time_seconds: float = _get_current_playback_time_in_seconds()
+    var time_since_last_beat_in_seconds: float = 0.0
+    if last_beat_time_seconds > 0.0:
+        time_since_last_beat_in_seconds = current_playback_time_seconds - last_beat_time_seconds
+
+    var bpm: float = 0.0
+    if time_since_last_beat_in_seconds > 0.0:
+        bpm = 60.0 / time_since_last_beat_in_seconds
+
+    beat_detected.emit(beat_event_counter, time_since_last_beat_in_seconds, bpm)
+    beat_event_counter += 1
+    last_beat_time_seconds = current_playback_time_seconds
+    last_beat_frame_counter = total_frame_counter
+
+
+static func _get_current_playback_time_in_seconds() -> float:
+    for music_player: AudioStreamPlayer in AudioPoolManager.music_pool.players:
         if music_player.playing:
             var playback_position_seconds: float = music_player.get_playback_position()
-            var time_since_last_mix_seconds: float = AudioServer.get_time_since_last_mix()
-            var output_latency_seconds: float = AudioServer.get_output_latency()
+            var mix_time_seconds: float = AudioServer.get_time_since_last_mix()
+            var latency_seconds: float = AudioServer.get_output_latency()
+            var estimated_playback_time_seconds: float = (
+                playback_position_seconds + mix_time_seconds - latency_seconds
+            )
+            var corrected_playback_time_seconds: float = estimated_playback_time_seconds
+            if estimated_playback_time_seconds < 0.0:
+                corrected_playback_time_seconds = 0.0
 
-            playback_position_seconds += time_since_last_mix_seconds
-            playback_position_seconds -= output_latency_seconds
-
-            return max(playback_position_seconds, 0.0)
+            return corrected_playback_time_seconds
 
     return 0.0
+
+
+#AUXILIARIES!!!
+func compute_smoothed_level_for_frequency_range(
+    from_hz: float, to_hz: float, previous_smoothed_level: float
+) -> float:
+    var linear_avg: float = _compute_linear_average_for_frequency_range(from_hz, to_hz)
+    var normalized: float = _compute_normalized_level_from_linear_magnitude(linear_avg)
+    return _compute_smoothed_level(previous_smoothed_level, normalized)
+
+
+func _compute_linear_average_for_frequency_range(from_hz: float, to_hz: float) -> float:
+    var stereo_magnitude: Vector2 = spectrum_analyzer_instance.get_magnitude_for_frequency_range(
+        from_hz, to_hz, AudioEffectSpectrumAnalyzerInstance.MagnitudeMode.MAGNITUDE_AVERAGE
+    )
+    # down-mix to mono
+    return (stereo_magnitude.x + stereo_magnitude.y) * 0.5
+
+
+static func _compute_normalized_level_from_linear_magnitude(linear_magnitude: float) -> float:
+    var db: float = linear_to_db(linear_magnitude)
+    return clamp(
+        (db - MDN_MIN_AUDIO_DECIBEL) / (MDN_MAX_AUDIO_DECIBEL - MDN_MIN_AUDIO_DECIBEL), 0.0, 1.0
+    )
+
+
+static func _compute_smoothed_level(
+    previous_smoothed_level: float, new_normalized_level: float
+) -> float:
+    return MDN_SMOOTHING * previous_smoothed_level + (1.0 - MDN_SMOOTHING) * new_normalized_level
