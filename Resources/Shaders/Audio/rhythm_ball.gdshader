@@ -6,6 +6,11 @@ uniform sampler2D iChannel0: filter_nearest_mipmap, repeat_enable;
 uniform sampler2D iChannel1: repeat_disable, filter_nearest;
 
 uniform float bpm;
+uniform vec2 time_signature;
+uniform int   subdivisions_per_beat;        // e.g. 1,2,4,8…
+uniform float seconds_per_beat;             // = 60.0 / bpm
+uniform float seconds_per_subdivision;      // = seconds_per_beat / subdivisions_per_beat
+uniform float seconds_per_bar;              // = seconds_per_beat * time_signature_numerator
 
 #define HALF                        0.5
 #define GRID_SCALE                  4.0
@@ -99,17 +104,42 @@ void fragment() {
     vec2 grid_phase  = spatial_phase(grid_coords);
     //grid_coords     += add_phase(grid_phase);
     //grid_coords     += warp_and_drift_cell(grid_coords, time);
+    float phase = 0.0;
+    //TODO: the below are all weird
+    //phase = fract(time * bpm / 60.0);
+    //phase = fract(time / seconds_per_beat);
+    //phase = fract(time / seconds_per_subdivision);
+    //phase = fract(time / seconds_per_bar);
 
-    float beat_phase = fract(time * bpm / 60.0);
+    float beat_phase = fract(time / seconds_per_beat);
+    float sub_beat_phase  = fract(time / seconds_per_subdivision);
+    phase = mix(beat_phase, sub_beat_phase, HALF);
+    
     float PULSE_MIN = 0.8;
     float PULSE_MAX = 1.2;
-    float BPM_PULSE = mix(PULSE_MIN, PULSE_MAX, HALF + HALF * sin(beat_phase * 6.2831853));
+    float BPM_PULSE = mix(PULSE_MIN, PULSE_MAX, HALF + HALF * sin(phase * 6.2831853));
     vec4 lightball = light_radial_fade(
         grid_coords,
         LIGHTBALL_CENTER,
         LIGHTBALL_OUTER_RADIUS * BPM_PULSE,
         LIGHTBALL_FADE_BAND
     );
+    
+    //float pos_in_bar = mod(time, seconds_per_bar);
+    //float f_beat = floor(pos_in_bar / seconds_per_beat);
+    //int beatIndex = int(f_beat + 0.5);
+    //float R_BIG   = 0.5;
+    //float R_SMALL = 0.3;
+    //float radius = R_SMALL;
+    //if (beatIndex == 0) {
+        //radius = R_BIG;
+    //}
+    //lightball = light_radial_fade(
+        //grid_coords,
+        //LIGHTBALL_CENTER,
+        //radius,
+        //LIGHTBALL_FADE_BAND
+    //);
     vec4 src_color = add_dither(lightball, frag_coord);
 
     // overlay the lightball over the FFT histogram
