@@ -1,7 +1,6 @@
 extends Node2D
 class_name IOIVisualizer
 
-
 var BufferAShaderNode: ColorRect
 var BufferAShader: Shader = load("res://Resources/Shaders/Audio/ioi.gdshader")
 var BufferAShaderMaterial: ShaderMaterial
@@ -40,6 +39,8 @@ func _ready() -> void:
 
 
 var last_printed_bpm: float = -1.0
+
+
 func _process(delta: float) -> void:
     iChannel0 = audio_texture.audio_texture
     BufferAShaderMaterial.set_shader_parameter("iChannel0", iChannel0)
