@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3 uid="uid://bck1lbe5mvj73"]
+
+[ext_resource type="Script" uid="uid://ccj52nwvohwum" path="res://godot/Shaders/Audio/IOIVisualizer.gd" id="1_471ml"]
+
+[node name="IoiVisualizer" type="Node2D"]
+script = ExtResource("1_471ml")
+metadata/_custom_type_script = "uid://ccj52nwvohwum"

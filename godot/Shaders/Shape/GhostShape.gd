@@ -21,8 +21,6 @@ var ioi_texture: IOITexture
 
 
 func _ready() -> void:
-    MusicDimensionsManager.onset_event.connect(_on_onset_event)
-    MusicDimensionsManager.tempo_event.connect(_on_tempo_event)
     iResolution = ResolutionManager.resolution
     BufferA = ShaderToyUtil.create_buffer_viewport(iResolution)
     BufferAShaderMaterial = ShaderMaterial.new()
@@ -54,25 +52,3 @@ func _process(_delta: float) -> void:
     BufferAShaderMaterial.set_shader_parameter("iChannel1", iChannel1)
     iChannel2 = ioi_texture.audio_texture
     BufferAShaderMaterial.set_shader_parameter("iChannel2", iChannel2)
-
-
-func _on_onset_event(
-    onset_index: int,
-    time_since_previous_onset: float,
-    onsets_per_minute: float,
-    current_playback_time_seconds: float
-) -> void:
-    BufferAShaderMaterial.set_shader_parameter("onsets_per_minute", onsets_per_minute)
-
-
-func _on_tempo_event(
-    beat_index_within_bar: int,
-    beat_phase_within_current_beat: float,
-    beats_per_minute_true_tempo: float,
-    seconds_per_beat_true_tempo: float,
-    seconds_per_bar_true_tempo: float
-) -> void:
-    BufferAShaderMaterial.set_shader_parameter("beat_index", beat_index_within_bar)
-    BufferAShaderMaterial.set_shader_parameter("beat_phase", beat_phase_within_current_beat)
-    BufferAShaderMaterial.set_shader_parameter("seconds_per_beat", seconds_per_beat_true_tempo)
-    BufferAShaderMaterial.set_shader_parameter("seconds_per_bar", seconds_per_bar_true_tempo)
