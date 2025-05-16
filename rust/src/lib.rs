@@ -1,9 +1,7 @@
-// src/lib.rs
-
 use godot::prelude::*;
 use godot::classes::Node2D;
 use godot::builtin::{PackedByteArray, PackedVector2Array, Vector2};
-
+use simple_bpm::SimpleEstimator;
 mod collision_mask_util;
 
 struct MyExtension;
@@ -81,6 +79,9 @@ impl RustUtil {
 
         godot_polygons_array
     }
+    //TODO: study this https://github.com/ellington-project/simple_bpm/blob/master/examples/bpm.rs
+    //TODO: make a compute bpm quick call function here
+
 
     //TODO: this is not effective as an optimization for the sound envelope shader:
     // see https://github.com/meisei4/bath/blob/main/godot/Shaders/Audio/SoundEnvelope.gd's TODO

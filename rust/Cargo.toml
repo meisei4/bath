@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 godot = "0.2.4"
+simple_bpm  = "0.2.1"
 
 [lib]
 crate-type = ["cdylib"]  # Compile this crate to a dynamic C library.
