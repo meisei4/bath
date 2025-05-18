@@ -1,8 +1,9 @@
 use godot::prelude::*;
 use godot::classes::Node2D;
 use godot::builtin::{PackedByteArray, PackedVector2Array, Vector2};
-use simple_bpm::SimpleEstimator;
+
 mod collision_mask_util;
+mod audio_analysis_util;
 
 struct MyExtension;
 
@@ -15,6 +16,7 @@ struct RustUtil {
     #[base]
     base: Base<Node2D>,
 }
+
 
 #[godot_api]
 impl RustUtil {
@@ -79,42 +81,11 @@ impl RustUtil {
 
         godot_polygons_array
     }
-    //TODO: study this https://github.com/ellington-project/simple_bpm/blob/master/examples/bpm.rs
-    //TODO: make a compute bpm quick call function here
 
-
-    //TODO: this is not effective as an optimization for the sound envelope shader:
-    // see https://github.com/meisei4/bath/blob/main/godot/Shaders/Audio/SoundEnvelope.gd's TODO
     #[func]
-    pub fn compute_envelope_segments(
-        &self,
-        waveform_data: PackedFloat32Array,
-        segments: i32,
-    ) -> PackedFloat32Array {
-        let data: Vec<f32> = waveform_data.to_vec();
-        let seg = segments as usize;
-        let len = data.len();
-        let chunk = (len + seg - 1) / seg; // ceil division
-
-        let mut out = PackedFloat32Array::new();
-        out.resize(seg);
-
-        for i in 0..seg {
-            let start = i * chunk;
-            let end = ((i + 1) * chunk).min(len);
-            if start >= end {
-                out.insert(i, 0.0);
-                continue;
-            }
-            let sum: f32 = data[start..end]
-                .iter()
-                .map(|v| v.abs())
-                .sum();
-            let avg = sum / ((end - start) as f32);
-            out.insert(i, avg);
-        }
-
-        out
+    pub fn detect_bpm(&self, path: GString) -> f32 {
+        audio_analysis_util::detect_bpm(path)
+        //audio_analysis_util::_detect_bpm_accurate(path)
     }
 
 }

@@ -24,6 +24,15 @@ var time_of_previous_onset: float = 0.0
 var onset_event_counter: int = 0
 
 
+var metronome_click: AudioStream = preload(AudioConsts.METRONOME_CLICK)
+var time_of_next_click: float = 0.0
+var rust_util: RustUtil
+var bpm: float
+
+var song: String = AudioConsts.SHADERTOY_MUSIC_TRACK_EXPERIMENT_WAV
+#var song: String = AudioConsts.HELLION_WAV
+
+
 func _ready() -> void:
     var bus_index: int = AudioBus.get_bus_index(AudioBus.BUS.MUSIC)
     var effect: AudioEffectSpectrumAnalyzer = AudioEffectSpectrumAnalyzer.new()
@@ -31,6 +40,19 @@ func _ready() -> void:
     AudioEffectManager.add_effect(bus_index, effect)
     var effect_index: int = AudioServer.get_bus_effect_count(bus_index) - 1
     spectrum_analyzer_instance = AudioServer.get_bus_effect_instance(bus_index, effect_index)
+
+    rust_util = RustUtil.new()
+    var wav_fs_path = ProjectSettings.globalize_path(song)
+    bpm = rust_util.detect_bpm(wav_fs_path)
+    print("aubio derived bpm is:", bpm)
+    var music_resource: AudioStream = load(song)
+    AudioPoolManager.play_music(music_resource)
+
+    #var input_resource: AudioStreamMicrophone = AudioStreamMicrophone.new()
+    #AudioManager.play_input(input_resource, 0.0)
+    #TODO: ^^^ ew, figure out how to perhaps make it more obvious that the audio texture can target whatever audio bus...
+
+
 
 
 func _process(delta_time: float) -> void:

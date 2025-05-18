@@ -4,15 +4,10 @@ render_mode blend_disabled;
 uniform vec2 iResolution;
 uniform sampler2D iChannel0: filter_nearest_mipmap, repeat_enable;
 uniform sampler2D iChannel1: repeat_disable, filter_nearest;
-uniform sampler2D iChannel2: repeat_disable, filter_nearest;
+//uniform sampler2D iChannel2: repeat_disable, filter_nearest;
 
 
-uniform float onsets_per_minute;
-//uniform vec2 time_signature;
-//uniform int   subdivisions_per_beat;        // e.g. 1,2,4,8…
-//uniform float seconds_per_beat;             // = 60.0 / bpm
-//uniform float seconds_per_subdivision;      // = seconds_per_beat / subdivisions_per_beat
-//uniform float seconds_per_bar;              // = seconds_per_beat * time_signature_numerator
+uniform float bpm;
 
 #define HALF                        0.5
 #define GRID_SCALE                  4.0
@@ -55,17 +50,11 @@ vec4 add_dither(vec4 src_color, vec2 frag_coord) {
 }
 
 float compute_radial_phase(float time) {
-    //return fract(t * bpm / 60.0);
-    //return fract(t / seconds_per_beat);
-    //return fract(t / seconds_per_subdivision);
-    //return fract(t / seconds_per_bar);
-    //float beat_phase     = fract(time / seconds_per_beat);
-    //float subdiv_phase   = fract(time / seconds_per_subdivision);
-    //return mix(beat_phase, subdiv_phase, HALF);
-    return 0.0;
+    float seconds_per_beat = 60.0 / bpm;
+    return fract(time / seconds_per_beat);
 }
 
-float pulse_radius_experimental(float time) {
+float pulse_radius(float time) {
     float phase = compute_radial_phase(time);
     const float PULSE_MIN = 0.8;
     const float PULSE_MAX = 1.2;
@@ -73,32 +62,6 @@ float pulse_radius_experimental(float time) {
                     PULSE_MAX,
                     HALF + HALF * sin(phase * 6.2831853));
     return LIGHTBALL_OUTER_RADIUS * mul;
-}
-
-float pulse_radius_default(float time){
-    //float pos_in_bar  = mod(time, seconds_per_bar);          // 0 … seconds_per_bar
-    //float beat_f      = pos_in_bar / seconds_per_beat;    // 0 … time_signature.x
-    //float beat_idx    = floor(beat_f);                    // 0,1,2,3,…
-    //float beat_phase  = fract(beat_f);                    // 0 → 1 inside this beat
-    //const float R_NEUTRAL = LIGHTBALL_OUTER_RADIUS;   // 0.40  ← baseline
-    //const float R_BIG     = 0.50;                     // expand on down-beat
-    //const float R_SMALL   = 0.30;                     // shrink on other beats
-    //float target = (beat_idx == 0.0) ? R_BIG : R_SMALL;
-    //return mix(target, R_NEUTRAL, beat_phase);        // beat_phase: 0 → target, 1 → neutral
-    return 0.0;
-}
-
-uniform int   beat_index;        // 0,1,2,3…
-uniform float beat_phase;        // 0 → 1 during this beat
-uniform float seconds_per_beat;  // from TempoDimension
-uniform float seconds_per_bar;   // not used below but available
-float pulse_radius_true_tempo() {
-    const float R_NEUTRAL = LIGHTBALL_OUTER_RADIUS; // 0.40
-    const float R_BIG     = 0.50;  // down-beat expand
-    const float R_SMALL   = 0.30;  // up-beat shrink
-
-    float target = (beat_index == 0) ? R_BIG : R_SMALL;
-    return mix(target, R_NEUTRAL, beat_phase);
 }
 
 void fragment() {
@@ -121,9 +84,7 @@ void fragment() {
     vec2 uv = frag_coord.xy / vec2(iResolution.y);
     vec2 grid_coords = uv_to_grid_space(uv, time);
     //float radius = LIGHTBALL_OUTER_RADIUS;
-    //float radius = pulse_radius_experimental(time);
-    //float radius = pulse_radius_default(time);
-    float radius = pulse_radius_true_tempo();
+    float radius = pulse_radius(time);
     vec4 lightball = light_radial_fade(
             grid_coords,
             LIGHTBALL_CENTER,

@@ -29,7 +29,7 @@ func update_fft_texture_row() -> void:
         var to_hz: float = (bin_index + 1) * (MusicDimensionsManager.SAMPLE_RATE * 0.5) / MDN_BINS
         var smoothed_fft_value: float = (
             MusicDimensionsManager
-            . compute_smoothed_level_for_frequency_range(from_hz, to_hz, fft_data[bin_index])
+            . compute_smooth_energy_for_frequency_range(from_hz, to_hz, fft_data[bin_index])
         )
         fft_data[bin_index] = smoothed_fft_value
         audio_image.set_pixel(
