@@ -33,6 +33,11 @@ func _ready() -> void:
     BufferAShaderMaterial.set_shader_parameter("bpm", MusicDimensionsManager.bpm)
     fft_texture = FFTTexture.new()
     ioi_texture = IOITexture.new()
+
+    var onsets_buf = MusicDimensionsManager.custom_onsets_flat_buffer
+    BufferAShaderMaterial.set_shader_parameter("custom_onsets", onsets_buf)
+    BufferAShaderMaterial.set_shader_parameter("custom_onset_count", onsets_buf.size())
+
     MainImage = TextureRect.new()
     MainImage.texture = BufferA.get_texture()
     MainImage.flip_v = true
@@ -48,8 +53,6 @@ func _process(delta: float) -> void:
     BufferAShaderMaterial.set_shader_parameter("iChannel1", iChannel1)
     #iChannel2 = ioi_texture.audio_texture
     #BufferAShaderMaterial.set_shader_parameter("iChannel2", iChannel2)
-    var ioi: float = 60.0 / MusicDimensionsManager.bpm
-    MusicDimensionsManager.time_of_next_click -= delta
-    if MusicDimensionsManager.time_of_next_click <= 0.0:
-        #AudioPoolManager.play_sfx(metronome_click)
-        MusicDimensionsManager.time_of_next_click += ioi
+    #MusicDimensionsManager.debug_bpm_onsets(delta)
+    #MusicDimensionsManager.debug_custom_onsets(delta)
+    MusicDimensionsManager.debug_custom_onsets_ASCII(delta)

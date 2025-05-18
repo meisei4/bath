@@ -5,7 +5,10 @@ uniform vec2 iResolution;
 uniform sampler2D iChannel0: filter_nearest_mipmap, repeat_enable;
 uniform sampler2D iChannel1: repeat_disable, filter_nearest;
 //uniform sampler2D iChannel2: repeat_disable, filter_nearest;
+const int MAX_CUSTOM_ONSETS = 128;
 
+uniform vec4 custom_onsets[MAX_CUSTOM_ONSETS];
+uniform int custom_onset_count;
 
 uniform float bpm;
 
@@ -13,7 +16,7 @@ uniform float bpm;
 #define GRID_SCALE               4.0
 #define GRID_CELL_SIZE           (vec2(1.0) / GRID_SCALE)
 #define GRID_ORIGIN_INDEX        vec2(0.0)
-#define GRID_ORIGIN_OFFSET_CELLS vec2(5.66, 2.66)
+#define GRID_ORIGIN_OFFSET_CELLS vec2(5.66, 2.33)
 #define GRID_ORIGIN_UV_OFFSET    ((GRID_ORIGIN_INDEX + GRID_ORIGIN_OFFSET_CELLS) * GRID_CELL_SIZE)
 #define CELL_DRIFT_AMPLITUDE    0.2
 #define LIGHT_WAVE_SPATIAL_FREQ_X     8.0
@@ -34,6 +37,10 @@ uniform float bpm;
 #define UMBRAL_MASK_WAVE_AMPLITUDE_Y     0.1
 #define DITHER_TEXTURE_SCALE    8.0
 #define DITHER_BLEND_FACTOR     0.75
+
+#define JERK_WINDOW  0.1
+#define JERK_UP_AMP  0.25
+#define JERK_DN_AMP  0.4
 
 #define total_fft_buffer_size_in_bins 512.0
 #define WHITE                         vec4(1.0, 1.0, 1.0, 1.0)
@@ -126,8 +133,27 @@ float pulse_radius(float time) {
     return LIGHTBALL_OUTER_RADIUS * mul;
 }
 
-void fragment() {
-    vec2 frag_coord = FRAGCOORD.xy;
+vec2 jerk_uki_shizumi(vec2 grid_coords) {
+    float jerk = 0.0;
+    for (int i = 0; i < MAX_CUSTOM_ONSETS; i++) {
+        if (i >= custom_onset_count) break;
+        float du = TIME - custom_onsets[i].x;
+        if (du >= 0.0 && du <= JERK_WINDOW) {
+            float t = du / JERK_WINDOW;
+            jerk += sin(t * 3.141592) * JERK_UP_AMP;
+        }
+        float ds = TIME - custom_onsets[i].z;
+        if (ds >= 0.0 && ds <= JERK_WINDOW) {
+            float t2 = ds / JERK_WINDOW;
+            jerk -= sin(t2 * 3.141592) * JERK_DN_AMP;
+        }
+    }
+    grid_coords.y += jerk;
+    return grid_coords;
+}
+
+
+vec4 fft_spectrum(vec2 frag_coord){
     vec2 uv_full = frag_coord.xy / iResolution.xy;
     float cell_width = iResolution.x / total_fft_buffer_size_in_bins;
     float bin_index  = floor(frag_coord.x / cell_width);
@@ -141,10 +167,13 @@ void fragment() {
             fft_color = WHITE;
         }
     }
-    COLOR = fft_color;
-    float time = TIME;
+    return fft_color;
+}
+
+vec4 ghost(vec2 frag_coord, float time) {
     vec2 uv = frag_coord.xy / vec2(iResolution.y);
     vec2 grid_coords = uv_to_grid_space(uv, time);
+    grid_coords      = jerk_uki_shizumi(grid_coords);
     vec2 grid_phase   = vec2(0.0);
     grid_phase       += spatial_phase(grid_coords);
     grid_phase       += temporal_phase(time);
@@ -165,8 +194,17 @@ void fragment() {
     vec2 umbral_mask_phase = vec2(0.0);
     umbral_mask_phase     += add_umbral_mask_phase(time);
     vec2 umbral_mask_pos   = umbral_mask_position(UMBRAL_MASK_PHASE_COEFFICIENT_X, UMBRAL_MASK_PHASE_COEFFICIENT_Y, umbral_mask_phase);
-    src_color         = add_umbral_mask(src_color, grid_coords, umbral_mask_pos);
-    src_color    = add_dither(src_color, frag_coord);
+    src_color              = add_umbral_mask(src_color, grid_coords, umbral_mask_pos);
+    src_color              = add_dither(src_color, frag_coord);
+    return src_color;
+}
+
+void fragment() {
+    float time = TIME;
+    vec2 frag_coord = FRAGCOORD.xy;
+    COLOR = BLACK;
+    COLOR = fft_spectrum(frag_coord);
+    vec4 src_color = ghost(frag_coord, time);
     COLOR = max(COLOR, src_color);
     COLOR.a = 1.0;
 }

@@ -34,21 +34,6 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-    if MusicDimensionsManager.melody_index >= MusicDimensionsManager.melody_onsets.size():
-        return
-
-    MusicDimensionsManager.song_time += delta
-    if (
-        MusicDimensionsManager.song_time
-        >= MusicDimensionsManager.melody_onsets[MusicDimensionsManager.melody_index]
-    ):
-        #AudioPoolManager.play_sfx(MusicDimensionsManager.metronome_click)
-        MusicDimensionsManager.melody_index += 1
-
-    #iChannel0 = audio_texture.audio_texture
-    #BufferAShaderMaterial.set_shader_parameter("iChannel0", iChannel0)
-    var ioi: float = 60.0 / MusicDimensionsManager.bpm
-    MusicDimensionsManager.time_of_next_click -= delta
-    if MusicDimensionsManager.time_of_next_click <= 0.0:
-        #AudioPoolManager.play_sfx(MusicDimensionsManager.metronome_click)
-        MusicDimensionsManager.time_of_next_click += ioi
+    iChannel0 = audio_texture.audio_texture
+    BufferAShaderMaterial.set_shader_parameter("iChannel0", iChannel0)
+    MusicDimensionsManager.debug_custom_onsets(delta)

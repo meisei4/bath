@@ -27,6 +27,7 @@ var metronome_click: AudioStream = preload(AudioConsts.METRONOME_CLICK)
 var time_of_next_click: float = 0.0
 var rust_util: RustUtil
 var bpm: float
+var song_time: float = 0.0
 
 #var song: String = AudioConsts.SHADERTOY_MUSIC_TRACK_EXPERIMENT_WAV
 #var song: String = AudioConsts.HELLION_WAV
@@ -43,7 +44,8 @@ func _ready() -> void:
     spectrum_analyzer_instance = AudioServer.get_bus_effect_instance(bus_index, effect_index)
 
     derive_bpm()
-    isolate_melody()
+    #isolate_melody()
+    load_custom_onsets()
     var music_resource: AudioStream = load(song)
     AudioPoolManager.play_music(music_resource)
     #var input_resource: AudioStreamMicrophone = AudioStreamMicrophone.new()
@@ -56,19 +58,109 @@ func derive_bpm() -> void:
     bpm = rust_util.detect_bpm(wav_fs_path)
     print("aubio derived bpm is:", bpm)
 
+var ioi: float = 60.0 / bpm
+func debug_bpm_onsets(delta: float) -> void:
+    time_of_next_click -= delta
+    if time_of_next_click <= 0.0:
+        AudioPoolManager.play_sfx(metronome_click)
+        time_of_next_click += ioi
+
 
 #TODO: hacked non-working melody isolator, need to use spleeter machine learning stuff...
 var melody_onsets: PackedFloat32Array = []
 var melody_index: int = 0
-var song_time: float = 0.0
 
 
 func isolate_melody() -> void:
     var wav_fs_path = ProjectSettings.globalize_path(song)
     melody_onsets = rust_util.isolate_melody(wav_fs_path, 1200.0)
-    print("melody onsets are: ", melody_onsets)
+    #print("melody onsets are: ", melody_onsets)
     melody_index = 0
     song_time = 0.0
+
+
+func debug_melody_onsets(delta: float) -> void:
+    if melody_index >= melody_onsets.size():
+        return
+
+    song_time += delta
+    if (song_time >= melody_onsets[melody_index]):
+        AudioPoolManager.play_sfx(metronome_click)
+        melody_index += 1
+
+static var custom_onsets_flat_buffer: PackedVector4Array
+
+static func load_custom_onsets() -> void:
+    var res: RhythmOnsetData = ResourceLoader.load("res://Resources/Audio/CustomOnsets/custom_onsets.tres")
+    custom_onsets_flat_buffer.clear()
+    var uki      = res.uki
+    var shizumi  = res.shizumi
+    var total_onsets = min(uki.size(), shizumi.size()) / 2
+    for i: int in range(int(total_onsets)):
+        var u_start = uki[i*2]
+        var u_end   = uki[i*2+1]
+        var s_start = shizumi[i*2]
+        var s_end   = shizumi[i*2+1]
+
+        var uki_flat = Vector2(u_start, u_end)
+        var shizumi_flat  = Vector2(s_start, s_end)
+
+        var uki_shizumi_flat = Vector4(uki_flat.x,     uki_flat.y,
+                                       shizumi_flat.x, shizumi_flat.y)
+        custom_onsets_flat_buffer.append(uki_shizumi_flat)
+
+
+static var uki_onset_index: int = 0
+static var shizumi_onset_index: int = 0
+func debug_custom_onsets(delta: float) -> void:
+    song_time += delta
+
+    while uki_onset_index < custom_onsets_flat_buffer.size():
+        var next_uki_onset = custom_onsets_flat_buffer[uki_onset_index].x
+        if song_time < next_uki_onset:
+            break
+        AudioPoolManager.play_sfx(metronome_click)
+        uki_onset_index += 1
+
+    while shizumi_onset_index < custom_onsets_flat_buffer.size():
+        var next_j_start = custom_onsets_flat_buffer[shizumi_onset_index].z
+        if song_time < next_j_start:
+            break
+        AudioPoolManager.play_sfx(metronome_click)
+        shizumi_onset_index += 1
+
+#TODO: this identical to ManualRhythmOnsetRecorder._debug_keys()
+func debug_custom_onsets_ASCII(delta: float) -> void:
+    var prev_time = song_time
+    song_time += delta
+    var f_char      : String = " "
+    var j_char      : String = " "
+    var f_press_fmt : String = ""
+    var f_rel_fmt   : String = ""
+    var j_press_fmt : String = ""
+    var j_rel_fmt   : String = ""
+    for v in custom_onsets_flat_buffer:
+        var u_start = v.x
+        var u_end   = v.y
+        var s_start = v.z
+        var s_end   = v.w
+        if prev_time < u_start and song_time >= u_start:
+            f_char      = "F"
+            f_press_fmt = "F_PRS:[%.3f,      ]" % u_start
+        if prev_time < u_end and song_time >= u_end:
+            f_rel_fmt   = "F_REL:[%.3f, %.3f]" % [u_start, u_end]
+        if prev_time < s_start and song_time >= s_start:
+            j_char      = "J"
+            j_press_fmt = "J_PRS:[%.3f,      ]" % s_start
+
+        if prev_time < s_end and song_time >= s_end:
+            j_rel_fmt   = "J_REL:[%.3f, %.3f]" % [s_start, s_end]
+    var event_body  = f_press_fmt + f_rel_fmt + j_press_fmt + j_rel_fmt
+    var status_body = "[%s] [%s]" % [f_char, j_char]
+    if event_body != "":
+        status_body += "   " + event_body
+        print(status_body)
+
 
 
 func _process(delta_time: float) -> void:
