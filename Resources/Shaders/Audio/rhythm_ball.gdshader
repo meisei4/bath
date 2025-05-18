@@ -9,17 +9,31 @@ uniform sampler2D iChannel1: repeat_disable, filter_nearest;
 
 uniform float bpm;
 
-#define HALF                        0.5
-#define GRID_SCALE                  4.0
-#define GRID_CELL_SIZE              (vec2(1.0) / GRID_SCALE)
-#define GRID_ORIGIN_INDEX           vec2(0.0)
-#define GRID_ORIGIN_OFFSET_CELLS    vec2(5.66, 2.66)
-#define GRID_ORIGIN_UV_OFFSET       ((GRID_ORIGIN_INDEX + GRID_ORIGIN_OFFSET_CELLS) * GRID_CELL_SIZE)
-#define LIGHTBALL_OUTER_RADIUS      0.40
-#define LIGHTBALL_FADE_BAND         0.025
-#define LIGHTBALL_CENTER            vec2(HALF, HALF)
-#define DITHER_TEXTURE_SCALE        8.0
-#define DITHER_BLEND_FACTOR         0.75
+#define HALF 0.5
+#define GRID_SCALE               4.0
+#define GRID_CELL_SIZE           (vec2(1.0) / GRID_SCALE)
+#define GRID_ORIGIN_INDEX        vec2(0.0)
+#define GRID_ORIGIN_OFFSET_CELLS vec2(5.66, 2.66)
+#define GRID_ORIGIN_UV_OFFSET    ((GRID_ORIGIN_INDEX + GRID_ORIGIN_OFFSET_CELLS) * GRID_CELL_SIZE)
+#define CELL_DRIFT_AMPLITUDE    0.2
+#define LIGHT_WAVE_SPATIAL_FREQ_X     8.0
+#define LIGHT_WAVE_SPATIAL_FREQ_Y     8.0
+#define LIGHT_WAVE_TEMPORAL_FREQ_X    80.0
+#define LIGHT_WAVE_TEMPORAL_FREQ_Y    2.3
+#define LIGHT_WAVE_AMPLITUDE_X        0.03
+#define LIGHT_WAVE_AMPLITUDE_Y        0.1
+#define LIGHTBALL_OUTER_RADIUS        0.40
+#define LIGHTBALL_CENTER              vec2(HALF, HALF)
+#define LIGHTBALL_FADE_BAND           0.025
+#define UMBRAL_MASK_INNER_RADIUS      0.08
+#define UMBRAL_MASK_OFFSET_X         (-LIGHTBALL_OUTER_RADIUS /1.0)
+#define UMBRAL_MASK_OFFSET_Y         (-LIGHTBALL_OUTER_RADIUS)
+#define UMBRAL_MASK_PHASE_COEFFICIENT_X  0.6
+#define UMBRAL_MASK_PHASE_COEFFICIENT_Y  0.2
+#define UMBRAL_MASK_WAVE_AMPLITUDE_X     0.1
+#define UMBRAL_MASK_WAVE_AMPLITUDE_Y     0.1
+#define DITHER_TEXTURE_SCALE    8.0
+#define DITHER_BLEND_FACTOR     0.75
 
 #define total_fft_buffer_size_in_bins 512.0
 #define WHITE                         vec4(1.0, 1.0, 1.0, 1.0)
@@ -32,6 +46,30 @@ vec2 uv_to_grid_space(vec2 uv, float time) {
     return grid_coords;
 }
 
+vec2 warp_and_drift_cell(vec2 grid_coords, float time) {
+    return CELL_DRIFT_AMPLITUDE * sin(time + grid_coords.yx);
+}
+
+vec2 spatial_phase(vec2 grid_coords) {
+    return vec2(
+        grid_coords.y * LIGHT_WAVE_SPATIAL_FREQ_X,
+        grid_coords.x * LIGHT_WAVE_SPATIAL_FREQ_Y
+    );
+}
+
+vec2 temporal_phase(float time) {
+    return vec2(
+        time * LIGHT_WAVE_TEMPORAL_FREQ_X,
+        time * LIGHT_WAVE_TEMPORAL_FREQ_Y
+    );
+}
+
+vec2 add_phase(vec2 phase) {
+    float offset_x = LIGHT_WAVE_AMPLITUDE_X * cos(phase.x);
+    float offset_y = LIGHT_WAVE_AMPLITUDE_Y * sin(phase.y);
+    return vec2(offset_x, offset_y);
+}
+
 vec4 light_radial_fade(vec2 grid_coords, vec2 center, float radius, float feather) {
     float distance_from_center = length(grid_coords - center);
     float fade_start = radius - feather;
@@ -39,6 +77,30 @@ vec4 light_radial_fade(vec2 grid_coords, vec2 center, float radius, float feathe
     vec4 lightball = vec4(clamp(alpha, 0.0, 1.0));
     return lightball;
 }
+
+vec2 add_umbral_mask_phase(float time){
+    vec2 phase = vec2(0.0);
+    phase.x = UMBRAL_MASK_WAVE_AMPLITUDE_X * LIGHT_WAVE_SPATIAL_FREQ_X;
+    phase.y = UMBRAL_MASK_WAVE_AMPLITUDE_Y * LIGHT_WAVE_SPATIAL_FREQ_Y + time * LIGHT_WAVE_TEMPORAL_FREQ_Y;
+    return phase;
+}
+
+vec2 umbral_mask_position(float x_phase_coefficient, float y_phase_coefficient, vec2 mask_phase) {
+    float mask_pos_x = x_phase_coefficient * cos(mask_phase.x);
+    float mask_pos_y = y_phase_coefficient * sin(mask_phase.y);
+    vec2 offset_mask = vec2(mask_pos_x, mask_pos_y) + LIGHTBALL_CENTER;
+    return offset_mask;
+}
+
+vec4 add_umbral_mask(vec4 src_color, vec2 grid_coords, vec2 mask_center) {
+    vec2  mask_pos  = mask_center + vec2(UMBRAL_MASK_OFFSET_X, UMBRAL_MASK_OFFSET_Y);
+    float dist        = length(grid_coords - mask_pos);
+    float half_dist   = dist * HALF;
+    float mask        = smoothstep(UMBRAL_MASK_INNER_RADIUS, LIGHTBALL_OUTER_RADIUS, half_dist);
+    vec4  applied_mask = src_color * mask;
+    return applied_mask;
+}
+
 
 vec4 add_dither(vec4 src_color, vec2 frag_coord) {
     vec2 dither_uv = frag_coord / DITHER_TEXTURE_SCALE;
@@ -83,6 +145,12 @@ void fragment() {
     float time = TIME;
     vec2 uv = frag_coord.xy / vec2(iResolution.y);
     vec2 grid_coords = uv_to_grid_space(uv, time);
+    vec2 grid_phase   = vec2(0.0);
+    grid_phase       += spatial_phase(grid_coords);
+    grid_phase       += temporal_phase(time);
+    grid_coords      += add_phase(grid_phase);
+    grid_coords      += warp_and_drift_cell(grid_coords, time);
+
     //float radius = LIGHTBALL_OUTER_RADIUS;
     float radius = pulse_radius(time);
     vec4 lightball = light_radial_fade(
@@ -91,7 +159,14 @@ void fragment() {
             radius,
             LIGHTBALL_FADE_BAND
     );
-    vec4 src_color = add_dither(lightball, frag_coord);
+
+    vec4 src_color    = lightball;
+    //set up umbral mask to be drawn on top of transformed light ball
+    vec2 umbral_mask_phase = vec2(0.0);
+    umbral_mask_phase     += add_umbral_mask_phase(time);
+    vec2 umbral_mask_pos   = umbral_mask_position(UMBRAL_MASK_PHASE_COEFFICIENT_X, UMBRAL_MASK_PHASE_COEFFICIENT_Y, umbral_mask_phase);
+    src_color         = add_umbral_mask(src_color, grid_coords, umbral_mask_pos);
+    src_color    = add_dither(src_color, frag_coord);
     COLOR = max(COLOR, src_color);
     COLOR.a = 1.0;
 }
