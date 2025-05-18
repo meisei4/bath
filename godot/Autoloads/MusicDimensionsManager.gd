@@ -23,17 +23,18 @@ var onset_intervals_history_buffer: PackedFloat32Array = PackedFloat32Array()
 var time_of_previous_onset: float = 0.0
 var onset_event_counter: int = 0
 
-
 var metronome_click: AudioStream = preload(AudioConsts.METRONOME_CLICK)
 var time_of_next_click: float = 0.0
 var rust_util: RustUtil
 var bpm: float
 
-var song: String = AudioConsts.SHADERTOY_MUSIC_TRACK_EXPERIMENT_WAV
+#var song: String = AudioConsts.SHADERTOY_MUSIC_TRACK_EXPERIMENT_WAV
 #var song: String = AudioConsts.HELLION_WAV
+var song: String = AudioConsts.SNUFFY
 
 
 func _ready() -> void:
+    rust_util = RustUtil.new()
     var bus_index: int = AudioBus.get_bus_index(AudioBus.BUS.MUSIC)
     var effect: AudioEffectSpectrumAnalyzer = AudioEffectSpectrumAnalyzer.new()
     effect.fft_size = AudioEffectSpectrumAnalyzer.FFTSize.FFT_SIZE_2048
@@ -41,18 +42,33 @@ func _ready() -> void:
     var effect_index: int = AudioServer.get_bus_effect_count(bus_index) - 1
     spectrum_analyzer_instance = AudioServer.get_bus_effect_instance(bus_index, effect_index)
 
-    rust_util = RustUtil.new()
-    var wav_fs_path = ProjectSettings.globalize_path(song)
-    bpm = rust_util.detect_bpm(wav_fs_path)
-    print("aubio derived bpm is:", bpm)
+    derive_bpm()
+    isolate_melody()
     var music_resource: AudioStream = load(song)
     AudioPoolManager.play_music(music_resource)
-
     #var input_resource: AudioStreamMicrophone = AudioStreamMicrophone.new()
     #AudioManager.play_input(input_resource, 0.0)
     #TODO: ^^^ ew, figure out how to perhaps make it more obvious that the audio texture can target whatever audio bus...
 
 
+func derive_bpm() -> void:
+    var wav_fs_path = ProjectSettings.globalize_path(song)
+    bpm = rust_util.detect_bpm(wav_fs_path)
+    print("aubio derived bpm is:", bpm)
+
+
+#TODO: hacked non-working melody isolator, need to use spleeter machine learning stuff...
+var melody_onsets: PackedFloat32Array = []
+var melody_index: int = 0
+var song_time: float = 0.0
+
+
+func isolate_melody() -> void:
+    var wav_fs_path = ProjectSettings.globalize_path(song)
+    melody_onsets = rust_util.isolate_melody(wav_fs_path, 1200.0)
+    print("melody onsets are: ", melody_onsets)
+    melody_index = 0
+    song_time = 0.0
 
 
 func _process(delta_time: float) -> void:

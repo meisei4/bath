@@ -3,6 +3,10 @@ use aubio_rs::{Smpl, Tempo};
 use godot::builtin::{GString, PackedFloat32Array};
 use godot::global::godot_print;
 use hound::WavReader;
+use biquad::{DirectForm1, Coefficients, ToHertz, Type, Q_BUTTERWORTH_F32, Biquad};
+use aubio_rs::{Pitch, PitchMode, PitchUnit, Onset};
+use hound::{WavWriter, SampleFormat, WavSpec};
+//use rspleeter::{split_pcm_audio, SpleeterModelInfo};
 
 
 const BUF_SIZE: usize = 1024;  // FFT window size
@@ -154,3 +158,171 @@ pub fn _compute_envelope_segments(
 
     out
 }
+
+
+
+/// Isolate a single frequency band (mono) via a Butterworth band-pass filter
+/// and write it out to a new WAV at `out_path`.
+pub fn band_pass_filter(path: GString, center_hz: f32, out_path: GString) {
+    let infile = path.to_string();
+    let outfile = out_path.to_string();
+    let mut reader = match WavReader::open(&infile) {
+        Ok(r) => r,
+        Err(e) => {
+            godot_print!("band_pass_filter: failed to open '{}': {}", infile, e);
+            return;
+        }
+    };
+    let spec = reader.spec();
+    let sr = spec.sample_rate;
+    let channels = spec.channels as usize;
+
+    // we'll down-mix to mono for simplicity
+    let out_spec = WavSpec {
+        channels: 1,
+        sample_rate: sr,
+        bits_per_sample: 16,
+        sample_format: SampleFormat::Int,
+    };
+    let mut writer = match WavWriter::create(&outfile, out_spec) {
+        Ok(w) => w,
+        Err(e) => {
+            godot_print!("band_pass_filter: failed to create '{}': {}", outfile, e);
+            return;
+        }
+    };
+
+    // design a 2nd-order (Butterworth) band-pass
+    let coeffs = Coefficients::<f32>::from_params(
+        Type::BandPass,
+        sr.hz(),
+        center_hz.hz(),
+        Q_BUTTERWORTH_F32,
+    ).expect("Invalid filter params");
+    let mut filter = DirectForm1::<f32>::new(coeffs);
+
+    let mut samples = reader.samples::<i16>();
+    'proc: loop {
+        // read one multi-channel frame, downmix to mono
+        let mut sum = 0i32;
+        for _ in 0..channels {
+            match samples.next() {
+                Some(Ok(s)) => sum += s as i32,
+                _ => break 'proc,
+            }
+        }
+        let mono = (sum as f32 / channels as f32) * I16_TO_SMPL;
+        let filtered = filter.run(mono);
+        let out_samp = (filtered / I16_TO_SMPL)
+            .clamp(i16::MIN as f32, i16::MAX as f32) as i16;
+        if let Err(e) = writer.write_sample(out_samp) {
+            godot_print!("band_pass_filter: write error: {}", e);
+            break;
+        }
+    }
+
+    writer.finalize().ok();
+}
+
+/// Extract a frame-by-frame pitch contour (Hz) using Aubio’s Yin algorithm.
+/// Returns a PackedFloat32Array of one frequency per hop.
+pub fn _extract_pitch_contour(path: GString) -> PackedFloat32Array {
+    let infile = path.to_string();
+    let mut reader = match WavReader::open(&infile) {
+        Ok(r) => r,
+        Err(e) => {
+            godot_print!("extract_pitch_contour: failed to open '{}': {}", infile, e);
+            return PackedFloat32Array::new();
+        }
+    };
+    let spec = reader.spec();
+    let sr = spec.sample_rate;
+    let channels = spec.channels as usize;
+
+    let mut pitch = Pitch::new(PitchMode::Yin, BUF_SIZE, HOP_SIZE, sr)
+        .expect("couldn't create aubio Pitch");
+    pitch.set_unit(PitchUnit::Hz);
+
+    let mut in_data  = vec![0.0f32; HOP_SIZE];
+    let mut out_data = vec![0.0f32; HOP_SIZE];
+    let mut samples  = reader.samples::<i16>();
+    let mut freqs    = Vec::new();
+
+    'outer: loop {
+        for i in 0..HOP_SIZE {
+            let mut sum = 0i32;
+            for _ in 0..channels {
+                match samples.next() {
+                    Some(Ok(s)) => sum += s as i32,
+                    _ => break 'outer,
+                }
+            }
+            in_data[i] = (sum as Smpl / channels as Smpl) * I16_TO_SMPL;
+        }
+        pitch.do_(in_data.as_slice(), out_data.as_mut_slice())
+            .expect("pitch.do failed");
+        freqs.push(pitch.get_confidence());
+    }
+
+    let mut arr = PackedFloat32Array::new();
+    arr.resize(freqs.len());
+
+    let mut arr = PackedFloat32Array::new();
+    for &f in freqs.iter() {
+        arr.push(f);
+    }
+
+    arr
+}
+
+/// Detect spectral-flux onsets in a WAV and return their timestamps (s).
+pub fn extract_onset_times(path: GString) -> PackedFloat32Array {
+    let infile = path.to_string();
+    let mut reader = match WavReader::open(&infile) {
+        Ok(r) => r,
+        Err(e) => {
+            godot_print!("extract_onset_times: failed to open '{}': {}", infile, e);
+            return PackedFloat32Array::new();
+        }
+    };
+    let spec = reader.spec();
+    let sr = spec.sample_rate;
+    let channels = spec.channels as usize;
+
+    let mut onset = Onset::new(SpecFlux, BUF_SIZE, HOP_SIZE, sr)
+        .expect("couldn't create aubio Onset");
+
+    let mut in_data  = vec![0.0f32; HOP_SIZE];
+    let mut out_data = vec![0.0f32; HOP_SIZE];
+    let mut samples  = reader.samples::<i16>();
+    let mut elapsed  = 0usize;
+    let mut times    = Vec::new();
+
+    'outer: loop {
+        for i in 0..HOP_SIZE {
+            let mut sum = 0i32;
+            for _ in 0..channels {
+                match samples.next() {
+                    Some(Ok(s)) => sum += s as i32,
+                    _ => break 'outer,
+                }
+            }
+            in_data[i] = (sum as Smpl / channels as Smpl) * I16_TO_SMPL;
+        }
+        onset.do_(in_data.as_slice(), out_data.as_mut_slice())
+            .expect("onset.do failed");
+        if out_data[0] > 0.0 {
+            times.push(elapsed as f32 / sr as f32);
+        }
+        elapsed += HOP_SIZE;
+    }
+
+    let mut arr = PackedFloat32Array::new();
+    arr.resize(times.len());
+    for &t in times.iter(){
+        arr.push(t);
+    }
+    arr
+}
+
+

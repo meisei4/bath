@@ -6,7 +6,9 @@ edition = "2021"
 [dependencies]
 godot = "0.2.4"
 aubio-rs = "0.2.0"
-hound = "3.4.0"    # WAV‐file readerß
+hound = "3.4.0"    # WAV‐file reader
+biquad = "0.5.0"
+#rspleeter = { git = "https://github.com/ldm0/rspleeter.git", branch = "master" }
 
 
 [lib]

@@ -47,10 +47,10 @@ const SFX_135_BUBBLY_DOWNFALL_DROWN: String = "res://Resources/Audio/SFX/135_bub
 
 const HELLION_WAV: String = "res://Resources/Audio/Hellion.wav"
 
-
 const METRONOME_CLICK: String = "res://Resources/Audio/metronome_click.wav"
 const SHADERTOY_MUSIC_TRACK_EXPERIMENT_WAV: String = "res://Resources/Audio/shadertoy_music_experiment.wav"
 
+const SNUFFY: String = "res://Resources/Audio/snuffy.wav"
 const HELLION: String = "res://Resources/Audio/Music/Hellion_v2.ogg"
 const BEETH: String = "res://Resources/Audio/Music/beethoven_4.ogg"
 

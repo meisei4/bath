@@ -1,6 +1,7 @@
 use godot::prelude::*;
 use godot::classes::Node2D;
 use godot::builtin::{PackedByteArray, PackedVector2Array, Vector2};
+use crate::audio_analysis_util::{band_pass_filter, extract_onset_times};
 
 mod collision_mask_util;
 mod audio_analysis_util;
@@ -86,6 +87,35 @@ impl RustUtil {
     pub fn detect_bpm(&self, path: GString) -> f32 {
         audio_analysis_util::detect_bpm(path)
         //audio_analysis_util::_detect_bpm_accurate(path)
+    }
+
+    #[func]
+    pub fn isolate_melody(
+        path: GString,
+        center_hz: f32,
+    ) -> PackedFloat32Array {
+        // 1) compute output filename
+        let infile = path.to_string();
+        let out_str = if infile.to_lowercase().ends_with(".wav") {
+            format!("{}__isolated.wav", &infile[..infile.len() - 4])
+        } else {
+            format!("{}__isolated.wav", infile)
+        };
+        let out_g = GString::from(out_str.clone());
+
+        // 2) isolate the synth band
+        band_pass_filter(path.clone(), center_hz, out_g.clone());
+        godot_print!("test_melody_extraction: wrote isolated stem to '{}'", out_str);
+
+        // 3) detect onsets in that isolated stem
+        let onsets = extract_onset_times(out_g.clone());
+        godot_print!(
+        "test_melody_extraction: detected {} onsets",
+        onsets.len()
+    );
+
+        // 4) return the array of onset times
+        onsets
     }
 
 }
