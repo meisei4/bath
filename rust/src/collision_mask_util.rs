@@ -1,6 +1,5 @@
 use godot::builtin::Vector2;
 
-
 pub fn generate_concave_collision_polygons_pixel_perfect(
     pixel_mask_slice: &[u8],
     (w, h): (usize, usize),
@@ -13,8 +12,8 @@ pub fn generate_concave_collision_polygons_pixel_perfect(
         for x in 0..w {
             let idx = y * w + x;
             if pixel_mask_slice[idx] == 1
-               && !visited[idx]
-               && is_boundary_pixel(pixel_mask_slice, w, h, x, y)
+                && !visited[idx]
+                && is_boundary_pixel(pixel_mask_slice, w, h, x, y)
             {
                 let raw = trace_boundary(pixel_mask_slice, w, h, x, y, &mut visited);
                 // collapse straight runs into single corners:
@@ -30,7 +29,9 @@ pub fn generate_concave_collision_polygons_pixel_perfect(
 
 fn filter_colinear(contour: &[Vector2]) -> Vec<Vector2> {
     let n = contour.len();
-    if n < 3 { return contour.to_vec() }
+    if n < 3 {
+        return contour.to_vec();
+    }
     let eps = 0.001; // tiny tolerance
     let mut out = Vec::with_capacity(n);
     for i in 0..n {
@@ -45,7 +46,6 @@ fn filter_colinear(contour: &[Vector2]) -> Vec<Vector2> {
     }
     out
 }
-
 
 fn is_boundary_pixel(mask: &[u8], w: usize, h: usize, x: usize, y: usize) -> bool {
     let neighbors = [
@@ -87,10 +87,10 @@ fn trace_boundary(
         for i in 0..4 {
             let nd = (dir + 3 + i) % 4;
             let (dx, dy) = match nd {
-                0 => (1isize, 0),   // right
-                1 => (0, 1),        // down
-                2 => (-1, 0),       // left
-                3 => (0, -1),       // up
+                0 => (1isize, 0), // right
+                1 => (0, 1),      // down
+                2 => (-1, 0),     // left
+                3 => (0, -1),     // up
                 _ => unreachable!(),
             };
             let nx = x as isize + dx;
@@ -115,13 +115,16 @@ fn trace_boundary(
     contour
 }
 
-
 pub fn generate_convex_collision_polygons_pixel_perfect(
     pixel_mask_slice: &[u8],
     (w, h): (usize, usize),
     tile_edge_length: usize,
 ) -> Vec<Vec<Vector2>> {
-    let contours = generate_concave_collision_polygons_pixel_perfect(pixel_mask_slice, (w, h), tile_edge_length);
+    let contours = generate_concave_collision_polygons_pixel_perfect(
+        pixel_mask_slice,
+        (w, h),
+        tile_edge_length,
+    );
     let mut hulls = Vec::with_capacity(contours.len());
     for contour in contours {
         let hull = compute_convex_hull_monotone_chain(&contour);
@@ -132,10 +135,7 @@ pub fn generate_convex_collision_polygons_pixel_perfect(
     hulls
 }
 
-
-fn compute_convex_hull_monotone_chain(
-    boundary_points_slice: &[Vector2],
-) -> Vec<Vector2> {
+fn compute_convex_hull_monotone_chain(boundary_points_slice: &[Vector2]) -> Vec<Vector2> {
     if boundary_points_slice.len() < 3 {
         return boundary_points_slice.to_vec();
     }
@@ -151,7 +151,8 @@ fn compute_convex_hull_monotone_chain(
 
 fn sort_points_by_x_then_y(points: &mut [Vector2]) {
     points.sort_by(|point_a, point_b| {
-        point_a.x
+        point_a
+            .x
             .partial_cmp(&point_b.x)
             .unwrap()
             .then(point_a.y.partial_cmp(&point_b.y).unwrap())
@@ -202,11 +203,7 @@ fn merge_monotone_chain_hulls(
     lower_chain
 }
 
-fn compute_cross_product_z(
-    point_a: &Vector2,
-    point_b: &Vector2,
-    point_c: &Vector2,
-) -> f32 {
+fn compute_cross_product_z(point_a: &Vector2, point_b: &Vector2, point_c: &Vector2) -> f32 {
     let delta_x_ab = point_b.x - point_a.x;
     let delta_y_ab = point_b.y - point_a.y;
     let delta_x_bc = point_c.x - point_a.x;

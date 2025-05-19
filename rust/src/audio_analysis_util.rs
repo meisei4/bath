@@ -1,23 +1,26 @@
 use aubio_rs::OnsetMode::SpecFlux;
+use aubio_rs::{Onset, Pitch, PitchMode, PitchUnit};
 use aubio_rs::{Smpl, Tempo};
+use biquad::{Biquad, Coefficients, DirectForm1, ToHertz, Type, Q_BUTTERWORTH_F32};
 use godot::builtin::{GString, PackedFloat32Array};
 use godot::global::godot_print;
 use hound::WavReader;
-use biquad::{DirectForm1, Coefficients, ToHertz, Type, Q_BUTTERWORTH_F32, Biquad};
-use aubio_rs::{Pitch, PitchMode, PitchUnit, Onset};
-use hound::{WavWriter, SampleFormat, WavSpec};
+use hound::{SampleFormat, WavSpec, WavWriter};
 //use rspleeter::{split_pcm_audio, SpleeterModelInfo};
 
-
-const BUF_SIZE: usize = 1024;  // FFT window size
-const HOP_SIZE: usize = 512;   // analysis hop size
-const I16_TO_SMPL: Smpl    = 1.0 / (i16::MAX as Smpl);
+const BUF_SIZE: usize = 1024; // FFT window size
+const HOP_SIZE: usize = 512; // analysis hop size
+const I16_TO_SMPL: Smpl = 1.0 / (i16::MAX as Smpl);
 
 pub fn detect_bpm(path: GString) -> f32 {
     let mut reader = match WavReader::open(path.to_string()) {
         Ok(r) => r,
         Err(e) => {
-            godot_print!("detect_bpm: failed to open WAV '{}': {}", path.to_string(), e);
+            godot_print!(
+                "detect_bpm: failed to open WAV '{}': {}",
+                path.to_string(),
+                e
+            );
             return 0.0;
         }
     };
@@ -28,10 +31,10 @@ pub fn detect_bpm(path: GString) -> f32 {
         .expect("couldn't create aubio Tempo");
 
     // buffers for one hop
-    let mut in_data  = vec![0.0 as Smpl; HOP_SIZE];
+    let mut in_data = vec![0.0 as Smpl; HOP_SIZE];
     let mut out_data = vec![0.0 as Smpl; HOP_SIZE];
-    let mut samples  = reader.samples::<i16>();
-    let mut bpm      = 0.0_f32;
+    let mut samples = reader.samples::<i16>();
+    let mut bpm = 0.0_f32;
 
     'outer: loop {
         for frame in 0..HOP_SIZE {
@@ -39,13 +42,14 @@ pub fn detect_bpm(path: GString) -> f32 {
             for _ in 0..channels {
                 match samples.next() {
                     Some(Ok(s)) => sum += s as i32,
-                    _ => break 'outer,  // EOF
+                    _ => break 'outer, // EOF
                 }
             }
             in_data[frame] = (sum as Smpl / channels as Smpl) * I16_TO_SMPL;
         }
 
-        tempo.do_(in_data.as_slice(), out_data.as_mut_slice())
+        tempo
+            .do_(in_data.as_slice(), out_data.as_mut_slice())
             .expect("tempo.do_ failed");
         bpm = tempo.get_bpm();
     }
@@ -53,13 +57,16 @@ pub fn detect_bpm(path: GString) -> f32 {
     bpm
 }
 
-
 pub fn _detect_bpm_accurate(path: GString) -> f32 {
     // Open WAV file
     let mut reader = match WavReader::open(path.to_string()) {
         Ok(r) => r,
         Err(e) => {
-            godot_print!("detect_bpm: failed to open WAV '{}': {}", path.to_string(), e);
+            godot_print!(
+                "detect_bpm: failed to open WAV '{}': {}",
+                path.to_string(),
+                e
+            );
             return 0.0;
         }
     };
@@ -72,9 +79,9 @@ pub fn _detect_bpm_accurate(path: GString) -> f32 {
         .expect("couldn't create aubio Tempo");
 
     // Buffers for one hop
-    let mut in_data  = vec![0.0 as Smpl; HOP_SIZE];
+    let mut in_data = vec![0.0 as Smpl; HOP_SIZE];
     let mut out_data = vec![0.0 as Smpl; HOP_SIZE];
-    let mut samples  = reader.samples::<i16>();
+    let mut samples = reader.samples::<i16>();
 
     // Collect beat‐to‐beat BPMs
     let mut prev_last: Option<usize> = None;
@@ -94,7 +101,8 @@ pub fn _detect_bpm_accurate(path: GString) -> f32 {
         }
 
         // Run aubio detection
-        tempo.do_(in_data.as_slice(), out_data.as_mut_slice())
+        tempo
+            .do_(in_data.as_slice(), out_data.as_mut_slice())
             .expect("tempo.do_ failed");
 
         // If a beat was detected, compute the interval BPM
@@ -125,7 +133,6 @@ pub fn _detect_bpm_accurate(path: GString) -> f32 {
     }
 }
 
-
 //TODO: this is not effective as an optimization for the sound envelope shader:
 // see https://github.com/meisei4/bath/blob/main/godot/Shaders/Audio/SoundEnvelope.gd's TODO
 
@@ -148,18 +155,13 @@ pub fn _compute_envelope_segments(
             out.insert(i, 0.0);
             continue;
         }
-        let sum: f32 = data[start..end]
-            .iter()
-            .map(|v| v.abs())
-            .sum();
+        let sum: f32 = data[start..end].iter().map(|v| v.abs()).sum();
         let avg = sum / ((end - start) as f32);
         out.insert(i, avg);
     }
 
     out
 }
-
-
 
 /// Isolate a single frequency band (mono) via a Butterworth band-pass filter
 /// and write it out to a new WAV at `out_path`.
@@ -198,7 +200,8 @@ pub fn band_pass_filter(path: GString, center_hz: f32, out_path: GString) {
         sr.hz(),
         center_hz.hz(),
         Q_BUTTERWORTH_F32,
-    ).expect("Invalid filter params");
+    )
+    .expect("Invalid filter params");
     let mut filter = DirectForm1::<f32>::new(coeffs);
 
     let mut samples = reader.samples::<i16>();
@@ -213,8 +216,7 @@ pub fn band_pass_filter(path: GString, center_hz: f32, out_path: GString) {
         }
         let mono = (sum as f32 / channels as f32) * I16_TO_SMPL;
         let filtered = filter.run(mono);
-        let out_samp = (filtered / I16_TO_SMPL)
-            .clamp(i16::MIN as f32, i16::MAX as f32) as i16;
+        let out_samp = (filtered / I16_TO_SMPL).clamp(i16::MIN as f32, i16::MAX as f32) as i16;
         if let Err(e) = writer.write_sample(out_samp) {
             godot_print!("band_pass_filter: write error: {}", e);
             break;
@@ -239,14 +241,14 @@ pub fn _extract_pitch_contour(path: GString) -> PackedFloat32Array {
     let sr = spec.sample_rate;
     let channels = spec.channels as usize;
 
-    let mut pitch = Pitch::new(PitchMode::Yin, BUF_SIZE, HOP_SIZE, sr)
-        .expect("couldn't create aubio Pitch");
+    let mut pitch =
+        Pitch::new(PitchMode::Yin, BUF_SIZE, HOP_SIZE, sr).expect("couldn't create aubio Pitch");
     pitch.set_unit(PitchUnit::Hz);
 
-    let mut in_data  = vec![0.0f32; HOP_SIZE];
+    let mut in_data = vec![0.0f32; HOP_SIZE];
     let mut out_data = vec![0.0f32; HOP_SIZE];
-    let mut samples  = reader.samples::<i16>();
-    let mut freqs    = Vec::new();
+    let mut samples = reader.samples::<i16>();
+    let mut freqs = Vec::new();
 
     'outer: loop {
         for i in 0..HOP_SIZE {
@@ -259,7 +261,8 @@ pub fn _extract_pitch_contour(path: GString) -> PackedFloat32Array {
             }
             in_data[i] = (sum as Smpl / channels as Smpl) * I16_TO_SMPL;
         }
-        pitch.do_(in_data.as_slice(), out_data.as_mut_slice())
+        pitch
+            .do_(in_data.as_slice(), out_data.as_mut_slice())
             .expect("pitch.do failed");
         freqs.push(pitch.get_confidence());
     }
@@ -289,14 +292,14 @@ pub fn extract_onset_times(path: GString) -> PackedFloat32Array {
     let sr = spec.sample_rate;
     let channels = spec.channels as usize;
 
-    let mut onset = Onset::new(SpecFlux, BUF_SIZE, HOP_SIZE, sr)
-        .expect("couldn't create aubio Onset");
+    let mut onset =
+        Onset::new(SpecFlux, BUF_SIZE, HOP_SIZE, sr).expect("couldn't create aubio Onset");
 
-    let mut in_data  = vec![0.0f32; HOP_SIZE];
+    let mut in_data = vec![0.0f32; HOP_SIZE];
     let mut out_data = vec![0.0f32; HOP_SIZE];
-    let mut samples  = reader.samples::<i16>();
-    let mut elapsed  = 0usize;
-    let mut times    = Vec::new();
+    let mut samples = reader.samples::<i16>();
+    let mut elapsed = 0usize;
+    let mut times = Vec::new();
 
     'outer: loop {
         for i in 0..HOP_SIZE {
@@ -309,7 +312,8 @@ pub fn extract_onset_times(path: GString) -> PackedFloat32Array {
             }
             in_data[i] = (sum as Smpl / channels as Smpl) * I16_TO_SMPL;
         }
-        onset.do_(in_data.as_slice(), out_data.as_mut_slice())
+        onset
+            .do_(in_data.as_slice(), out_data.as_mut_slice())
             .expect("onset.do failed");
         if out_data[0] > 0.0 {
             times.push(elapsed as f32 / sr as f32);
@@ -319,10 +323,8 @@ pub fn extract_onset_times(path: GString) -> PackedFloat32Array {
 
     let mut arr = PackedFloat32Array::new();
     arr.resize(times.len());
-    for &t in times.iter(){
+    for &t in times.iter() {
         arr.push(t);
     }
     arr
 }
-
-

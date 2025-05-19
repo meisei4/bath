@@ -2,6 +2,7 @@
 name = "bath"
 version = "0.1.0"
 edition = "2021"
+build = "build.rs"
 
 [dependencies]
 godot = "0.2.4"
@@ -9,7 +10,15 @@ aubio-rs = "0.2.0"
 hound = "3.4.0"    # WAV‐file reader
 biquad = "0.5.0"
 #rspleeter = { git = "https://github.com/ldm0/rspleeter.git", branch = "master" }
+midir = "0.10.1"
+rdev = "0.5.3"
+libc = "0.2.172"
+cc = "1.2.23"
+soundfont = "0.1.0"
+terminal_size = "0.4.2"
 
+[build-dependencies]
+cc = "1.2.23"
 
 [lib]
-crate-type = ["cdylib"]  # Compile this crate to a dynamic C library.
+crate-type = ["cdylib"]  
