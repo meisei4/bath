@@ -1,218 +1,179 @@
-use crate::keys::note_to_name;
-use crate::tsf_bindings;
-use soundfont::data::{GeneratorType, Info as SoundFontInfo, PresetHeader, SampleHeader};
-use soundfont::SoundFont2;
-use std::{
-    error::Error,
-    ffi::{CStr, CString},
-    fs::File,
-    io::BufReader,
-};
+use crate::keys::{key_bindings, note_to_name};
+use crate::tsf_bindings::{tsf_close, tsf_get_presetcount, tsf_get_presetname, tsf_load_filename};
+use rustysynth::SoundFont;
+use std::ffi::{CStr, CString};
+use std::{error::Error, fs::File, io::BufReader};
 use terminal_size::{terminal_size, Width};
 
 pub fn print_metadata(sf2_path: &str) {
+    let mut lines = Vec::new();
     let c_path = CString::new(sf2_path).unwrap();
+
     unsafe {
-        let handle = tsf_bindings::tsf_load_filename(c_path.as_ptr());
+        let handle = tsf_load_filename(c_path.as_ptr());
         if handle.is_null() {
-            eprintln!("Could not load SF2 metadata: {}", sf2_path);
+            lines.push(format!("Could not load SF2 metadata: {}", sf2_path));
         } else {
-            let count = tsf_bindings::tsf_get_presetcount(handle);
-            println!("SoundFont Metadata — {} presets found:", count);
+            let count = tsf_get_presetcount(handle);
+            lines.push(format!("SoundFont Metadata — {} presets found:", count));
+
             for idx in 0..count {
-                let ptr = tsf_bindings::tsf_get_presetname(handle, idx);
+                let ptr = tsf_get_presetname(handle, idx);
                 if !ptr.is_null() {
                     let name = CStr::from_ptr(ptr).to_string_lossy();
-                    println!("  [{}] {}", idx, name);
+                    lines.push(format!("  [{}] {}", idx, name));
                 }
             }
-            tsf_bindings::tsf_close(handle);
+
+            tsf_close(handle);
         }
     }
-}
 
-pub fn print_full_structure(sf2_path: &str) -> Result<(), Box<dyn Error>> {
-    let file = File::open(sf2_path)?;
-    let mut reader = BufReader::new(file);
-    let mut sf2 = SoundFont2::load(&mut reader)?;
-    sf2 = sf2.sort_presets();
-
-    let mut lines = Vec::new();
-    lines.extend(assemble_info_lines(
-        &sf2.info,
-        sf2.presets.len(),
-        sf2.sample_headers.len(),
-    ));
-    lines.push(String::new());
-    if let Some(preset) = sf2.presets.first() {
-        lines.extend(assemble_preset_lines(
-            &preset.header,
-            &preset.zones[0],
-            &sf2.sample_headers,
-        ));
-    }
-
-    print_right_aligned(&lines);
-    Ok(())
-}
-
-fn assemble_info_lines(
-    info: &SoundFontInfo,
-    total_presets: usize,
-    total_samples: usize,
-) -> Vec<String> {
-    vec![
-        format!("┌── SoundFont: \"{}\"", info.bank_name),
-        format!("│   ├── Engine:          {:?}", info.sound_engine),
-        format!(
-            "│   ├── Version:         {}.{}",
-            info.version.major, info.version.minor
-        ),
-        format!("│   ├── Presets:         {} total", total_presets),
-        format!("│   └── Samples:         {} total", total_samples),
-    ]
-}
-
-fn assemble_preset_lines(
-    header: &PresetHeader,
-    zone: &soundfont::Zone,
-    sample_headers: &[SampleHeader],
-) -> Vec<String> {
-    let mut out = Vec::new();
-    out.push(format!("┌── Preset: \"{}\"", header.name));
-    out.push(format!(
-        "│   ├── Bank / Program:   {} / {}",
-        header.bank, header.preset
-    ));
-    // preserve original behavior: always “1” zone for this debug view
-    out.push("│   ├── Zones:            1 total".into());
-    out.push("│   └── Zone #0".into());
-
-    if let Some(gen) = zone
-        .gen_list
-        .iter()
-        .find(|g| g.ty.into_result().ok() == Some(GeneratorType::KeyRange))
-    {
-        if let Some(r) = gen.amount.as_range() {
-            out.push(format!(
-                "│       ├── Key Range:      {} – {} ({} – {})",
-                r.low,
-                r.high,
-                note_to_name(r.low as u8),
-                note_to_name(r.high as u8)
-            ));
-        } else {
-            out.push("│       ├── Key Range:      N/A".into());
-        }
-    } else {
-        out.push("│       ├── Key Range:      N/A".into());
-    }
-
-    if let Some(gen) = zone
-        .gen_list
-        .iter()
-        .find(|g| g.ty.into_result().ok() == Some(GeneratorType::VelRange))
-    {
-        if let Some(r) = gen.amount.as_range() {
-            out.push(format!(
-                "│       ├── Velocity Range: {} – {} (MIDI)",
-                r.low, r.high
-            ));
-        } else {
-            out.push("│       ├── Velocity Range: N/A".into());
-        }
-    } else {
-        out.push("│       ├── Velocity Range: N/A".into());
-    }
-
-    if let Some(gen) = zone
-        .gen_list
-        .iter()
-        .find(|g| g.ty.into_result().ok() == Some(GeneratorType::SampleID))
-    {
-        if let Some(&sid) = gen.amount.as_u16() {
-            out.extend(format_sample_info(sid as usize, sample_headers));
-        } else {
-            out.push("│       ├── Sample:         N/A".into());
-        }
-    } else {
-        out.push("│       ├── Sample:         N/A".into());
-    }
-
-    let mut env_lines = Vec::new();
-    for g in &zone.gen_list {
-        if let Ok(gt) = g.ty.into_result() {
-            if let Some(&v) = g.amount.as_i16() {
-                if let Some(line) = format_env_pan(gt, v) {
-                    env_lines.push(line);
-                }
-            }
-        }
-    }
-    if env_lines.is_empty() {
-        out.push("│       ├── Generators:     N/A".into());
-    } else {
-        out.push("│       ├── Generators:".into());
-        out.extend(env_lines);
-    }
-
-    out
-}
-
-fn format_sample_info(index: usize, headers: &[SampleHeader]) -> Vec<String> {
-    let sh = &headers[index];
-    let mut lines = Vec::new();
-    lines.push(format!("│       ├── Sample:         \"{}\"", sh.name));
-    lines.push(format!(
-        "│       │   ├── Rate:       {:>7} Hz",
-        sh.sample_rate
-    ));
-    lines.push(format!(
-        "│       │   ├── Loop:       {} → {} frames",
-        sh.loop_start, sh.loop_end
-    ));
-    lines.push(format!(
-        "│       │   ├── Orig Pitch: {} ({})",
-        sh.origpitch,
-        note_to_name(sh.origpitch)
-    ));
-    lines.push(format!("│       │   ├── Pitch Adj:  {} cents", sh.pitchadj));
-    let ty = if sh.sample_type.is_mono() {
-        "Mono"
-    } else {
-        "Stereo"
-    };
-    lines.push(format!("│       │   └── Type:       {}", ty));
-    lines
-}
-
-fn format_env_pan(gt: GeneratorType, value: i16) -> Option<String> {
-    use soundfont::raw::GeneratorType::*;
-    match gt {
-        AttackVolEnv => Some(format!("│       │   ├── Attack Time:  {}", value)),
-        DecayVolEnv => Some(format!("│       │   ├── Decay Time:   {}", value)),
-        ReleaseVolEnv => Some(format!("│       │   ├── Release Time: {}", value)),
-        SustainVolEnv => Some(format!("│       │   ├── Sustain:      {} dB", value)),
-        Pan => {
-            let desc = if value == 0 {
-                "Center".to_string()
-            } else if value < 0 {
-                format!("Left {}%", -value)
-            } else {
-                format!("Right {}%", value)
-            };
-            Some(format!("│       │   └── Pan:          {}", desc))
-        }
-        _ => None,
-    }
-}
-
-fn print_right_aligned(lines: &[String]) {
-    let max_width = lines.iter().map(|l| l.chars().count()).max().unwrap_or(0);
     let term_width = terminal_size()
         .map(|(Width(w), _)| w as usize)
         .unwrap_or(80);
-    let pad = term_width.saturating_sub(max_width);
+
+    for line in lines {
+        let pad = term_width.saturating_sub(line.len());
+        println!("{}{}", " ".repeat(pad), line);
+    }
+}
+
+pub fn print_full_structure(soundfont_file_path: &str) -> Result<(), Box<dyn Error>> {
+    let file = File::open(soundfont_file_path)?;
+    let mut reader = BufReader::new(file);
+    let sf2 = SoundFont::new(&mut reader)?;
+
+    let preset = sf2
+        .get_presets()
+        .iter()
+        .min_by_key(|p| (p.get_bank_number(), p.get_patch_number()))
+        .ok_or("No presets in SoundFont")?;
+
+    let mut lines = Vec::new();
+
+    lines.push(format!("Preset: \"{}\"", preset.get_name()));
+
+    lines.push(format!(
+        "  ├── Bank / Patch: {} / {}",
+        preset.get_bank_number(),
+        preset.get_patch_number()
+    ));
+
+    let preset_zones = preset.get_regions();
+    lines.push(format!("  ├── Preset Zones: {} total", preset_zones.len()));
+
+    let mut sorted_zones: Vec<_> = preset_zones.iter().collect();
+    sorted_zones.sort_by_key(|z| z.get_key_range_start());
+
+    if let Some(zone) = sorted_zones.first() {
+        // Last item at this level
+        lines.push(String::from("  └── Preset Zone #0"));
+
+        let inst_idx = zone.get_instrument_id() as usize;
+        if let Some(inst) = sf2.get_instruments().get(inst_idx) {
+            // Level 2 children
+            lines.push(format!("      ├── Instrument: \"{}\"", inst.get_name()));
+
+            let regions = inst.get_regions();
+            lines.push(format!("      ├── Regions: {} total", regions.len()));
+
+            if let Some(region) = regions.first() {
+                // Last item at level 2
+                lines.push(String::from("      └── Region #0"));
+
+                // Level 3 children
+                let kr0 = region.get_key_range_start();
+                let kr1 = region.get_key_range_end();
+                lines.push(format!(
+                    "          ├── Key Range: {}–{} ({}–{})",
+                    kr0,
+                    kr1,
+                    note_to_name(kr0 as u8),
+                    note_to_name(kr1 as u8)
+                ));
+
+                let vr0 = region.get_velocity_range_start();
+                let vr1 = region.get_velocity_range_end();
+                lines.push(format!(
+                    "          ├── Velocity Range: {}–{} (MIDI)",
+                    vr0, vr1
+                ));
+
+                let sid = region.get_sample_id() as usize;
+                if let Some(sh) = sf2.get_sample_headers().get(sid) {
+                    lines.push(format!("          ├── Sample: \"{}\"", sh.get_name()));
+                    lines.push(format!(
+                        "          │   ├── Sample Rate: {} Hz",
+                        sh.get_sample_rate()
+                    ));
+                    lines.push(format!(
+                        "          │   ├── Loop Points: {}→{} frames",
+                        sh.get_start_loop(),
+                        sh.get_end_loop()
+                    ));
+                    lines.push(format!(
+                        "          │   ├── Orig Pitch: {} ({})",
+                        sh.get_original_pitch(),
+                        note_to_name(sh.get_original_pitch() as u8)
+                    ));
+                    lines.push(format!(
+                        "          │   ├── Pitch Corr: {} cents",
+                        sh.get_pitch_correction()
+                    ));
+                    lines.push(format!(
+                        "          │   └── Sample Type: {}",
+                        sh.get_sample_type()
+                    ));
+                }
+
+                let pan = region.get_pan();
+                let pan_desc = if pan == 0.0 {
+                    "Center".into()
+                } else if pan < 0.0 {
+                    format!("Left {}%", (pan.abs() * 100.0) as i32)
+                } else {
+                    format!("Right {}%", (pan * 100.0) as i32)
+                };
+                lines.push(format!("          ├── Pan: {}", pan_desc));
+
+                lines.push(format!(
+                    "          ├── Attack Time: {:.3}s",
+                    region.get_attack_volume_envelope()
+                ));
+                lines.push(format!(
+                    "          ├── Decay Time: {:.3}s",
+                    region.get_decay_volume_envelope()
+                ));
+                lines.push(format!(
+                    "          ├── Sustain Level: {:.1}dB",
+                    region.get_sustain_volume_envelope()
+                ));
+                lines.push(format!(
+                    "          └── Release Time: {:.3}s",
+                    region.get_release_volume_envelope()
+                ));
+            }
+        }
+    }
+    print_aligned_right(&lines);
+    Ok(())
+}
+
+pub fn print_aligned_right(lines: &[String]) {
+    let max_width = lines.iter().map(|l| l.len()).max().unwrap_or(0);
+    let keyboard_width = key_bindings().len() * 6;
+    let gap = 1;
+    let term_width = terminal_size()
+        .map(|(Width(w), _)| w as usize)
+        .unwrap_or(80);
+    let required = keyboard_width + gap + max_width;
+    let pad = if required <= term_width {
+        keyboard_width + gap
+    } else {
+        term_width.saturating_sub(max_width)
+    };
+
     for line in lines {
         println!("{}{}", " ".repeat(pad), line);
     }

@@ -64,7 +64,7 @@ pub fn key_bindings() -> Vec<KeyBinding> {
 }
 
 pub fn render(active_keys: &HashSet<Key>) {
-    print!("\x1B[H\n\n\n\n\n\n");
+    print!("\x1B[H\n\n\n\n");
     let notes_row: String = key_bindings()
         .iter()
         .map(|b| format!("{:^4}", note_to_name(b.midi_note)))
