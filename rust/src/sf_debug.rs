@@ -5,15 +5,25 @@ use std::ffi::{CStr, CString};
 use std::{error::Error, fs::File, io::BufReader};
 use terminal_size::{terminal_size, Width};
 
+// const L0: &str = "";
+// const L1: &str = "  ├── ";
+// const L1_LAST: &str = "  └── ";
+// const L2: &str = "        ├── ";
+// const L2_LAST: &str = "        └── ";
+// const L3: &str = "           ├── ";
+// const L3_LAST: &str = "           └── ";
+// const L4: &str = "           │   ├── ";
+// const L4_LAST: &str = "           │   └── ";
+
 const L0: &str = "";
 const L1: &str = "  ├── ";
 const L1_LAST: &str = "  └── ";
-const L2: &str = "    ├── ";
-const L2_LAST: &str = "    └── ";
-const L3: &str = "      ├── ";
-const L3_LAST: &str = "      └── ";
-const L4: &str = "      │   ├── ";
-const L4_LAST: &str = "      │   └── ";
+const L2: &str = "        ├── ";
+const L2_LAST: &str = "        └── ";
+const L3: &str = "        │   ├── ";
+const L3_LAST: &str = "        │   └── ";
+const L4: &str = "        │   │   ├── ";
+const L4_LAST: &str = "        │   │   └── ";
 
 pub fn print_metadata(sf2_path: &str) {
     let mut lines = Vec::new();
@@ -56,12 +66,21 @@ pub fn print_full_structure(soundfont_file_path: &str, bank: i32, patch: i32) ->
     let mut lines = Vec::new();
     print_preset_info(preset, &mut lines);
     let preset_regions = preset.get_regions();
-    lines.push(format!("{L1}Preset Zones: {} bags?", preset_regions.len()));
-    if let Some(preset_region) = preset_regions.first() {
-        lines.push(format!("{L1_LAST}Preset Region #0"));
+    lines.push(format!("{L1}Preset Regions: {} bags", preset_regions.len()));
+    for (i, preset_region) in preset_regions.iter().enumerate() {
+        let is_last = i == preset_regions.len() - 1;
+        let region_label = if is_last {
+            format!("{L1_LAST}Preset Region index: {}", i)
+        } else {
+            format!("{L1}Preset Region index: {}", i)
+        };
+        lines.push(region_label);
+
         let instrument_index = preset_region.get_instrument_id();
         if let Some(instrument) = soundfont.get_instruments().get(instrument_index) {
-            print_instrument_info(instrument, &soundfont, &mut lines);
+            print_instrument_info(instrument, &soundfont, &mut lines, is_last);
+        } else {
+            lines.push(format!("{L2}(Missing instrument at index {})", instrument_index));
         }
     }
     print_aligned_right(&lines);
@@ -74,19 +93,25 @@ fn print_preset_info(preset: &Preset, lines: &mut Vec<String>) {
     lines.push(format!("{L1_LAST}Patch Number: {}", preset.get_patch_number()));
 }
 
-fn print_instrument_info(instrument: &Instrument, soundfont: &SoundFont, lines: &mut Vec<String>) {
+fn print_instrument_info(instrument: &Instrument, soundfont: &SoundFont, lines: &mut Vec<String>, parent_is_last: bool) {
     lines.push(format!("{L2}Instrument: \"{}\"", instrument.get_name()));
     let instrument_regions = instrument.get_regions();
-    lines.push(format!("{L2}Instrument Regions: {} total", instrument_regions.len()));
-    if let Some(region) = instrument_regions.first() {
-        lines.push(format!("{L2_LAST}Instrument Region #0"));
-        print_region_key_velocity_info(region, lines);
+    lines.push(format!("{L2}Instrument Regions: {} bags", instrument_regions.len()));
+    for (i, region) in instrument_regions.iter().enumerate() {
+        let is_last = i == instrument_regions.len() - 1;
+        let label = if is_last {
+            format!("{L2_LAST}Instrument Region index: {}", i)
+        } else {
+            format!("{L2}Instrument Region index: {}", i)
+        };
+        lines.push(label);
+        print_instrument_region_key_velocity_info(region, lines);
         print_sample_info(region, soundfont, lines);
         print_region_pan_envelope(region, lines);
     }
 }
 
-fn print_region_key_velocity_info(region: &InstrumentRegion, lines: &mut Vec<String>) {
+fn print_instrument_region_key_velocity_info(region: &InstrumentRegion, lines: &mut Vec<String>) {
     let low = region.get_key_range_start() as u8;
     let high = region.get_key_range_end() as u8;
     let low_note = note_to_name(low);
