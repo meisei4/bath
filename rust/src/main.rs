@@ -13,7 +13,7 @@ const SOUND_FONT_FILE_PATH: &str = "/Users/ann/Downloads/Animal_Crossing_Wild_Wo
 fn main() {
     //print!("\x1B[2J");
     print_metadata(SOUND_FONT_FILE_PATH);
-    if let Err(err) = print_full_structure(SOUND_FONT_FILE_PATH) {
+    if let Err(err) = print_full_structure(SOUND_FONT_FILE_PATH, 0, 0) {
         eprintln!("️SoundFont debug error: {}", err);
     }
     let mut fluidsynth_process = launch_fluidsynth_with_font(SOUND_FONT_FILE_PATH);

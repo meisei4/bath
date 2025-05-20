@@ -1,6 +1,7 @@
-use crate::keys::key_bindings;
+use crate::keys::{key_bindings, render};
 use midir::{MidiOutput, MidiOutputConnection, MidiOutputPort};
 use rdev::{Event, EventType, Key};
+use std::process::exit;
 use std::{
     collections::HashSet,
     process::{Child, Command},
@@ -18,7 +19,7 @@ pub fn launch_fluidsynth_with_font(sf2_path: &str) -> Child {
         .spawn()
         .unwrap_or_else(|e| {
             eprintln!("Failed to start fluidsynth: {}", e);
-            std::process::exit(1);
+            exit(1);
         })
 }
 
@@ -34,7 +35,7 @@ pub fn connect_to_first_midi_port() -> (MidiOutput, MidiOutputPort) {
         attempts -= 1;
     }
     eprintln!("No MIDI ports found.");
-    std::process::exit(1);
+    exit(1);
 }
 
 pub fn handle_key_event(
@@ -43,8 +44,7 @@ pub fn handle_key_event(
     active_keys: &mut HashSet<Key>,
 ) {
     match event.event_type {
-        EventType::KeyPress(Key::Escape) => std::process::exit(0),
-
+        EventType::KeyPress(Key::Escape) => exit(0),
         EventType::KeyPress(key) => {
             if let Some(note) = map_key_to_midi_note(key) {
                 if active_keys.insert(key) {
@@ -52,7 +52,6 @@ pub fn handle_key_event(
                 }
             }
         }
-
         EventType::KeyRelease(key) => {
             if let Some(note) = map_key_to_midi_note(key) {
                 if active_keys.remove(&key) {
@@ -60,11 +59,9 @@ pub fn handle_key_event(
                 }
             }
         }
-
         _ => {}
     }
-
-    crate::keys::render(active_keys);
+    render(active_keys);
 }
 
 fn map_key_to_midi_note(key: Key) -> Option<u8> {
