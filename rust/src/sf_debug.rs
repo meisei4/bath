@@ -5,16 +5,6 @@ use std::ffi::{CStr, CString};
 use std::{error::Error, fs::File, io::BufReader};
 use terminal_size::{terminal_size, Width};
 
-// const L0: &str = "";
-// const L1: &str = "  ├── ";
-// const L1_LAST: &str = "  └── ";
-// const L2: &str = "        ├── ";
-// const L2_LAST: &str = "        └── ";
-// const L3: &str = "           ├── ";
-// const L3_LAST: &str = "           └── ";
-// const L4: &str = "           │   ├── ";
-// const L4_LAST: &str = "           │   └── ";
-
 const L0: &str = "";
 const L1: &str = "  ├── ";
 const L1_LAST: &str = "  └── ";
