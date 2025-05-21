@@ -28,7 +28,6 @@ fn main() {
     //     handle_key_event(event, &mut midi_connection, &mut pressed_keys);
     // });
     // let _ = fluidsynth_process.kill();
-
     let _ = parse_midi_events_into_note_on_off_event_buffer_TICKS(MIDI_FILE_PATH);
     play_midi(MIDI_FILE_PATH)
 }
