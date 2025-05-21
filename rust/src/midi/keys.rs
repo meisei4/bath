@@ -72,10 +72,9 @@ pub fn render(active_keys: &HashSet<rdev::Key>) {
         buffer.push_str(ch);
         buffer.push_str("  ");
         if i == 1 {
-            buffer.push_str("   "); // Extra space after second black key
+            buffer.push_str("   ");
         }
     }
-
     buffer.push_str("   \n");
     buffer.push_str("┌─┤");
     buffer.push_str(draw_black('W', active_keys));

@@ -7,7 +7,6 @@ pub fn generate_concave_collision_polygons_pixel_perfect(
 ) -> Vec<Vec<Vector2>> {
     let mut polygons = Vec::new();
     let mut visited = vec![false; w * h];
-
     for y in 0..h {
         for x in 0..w {
             let idx = y * w + x;
@@ -16,7 +15,6 @@ pub fn generate_concave_collision_polygons_pixel_perfect(
                 && is_boundary_pixel(pixel_mask_slice, w, h, x, y)
             {
                 let raw = trace_boundary(pixel_mask_slice, w, h, x, y, &mut visited);
-                // collapse straight runs into single corners:
                 let simple = filter_colinear(&raw);
                 if simple.len() >= 3 {
                     polygons.push(simple);
@@ -32,13 +30,12 @@ fn filter_colinear(contour: &[Vector2]) -> Vec<Vector2> {
     if n < 3 {
         return contour.to_vec();
     }
-    let eps = 0.001; // tiny tolerance
+    let eps = 0.001;
     let mut out = Vec::with_capacity(n);
     for i in 0..n {
         let a = contour[(i + n - 1) % n];
         let b = contour[i];
         let c = contour[(i + 1) % n];
-        // cross-product z of AB×BC:
         let cross = (b.x - a.x) * (c.y - b.y) - (b.y - a.y) * (c.x - b.x);
         if cross.abs() > eps {
             out.push(b);
@@ -77,7 +74,6 @@ fn trace_boundary(
     let mut x = sx;
     let mut y = sy;
     let mut dir = 3;
-
     loop {
         let idx = y * w + x;
         visited[idx] = true;
@@ -106,7 +102,6 @@ fn trace_boundary(
                 }
             }
         }
-
         if !found || (x == sx && y == sy) {
             break;
         }
@@ -139,13 +134,10 @@ fn compute_convex_hull_monotone_chain(boundary_points_slice: &[Vector2]) -> Vec<
     if boundary_points_slice.len() < 3 {
         return boundary_points_slice.to_vec();
     }
-
     let mut sorted_points = boundary_points_slice.to_vec();
     sort_points_by_x_then_y(&mut sorted_points);
-
     let lower_hull = build_lower_monotone_chain_hull(&sorted_points);
     let upper_hull = build_upper_monotone_chain_hull(&sorted_points);
-
     merge_monotone_chain_hulls(lower_hull, upper_hull)
 }
 

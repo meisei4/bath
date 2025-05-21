@@ -1,5 +1,5 @@
 use libc::{c_char, c_int};
-//TODO: this is all the same shit as soundfont, as rustysynth jesus
+//TODO: this is all the same shit as rustysynth jesus
 #[repr(C)]
 pub struct tsf {
     _unused: [u8; 0],

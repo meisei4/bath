@@ -1,6 +1,9 @@
-use crate::keys::{key_bindings, render};
+use crate::midi::keys::{key_bindings, render};
 use midir::{MidiOutput, MidiOutputConnection, MidiOutputPort};
+use midly::{MidiMessage, Smf, Timing, TrackEventKind};
 use rdev::{Event, EventType, Key};
+use std::collections::HashMap;
+use std::fs;
 use std::process::exit;
 use std::{
     collections::HashSet,
@@ -8,10 +11,6 @@ use std::{
     thread,
     time::Duration,
 };
-use midly::{Smf, TrackEventKind, MidiMessage, MetaMessage, Timing};
-use std::collections::HashMap;
-use std::fs;
-
 
 pub fn launch_fluidsynth_with_font(sf2_path: &str) -> Child {
     Command::new("fluidsynth")
@@ -81,23 +80,17 @@ pub struct MidiNote {
     pub instrument_id: u8,
 }
 
-pub fn parse_midi_notes_into_onset_buffer(
-    midi_path: &str,
-) -> HashMap<MidiNote, Vec<(u64, u64)>> {
+pub fn parse_midi_events_into_note_on_off_event_buffer(midi_path: &str) -> HashMap<MidiNote, Vec<(u64, u64)>> {
     let midi_file_bytes = fs::read(midi_path).unwrap();
     let standard_midi_file = Smf::parse(&midi_file_bytes).unwrap();
-
-    // derive ticks-per-quarter-note once
     let ticks_per_quarter: u64 = match standard_midi_file.header.timing {
         Timing::Metrical(tpq) => tpq.as_int() as u64,
         _ => panic!("Unsupported MIDI timing format"),
     };
-
-    let mut active_note_onset_map: HashMap<(u8, u8), u64> = HashMap::new();
-    let mut midi_note_onset_buffer: HashMap<MidiNote, Vec<(u64, u64)>> = HashMap::new();
+    let mut active_note_on_events: HashMap<(u8, u8), u64> = HashMap::new();
+    let mut final_note_on_off_event_buffer: HashMap<MidiNote, Vec<(u64, u64)>> = HashMap::new();
     let mut current_instrument_for_channel: [u8; 16] = [0; 16];
     let mut flattened_event_list = Vec::new();
-
     for track in &standard_midi_file.tracks {
         let mut cumulative_tick = 0u64;
         for track_event in track {
@@ -105,9 +98,7 @@ pub fn parse_midi_notes_into_onset_buffer(
             flattened_event_list.push((cumulative_tick, track_event.kind.clone()));
         }
     }
-
     flattened_event_list.sort_unstable_by_key(|&(tick, _)| tick);
-
     for (event_tick_position, track_event_kind) in flattened_event_list {
         if let TrackEventKind::Midi {
             channel: midi_note_channel,
@@ -126,8 +117,8 @@ pub fn parse_midi_notes_into_onset_buffer(
                         vel.as_int(),
                         event_tick_position,
                         &current_instrument_for_channel,
-                        &mut active_note_onset_map,
-                        &mut midi_note_onset_buffer,
+                        &mut active_note_on_events,
+                        &mut final_note_on_off_event_buffer,
                     );
                 }
                 MidiMessage::NoteOff { key, .. } => {
@@ -137,17 +128,16 @@ pub fn parse_midi_notes_into_onset_buffer(
                         0,
                         event_tick_position,
                         &current_instrument_for_channel,
-                        &mut active_note_onset_map,
-                        &mut midi_note_onset_buffer,
+                        &mut active_note_on_events,
+                        &mut final_note_on_off_event_buffer,
                     );
                 }
                 _ => {}
             }
         }
     }
-
-    debug_midi_note_onset_buffer(&midi_note_onset_buffer, ticks_per_quarter);
-    midi_note_onset_buffer
+    debug_midi_note_onset_buffer(&final_note_on_off_event_buffer, ticks_per_quarter);
+    final_note_on_off_event_buffer
 }
 
 fn handle_note_message(
@@ -156,16 +146,13 @@ fn handle_note_message(
     event_velocity: u8,
     event_tick_position: u64,
     current_instrument_for_channel: &[u8; 16],
-    active_note_onset_map: &mut HashMap<(u8, u8), u64>,
+    active_note_on_events: &mut HashMap<(u8, u8), u64>,
     midi_note_onset_buffer: &mut HashMap<MidiNote, Vec<(u64, u64)>>,
 ) {
     if event_velocity > 0 {
-        active_note_onset_map.insert(
-            (midi_note_channel, midi_note_number),
-            event_tick_position,
-        );
+        active_note_on_events.insert((midi_note_channel, midi_note_number), event_tick_position);
     } else if let Some(onset_tick_position) =
-        active_note_onset_map.remove(&(midi_note_channel, midi_note_number))
+        active_note_on_events.remove(&(midi_note_channel, midi_note_number))
     {
         let instrument_identifier = current_instrument_for_channel[midi_note_channel as usize];
         let key = MidiNote {
@@ -178,6 +165,7 @@ fn handle_note_message(
             .push((onset_tick_position, event_tick_position));
     }
 }
+
 pub fn debug_midi_note_onset_buffer(
     buffer: &HashMap<MidiNote, Vec<(u64, u64)>>,
     ticks_per_quarter: u64,
@@ -186,17 +174,13 @@ pub fn debug_midi_note_onset_buffer(
         println!("-- no note events to display --");
         return;
     }
-
     let bars_to_display = 8;
     let ticks_per_bar = ticks_per_quarter * 4;
     let max_tick_to_display = ticks_per_bar * bars_to_display as u64;
-
     let chart_width: usize = 128;
     let scale = max_tick_to_display as f64 / chart_width as f64;
     let label_width = 7;
     let segment = chart_width / bars_to_display;
-
-    // Header line: bar numbers with solid separators
     print!("{:label_width$}", "");
     for bar in 1..=bars_to_display {
         let bar_str = bar.to_string();
@@ -206,36 +190,22 @@ pub fn debug_midi_note_onset_buffer(
         }
     }
     println!();
-
-    // Header line: solid axis
-    print!("{:label_width$}", "");
-    for _ in 0..bars_to_display {
-        print!("│");
-        for _ in 0..segment - 1 {
-            print!("─");
-        }
-    }
-    println!();
-
     fn note_name(n: u8) -> String {
-        let names = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+        let names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
         let octave = n / 12;
         format!("{}{}", names[(n % 12) as usize], octave)
     }
-
     let mut all_notes: Vec<MidiNote> = buffer.keys().cloned().collect();
     all_notes.sort_by_key(|n| n.midi_note);
     all_notes.reverse();
-
     let mut pairs = Vec::new();
     let mut i = 0;
     while i < all_notes.len() {
         let top = all_notes[i].clone();
-        let bottom = all_notes.get(i+1).cloned();
+        let bottom = all_notes.get(i + 1).cloned();
         pairs.push((top, bottom));
         i += 2;
     }
-
     for (top, bottom_opt) in pairs {
         let label = if let Some(bottom) = &bottom_opt {
             format!("{}/{}", note_name(top.midi_note), note_name(bottom.midi_note))
@@ -243,15 +213,13 @@ pub fn debug_midi_note_onset_buffer(
             note_name(top.midi_note)
         };
         print!("{:<label_width$}", label);
-
         let mut row = vec![' '; chart_width];
-
         if let Some(segments) = buffer.get(&top) {
             for &(onset, release) in segments {
                 if onset >= max_tick_to_display { continue; }
                 let start = (onset as f64 / scale).floor() as usize;
-                let end   = ((release.min(max_tick_to_display) as f64) / scale).ceil() as usize;
-                for x in start.min(chart_width-1)..end.min(chart_width) {
+                let end = ((release.min(max_tick_to_display) as f64) / scale).ceil() as usize;
+                for x in start.min(chart_width - 1)..end.min(chart_width) {
                     row[x] = '▀';
                 }
             }
@@ -261,17 +229,16 @@ pub fn debug_midi_note_onset_buffer(
                 for &(onset, release) in segments {
                     if onset >= max_tick_to_display { continue; }
                     let start = (onset as f64 / scale).floor() as usize;
-                    let end   = ((release.min(max_tick_to_display) as f64) / scale).ceil() as usize;
-                    for x in start.min(chart_width-1)..end.min(chart_width) {
+                    let end = ((release.min(max_tick_to_display) as f64) / scale).ceil() as usize;
+                    for x in start.min(chart_width - 1)..end.min(chart_width) {
                         row[x] = match row[x] {
                             '▀' | '█' => '█',
-                            _         => '▄',
+                            _ => '▄',
                         };
                     }
                 }
             }
         }
-
         let line: String = row.into_iter().collect();
         println!("{}", line);
     }

@@ -1,5 +1,5 @@
-use crate::keys::{key_bindings, note_to_name};
-use crate::tsf_bindings::{tsf_close, tsf_get_presetcount, tsf_get_presetname, tsf_load_filename};
+use crate::midi::keys::{key_bindings, note_to_name};
+use crate::midi::tsf_bindings::{tsf_close, tsf_get_presetcount, tsf_get_presetname, tsf_load_filename};
 use rustysynth::{Instrument, InstrumentRegion, Preset, SoundFont};
 use std::ffi::{CStr, CString};
 use std::{error::Error, fs::File, io::BufReader};
@@ -65,7 +65,6 @@ pub fn print_full_structure(soundfont_file_path: &str, bank: i32, patch: i32) ->
             format!("{L1}Preset Region index: {}", i)
         };
         lines.push(region_label);
-
         let instrument_index = preset_region.get_instrument_id();
         if let Some(instrument) = soundfont.get_instruments().get(instrument_index) {
             print_instrument_info(instrument, &soundfont, &mut lines, is_last);
@@ -149,7 +148,7 @@ fn print_region_pan_envelope(region: &InstrumentRegion, lines: &mut Vec<String>)
     lines.push(format!("{L3_LAST}Volume Envelope - Release Time: {:.3} sec)", envelope_vol));
 }
 
-pub fn print_aligned_right(lines: &[String]) {
+fn print_aligned_right(lines: &[String]) {
     let max_width = lines.iter().map(|l| l.len()).max().unwrap_or(0);
     let keyboard_width = key_bindings().len() * 6;
     let gap = 1;

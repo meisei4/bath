@@ -29,13 +29,10 @@ pub fn detect_bpm(path: GString) -> f32 {
 
     let mut tempo = Tempo::new(SpecFlux, BUF_SIZE, HOP_SIZE, spec.sample_rate)
         .expect("couldn't create aubio Tempo");
-
-    // buffers for one hop
     let mut in_data = vec![0.0 as Smpl; HOP_SIZE];
     let mut out_data = vec![0.0 as Smpl; HOP_SIZE];
     let mut samples = reader.samples::<i16>();
     let mut bpm = 0.0_f32;
-
     'outer: loop {
         for frame in 0..HOP_SIZE {
             let mut sum = 0i32;
@@ -47,7 +44,6 @@ pub fn detect_bpm(path: GString) -> f32 {
             }
             in_data[frame] = (sum as Smpl / channels as Smpl) * I16_TO_SMPL;
         }
-
         tempo
             .do_(in_data.as_slice(), out_data.as_mut_slice())
             .expect("tempo.do_ failed");
@@ -58,7 +54,6 @@ pub fn detect_bpm(path: GString) -> f32 {
 }
 
 pub fn _detect_bpm_accurate(path: GString) -> f32 {
-    // Open WAV file
     let mut reader = match WavReader::open(path.to_string()) {
         Ok(r) => r,
         Err(e) => {
@@ -73,22 +68,14 @@ pub fn _detect_bpm_accurate(path: GString) -> f32 {
     let spec = reader.spec();
     let channels = spec.channels as usize;
     let sample_rate = spec.sample_rate as Smpl;
-
-    // Create aubio tempo tracker
     let mut tempo = Tempo::new(SpecFlux, BUF_SIZE, HOP_SIZE, spec.sample_rate)
         .expect("couldn't create aubio Tempo");
-
-    // Buffers for one hop
     let mut in_data = vec![0.0 as Smpl; HOP_SIZE];
     let mut out_data = vec![0.0 as Smpl; HOP_SIZE];
     let mut samples = reader.samples::<i16>();
-
-    // Collect beat‐to‐beat BPMs
     let mut prev_last: Option<usize> = None;
     let mut bpms: Vec<f32> = Vec::new();
-
     'outer: loop {
-        // Read one hop of samples (mono mix)
         for i in 0..HOP_SIZE {
             let mut sum = 0i32;
             for _ in 0..channels {
@@ -99,14 +86,10 @@ pub fn _detect_bpm_accurate(path: GString) -> f32 {
             }
             in_data[i] = (sum as Smpl / channels as Smpl) * I16_TO_SMPL;
         }
-
-        // Run aubio detection
         tempo
             .do_(in_data.as_slice(), out_data.as_mut_slice())
             .expect("tempo.do_ failed");
-
-        // If a beat was detected, compute the interval BPM
-        let last = tempo.get_last(); // sample index of last beat
+        let last = tempo.get_last();
         if let Some(prev) = prev_last {
             let delta_s = (last - prev) as Smpl / sample_rate;
             if delta_s > 0.0 {
@@ -115,10 +98,7 @@ pub fn _detect_bpm_accurate(path: GString) -> f32 {
         }
         prev_last = Some(last);
     }
-
-    // Determine final BPM with fallback
     if bpms.is_empty() {
-        // No beats? fall back to aubio's internal estimate
         let fallback = tempo.get_bpm();
         if fallback > 0.0 {
             fallback
@@ -127,7 +107,6 @@ pub fn _detect_bpm_accurate(path: GString) -> f32 {
             60.0
         }
     } else {
-        // Median of detected BPMs
         bpms.sort_by(|a, b| a.partial_cmp(b).unwrap());
         bpms[bpms.len() / 2]
     }
@@ -143,11 +122,9 @@ pub fn _compute_envelope_segments(
     let data: Vec<f32> = waveform_data.to_vec();
     let seg = segments as usize;
     let len = data.len();
-    let chunk = (len + seg - 1) / seg; // ceil division
-
+    let chunk = (len + seg - 1) / seg;
     let mut out = PackedFloat32Array::new();
     out.resize(seg);
-
     for i in 0..seg {
         let start = i * chunk;
         let end = ((i + 1) * chunk).min(len);
@@ -159,12 +136,9 @@ pub fn _compute_envelope_segments(
         let avg = sum / ((end - start) as f32);
         out.insert(i, avg);
     }
-
     out
 }
 
-/// Isolate a single frequency band (mono) via a Butterworth band-pass filter
-/// and write it out to a new WAV at `out_path`.
 pub fn band_pass_filter(path: GString, center_hz: f32, out_path: GString) {
     let infile = path.to_string();
     let outfile = out_path.to_string();
@@ -178,8 +152,6 @@ pub fn band_pass_filter(path: GString, center_hz: f32, out_path: GString) {
     let spec = reader.spec();
     let sr = spec.sample_rate;
     let channels = spec.channels as usize;
-
-    // we'll down-mix to mono for simplicity
     let out_spec = WavSpec {
         channels: 1,
         sample_rate: sr,
@@ -193,8 +165,6 @@ pub fn band_pass_filter(path: GString, center_hz: f32, out_path: GString) {
             return;
         }
     };
-
-    // design a 2nd-order (Butterworth) band-pass
     let coeffs = Coefficients::<f32>::from_params(
         Type::BandPass,
         sr.hz(),
@@ -206,7 +176,6 @@ pub fn band_pass_filter(path: GString, center_hz: f32, out_path: GString) {
 
     let mut samples = reader.samples::<i16>();
     'proc: loop {
-        // read one multi-channel frame, downmix to mono
         let mut sum = 0i32;
         for _ in 0..channels {
             match samples.next() {
@@ -222,12 +191,9 @@ pub fn band_pass_filter(path: GString, center_hz: f32, out_path: GString) {
             break;
         }
     }
-
     writer.finalize().ok();
 }
 
-/// Extract a frame-by-frame pitch contour (Hz) using Aubio’s Yin algorithm.
-/// Returns a PackedFloat32Array of one frequency per hop.
 pub fn _extract_pitch_contour(path: GString) -> PackedFloat32Array {
     let infile = path.to_string();
     let mut reader = match WavReader::open(&infile) {
@@ -240,16 +206,13 @@ pub fn _extract_pitch_contour(path: GString) -> PackedFloat32Array {
     let spec = reader.spec();
     let sr = spec.sample_rate;
     let channels = spec.channels as usize;
-
     let mut pitch =
         Pitch::new(PitchMode::Yin, BUF_SIZE, HOP_SIZE, sr).expect("couldn't create aubio Pitch");
     pitch.set_unit(PitchUnit::Hz);
-
     let mut in_data = vec![0.0f32; HOP_SIZE];
     let mut out_data = vec![0.0f32; HOP_SIZE];
     let mut samples = reader.samples::<i16>();
     let mut freqs = Vec::new();
-
     'outer: loop {
         for i in 0..HOP_SIZE {
             let mut sum = 0i32;
@@ -266,19 +229,15 @@ pub fn _extract_pitch_contour(path: GString) -> PackedFloat32Array {
             .expect("pitch.do failed");
         freqs.push(pitch.get_confidence());
     }
-
     let mut arr = PackedFloat32Array::new();
     arr.resize(freqs.len());
-
     let mut arr = PackedFloat32Array::new();
     for &f in freqs.iter() {
         arr.push(f);
     }
-
     arr
 }
 
-/// Detect spectral-flux onsets in a WAV and return their timestamps (s).
 pub fn extract_onset_times(path: GString) -> PackedFloat32Array {
     let infile = path.to_string();
     let mut reader = match WavReader::open(&infile) {
@@ -291,16 +250,13 @@ pub fn extract_onset_times(path: GString) -> PackedFloat32Array {
     let spec = reader.spec();
     let sr = spec.sample_rate;
     let channels = spec.channels as usize;
-
     let mut onset =
         Onset::new(SpecFlux, BUF_SIZE, HOP_SIZE, sr).expect("couldn't create aubio Onset");
-
     let mut in_data = vec![0.0f32; HOP_SIZE];
     let mut out_data = vec![0.0f32; HOP_SIZE];
     let mut samples = reader.samples::<i16>();
     let mut elapsed = 0usize;
     let mut times = Vec::new();
-
     'outer: loop {
         for i in 0..HOP_SIZE {
             let mut sum = 0i32;
@@ -320,7 +276,6 @@ pub fn extract_onset_times(path: GString) -> PackedFloat32Array {
         }
         elapsed += HOP_SIZE;
     }
-
     let mut arr = PackedFloat32Array::new();
     arr.resize(times.len());
     for &t in times.iter() {
