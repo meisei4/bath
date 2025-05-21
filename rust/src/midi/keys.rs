@@ -31,18 +31,66 @@ const fn midi_note(note_index: u8, octave: i8) -> u8 {
 
 pub fn key_bindings() -> Vec<KeyBinding> {
     vec![
-        KeyBinding { key: Key::KeyA, label: 'A', midi_note: midi_note(C, BASE_OCTAVE) },
-        KeyBinding { key: Key::KeyW, label: 'W', midi_note: midi_note(C_S, BASE_OCTAVE) },
-        KeyBinding { key: Key::KeyS, label: 'S', midi_note: midi_note(D, BASE_OCTAVE) },
-        KeyBinding { key: Key::KeyE, label: 'E', midi_note: midi_note(D_S, BASE_OCTAVE) },
-        KeyBinding { key: Key::KeyD, label: 'D', midi_note: midi_note(E, BASE_OCTAVE) },
-        KeyBinding { key: Key::KeyF, label: 'F', midi_note: midi_note(F, BASE_OCTAVE) },
-        KeyBinding { key: Key::KeyT, label: 'T', midi_note: midi_note(F_S, BASE_OCTAVE) },
-        KeyBinding { key: Key::KeyG, label: 'G', midi_note: midi_note(G, BASE_OCTAVE) },
-        KeyBinding { key: Key::KeyY, label: 'Y', midi_note: midi_note(G_S, BASE_OCTAVE) },
-        KeyBinding { key: Key::KeyH, label: 'H', midi_note: midi_note(A, BASE_OCTAVE) },
-        KeyBinding { key: Key::KeyU, label: 'U', midi_note: midi_note(A_S, BASE_OCTAVE) },
-        KeyBinding { key: Key::KeyJ, label: 'J', midi_note: midi_note(B, BASE_OCTAVE) },
+        KeyBinding {
+            key: Key::KeyA,
+            label: 'A',
+            midi_note: midi_note(C, BASE_OCTAVE),
+        },
+        KeyBinding {
+            key: Key::KeyW,
+            label: 'W',
+            midi_note: midi_note(C_S, BASE_OCTAVE),
+        },
+        KeyBinding {
+            key: Key::KeyS,
+            label: 'S',
+            midi_note: midi_note(D, BASE_OCTAVE),
+        },
+        KeyBinding {
+            key: Key::KeyE,
+            label: 'E',
+            midi_note: midi_note(D_S, BASE_OCTAVE),
+        },
+        KeyBinding {
+            key: Key::KeyD,
+            label: 'D',
+            midi_note: midi_note(E, BASE_OCTAVE),
+        },
+        KeyBinding {
+            key: Key::KeyF,
+            label: 'F',
+            midi_note: midi_note(F, BASE_OCTAVE),
+        },
+        KeyBinding {
+            key: Key::KeyT,
+            label: 'T',
+            midi_note: midi_note(F_S, BASE_OCTAVE),
+        },
+        KeyBinding {
+            key: Key::KeyG,
+            label: 'G',
+            midi_note: midi_note(G, BASE_OCTAVE),
+        },
+        KeyBinding {
+            key: Key::KeyY,
+            label: 'Y',
+            midi_note: midi_note(G_S, BASE_OCTAVE),
+        },
+        KeyBinding {
+            key: Key::KeyH,
+            label: 'H',
+            midi_note: midi_note(A, BASE_OCTAVE),
+        },
+        KeyBinding {
+            key: Key::KeyU,
+            label: 'U',
+            midi_note: midi_note(A_S, BASE_OCTAVE),
+        },
+        KeyBinding {
+            key: Key::KeyJ,
+            label: 'J',
+            midi_note: midi_note(B, BASE_OCTAVE),
+        },
     ]
 }
 pub fn render(active_keys: &HashSet<rdev::Key>) {
@@ -68,7 +116,11 @@ pub fn render(active_keys: &HashSet<rdev::Key>) {
     buffer.push_str("   ");
     for (i, label) in ['W', 'E', 'T', 'Y', 'U'].iter().enumerate() {
         let pressed = active_keys.contains(&key_for_label(*label));
-        let ch = if pressed { BLACK_KEY_PRESSED } else { BLACK_KEY_CHAR };
+        let ch = if pressed {
+            BLACK_KEY_PRESSED
+        } else {
+            BLACK_KEY_CHAR
+        };
         buffer.push_str(ch);
         buffer.push_str("  ");
         if i == 1 {
@@ -101,7 +153,11 @@ pub fn render(active_keys: &HashSet<rdev::Key>) {
     for label in ['A', 'S', 'D', 'F', 'G', 'H', 'J'] {
         let pressed = active_keys.contains(&key_for_label(label));
         buffer.push_str("│");
-        buffer.push_str(if pressed { WHITE_KEY_PRESSED } else { WHITE_KEY_EMPTY });
+        buffer.push_str(if pressed {
+            WHITE_KEY_PRESSED
+        } else {
+            WHITE_KEY_EMPTY
+        });
         buffer.push_str("│");
     }
     buffer.push('\n');
@@ -148,6 +204,8 @@ pub fn note_to_name(note_number: u8) -> String {
 }
 
 fn note_name_no_octave(note_number: u8) -> &'static str {
-    const NAMES: [&str; 12] = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"];
+    const NAMES: [&str; 12] = [
+        "C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B",
+    ];
     NAMES[(note_number % 12) as usize]
 }

@@ -1,5 +1,7 @@
 use crate::midi::keys::{key_bindings, note_to_name};
-use crate::midi::tsf_bindings::{tsf_close, tsf_get_presetcount, tsf_get_presetname, tsf_load_filename};
+use crate::midi::tsf_bindings::{
+    tsf_close, tsf_get_presetcount, tsf_get_presetname, tsf_load_filename,
+};
 use rustysynth::{Instrument, InstrumentRegion, Preset, SoundFont};
 use std::ffi::{CStr, CString};
 use std::{error::Error, fs::File, io::BufReader};
@@ -44,12 +46,16 @@ pub fn print_metadata(sf2_path: &str) {
     }
 }
 
-
-pub fn print_full_structure(soundfont_file_path: &str, bank: i32, patch: i32) -> Result<(), Box<dyn Error>> {
+pub fn print_full_structure(
+    soundfont_file_path: &str,
+    bank: i32,
+    patch: i32,
+) -> Result<(), Box<dyn Error>> {
     let file = File::open(soundfont_file_path)?;
     let mut reader = BufReader::new(file);
     let soundfont = SoundFont::new(&mut reader)?;
-    let preset = soundfont.get_presets()
+    let preset = soundfont
+        .get_presets()
         .iter()
         .find(|p| p.get_bank_number() == bank && p.get_patch_number() == patch)
         .ok_or("No matching preset found in SoundFont.")?;
@@ -69,7 +75,10 @@ pub fn print_full_structure(soundfont_file_path: &str, bank: i32, patch: i32) ->
         if let Some(instrument) = soundfont.get_instruments().get(instrument_index) {
             print_instrument_info(instrument, &soundfont, &mut lines, is_last);
         } else {
-            lines.push(format!("{L2}(Missing instrument at index {})", instrument_index));
+            lines.push(format!(
+                "{L2}(Missing instrument at index {})",
+                instrument_index
+            ));
         }
     }
     print_aligned_right(&lines);
@@ -79,13 +88,24 @@ pub fn print_full_structure(soundfont_file_path: &str, bank: i32, patch: i32) ->
 fn print_preset_info(preset: &Preset, lines: &mut Vec<String>) {
     lines.push(format!("{L0}Preset: \"{}\"", preset.get_name()));
     lines.push(format!("{L1}Bank Number: {}", preset.get_bank_number()));
-    lines.push(format!("{L1_LAST}Patch Number: {}", preset.get_patch_number()));
+    lines.push(format!(
+        "{L1_LAST}Patch Number: {}",
+        preset.get_patch_number()
+    ));
 }
 
-fn print_instrument_info(instrument: &Instrument, soundfont: &SoundFont, lines: &mut Vec<String>, parent_is_last: bool) {
+fn print_instrument_info(
+    instrument: &Instrument,
+    soundfont: &SoundFont,
+    lines: &mut Vec<String>,
+    parent_is_last: bool,
+) {
     lines.push(format!("{L2}Instrument: \"{}\"", instrument.get_name()));
     let instrument_regions = instrument.get_regions();
-    lines.push(format!("{L2}Instrument Regions: {} bags", instrument_regions.len()));
+    lines.push(format!(
+        "{L2}Instrument Regions: {} bags",
+        instrument_regions.len()
+    ));
     for (i, region) in instrument_regions.iter().enumerate() {
         let is_last = i == instrument_regions.len() - 1;
         let label = if is_last {
@@ -105,10 +125,16 @@ fn print_instrument_region_key_velocity_info(region: &InstrumentRegion, lines: &
     let high = region.get_key_range_end() as u8;
     let low_note = note_to_name(low);
     let high_note = note_to_name(high);
-    lines.push(format!("{L3}Key Range: {}–{} ({}–{})", low, high, low_note, high_note));
+    lines.push(format!(
+        "{L3}Key Range: {}–{} ({}–{})",
+        low, high, low_note, high_note
+    ));
     let vel_low = region.get_velocity_range_start();
     let vel_high = region.get_velocity_range_end();
-    lines.push(format!("{L3}Velocity Range: {}–{} (0=soft, 127=hard)", vel_low, vel_high));
+    lines.push(format!(
+        "{L3}Velocity Range: {}–{} (0=soft, 127=hard)",
+        vel_low, vel_high
+    ));
 }
 
 fn print_sample_info(region: &InstrumentRegion, soundfont: &SoundFont, lines: &mut Vec<String>) {
@@ -124,7 +150,10 @@ fn print_sample_info(region: &InstrumentRegion, soundfont: &SoundFont, lines: &m
         lines.push(format!("{L4}Original Pitch: {} ({})", pitch, note));
         let pitch_correct = sample.get_pitch_correction();
         lines.push(format!("{L4}Pitch Correction: {} cents", pitch_correct));
-        lines.push(format!("{L4_LAST}Sample Type: {} (1 = mono)", sample.get_sample_type()));
+        lines.push(format!(
+            "{L4_LAST}Sample Type: {} (1 = mono)",
+            sample.get_sample_type()
+        ));
     }
 }
 
@@ -139,13 +168,25 @@ fn print_region_pan_envelope(region: &InstrumentRegion, lines: &mut Vec<String>)
     };
     lines.push(format!("{L3}Pan Position: {} (Stereo balance)", pan_desc));
     let attack = region.get_attack_volume_envelope();
-    lines.push(format!("{L3}Volume Envelope - Attack Time: {:.3} sec", attack));
+    lines.push(format!(
+        "{L3}Volume Envelope - Attack Time: {:.3} sec",
+        attack
+    ));
     let decay = region.get_decay_volume_envelope();
-    lines.push(format!("{L3}Volume Envelope - Decay Time: {:.3} sec", decay));
+    lines.push(format!(
+        "{L3}Volume Envelope - Decay Time: {:.3} sec",
+        decay
+    ));
     let sustain = region.get_sustain_volume_envelope();
-    lines.push(format!("{L3}Volume Envelope - Sustain Level: {:.1} dB", sustain));
+    lines.push(format!(
+        "{L3}Volume Envelope - Sustain Level: {:.1} dB",
+        sustain
+    ));
     let envelope_vol = region.get_release_volume_envelope();
-    lines.push(format!("{L3_LAST}Volume Envelope - Release Time: {:.3} sec)", envelope_vol));
+    lines.push(format!(
+        "{L3_LAST}Volume Envelope - Release Time: {:.3} sec)",
+        envelope_vol
+    ));
 }
 
 fn print_aligned_right(lines: &[String]) {
