@@ -5,7 +5,7 @@ class_name MetronomeGen
 func _ready() -> void:
     const AMPLITUDE: int = 32_767
     var DURATION: float = 0.30
-    var FRAMES: int = int( MusicDimensionsManager.SAMPLE_RATE * DURATION)
+    var FRAMES: int = int(MusicDimensionsManager.SAMPLE_RATE * DURATION)
 
     var pcm: PackedByteArray = PackedByteArray()
     pcm.resize(FRAMES * 2)
@@ -14,7 +14,7 @@ func _ready() -> void:
 
     var wav: AudioStreamWAV = AudioStreamWAV.new()
     wav.format = AudioStreamWAV.FORMAT_16_BITS
-    wav.mix_rate =  MusicDimensionsManager.SAMPLE_RATE
+    wav.mix_rate = MusicDimensionsManager.SAMPLE_RATE
     wav.stereo = false
     wav.data = pcm
 

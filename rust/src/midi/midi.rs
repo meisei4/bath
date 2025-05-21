@@ -1,3 +1,6 @@
+#![allow(dead_code)]
+//TODO: this is very hard to strucutre becuase it needs to be shared with my main.rs testing and the lib.rs
+// but there isa ton of unused code between both of them so you get compiler warnings all over the place
 use crate::midi::keys::{key_bindings, render};
 use midir::{MidiOutput, MidiOutputConnection, MidiOutputPort};
 use midly::{MetaMessage, MidiMessage, Smf, Timing, TrackEventKind};
@@ -80,7 +83,7 @@ pub struct MidiNote {
     pub instrument_id: u8,
 }
 
-pub fn parse_midi_events_into_note_on_off_event_buffer_TICKS(
+pub fn parse_midi_events_into_note_on_off_event_buffer_ticks(
     midi_path: &str,
 ) -> HashMap<MidiNote, Vec<(u64, u64)>> {
     let midi_file_bytes = fs::read(midi_path).unwrap();
@@ -113,7 +116,7 @@ pub fn parse_midi_events_into_note_on_off_event_buffer_TICKS(
                     current_instrument_for_channel[channel_index as usize] = program.as_int();
                 }
                 MidiMessage::NoteOn { key, vel } => {
-                    handle_note_message_TICKS(
+                    handle_note_message_ticks(
                         channel_index,
                         key.as_int(),
                         vel.as_int(),
@@ -124,7 +127,7 @@ pub fn parse_midi_events_into_note_on_off_event_buffer_TICKS(
                     );
                 }
                 MidiMessage::NoteOff { key, .. } => {
-                    handle_note_message_TICKS(
+                    handle_note_message_ticks(
                         channel_index,
                         key.as_int(),
                         0,
@@ -148,7 +151,7 @@ pub fn parse_midi_events_into_note_on_off_event_buffer_TICKS(
     final_note_on_off_event_buffer
 }
 
-fn handle_note_message_TICKS(
+fn handle_note_message_ticks(
     midi_note_channel: u8,
     midi_note_number: u8,
     event_velocity: u8,
@@ -175,7 +178,7 @@ fn handle_note_message_TICKS(
 }
 
 /// A duplicated version that tracks MetaMessage::Tempo and returns seconds.
-pub fn parse_midi_events_into_note_on_off_event_buffer_SECONDS(
+pub fn parse_midi_events_into_note_on_off_event_buffer_seconds(
     midi_path: &str,
 ) -> HashMap<MidiNote, Vec<(f64, f64)>> {
     let midi_file_bytes = fs::read(midi_path).unwrap();
@@ -228,7 +231,7 @@ pub fn parse_midi_events_into_note_on_off_event_buffer_SECONDS(
                         current_instrument_for_channel[channel_index as usize] = program.as_int();
                     }
                     MidiMessage::NoteOn { key, vel } => {
-                        handle_note_message_SECONDS(
+                        handle_note_message_seconds(
                             channel_index,
                             key.as_int(),
                             vel.as_int(),
@@ -239,7 +242,7 @@ pub fn parse_midi_events_into_note_on_off_event_buffer_SECONDS(
                         );
                     }
                     MidiMessage::NoteOff { key, .. } => {
-                        handle_note_message_SECONDS(
+                        handle_note_message_seconds(
                             channel_index,
                             key.as_int(),
                             0,
@@ -259,7 +262,7 @@ pub fn parse_midi_events_into_note_on_off_event_buffer_SECONDS(
     final_note_on_off_event_buffer
 }
 
-fn handle_note_message_SECONDS(
+fn handle_note_message_seconds(
     midi_note_channel: u8,
     midi_note_number: u8,
     event_velocity: u8,

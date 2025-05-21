@@ -1,9 +1,10 @@
+#![allow(dead_code)]
+//TODO: this is very hard to strucutre becuase it needs to be shared with my main.rs testing and the lib.rs
+// but there isa ton of unused code between both of them so you get compiler warnings all over the place
+
 use crate::midi::keys::{key_bindings, note_to_name};
-use crate::midi::tsf_bindings::{
-    tsf_close, tsf_get_presetcount, tsf_get_presetname, tsf_load_filename,
-};
+
 use rustysynth::{Instrument, InstrumentRegion, Preset, SoundFont};
-use std::ffi::{CStr, CString};
 use std::{error::Error, fs::File, io::BufReader};
 use terminal_size::{terminal_size, Width};
 
@@ -16,35 +17,6 @@ const L3: &str = "        │   ├── ";
 const L3_LAST: &str = "        │   └── ";
 const L4: &str = "        │   │   ├── ";
 const L4_LAST: &str = "        │   │   └── ";
-
-pub fn print_metadata(sf2_path: &str) {
-    let mut lines = Vec::new();
-    let c_path = CString::new(sf2_path).unwrap();
-    unsafe {
-        let handle = tsf_load_filename(c_path.as_ptr());
-        if handle.is_null() {
-            lines.push(format!("Could not load SF2 metadata: {}", sf2_path));
-        } else {
-            let count = tsf_get_presetcount(handle);
-            lines.push(format!("SoundFont Metadata — {} presets found:", count));
-            for idx in 0..count {
-                let ptr = tsf_get_presetname(handle, idx);
-                if !ptr.is_null() {
-                    let name = CStr::from_ptr(ptr).to_string_lossy();
-                    lines.push(format!("  [{}] {}", idx, name));
-                }
-            }
-            tsf_close(handle);
-        }
-    }
-    let term_width = terminal_size()
-        .map(|(Width(w), _)| w as usize)
-        .unwrap_or(80);
-    for line in lines {
-        let pad = term_width.saturating_sub(line.len());
-        println!("{}{}", " ".repeat(pad), line);
-    }
-}
 
 pub fn print_full_structure(
     soundfont_file_path: &str,
@@ -73,7 +45,7 @@ pub fn print_full_structure(
         lines.push(region_label);
         let instrument_index = preset_region.get_instrument_id();
         if let Some(instrument) = soundfont.get_instruments().get(instrument_index) {
-            print_instrument_info(instrument, &soundfont, &mut lines, is_last);
+            print_instrument_info(instrument, &soundfont, &mut lines);
         } else {
             lines.push(format!(
                 "{L2}(Missing instrument at index {})",
@@ -94,12 +66,7 @@ fn print_preset_info(preset: &Preset, lines: &mut Vec<String>) {
     ));
 }
 
-fn print_instrument_info(
-    instrument: &Instrument,
-    soundfont: &SoundFont,
-    lines: &mut Vec<String>,
-    parent_is_last: bool,
-) {
+fn print_instrument_info(instrument: &Instrument, soundfont: &SoundFont, lines: &mut Vec<String>) {
     lines.push(format!("{L2}Instrument: \"{}\"", instrument.get_name()));
     let instrument_regions = instrument.get_regions();
     lines.push(format!(

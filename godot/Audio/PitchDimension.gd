@@ -13,12 +13,14 @@ func _ready() -> void:
         MusicDimensionsManager.rust_util.get_midi_note_on_off_event_buffer_SECONDS()
         as Dictionary[Vector2i, PackedVector2Array]
     )
-    var wav_bytes: PackedByteArray = MusicDimensionsManager.rust_util.render_midi_to_wav_bytes_constant_time(
-        int(MusicDimensionsManager.SAMPLE_RATE)
+    var wav_bytes: PackedByteArray = (
+        MusicDimensionsManager
+        . rust_util
+        . render_midi_to_wav_bytes_constant_time(int(MusicDimensionsManager.SAMPLE_RATE))
     )
     var wav: AudioStreamWAV = AudioStreamWAV.new()
     wav.format = AudioStreamWAV.FORMAT_16_BITS
-    wav.mix_rate =  MusicDimensionsManager.SAMPLE_RATE
+    wav.mix_rate = MusicDimensionsManager.SAMPLE_RATE
     wav.stereo = true
     wav.data = wav_bytes
     AudioPoolManager.play_music(wav)

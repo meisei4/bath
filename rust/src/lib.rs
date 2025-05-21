@@ -3,8 +3,8 @@ mod collision_mask;
 mod midi;
 
 use crate::midi::midi::{
-    parse_midi_events_into_note_on_off_event_buffer_SECONDS,
-    parse_midi_events_into_note_on_off_event_buffer_TICKS,
+    parse_midi_events_into_note_on_off_event_buffer_seconds,
+    parse_midi_events_into_note_on_off_event_buffer_ticks,
 };
 use audio_analysis::util::{band_pass_filter, detect_bpm, extract_onset_times};
 use collision_mask::util::{
@@ -13,7 +13,6 @@ use collision_mask::util::{
 };
 use godot::builtin::{PackedByteArray, PackedVector2Array, Vector2};
 use godot::classes::Node2D;
-use godot::obj::NewGd;
 use godot::prelude::{
     gdextension, godot_api, godot_print, Array, Base, Dictionary, ExtensionLibrary, GString,
     GodotClass, PackedFloat32Array, Vector2i,
@@ -125,10 +124,10 @@ impl RustUtil {
 
     #[func]
     // RETURN TYPE:  Dictionary[Vector2i, PackedVector2Array]
-    pub fn get_midi_note_on_off_event_buffer_TICKS(&self) -> Dictionary {
+    pub fn get_midi_note_on_off_event_buffer_ticks(&self) -> Dictionary {
         const MIDI_FILE_PATH: &str = "/Users/ann/Documents/misc_game/2am.mid";
         let note_on_off_event_buffer =
-            parse_midi_events_into_note_on_off_event_buffer_TICKS(MIDI_FILE_PATH);
+            parse_midi_events_into_note_on_off_event_buffer_ticks(MIDI_FILE_PATH);
         // 2. Build a Godot Dictionary[Vector2i, PackedVector2Array]
         let mut godot_note_on_off_event_buffer = Dictionary::new();
         for (key, segments) in note_on_off_event_buffer {
@@ -146,10 +145,10 @@ impl RustUtil {
 
     #[func]
     // RETURN TYPE:  Dictionary[Vector2i, PackedVector2Array]
-    pub fn get_midi_note_on_off_event_buffer_SECONDS(&self) -> Dictionary {
+    pub fn get_midi_note_on_off_event_buffer_seconds(&self) -> Dictionary {
         const MIDI_FILE_PATH: &str = "/Users/ann/Documents/misc_game/2am.mid";
         let note_on_off_event_buffer =
-            parse_midi_events_into_note_on_off_event_buffer_SECONDS(MIDI_FILE_PATH);
+            parse_midi_events_into_note_on_off_event_buffer_seconds(MIDI_FILE_PATH);
         // 2. Build a Godot Dictionary[Vector2i, PackedVector2Array]
         let mut godot_note_on_off_event_buffer = Dictionary::new();
         for (key, segments) in note_on_off_event_buffer {
@@ -247,14 +246,14 @@ impl RustUtil {
         out
     }
 
-
     #[func]
     pub fn render_midi_to_wav_bytes_constant_time(&self, sample_rate: i32) -> PackedByteArray {
         const MIDI_PATH: &str = "/Users/ann/Documents/misc_game/2am.mid";
         const SF2_PATH: &str = "/Users/ann/Documents/misc_game/Animal_Crossing_Wild_World.sf2";
         let mut reader = BufReader::new(File::open(SF2_PATH).unwrap());
         let soundfont = Arc::new(SoundFont::new(&mut reader).expect("Failed to parse SF2"));
-        let mut synth = Synthesizer::new(&soundfont, &SynthesizerSettings::new(sample_rate)).unwrap();
+        let mut synth =
+            Synthesizer::new(&soundfont, &SynthesizerSettings::new(sample_rate)).unwrap();
         let data = fs::read(MIDI_PATH).unwrap();
         let smf = Smf::parse(&data).unwrap();
         let tpq = match smf.header.timing {
@@ -291,7 +290,8 @@ impl RustUtil {
                 match event {
                     TrackEventKind::Meta(MetaMessage::Tempo(us)) => {
                         us_per_qn = us.as_int() as u64;
-                        ticks_per_second = (1_000_000.0 / us_per_qn as f64) * tpq; // <- recalc here
+                        ticks_per_second = (1_000_000.0 / us_per_qn as f64) * tpq;
+                        // <- recalc here
                     }
                     TrackEventKind::Midi { channel, message } => {
                         let ch = channel.as_int() as i32;
@@ -343,6 +343,4 @@ impl RustUtil {
         let buf = wav_buffer.into_inner();
         PackedByteArray::from(buf)
     }
-
-
 }

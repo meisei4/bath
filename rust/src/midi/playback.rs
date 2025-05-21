@@ -1,3 +1,7 @@
+#![allow(dead_code)]
+//TODO: this is very hard to strucutre becuase it needs to be shared with my main.rs testing and the lib.rs
+// but there isa ton of unused code between both of them so you get compiler warnings all over the place
+
 use crate::midi::midi::connect_to_first_midi_port;
 use midly::{MetaMessage, MidiMessage, Smf, Timing, TrackEventKind};
 use std::{fs, thread, time::Duration};

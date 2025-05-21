@@ -2,7 +2,6 @@
 name = "bath"
 version = "0.1.0"
 edition = "2021"
-build = "build.rs"
 
 [dependencies]
 godot = "0.2.4"
@@ -24,3 +23,7 @@ cc = "1.2.23"
 
 [lib]
 crate-type = ["cdylib"]
+
+
+
+
