@@ -10,7 +10,7 @@ func _ready() -> void:
     _song_time = 0.0
     _last_time = 0.0
     midi_note_on_off_event_buffer = (
-        MusicDimensionsManager.rust_util.get_midi_note_on_off_event_buffer_SECONDS()
+        MusicDimensionsManager.rust_util.get_midi_note_on_off_event_buffer_seconds()
         as Dictionary[Vector2i, PackedVector2Array]
     )
     var wav_bytes: PackedByteArray = (

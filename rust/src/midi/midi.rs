@@ -2,11 +2,17 @@
 //TODO: this is very hard to strucutre becuase it needs to be shared with my main.rs testing and the lib.rs
 // but there isa ton of unused code between both of them so you get compiler warnings all over the place
 use crate::midi::keys::{key_bindings, render};
+use godot::prelude::PackedByteArray;
+use hound::{SampleFormat, WavSpec, WavWriter};
 use midir::{MidiOutput, MidiOutputConnection, MidiOutputPort};
+use midly::num::{u4, u7};
 use midly::{MetaMessage, MidiMessage, Smf, Timing, TrackEventKind};
 use rdev::{Event, EventType, Key};
+use rustysynth::{SoundFont, Synthesizer};
 use std::collections::HashMap;
 use std::fs;
+use std::fs::File;
+use std::io::{BufReader, Cursor};
 use std::process::exit;
 use std::{
     collections::HashSet,
@@ -77,6 +83,120 @@ fn map_key_to_midi_note(key: Key) -> Option<u8> {
         .map(|b| b.midi_note)
 }
 
+pub fn inject_program_change(
+    smf: &Smf,
+    channel: u8,
+    program: u8,
+) -> Vec<(u64, TrackEventKind<'static>)> {
+    let mut events = Vec::new();
+    for track in &smf.tracks {
+        let mut abs_tick = 0u64;
+        for e in track {
+            abs_tick += e.delta.as_int() as u64;
+            events.push((abs_tick, e.kind.clone().to_static()));
+        }
+    }
+    events.insert(
+        0,
+        (
+            0,
+            TrackEventKind::Midi {
+                channel: u4::from(channel),
+                message: MidiMessage::ProgramChange {
+                    program: u7::from(program),
+                },
+            },
+        ),
+    );
+    events.sort_by_key(|(t, _)| *t);
+    events
+}
+
+//TODO: the above function is actually how you set the soundfont instrumetn
+pub fn assign_midi_instrument_from_soundfont(
+    channel: u8,
+    preset_name: &str,
+    soundfont_path: &str,
+    mut send: impl FnMut(&[u8]),
+) {
+    let file = File::open(soundfont_path).unwrap();
+    let mut reader = BufReader::new(file);
+    let soundfont = SoundFont::new(&mut reader).unwrap();
+
+    let preset = soundfont
+        .get_presets()
+        .iter()
+        .find(|p| p.get_name() == preset_name)
+        .unwrap();
+
+    let full_bank = preset.get_bank_number();
+    let bank_msb = (full_bank >> 7) as u8;
+    let bank_lsb = (full_bank & 0x7F) as u8;
+    let program = preset.get_patch_number() as u8;
+
+    send(&[0xB0 | channel, 0x00, bank_msb]);
+    send(&[0xB0 | channel, 0x20, bank_lsb]);
+    send(&[0xC0 | channel, program]);
+}
+
+pub fn render_sample_frame(synth: &mut Synthesizer) -> (i16, i16) {
+    let mut left = [0.0];
+    let mut right = [0.0];
+    synth.render(&mut left, &mut right);
+
+    let l = (left[0].clamp(-1.0, 1.0) * i16::MAX as f32) as i16;
+    let r = (right[0].clamp(-1.0, 1.0) * i16::MAX as f32) as i16;
+    (l, r)
+}
+
+pub fn write_samples_to_wav(sample_rate: i32, samples: Vec<(i16, i16)>) -> PackedByteArray {
+    let mut buffer = Cursor::new(Vec::new());
+    let spec = WavSpec {
+        channels: 2,
+        sample_rate: sample_rate as u32,
+        bits_per_sample: 16,
+        sample_format: SampleFormat::Int,
+    };
+    let mut writer = WavWriter::new(&mut buffer, spec).unwrap();
+    for (l, r) in samples {
+        writer.write_sample(l).unwrap();
+        writer.write_sample(r).unwrap();
+    }
+    writer.finalize().unwrap();
+    PackedByteArray::from(buffer.into_inner())
+}
+
+pub fn process_midi_events_with_timing(
+    events: Vec<(u64, TrackEventKind<'static>)>,
+    smf: &Smf,
+    mut on_event: impl FnMut(f64, &TrackEventKind<'_>, Option<u8>),
+) {
+    let tpq = match smf.header.timing {
+        Timing::Metrical(t) => t.as_int() as f64,
+        _ => panic!(),
+    };
+
+    let mut us_per_qn = 500_000u64;
+    let mut time_sec = 0.0;
+    let mut last_tick = 0u64;
+
+    for (tick, event) in events {
+        let delta_ticks = tick - last_tick;
+        let delta_secs = (delta_ticks as f64 / tpq) * (us_per_qn as f64 / 1_000_000.0);
+        time_sec += delta_secs;
+        last_tick = tick;
+
+        if let TrackEventKind::Meta(MetaMessage::Tempo(us)) = &event {
+            us_per_qn = us.as_int() as u64;
+        }
+        let channel = match &event {
+            TrackEventKind::Midi { channel, .. } => Some(channel.as_int()),
+            _ => None,
+        };
+        on_event(time_sec, &event, channel);
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct MidiNote {
     pub midi_note: u8,
@@ -86,171 +206,110 @@ pub struct MidiNote {
 pub fn parse_midi_events_into_note_on_off_event_buffer_ticks(
     midi_path: &str,
 ) -> HashMap<MidiNote, Vec<(u64, u64)>> {
+    let mut active_note_on_events = HashMap::new();
+    let mut final_note_on_off_event_buffer = HashMap::new();
+    parse_midi_events_into_note_on_off(
+        midi_path,
+        |tick, _| tick,
+        |channel_index, key, vel, event_tick_position, current_instrument_for_channel| {
+            handle_note_message(
+                channel_index,
+                key,
+                vel,
+                event_tick_position,
+                current_instrument_for_channel,
+                &mut active_note_on_events,
+                &mut final_note_on_off_event_buffer,
+            );
+        },
+    );
     let midi_file_bytes = fs::read(midi_path).unwrap();
-    let standard_midi_file = Smf::parse(&midi_file_bytes).unwrap();
+    let smf = Smf::parse(&midi_file_bytes).unwrap();
 
-    let mut active_note_on_events: HashMap<(u8, u8), u64> = HashMap::new();
-    let mut final_note_on_off_event_buffer: HashMap<MidiNote, Vec<(u64, u64)>> = HashMap::new();
-    let mut current_instrument_for_channel: [u8; 16] = [0; 16];
-    let mut flattened_event_list = Vec::new();
-
-    for track in &standard_midi_file.tracks {
-        let mut cumulative_tick = 0u64;
-        for track_event in track {
-            cumulative_tick += track_event.delta.as_int() as u64;
-            flattened_event_list.push((cumulative_tick, track_event.kind.clone()));
-        }
-    }
-
-    flattened_event_list.sort_unstable_by_key(|&(tick, _)| tick);
-
-    for (event_tick_position, track_event_kind) in flattened_event_list {
-        if let TrackEventKind::Midi {
-            channel: midi_note_channel,
-            message: midi_message,
-        } = track_event_kind
-        {
-            let channel_index = midi_note_channel.as_int();
-            match midi_message {
-                MidiMessage::ProgramChange { program } => {
-                    current_instrument_for_channel[channel_index as usize] = program.as_int();
-                }
-                MidiMessage::NoteOn { key, vel } => {
-                    handle_note_message_ticks(
-                        channel_index,
-                        key.as_int(),
-                        vel.as_int(),
-                        event_tick_position,
-                        &current_instrument_for_channel,
-                        &mut active_note_on_events,
-                        &mut final_note_on_off_event_buffer,
-                    );
-                }
-                MidiMessage::NoteOff { key, .. } => {
-                    handle_note_message_ticks(
-                        channel_index,
-                        key.as_int(),
-                        0,
-                        event_tick_position,
-                        &current_instrument_for_channel,
-                        &mut active_note_on_events,
-                        &mut final_note_on_off_event_buffer,
-                    );
-                }
-                _ => {}
-            }
-        }
-    }
-
-    let ticks_per_quarter: u64 = match standard_midi_file.header.timing {
+    let ticks_per_quarter: u64 = match smf.header.timing {
         Timing::Metrical(tpq) => tpq.as_int() as u64,
         _ => panic!("Unsupported MIDI timing format"),
     };
     debug_midi_note_onset_buffer(&final_note_on_off_event_buffer, ticks_per_quarter);
-
     final_note_on_off_event_buffer
 }
 
-fn handle_note_message_ticks(
-    midi_note_channel: u8,
-    midi_note_number: u8,
-    event_velocity: u8,
-    event_tick_position: u64,
-    current_instrument_for_channel: &[u8; 16],
-    active_note_on_events: &mut HashMap<(u8, u8), u64>,
-    midi_note_onset_buffer: &mut HashMap<MidiNote, Vec<(u64, u64)>>,
-) {
-    if event_velocity > 0 {
-        active_note_on_events.insert((midi_note_channel, midi_note_number), event_tick_position);
-    } else if let Some(onset_tick_position) =
-        active_note_on_events.remove(&(midi_note_channel, midi_note_number))
-    {
-        let instrument_identifier = current_instrument_for_channel[midi_note_channel as usize];
-        let key = MidiNote {
-            midi_note: midi_note_number,
-            instrument_id: instrument_identifier,
-        };
-        midi_note_onset_buffer
-            .entry(key)
-            .or_default()
-            .push((onset_tick_position, event_tick_position));
-    }
-}
-
-/// A duplicated version that tracks MetaMessage::Tempo and returns seconds.
 pub fn parse_midi_events_into_note_on_off_event_buffer_seconds(
     midi_path: &str,
 ) -> HashMap<MidiNote, Vec<(f64, f64)>> {
-    let midi_file_bytes = fs::read(midi_path).unwrap();
-    let standard_midi_file = Smf::parse(&midi_file_bytes).unwrap();
-
-    // pulses-per-quarter for tick→sec conversion
-    let ticks_per_quarter: u64 = match standard_midi_file.header.timing {
+    let bytes = fs::read(midi_path).unwrap();
+    let smf = Smf::parse(&bytes).unwrap();
+    let tpq = match smf.header.timing {
         Timing::Metrical(tpq) => tpq.as_int() as u64,
         _ => panic!("Unsupported MIDI timing format"),
     };
-
-    let mut current_us_per_quarter = 500_000u64; // default = 120 BPM
+    let mut current_us_per_qn = 500_000u64;
     let mut last_tick = 0u64;
-    let mut elapsed_seconds = 0f64;
+    let mut elapsed = 0f64;
+    let mut active_note_on_events = HashMap::new();
+    let mut final_note_on_off_event_buffer = HashMap::new();
+    parse_midi_events_into_note_on_off(
+        midi_path,
+        |tick, kind| {
+            let delta_ticks = tick - last_tick;
+            let delta_secs = (delta_ticks as f64 / tpq as f64)
+                * (current_us_per_qn as f64 / 1_000_000.0);
+            elapsed += delta_secs;
+            last_tick = tick;
 
-    let mut active_note_on_events: HashMap<(u8, u8), f64> = HashMap::new();
-    let mut final_note_on_off_event_buffer: HashMap<MidiNote, Vec<(f64, f64)>> = HashMap::new();
-    let mut current_instrument_for_channel: [u8; 16] = [0; 16];
-    let mut flattened_event_list = Vec::new();
+            if let TrackEventKind::Meta(MetaMessage::Tempo(us)) = kind {
+                current_us_per_qn = us.as_int() as u64;
+            }
 
-    for track in &standard_midi_file.tracks {
-        let mut cumulative_tick = 0u64;
-        for track_event in track {
-            cumulative_tick += track_event.delta.as_int() as u64;
-            flattened_event_list.push((cumulative_tick, track_event.kind.clone()));
+            elapsed
+        },
+        |channel_index, note, vel, elapsed_seconds, current_instrument_for_channel| {
+            handle_note_message(
+                channel_index,
+                note,
+                vel,
+                elapsed_seconds,
+                current_instrument_for_channel,
+                &mut active_note_on_events,
+                &mut final_note_on_off_event_buffer,
+            );
+        },
+    );
+    final_note_on_off_event_buffer
+}
+
+fn parse_midi_events_into_note_on_off<T>(
+    midi_path: &str,
+    mut time_fn: impl FnMut(u64, &TrackEventKind<'_>) -> T,
+    mut handle_note_fn: impl FnMut(u8, u8, u8, T, &[u8; 16]),
+) {
+    let midi_file_bytes = fs::read(midi_path).unwrap();
+    let smf = Smf::parse(&midi_file_bytes).unwrap();
+    let mut current_instrument_for_channel = [0u8; 16];
+    let mut events = Vec::new();
+    for track in &smf.tracks {
+        let mut tick = 0u64;
+        for event in track {
+            tick += event.delta.as_int() as u64;
+            events.push((tick, event.kind.clone()));
         }
     }
+    events.sort_unstable_by_key(|(tick, _)| *tick);
 
-    flattened_event_list.sort_unstable_by_key(|&(t, _)| t);
-
-    for (event_tick_position, track_event_kind) in flattened_event_list {
-        // advance elapsed time
-        let delta_ticks = event_tick_position - last_tick;
-        let delta_secs = (delta_ticks as f64 / ticks_per_quarter as f64)
-            * (current_us_per_quarter as f64 / 1_000_000.0);
-        elapsed_seconds += delta_secs;
-        last_tick = event_tick_position;
-
-        match track_event_kind {
-            TrackEventKind::Meta(MetaMessage::Tempo(us_per_quarter)) => {
-                current_us_per_quarter = us_per_quarter.as_int() as u64;
-            }
-            TrackEventKind::Midi {
-                channel: midi_note_channel,
-                message: midi_message,
-            } => {
-                let channel_index = midi_note_channel.as_int();
-                match midi_message {
+    for (tick, kind) in events {
+        let time = time_fn(tick, &kind);
+        match kind {
+            TrackEventKind::Midi { channel, message } => {
+                let ch = channel.as_int();
+                match message {
                     MidiMessage::ProgramChange { program } => {
-                        current_instrument_for_channel[channel_index as usize] = program.as_int();
+                        current_instrument_for_channel[ch as usize] = program.as_int();
                     }
                     MidiMessage::NoteOn { key, vel } => {
-                        handle_note_message_seconds(
-                            channel_index,
-                            key.as_int(),
-                            vel.as_int(),
-                            elapsed_seconds,
-                            &current_instrument_for_channel,
-                            &mut active_note_on_events,
-                            &mut final_note_on_off_event_buffer,
-                        );
+                        handle_note_fn(ch, key.as_int(), vel.as_int(), time, &current_instrument_for_channel);
                     }
                     MidiMessage::NoteOff { key, .. } => {
-                        handle_note_message_seconds(
-                            channel_index,
-                            key.as_int(),
-                            0,
-                            elapsed_seconds,
-                            &current_instrument_for_channel,
-                            &mut active_note_on_events,
-                            &mut final_note_on_off_event_buffer,
-                        );
+                        handle_note_fn(ch, key.as_int(), 0, time, &current_instrument_for_channel);
                     }
                     _ => {}
                 }
@@ -258,18 +317,16 @@ pub fn parse_midi_events_into_note_on_off_event_buffer_seconds(
             _ => {}
         }
     }
-
-    final_note_on_off_event_buffer
 }
 
-fn handle_note_message_seconds(
+fn handle_note_message<T: Copy>(
     midi_note_channel: u8,
     midi_note_number: u8,
     event_velocity: u8,
-    event_time: f64,
+    event_time: T,
     current_instrument_for_channel: &[u8; 16],
-    active_note_on_events: &mut HashMap<(u8, u8), f64>,
-    midi_note_onset_buffer: &mut HashMap<MidiNote, Vec<(f64, f64)>>,
+    active_note_on_events: &mut HashMap<(u8, u8), T>,
+    midi_note_onset_buffer: &mut HashMap<MidiNote, Vec<(T, T)>>,
 ) {
     if event_velocity > 0 {
         active_note_on_events.insert((midi_note_channel, midi_note_number), event_time);

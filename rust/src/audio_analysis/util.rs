@@ -1,11 +1,14 @@
+use crate::midi::midi::MidiNote;
 use aubio_rs::OnsetMode::SpecFlux;
 use aubio_rs::{Onset, Pitch, PitchMode, PitchUnit};
 use aubio_rs::{Smpl, Tempo};
 use biquad::{Biquad, Coefficients, DirectForm1, ToHertz, Type, Q_BUTTERWORTH_F32};
 use godot::builtin::{GString, PackedFloat32Array};
 use godot::global::godot_print;
+use godot::prelude::{Dictionary, PackedVector2Array, Vector2, Vector2i};
 use hound::WavReader;
 use hound::{SampleFormat, WavSpec, WavWriter};
+use std::collections::HashMap;
 //use rspleeter::{split_pcm_audio, SpleeterModelInfo};
 
 const BUF_SIZE: usize = 1024; // FFT window size
@@ -171,7 +174,7 @@ pub fn band_pass_filter(path: GString, center_hz: f32, out_path: GString) {
         center_hz.hz(),
         Q_BUTTERWORTH_F32,
     )
-    .expect("Invalid filter params");
+        .expect("Invalid filter params");
     let mut filter = DirectForm1::<f32>::new(coeffs);
 
     let mut samples = reader.samples::<i16>();
@@ -283,3 +286,26 @@ pub fn extract_onset_times(path: GString) -> PackedFloat32Array {
     }
     arr
 }
+
+pub fn make_note_on_off_event_dict<T>(
+    midi_path: &str,
+    parser_fn: impl Fn(&str) -> HashMap<MidiNote, Vec<(T, T)>>,
+    to_f32: impl Fn(T) -> f32,
+) -> Dictionary
+where
+    T: Copy,
+{
+    let event_buffer = parser_fn(midi_path);
+    let mut dict = Dictionary::new();
+    for (key, segments) in event_buffer {
+        let dict_key = Vector2i::new(key.midi_note as i32, key.instrument_id as i32);
+        let mut arr = PackedVector2Array::new();
+        for (onset, release) in segments {
+            arr.push(Vector2::new(to_f32(onset), to_f32(release)));
+        }
+        let _ = dict.insert(dict_key, arr);
+    }
+    dict
+}
+
+
