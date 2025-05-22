@@ -83,11 +83,7 @@ fn map_key_to_midi_note(key: Key) -> Option<u8> {
         .map(|b| b.midi_note)
 }
 
-pub fn inject_program_change(
-    smf: &Smf,
-    channel: u8,
-    program: u8,
-) -> Vec<(u64, TrackEventKind<'static>)> {
+pub fn prepare_events(smf: &Smf) -> Vec<(u64, TrackEventKind<'static>)> {
     let mut events = Vec::new();
     for track in &smf.tracks {
         let mut abs_tick = 0u64;
@@ -96,19 +92,22 @@ pub fn inject_program_change(
             events.push((abs_tick, e.kind.clone().to_static()));
         }
     }
-    events.insert(
-        0,
-        (
-            0,
-            TrackEventKind::Midi {
-                channel: u4::from(channel),
-                message: MidiMessage::ProgramChange {
-                    program: u7::from(program),
-                },
-            },
-        ),
-    );
     events.sort_by_key(|(t, _)| *t);
+    events
+}
+
+pub fn inject_program_change(
+    mut events: Vec<(u64, TrackEventKind<'static>)>,
+    channel: u8,
+    program: u8,
+) -> Vec<(u64, TrackEventKind<'static>)> {
+    let pc = TrackEventKind::Midi {
+        channel: u4::from(channel),
+        message: MidiMessage::ProgramChange {
+            program: u7::from(program),
+        },
+    };
+    events.insert(0, (0, pc));
     events
 }
 
@@ -252,8 +251,8 @@ pub fn parse_midi_events_into_note_on_off_event_buffer_seconds(
         midi_path,
         |tick, kind| {
             let delta_ticks = tick - last_tick;
-            let delta_secs = (delta_ticks as f64 / tpq as f64)
-                * (current_us_per_qn as f64 / 1_000_000.0);
+            let delta_secs =
+                (delta_ticks as f64 / tpq as f64) * (current_us_per_qn as f64 / 1_000_000.0);
             elapsed += delta_secs;
             last_tick = tick;
 
@@ -306,7 +305,13 @@ fn parse_midi_events_into_note_on_off<T>(
                         current_instrument_for_channel[ch as usize] = program.as_int();
                     }
                     MidiMessage::NoteOn { key, vel } => {
-                        handle_note_fn(ch, key.as_int(), vel.as_int(), time, &current_instrument_for_channel);
+                        handle_note_fn(
+                            ch,
+                            key.as_int(),
+                            vel.as_int(),
+                            time,
+                            &current_instrument_for_channel,
+                        );
                     }
                     MidiMessage::NoteOff { key, .. } => {
                         handle_note_fn(ch, key.as_int(), 0, time, &current_instrument_for_channel);

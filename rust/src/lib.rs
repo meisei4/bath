@@ -3,7 +3,11 @@ mod collision_mask;
 mod midi;
 
 use crate::audio_analysis::util::make_note_on_off_event_dict;
-use crate::midi::midi::{inject_program_change, parse_midi_events_into_note_on_off_event_buffer_seconds, parse_midi_events_into_note_on_off_event_buffer_ticks, process_midi_events_with_timing, render_sample_frame, write_samples_to_wav};
+use crate::midi::midi::{
+    inject_program_change, parse_midi_events_into_note_on_off_event_buffer_seconds,
+    parse_midi_events_into_note_on_off_event_buffer_ticks, prepare_events,
+    process_midi_events_with_timing, render_sample_frame, write_samples_to_wav,
+};
 use audio_analysis::util::{band_pass_filter, detect_bpm, extract_onset_times};
 use collision_mask::util::{
     generate_concave_collision_polygons_pixel_perfect,
@@ -131,7 +135,8 @@ impl RustUtil {
 
     #[func]
     pub fn get_midi_note_on_off_event_buffer_seconds(&self) -> Dictionary {
-        const MIDI_FILE_PATH: &str = "/Users/ann/Documents/misc_game/2am.mid";
+        const MIDI_FILE_PATH: &str = "/Users/ann/Documents/misc_game/4.mid";
+        // const MIDI_FILE_PATH: &str = "/Users/ann/Documents/misc_game/2am.mid";
         make_note_on_off_event_dict(
             MIDI_FILE_PATH,
             parse_midi_events_into_note_on_off_event_buffer_seconds,
@@ -141,20 +146,22 @@ impl RustUtil {
 
     #[func]
     pub fn render_midi_to_wav_bytes_constant_time(&self, sample_rate: i32) -> PackedByteArray {
-        const MIDI_PATH: &str = "/Users/ann/Documents/misc_game/2am.mid";
+        //const MIDI_FILE_PATH: &str = "/Users/ann/Documents/misc_game/2am.mid";
+        const MIDI_FILE_PATH: &str = "/Users/ann/Documents/misc_game/4.mid";
         const SF2_PATH: &str = "/Users/ann/Documents/misc_game/Animal_Crossing_Wild_World.sf2";
         const PRESET_NAME: &str = "Accordion";
-        const CHANNEL: u8 = 0;
+        const TARGET_CHANNEL: u8 = 0;
         const PROGRAM: u8 = 0;
         let mut reader = BufReader::new(File::open(SF2_PATH).unwrap());
         let soundfont = Arc::new(SoundFont::new(&mut reader).unwrap());
         let mut synth =
             Synthesizer::new(&soundfont, &SynthesizerSettings::new(sample_rate)).unwrap();
-        let data = fs::read(MIDI_PATH).unwrap();
+        let data = fs::read(MIDI_FILE_PATH).unwrap();
         let smf = Smf::parse(&data).unwrap();
         //TODO: make this more about the acccordian, "program" is such a shitty name for an instrument in midi
         // i am not a fan of who ever made that naming decision, they better not be japanese
-        let events = inject_program_change(&smf, CHANNEL, PROGRAM);
+        let mut events = prepare_events(&smf);
+        events = inject_program_change(events, TARGET_CHANNEL, PROGRAM);
         let mut audio = Vec::new();
         let mut active_notes = std::collections::HashSet::new();
         let mut time_cursor = 0.0;

@@ -2,7 +2,9 @@
 //TODO: this is very hard to strucutre becuase it needs to be shared with my main.rs testing and the lib.rs
 // but there isa ton of unused code between both of them so you get compiler warnings all over the place
 
-use crate::midi::midi::{assign_midi_instrument_from_soundfont, connect_to_first_midi_port, inject_program_change, process_midi_events_with_timing};
+use crate::midi::midi::{
+    connect_to_first_midi_port, prepare_events, process_midi_events_with_timing,
+};
 use midly::{MidiMessage, Smf, TrackEventKind};
 use std::{fs, thread, time::Duration};
 pub fn play_midi(midi_path: &str, sf2_path: &str, preset: &str) {
@@ -13,12 +15,13 @@ pub fn play_midi(midi_path: &str, sf2_path: &str, preset: &str) {
     let (midi_out, port) = connect_to_first_midi_port();
     let mut conn = midi_out.connect(&port, "rust-midi").unwrap();
     //TODO: this might not even be neccessary anymore, the program change event actually assigns the instruments apparently
-    assign_midi_instrument_from_soundfont(TARGET_CHANNEL, preset, sf2_path, |msg| {
-        conn.send(msg).ok();
-    });
+    // assign_midi_instrument_from_soundfont(TARGET_CHANNEL, preset, sf2_path, |msg| {
+    //     conn.send(msg).ok();
+    // });
     let bytes = fs::read(midi_path).unwrap();
     let smf = Smf::parse(&bytes).unwrap();
-    let events = inject_program_change(&smf, TARGET_CHANNEL, PROGRAM);
+    let mut events = prepare_events(&smf);
+    //events = inject_program_change(events, TARGET_CHANNEL, PROGRAM);
     let mut last_time = 0.0;
     process_midi_events_with_timing(events, &smf, |event_time, event, ch| {
         let delay = event_time - last_time;

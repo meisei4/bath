@@ -174,7 +174,7 @@ pub fn band_pass_filter(path: GString, center_hz: f32, out_path: GString) {
         center_hz.hz(),
         Q_BUTTERWORTH_F32,
     )
-        .expect("Invalid filter params");
+    .expect("Invalid filter params");
     let mut filter = DirectForm1::<f32>::new(coeffs);
 
     let mut samples = reader.samples::<i16>();
@@ -307,5 +307,3 @@ where
     }
     dict
 }
-
-

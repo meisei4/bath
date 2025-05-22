@@ -86,3 +86,5 @@ __pycache__/
 
 python_bath/audio/output/track_metadata.json
 python_bath/audio/output/trim_metadata.json
+
+rust/.cargo/
