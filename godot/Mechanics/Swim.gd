@@ -22,7 +22,8 @@ func _ready() -> void:
     _set_phase(DivePhase.LEVEL)
     #TODO: figure out how to make this shaders default effect be at scale = 1 and absolutely no glitch snapping of the sprite when jumping finishes
     if !debug_autoswim:
-        MusicDimensionsManager.rhythm_indicator.connect(_on_rhythm_indicator)
+        pass
+        #MusicDimensionsManager.rhythm_indicator.connect(_on_rhythm_indicator)
 
 
 func _process(delta: float) -> void:
@@ -36,7 +37,7 @@ func _process(delta: float) -> void:
         )
 
 
-func _on_rhythm_indicator(beat_index: int, bar_index: int, beats_per_minute: float) -> void:
+func _on_rhythm_indicator(beat_index: int) -> void:
     #print("Swim got beat:", beat_index, "→ target_depth=", target_depth_position)
     if beat_index % MusicDimensionsManager.time_signature == 0:
         target_depth_position = MAX_DIVE_DEPTH
@@ -81,7 +82,7 @@ func process_visual_illusion(_frame_delta: float) -> void:
 func _update_sprite_scale(sprite: Sprite2D, depth_normal: float, _frame_delta: float) -> void:
     var scale_min: float = 0.5
     var scale_max: float = 1.0
-    var smooth_depth = smoothstep(0.0, 1.0, depth_normal)
+    var smooth_depth: float = smoothstep(0.0, 1.0, depth_normal)
     sprite.scale = Vector2.ONE * lerp(scale_max, scale_min, smooth_depth)
 
 

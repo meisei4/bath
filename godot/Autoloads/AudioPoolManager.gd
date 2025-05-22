@@ -43,14 +43,14 @@ func _ready() -> void:
 
 func _setup_buses(buses: Array[AudioBus.BUS]) -> void:
     var current_bus_count: int = AudioServer.get_bus_count()
-    for i in range(current_bus_count, buses.size()):
+    for i: int in range(current_bus_count, buses.size()):
         AudioServer.add_bus()
-    for i in range(buses.size()):
+    for i: int in range(buses.size()):
         AudioServer.set_bus_name(i, AudioBus.val(buses[i]))
 
 
 func _set_bus_volumes() -> void:
-    for bus in bus_volumes.keys():
+    for bus: AudioBus.BUS in bus_volumes.keys():
         AudioServer.set_bus_volume_db(AudioBus.get_bus_index(bus), bus_volumes[bus])
 
 

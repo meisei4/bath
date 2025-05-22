@@ -18,7 +18,7 @@ func _ready() -> void:
     audio_texture = ImageTexture.create_from_image(audio_image)
 
 
-func _process(delta: float) -> void:
+func _process(_delta: float) -> void:
     update_fft_texture_row()
     audio_texture.set_image(audio_image)
 

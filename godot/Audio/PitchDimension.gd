@@ -33,8 +33,8 @@ func _ready() -> void:
     wav.stereo = true
 
     if self.use_cache and FileAccess.file_exists(wav_path):
-        var f = FileAccess.open(wav_path, FileAccess.READ)
-        var bytes = f.get_buffer(f.get_length())
+        var f: FileAccess = FileAccess.open(wav_path, FileAccess.READ)
+        var bytes: PackedByteArray = f.get_buffer(f.get_length())
         f.close()
         wav.data = bytes
     else:
@@ -44,7 +44,7 @@ func _ready() -> void:
             . render_midi_to_wav_bytes_constant_time(int(MusicDimensionsManager.SAMPLE_RATE))
         )
         wav.data = wav_bytes
-        var f = FileAccess.open(wav_path, FileAccess.WRITE)
+        var f: FileAccess = FileAccess.open(wav_path, FileAccess.WRITE)
         f.store_buffer(wav_bytes)
         f.close()
 
@@ -70,12 +70,12 @@ func _process(delta_time: float) -> void:
         _last_active_notes = active_notes.duplicate()
         var line: String = "time: %.3f | polyphony: %d\n" % [_song_time, active_notes.size()]
         for note: int in active_notes:
-            var name: String = midi_note_to_name(note)
+            var _name: String = midi_note_to_name(note)
             var freq: float = midi_note_to_frequency(note)
             var color: Dictionary = midi_note_to_color_dict(note, active_notes.size())
             line += (
                 "  - %-4s (MIDI:%2d, %6.2fHz)  hue: %5.2frad | sat: %.2f | val: %.2f\n"
-                % [name, note, freq, color["pitch_radians"], color["saturation"], color["value"]]
+                % [_name, note, freq, color["pitch_radians"], color["saturation"], color["value"]]
             )
         _note_log_history.append(line)
         if _note_log_history.size() > MAX_NOTE_HISTORY:
@@ -91,11 +91,11 @@ func midi_note_to_color_dict(note: int, polyphony: int) -> Dictionary:
     var value: float = clamp(float(octave - 1) / 7.0, 0.3, 1.0)
     var saturation: float = clamp(float(polyphony) / 8.0, 0.3, 1.0)
     var freq: float = 440.0 * pow(2.0, float(note - 69) / 12.0)
-    var name: String = midi_note_to_name(note)
+    var _name: String = midi_note_to_name(note)
     return {
         "note": note,
         "freq": freq,
-        "name": name,
+        "name": _name,
         "pitch_radians": pitch_radians,
         "saturation": saturation,
         "value": value
@@ -125,9 +125,9 @@ func midi_note_to_name(note: int) -> String:
     var note_names: Array[String] = [
         "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"
     ]
-    var name: String = note_names[note % 12]
+    var _name: String = note_names[note % 12]
     var octave: int = int(note / 12) - 1
-    return "%s%d" % [name, octave]
+    return "%s%d" % [_name, octave]
 
 
 func print_color_note_dict(data: Dictionary) -> void:
@@ -153,8 +153,8 @@ func _debug_polyphony_buffer() -> void:
         print(entry)
 
 
-func clear_console():
-    var escape = PackedByteArray([0x1b]).get_string_from_ascii()
+func clear_console() -> void:
+    var escape: String = PackedByteArray([0x1b]).get_string_from_ascii()
     print(escape + "[2J")
 
 #EXPLNANTION

@@ -9,9 +9,9 @@ var players: Array[AudioStreamPlayer] = []
 var available: Array[AudioStreamPlayer] = []
 
 
-func _ready():
-    for i in pool_size:
-        var p = AudioStreamPlayer.new()
+func _ready() -> void:
+    for i: int in pool_size:
+        var p: AudioStreamPlayer = AudioStreamPlayer.new()
         p.bus = AudioBus.val(bus)
         p.finished.connect(_on_finished.bind(p))
         add_child(p)
@@ -26,15 +26,15 @@ func acquire() -> AudioStreamPlayer:
     return available.pop_back()
 
 
-func play(resource: AudioStream, volume_db: float = 0.0):
-    var p = acquire()
+func play(resource: AudioStream, volume_db: float = 0.0) -> void:
+    var p: AudioStreamPlayer = acquire()
     if p:
         p.stream = resource
         p.volume_db = volume_db
         p.play()
 
 
-func _on_finished(p: AudioStreamPlayer):
+func _on_finished(p: AudioStreamPlayer) -> void:
     if loop_on_end and p.stream:
         p.play()
     else:

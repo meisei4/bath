@@ -36,7 +36,7 @@ func _ready() -> void:
     fft_texture = FFTTexture.new()
     ioi_texture = IOITexture.new()
 
-    var onsets_buf = MusicDimensionsManager.custom_onsets_flat_buffer
+    var onsets_buf: PackedVector4Array = MusicDimensionsManager.custom_onsets_flat_buffer
     BufferAShaderMaterial.set_shader_parameter("custom_onsets", onsets_buf)
     BufferAShaderMaterial.set_shader_parameter("custom_onset_count", onsets_buf.size())
 

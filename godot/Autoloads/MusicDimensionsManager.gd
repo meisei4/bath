@@ -55,7 +55,7 @@ func _ready() -> void:
 
 
 func derive_bpm() -> void:
-    var wav_fs_path = ProjectSettings.globalize_path(song)
+    var wav_fs_path: String = ProjectSettings.globalize_path(song)
     bpm = rust_util.detect_bpm(wav_fs_path)
     print("aubio derived bpm is:", bpm)
 
@@ -76,7 +76,7 @@ var melody_index: int = 0
 
 
 func isolate_melody() -> void:
-    var wav_fs_path = ProjectSettings.globalize_path(song)
+    var wav_fs_path: String = ProjectSettings.globalize_path(song)
     melody_onsets = rust_util.isolate_melody(wav_fs_path, 1200.0)
     #print("melody onsets are: ", melody_onsets)
     melody_index = 0
@@ -101,19 +101,21 @@ static func load_custom_onsets() -> void:
         "res://Resources/Audio/CustomOnsets/custom_onsets.tres"
     )
     custom_onsets_flat_buffer.clear()
-    var uki = res.uki
-    var shizumi = res.shizumi
-    var total_onsets = min(uki.size(), shizumi.size()) / 2
+    var uki: PackedFloat32Array = res.uki
+    var shizumi: PackedFloat32Array = res.shizumi
+    var total_onsets: float = min(uki.size(), shizumi.size()) / 2
     for i: int in range(int(total_onsets)):
-        var u_start = uki[i * 2]
-        var u_end = uki[i * 2 + 1]
-        var s_start = shizumi[i * 2]
-        var s_end = shizumi[i * 2 + 1]
+        var u_start: float = uki[i * 2]
+        var u_end: float = uki[i * 2 + 1]
+        var s_start: float = shizumi[i * 2]
+        var s_end: float = shizumi[i * 2 + 1]
 
-        var uki_flat = Vector2(u_start, u_end)
-        var shizumi_flat = Vector2(s_start, s_end)
+        var uki_flat: Vector2 = Vector2(u_start, u_end)
+        var shizumi_flat: Vector2 = Vector2(s_start, s_end)
 
-        var uki_shizumi_flat = Vector4(uki_flat.x, uki_flat.y, shizumi_flat.x, shizumi_flat.y)
+        var uki_shizumi_flat: Vector4 = Vector4(
+            uki_flat.x, uki_flat.y, shizumi_flat.x, shizumi_flat.y
+        )
         custom_onsets_flat_buffer.append(uki_shizumi_flat)
 
 
@@ -125,14 +127,14 @@ func debug_custom_onsets(delta: float) -> void:
     song_time += delta
 
     while uki_onset_index < custom_onsets_flat_buffer.size():
-        var next_uki_onset = custom_onsets_flat_buffer[uki_onset_index].x
+        var next_uki_onset: float = custom_onsets_flat_buffer[uki_onset_index].x
         if song_time < next_uki_onset:
             break
         AudioPoolManager.play_sfx(metronome_click)
         uki_onset_index += 1
 
     while shizumi_onset_index < custom_onsets_flat_buffer.size():
-        var next_j_start = custom_onsets_flat_buffer[shizumi_onset_index].z
+        var next_j_start: float = custom_onsets_flat_buffer[shizumi_onset_index].z
         if song_time < next_j_start:
             break
         AudioPoolManager.play_sfx(metronome_click)
@@ -141,7 +143,7 @@ func debug_custom_onsets(delta: float) -> void:
 
 #TODO: this identical to ManualRhythmOnsetRecorder._debug_keys()
 func debug_custom_onsets_ASCII(delta: float) -> void:
-    var prev_time = song_time
+    var prev_time: float = song_time
     song_time += delta
     var f_char: String = " "
     var j_char: String = " "
@@ -149,11 +151,11 @@ func debug_custom_onsets_ASCII(delta: float) -> void:
     var f_rel_fmt: String = ""
     var j_press_fmt: String = ""
     var j_rel_fmt: String = ""
-    for v in custom_onsets_flat_buffer:
-        var u_start = v.x
-        var u_end = v.y
-        var s_start = v.z
-        var s_end = v.w
+    for v: Vector4 in custom_onsets_flat_buffer:
+        var u_start: float = v.x
+        var u_end: float = v.y
+        var s_start: float = v.z
+        var s_end: float = v.w
         if prev_time < u_start and song_time >= u_start:
             f_char = "F"
             f_press_fmt = "F_PRS:[%.3f,      ]" % u_start
@@ -165,14 +167,14 @@ func debug_custom_onsets_ASCII(delta: float) -> void:
 
         if prev_time < s_end and song_time >= s_end:
             j_rel_fmt = "J_REL:[%.3f, %.3f]" % [s_start, s_end]
-    var event_body = f_press_fmt + f_rel_fmt + j_press_fmt + j_rel_fmt
-    var status_body = "[%s] [%s]" % [f_char, j_char]
+    var event_body: String = f_press_fmt + f_rel_fmt + j_press_fmt + j_rel_fmt
+    var status_body: String = "[%s] [%s]" % [f_char, j_char]
     if event_body != "":
         status_body += "   " + event_body
         print(status_body)
 
 
-func _process(delta_time: float) -> void:
+func _process(_delta_time: float) -> void:
     #TODO: LMAO these are expensive and should not be called every frame:
     #https://docs.godotengine.org/en/stable/classes/class_audioserver.html#class-audioserver-method-get-output-latency
     var time_since_previous_mix: float = AudioServer.get_time_since_last_mix()
@@ -223,22 +225,10 @@ func current_flux_threshold() -> float:
 
 
 func emit_rhythm_signals(current_playback_time: float) -> void:
-    var time_since_previous_onset: float = time_since_previous_onset(current_playback_time)
-    onset_intervals_history_buffer.append(time_since_previous_onset)
+    var _time_since_previous_onset: float = time_since_previous_onset(current_playback_time)
+    onset_intervals_history_buffer.append(_time_since_previous_onset)
     if onset_intervals_history_buffer.size() > ONSETS_PER_MINUTE_HISTORY_BUFFER_MAXIMUM_SIZE:
         onset_intervals_history_buffer.remove_at(0)
-
-    var sum: float = 0.0
-    for delta_time: float in onset_intervals_history_buffer:
-        sum += delta_time
-
-    var average_interval: float = 0.0
-    if onset_intervals_history_buffer.size() > 0:
-        average_interval = sum / onset_intervals_history_buffer.size()
-
-    var onsets_per_minute: float = 0.0
-    if average_interval > 0.0:
-        onsets_per_minute = SECONDS_PER_MINUTE / average_interval
 
     onset_detected.emit(current_playback_time)
     onset_event_counter += 1
@@ -246,10 +236,10 @@ func emit_rhythm_signals(current_playback_time: float) -> void:
 
 
 func time_since_previous_onset(current_playback_time: float) -> float:
-    var time_since_previous_onset: float = 1e6  #???? 0.0
+    var _time_since_previous_onset: float = 1e6  #???? 0.0
     if self.time_of_previous_onset > 0.0:
-        time_since_previous_onset = current_playback_time - self.time_of_previous_onset
-    return time_since_previous_onset
+        _time_since_previous_onset = current_playback_time - self.time_of_previous_onset
+    return _time_since_previous_onset
 
 
 static func get_current_playback_time(
@@ -270,11 +260,11 @@ static func get_current_playback_time(
 
 #AUXILIARIES!!!
 func compute_smooth_energy_for_frequency_range(
-    from_hz: float, to_hz: float, previous_smooth_energy: float
+    from_hz: float, to_hz: float, _previous_smooth_energy: float
 ) -> float:
     var linear_average: float = _compute_linear_average_for_frequency_range(from_hz, to_hz)
     var normalized: float = _compute_normalized_energy_from_linear_magnitude(linear_average)
-    return _compute_smooth_energy(previous_smooth_energy, normalized)
+    return _compute_smooth_energy(_previous_smooth_energy, normalized)
 
 
 func _compute_linear_average_for_frequency_range(from_hz: float, to_hz: float) -> float:
@@ -292,9 +282,9 @@ static func _compute_normalized_energy_from_linear_magnitude(linear_magnitude: f
 
 
 static func _compute_smooth_energy(
-    previous_smooth_energy: float, new_normalized_energy: float
+    _previous_smooth_energy: float, new_normalized_energy: float
 ) -> float:
-    return MDN_SMOOTHING * previous_smooth_energy + (1.0 - MDN_SMOOTHING) * new_normalized_energy
+    return MDN_SMOOTHING * _previous_smooth_energy + (1.0 - MDN_SMOOTHING) * new_normalized_energy
 
 
 ## DECOMPOSITION AUXILARIES
