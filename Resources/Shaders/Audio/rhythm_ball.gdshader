@@ -12,6 +12,9 @@ uniform int custom_onset_count;
 
 uniform float bpm;
 
+uniform vec3 hsv_buffer[6];
+
+
 #define HALF 0.5
 #define GRID_SCALE               4.0
 #define GRID_CELL_SIZE           (vec2(1.0) / GRID_SCALE)
@@ -77,6 +80,23 @@ vec2 add_phase(vec2 phase) {
     return vec2(offset_x, offset_y);
 }
 
+vec3 hsv_to_rgb(vec3 c) {
+    vec4 K = vec4(1.0, 2.0/3.0, 1.0/3.0, 3.0);
+    vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+    return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+}
+
+
+vec4 light_radial_fade_hsv(vec2 grid_coords, vec2 center, float radius, float feather) {
+    float distance_from_center = length(grid_coords - center);
+    float fade_start = radius - feather;
+    float alpha = 1.0 - smoothstep(fade_start, radius, distance_from_center);
+    vec3 hsv = hsv_buffer[0];
+    hsv.z *= 5.0; // <-- Boost brightness here
+    vec3 rgb = hsv_to_rgb(hsv);
+    return vec4(rgb * clamp(alpha, 0.0, 1.0), 1.0);
+}
+
 vec4 light_radial_fade(vec2 grid_coords, vec2 center, float radius, float feather) {
     float distance_from_center = length(grid_coords - center);
     float fade_start = radius - feather;
@@ -107,7 +127,6 @@ vec4 add_umbral_mask(vec4 src_color, vec2 grid_coords, vec2 mask_center) {
     vec4  applied_mask = src_color * mask;
     return applied_mask;
 }
-
 
 vec4 add_dither(vec4 src_color, vec2 frag_coord) {
     vec2 dither_uv = frag_coord / DITHER_TEXTURE_SCALE;
@@ -164,7 +183,10 @@ vec4 fft_spectrum(vec2 frag_coord){
         float sample_x = (bin_index + 0.5) / total_fft_buffer_size_in_bins;
         float amplitude = texture(iChannel1, vec2(sample_x, FFT_ROW)).r;
         if (uv_full.y < amplitude) {
-            fft_color = WHITE;
+            //fft_color = WHITE;
+            vec3 hsv_fft = hsv_to_rgb(hsv_buffer[1]);
+            hsv_fft.z *= 3.0; // <-- Boost brightness here
+            fft_color = vec4(hsv_fft, 1.0);
         }
     }
     return fft_color;
@@ -182,7 +204,8 @@ vec4 ghost(vec2 frag_coord, float time) {
 
     //float radius = LIGHTBALL_OUTER_RADIUS;
     float radius = pulse_radius(time);
-    vec4 lightball = light_radial_fade(
+    //vec4 lightball = light_radial_fade(
+    vec4 lightball = light_radial_fade_hsv(
             grid_coords,
             LIGHTBALL_CENTER,
             radius,
@@ -202,6 +225,8 @@ vec4 ghost(vec2 frag_coord, float time) {
 void fragment() {
     float time = TIME;
     vec2 frag_coord = FRAGCOORD.xy;
+    //vec3 hsv_bg = hsv_to_rgb(hsv_buffer[1]);
+    //COLOR = vec4(hsv_bg, 1.0);
     COLOR = BLACK;
     COLOR = fft_spectrum(frag_coord);
     vec4 src_color = ghost(frag_coord, time);

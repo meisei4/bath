@@ -18,6 +18,8 @@ var iChannel2: Texture
 var fft_texture: FFTTexture
 var ioi_texture: IOITexture
 
+var pitch_dimension: PitchDimension
+
 
 func _ready() -> void:
     iResolution = ResolutionManager.resolution
@@ -38,6 +40,8 @@ func _ready() -> void:
     BufferAShaderMaterial.set_shader_parameter("custom_onsets", onsets_buf)
     BufferAShaderMaterial.set_shader_parameter("custom_onset_count", onsets_buf.size())
 
+    pitch_dimension = PitchDimension.new()
+
     MainImage = TextureRect.new()
     MainImage.texture = BufferA.get_texture()
     MainImage.flip_v = true
@@ -46,6 +50,7 @@ func _ready() -> void:
     add_child(MainImage)
     add_child(fft_texture)
     add_child(ioi_texture)
+    add_child(pitch_dimension)
 
 
 func _process(delta: float) -> void:
@@ -56,3 +61,5 @@ func _process(delta: float) -> void:
     #MusicDimensionsManager.debug_bpm_onsets(delta)
     #MusicDimensionsManager.debug_custom_onsets(delta)
     MusicDimensionsManager.debug_custom_onsets_ASCII(delta)
+    var hsv_buffer: PackedVector3Array = pitch_dimension.hsv_buffer
+    BufferAShaderMaterial.set_shader_parameter("hsv_buffer", hsv_buffer)
