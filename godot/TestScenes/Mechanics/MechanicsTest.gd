@@ -6,7 +6,7 @@ var capsule_dummy: CapsuleDummy
 
 func _ready() -> void:
     var capsule_scene: PackedScene = (
-        ResourceLoader.load("res://godot/TestScenes/Entities/Characters/CapsuleDummy.tscn")
+        ResourceLoader.load("res://TestScenes/Entities/Characters/CapsuleDummy.tscn")
         as PackedScene
     )
     capsule_dummy = capsule_scene.instantiate() as CapsuleDummy
