@@ -1,7 +1,7 @@
 extends Node2D
 class_name Main
 
-const TEST_SCENES_DIRECTORY: String = "res://godot/TestScenes"
+const TEST_SCENES_DIRECTORY: String = "res://TestScenes"
 
 const CLI_SCENE_FLAG: String = "--scene"
 const URL_PARAM_SCENE_KEY: String = "scene"
@@ -13,14 +13,14 @@ const FEATURE_MACOS: String   = "macos"
 const FEATURE_ARM: String   = "arm"
 
 var HARDCODED_TEST_SCENES: PackedStringArray = PackedStringArray([
-    "res://godot/TestScenes/Audio/ManualRhythmOnsetRecorder.tscn",
-    "res://godot/TestScenes/Audio/PitchDimension.tscn",
-    "res://godot/TestScenes/Mechanics/MechanicsTest.tscn",
-    "res://godot/TestScenes/Shaders/Compute/CollisionMask.tscn",
-    "res://godot/TestScenes/Shaders/Compute/PerspectiveTiltMask.tscn",
-    "res://godot/TestScenes/Shaders/Glacier/GlacierFlow.tscn",
-    "res://godot/TestScenes/Shaders/Shadows/ShadowsTest.tscn",
-    "res://godot/TestScenes/TestHarness.tscn"
+    "res://TestScenes/Audio/ManualRhythmOnsetRecorder.tscn",
+    "res://TestScenes/Audio/PitchDimension.tscn",
+    "res://TestScenes/Mechanics/MechanicsTest.tscn",
+    "res://TestScenes/Shaders/Compute/CollisionMask.tscn",
+    "res://TestScenes/Shaders/Compute/PerspectiveTiltMask.tscn",
+    "res://TestScenes/Shaders/Glacier/GlacierFlow.tscn",
+    "res://TestScenes/Shaders/Shadows/ShadowsTest.tscn",
+    "res://TestScenes/TestHarness.tscn"
 ])
 
 enum Platform {

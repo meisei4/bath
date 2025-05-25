@@ -21,16 +21,16 @@ driver/enable_input=true
 
 [autoload]
 
-ResolutionManager="*res://godot/Autoloads/ResolutionManager.gd"
-AudioEffectManager="*res://godot/Autoloads/AudioEffectManager.gd"
-AudioPoolManager="*res://godot/Autoloads/AudioPoolManager.gd"
-AudioBus="*res://godot/Audio/AudioBus.gd"
-MusicDimensionsManager="*res://godot/Autoloads/MusicDimensionsManager.gd"
-ComponentsManager="*res://godot/Autoloads/CharacterComponentsManager.gd"
-MechanicManager="*res://godot/Autoloads/MechanicManager.gd"
-ComputeShaderSignalManager="*res://godot/Autoloads/ComputeShaderSignalManager.gd"
-SpacetimeManager="*res://godot/Autoloads/SpacetimeManager.gd"
-InterpolationUtil="*res://godot/Mechanics/InterpolationUtil.gd"
+ResolutionManager="*res://Autoloads/ResolutionManager.gd"
+AudioEffectManager="*res://Autoloads/AudioEffectManager.gd"
+AudioPoolManager="*res://Autoloads/AudioPoolManager.gd"
+AudioBus="*res://Audio/AudioBus.gd"
+MusicDimensionsManager="*res://Autoloads/MusicDimensionsManager.gd"
+ComponentsManager="*res://Autoloads/CharacterComponentsManager.gd"
+MechanicManager="*res://Autoloads/MechanicManager.gd"
+ComputeShaderSignalManager="*res://Autoloads/ComputeShaderSignalManager.gd"
+SpacetimeManager="*res://Autoloads/SpacetimeManager.gd"
+InterpolationUtil="*res://Mechanics/InterpolationUtil.gd"
 
 [debug]
 

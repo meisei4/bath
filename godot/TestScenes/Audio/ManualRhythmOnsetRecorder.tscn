@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://dgrs371xrhjff"]
 
-[ext_resource type="Script" uid="uid://db2v0q40mlacn" path="res://godot/Audio/ManualRhythmOnsetRecorder.gd" id="1_3vp3v"]
+[ext_resource type="Script" uid="uid://db2v0q40mlacn" path="res://Audio/ManualRhythmOnsetRecorder.gd" id="1_3vp3v"]
 
 [node name="ManualRhythmOnsetRecorder" type="Node"]
 script = ExtResource("1_3vp3v")
