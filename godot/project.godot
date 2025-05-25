@@ -11,7 +11,7 @@ config_version=5
 [application]
 
 config/name="bath"
-run/main_scene="uid://bak2dlcb0b63h"
+run/main_scene="uid://yf8wnlan0xq1"
 config/project_settings_override="res://experimental_resolution_override.cfg"
 config/features=PackedStringArray("4.4", "Forward Plus")
 
@@ -46,8 +46,6 @@ gdscript/warnings/unsafe_call_argument=1
 window/size/viewport_width=256
 window/size/viewport_height=384
 window/size/always_on_top=true
-window/size/window_width_override=768
-window/size/window_height_override=1152
 
 [editor_plugins]
 

@@ -1,7 +1,7 @@
 import os
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 
-os.chdir("build/web")
+os.chdir("../build/web")
 
 class COOPHandler(SimpleHTTPRequestHandler):
     def end_headers(self):

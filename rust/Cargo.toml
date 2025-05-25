@@ -25,3 +25,6 @@ crate-type = ["cdylib"]
 [[bin]]
 name = "bath_bin"
 path = "src/main.rs"
+
+#[features]
+#nothreads = ["godot/experimental-wasm-nothreads"]
