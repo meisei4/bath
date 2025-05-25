@@ -1,8 +1,8 @@
 extends Node2D
 class_name GhostShape
 
-var SampleTexture: Image = Image.load_from_file("res://Assets/Textures/bayer.png")
-
+var BayerTexture2D: Texture2D = preload("res://Assets/Textures/bayer.png") as Texture2D
+var BayerTexture: Image = BayerTexture2D.get_image()
 var BufferAShaderNode: ColorRect
 #var BufferAShader: Shader = load("res://Resources/Shaders/Shape/ghost.gdshader")
 var BufferAShader: Shader = load("res://Resources/Shaders/Audio/rhythm_ball.gdshader")
@@ -30,7 +30,7 @@ func _ready() -> void:
     BufferAShaderMaterial.shader = BufferAShader
     BufferAShaderNode.material = BufferAShaderMaterial
     BufferAShaderMaterial.set_shader_parameter("iResolution", iResolution)
-    iChannel0 = ImageTexture.create_from_image(SampleTexture)
+    iChannel0 = ImageTexture.create_from_image(BayerTexture)
     BufferAShaderMaterial.set_shader_parameter("iChannel0", iChannel0)
     BufferAShaderMaterial.set_shader_parameter("bpm", MusicDimensionsManager.bpm)
     fft_texture = FFTTexture.new()

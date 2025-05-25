@@ -4,6 +4,9 @@ addons/
 Resources/Audio
 python_bath/assets
 
+#build
+build/
+
 # Exported binaries
 export/
 

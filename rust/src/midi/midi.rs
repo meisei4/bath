@@ -1,87 +1,16 @@
 #![allow(dead_code)]
 //TODO: this is very hard to strucutre becuase it needs to be shared with my main.rs testing and the lib.rs
 // but there isa ton of unused code between both of them so you get compiler warnings all over the place
-use crate::midi::keys::{key_bindings, render};
+use godot::builtin::{Dictionary, PackedVector2Array, Vector2, Vector2i};
 use godot::prelude::PackedByteArray;
 use hound::{SampleFormat, WavSpec, WavWriter};
-use midir::{MidiOutput, MidiOutputConnection, MidiOutputPort};
 use midly::num::{u4, u7};
 use midly::{MetaMessage, MidiMessage, Smf, Timing, TrackEventKind};
-use rdev::{Event, EventType, Key};
 use rustysynth::{SoundFont, Synthesizer};
 use std::collections::HashMap;
 use std::fs;
 use std::fs::File;
 use std::io::{BufReader, Cursor};
-use std::process::exit;
-use std::{
-    collections::HashSet,
-    process::{Child, Command},
-    thread,
-    time::Duration,
-};
-
-pub fn launch_fluidsynth_with_font(sf2_path: &str) -> Child {
-    Command::new("fluidsynth")
-        .arg("-a")
-        .arg("coreaudio")
-        .arg("-m")
-        .arg("coremidi")
-        .arg(sf2_path)
-        .spawn()
-        .unwrap_or_else(|e| {
-            eprintln!("Failed to start fluidsynth: {}", e);
-            exit(1);
-        })
-}
-
-pub fn connect_to_first_midi_port() -> (MidiOutput, MidiOutputPort) {
-    let midi_out = MidiOutput::new("rust-midi").unwrap();
-    let mut attempts = 10;
-    while attempts > 0 {
-        let ports = midi_out.ports();
-        if let Some(port) = ports.get(0) {
-            return (midi_out, port.clone());
-        }
-        thread::sleep(Duration::from_millis(300));
-        attempts -= 1;
-    }
-    eprintln!("No MIDI ports found.");
-    exit(1);
-}
-
-pub fn handle_key_event(
-    event: Event,
-    connection: &mut MidiOutputConnection,
-    active_keys: &mut HashSet<Key>,
-) {
-    match event.event_type {
-        EventType::KeyPress(Key::Escape) => exit(0),
-        EventType::KeyPress(key) => {
-            if let Some(note) = map_key_to_midi_note(key) {
-                if active_keys.insert(key) {
-                    let _ = connection.send(&[0x90, note, 100]);
-                }
-            }
-        }
-        EventType::KeyRelease(key) => {
-            if let Some(note) = map_key_to_midi_note(key) {
-                if active_keys.remove(&key) {
-                    let _ = connection.send(&[0x80, note, 0]);
-                }
-            }
-        }
-        _ => {}
-    }
-    render(active_keys);
-}
-
-fn map_key_to_midi_note(key: Key) -> Option<u8> {
-    key_bindings()
-        .into_iter()
-        .find(|b| b.key == key)
-        .map(|b| b.midi_note)
-}
 
 pub fn prepare_events(smf: &Smf) -> Vec<(u64, TrackEventKind<'static>)> {
     let mut events = Vec::new();
@@ -436,4 +365,25 @@ pub fn debug_midi_note_onset_buffer(
         let line: String = row.into_iter().collect();
         println!("{}", line);
     }
+}
+
+pub fn make_note_on_off_event_dict<T>(
+    midi_path: &str,
+    parser_fn: impl Fn(&str) -> HashMap<MidiNote, Vec<(T, T)>>,
+    to_f32: impl Fn(T) -> f32,
+) -> Dictionary
+where
+    T: Copy,
+{
+    let event_buffer = parser_fn(midi_path);
+    let mut dict = Dictionary::new();
+    for (key, segments) in event_buffer {
+        let dict_key = Vector2i::new(key.midi_note as i32, key.instrument_id as i32);
+        let mut arr = PackedVector2Array::new();
+        for (onset, release) in segments {
+            arr.push(Vector2::new(to_f32(onset), to_f32(release)));
+        }
+        let _ = dict.insert(dict_key, arr);
+    }
+    dict
 }

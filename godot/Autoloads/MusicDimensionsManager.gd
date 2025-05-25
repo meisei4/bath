@@ -56,41 +56,8 @@ func _ready() -> void:
 
 func derive_bpm() -> void:
     var wav_fs_path: String = ProjectSettings.globalize_path(song)
-    bpm = rust_util.detect_bpm(wav_fs_path)
+    #bpm = rust_util.detect_bpm(wav_fs_path)
     print("aubio derived bpm is:", bpm)
-
-
-var ioi: float = 60.0 / bpm
-
-
-func debug_bpm_onsets(delta: float) -> void:
-    time_of_next_click -= delta
-    if time_of_next_click <= 0.0:
-        AudioPoolManager.play_sfx(metronome_click)
-        time_of_next_click += ioi
-
-
-#TODO: hacked non-working melody isolator, need to use spleeter machine learning stuff...
-var melody_onsets: PackedFloat32Array = []
-var melody_index: int = 0
-
-
-func isolate_melody() -> void:
-    var wav_fs_path: String = ProjectSettings.globalize_path(song)
-    melody_onsets = rust_util.isolate_melody(wav_fs_path, 1200.0)
-    #print("melody onsets are: ", melody_onsets)
-    melody_index = 0
-    song_time = 0.0
-
-
-func debug_melody_onsets(delta: float) -> void:
-    if melody_index >= melody_onsets.size():
-        return
-
-    song_time += delta
-    if song_time >= melody_onsets[melody_index]:
-        AudioPoolManager.play_sfx(metronome_click)
-        melody_index += 1
 
 
 static var custom_onsets_flat_buffer: PackedVector4Array

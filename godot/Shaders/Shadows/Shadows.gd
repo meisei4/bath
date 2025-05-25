@@ -10,7 +10,9 @@ const UMBRAL_ZONE_BOUNDS_UV_X: float = 0.5
 const UMBRAL_ZONE_BOUNDS_UV_Y: float = 1.0
 
 var DitherShader: Shader = load("res://Resources/Shaders/Shadows/dither_zone.gdshader")
-var BayerTexture: Image = Image.load_from_file("res://Assets/Textures/bayer.png")
+var BayerTexture2D: Texture2D = preload("res://Assets/Textures/bayer.png") as Texture2D
+var BayerTexture: Image = BayerTexture2D.get_image()
+
 var DitherShaderNode: ColorRect
 var DitherShaderMaterial: ShaderMaterial
 var DitherBackBuffer: BackBufferCopy

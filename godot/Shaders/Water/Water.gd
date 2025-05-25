@@ -9,9 +9,14 @@ var WaterShaderNode: ColorRect
 var WaterShader: Shader = load("res://Resources/Shaders/Water/water.gdshader")
 var WaterShaderMaterial: ShaderMaterial
 
-var NoiseTexture: Image = Image.load_from_file("res://Assets/Textures/gray_noise_small.png")
-var BackgroundTexture: Image = Image.load_from_file("res://Assets/Textures/moon_water.png")
-var CausticsTexture: Image = Image.load_from_file("res://Assets/Textures/pebbles.png")
+var noise_texture_resource: Texture2D = preload("res://Assets/Textures/gray_noise_small.png") as Texture2D
+var NoiseTexture: Image = noise_texture_resource.get_image()
+
+var background_texture_resource: Texture2D = preload("res://Assets/Textures/moon_water.png") as Texture2D
+var BackgroundTexture: Image = background_texture_resource.get_image()
+
+var caustics_texture_resource: Texture2D = preload("res://Assets/Textures/pebbles.png") as Texture2D
+var CausticsTexture: Image = caustics_texture_resource.get_image()
 
 var BufferA: SubViewport
 var BufferB: SubViewport

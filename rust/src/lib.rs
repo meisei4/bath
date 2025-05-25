@@ -1,14 +1,14 @@
-mod audio_analysis;
+// mod audio_analysis;
 mod collision_mask;
 mod midi;
 
-use crate::audio_analysis::util::make_note_on_off_event_dict;
 use crate::midi::midi::{
-    inject_program_change, parse_midi_events_into_note_on_off_event_buffer_seconds,
+    inject_program_change, make_note_on_off_event_dict,
+    parse_midi_events_into_note_on_off_event_buffer_seconds,
     parse_midi_events_into_note_on_off_event_buffer_ticks, prepare_events,
     process_midi_events_with_timing, render_sample_frame, write_samples_to_wav,
 };
-use audio_analysis::util::{band_pass_filter, detect_bpm, extract_onset_times};
+// use audio_analysis::util::{detect_bpm};
 use collision_mask::util::{
     generate_concave_collision_polygons_pixel_perfect,
     generate_convex_collision_polygons_pixel_perfect,
@@ -16,8 +16,7 @@ use collision_mask::util::{
 use godot::builtin::{PackedByteArray, PackedVector2Array, Vector2};
 use godot::classes::Node2D;
 use godot::prelude::{
-    gdextension, godot_api, godot_print, Array, Base, Dictionary, ExtensionLibrary, GString,
-    GodotClass, PackedFloat32Array,
+    gdextension, godot_api, Array, Base, Dictionary, ExtensionLibrary, GodotClass,
 };
 use midly::{MidiMessage, Smf, TrackEventKind};
 use rustysynth::{SoundFont, Synthesizer, SynthesizerSettings};
@@ -97,31 +96,11 @@ impl RustUtil {
         godot_polygons_array
     }
 
-    #[func]
-    pub fn detect_bpm(&self, path: GString) -> f32 {
-        detect_bpm(path)
-        //TODO: this is not actually accurate just an alternative, look at offline vs realtime later
-        //_detect_bpm_accurate(path)
-    }
-
-    #[func]
-    pub fn isolate_melody(path: GString, center_hz: f32) -> PackedFloat32Array {
-        let infile = path.to_string();
-        let out_str = if infile.to_lowercase().ends_with(".wav") {
-            format!("{}__isolated.wav", &infile[..infile.len() - 4])
-        } else {
-            format!("{}__isolated.wav", infile)
-        };
-        let out_g = GString::from(out_str.clone());
-        band_pass_filter(path.clone(), center_hz, out_g.clone());
-        godot_print!(
-            "test_melody_extraction: wrote isolated stem to '{}'",
-            out_str
-        );
-        let onsets = extract_onset_times(out_g.clone());
-        godot_print!("test_melody_extraction: detected {} onsets", onsets.len());
-        onsets
-    }
+    // #[func]
+    // pub fn detect_bpm(&self, path: GString) -> f32 {
+    //     detect_bpm(path)
+    //     //TODO: this is not actually accurate bpm sometimes, look at offline vs realtime later
+    // }
 
     #[func]
     pub fn get_midi_note_on_off_event_buffer_ticks(&self) -> Dictionary {
