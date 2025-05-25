@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://dicehn0nt1h51"]
 
-[ext_resource type="Script" uid="uid://bwcuwtls4w2mr" path="res://godot/TestScenes/Audio/AudioZoning/AudioZoneGen.gd" id="1_gmwqa"]
+[ext_resource type="Script" uid="uid://bwcuwtls4w2mr" path="res://TestScenes/Audio/AudioZoning/AudioZoneGen.gd" id="1_gmwqa"]
 
 [node name="AudioZoneGen" type="Node"]
 script = ExtResource("1_gmwqa")

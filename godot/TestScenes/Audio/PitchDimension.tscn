@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://bvlmsxs2y84gp"]
 
-[ext_resource type="Script" uid="uid://c20id6f7buwt4" path="res://godot/Audio/PitchDimension.gd" id="1_0fl7l"]
+[ext_resource type="Script" uid="uid://c20id6f7buwt4" path="res://Audio/PitchDimension.gd" id="1_0fl7l"]
 
 [node name="PitchDimension" type="Node"]
 script = ExtResource("1_0fl7l")
