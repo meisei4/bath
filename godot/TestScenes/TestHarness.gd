@@ -19,9 +19,7 @@ func add_collision_mask_scene() -> void:
 
 
 func add_glacier_flow_scene() -> void:
-    var glacier_scene: PackedScene = preload(
-        "res://TestScenes/Shaders/Glacier/GlacierFlow.tscn"
-    )
+    var glacier_scene: PackedScene = preload("res://TestScenes/Shaders/Glacier/GlacierFlow.tscn")
     var glacier_flow: GlacierFlow = glacier_scene.instantiate() as GlacierFlow
     add_child(glacier_flow)
 
@@ -37,16 +35,12 @@ func add_perspective_tilt_mask_scene() -> void:
 
 
 func add_shadows_test_scene() -> void:
-    var shadows_scene: PackedScene = preload(
-        "res://TestScenes/Shaders/Shadows/ShadowsTest.tscn"
-    )
+    var shadows_scene: PackedScene = preload("res://TestScenes/Shaders/Shadows/ShadowsTest.tscn")
     var shadows_test: Shadows = shadows_scene.instantiate() as Shadows
     add_child(shadows_test)
 
 
 func add_jump_mechanic_test_scene() -> void:
-    var mechanics_scene: PackedScene = preload(
-        "res://TestScenes/Mechanics/MechanicsTest.tscn"
-    )
+    var mechanics_scene: PackedScene = preload("res://TestScenes/Mechanics/MechanicsTest.tscn")
     var mechanics_test: MechanicsTest = mechanics_scene.instantiate() as MechanicsTest
     add_child(mechanics_test)

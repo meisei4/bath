@@ -9,10 +9,14 @@ var WaterShaderNode: ColorRect
 var WaterShader: Shader = load("res://Resources/Shaders/Water/water_projected.gdshader")
 var WaterShaderMaterial: ShaderMaterial
 
-var noise_texture_resource: Texture2D = preload("res://Assets/Textures/gray_noise_small.png") as Texture2D
+var noise_texture_resource: Texture2D = (
+    preload("res://Assets/Textures/gray_noise_small.png") as Texture2D
+)
 var NoiseTexture: Image = noise_texture_resource.get_image()
 
-var background_texture_resource: Texture2D = preload("res://Assets/Textures/moon_water.png") as Texture2D
+var background_texture_resource: Texture2D = (
+    preload("res://Assets/Textures/moon_water.png") as Texture2D
+)
 var BackgroundTexture: Image = background_texture_resource.get_image()
 
 var caustics_texture_resource: Texture2D = preload("res://Assets/Textures/pebbles.png") as Texture2D

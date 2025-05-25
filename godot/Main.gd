@@ -6,68 +6,73 @@ const TEST_SCENES_DIRECTORY: String = "res://TestScenes"
 const CLI_SCENE_FLAG: String = "--scene"
 const URL_PARAM_SCENE_KEY: String = "scene"
 
-const FEATURE_WEB: String    = "web"
+const FEATURE_WEB: String = "web"
 const FEATURE_WINDOWS: String = "windows"
-const FEATURE_LINUX: String   = "linux"
-const FEATURE_MACOS: String   = "macos"
-const FEATURE_ARM: String   = "arm"
+const FEATURE_LINUX: String = "linux"
+const FEATURE_MACOS: String = "macos"
+const FEATURE_ARM: String = "arm"
 
-var HARDCODED_TEST_SCENES: PackedStringArray = PackedStringArray([
-    "res://TestScenes/Audio/ManualRhythmOnsetRecorder.tscn",
-    "res://TestScenes/Audio/PitchDimension.tscn",
-    "res://TestScenes/Mechanics/MechanicsTest.tscn",
-    "res://TestScenes/Shaders/Compute/CollisionMask.tscn",
-    "res://TestScenes/Shaders/Compute/PerspectiveTiltMask.tscn",
-    "res://TestScenes/Shaders/Glacier/GlacierFlow.tscn",
-    "res://TestScenes/Shaders/Shadows/ShadowsTest.tscn",
-    "res://TestScenes/TestHarness.tscn"
-])
+var HARDCODED_TEST_SCENES: PackedStringArray = PackedStringArray(
+    [
+        "res://TestScenes/Audio/ManualRhythmOnsetRecorder.tscn",
+        "res://TestScenes/Audio/PitchDimension.tscn",
+        "res://TestScenes/Mechanics/MechanicsTest.tscn",
+        "res://TestScenes/Shaders/Compute/CollisionMask.tscn",
+        "res://TestScenes/Shaders/Compute/PerspectiveTiltMask.tscn",
+        "res://TestScenes/Shaders/Glacier/GlacierFlow.tscn",
+        "res://TestScenes/Shaders/Shape/GhostShape.tscn",
+        "res://TestScenes/Shaders/Shadows/ShadowsTest.tscn",
+        "res://TestScenes/TestHarness.tscn"
+    ]
+)
 
 enum Platform {
-    PLATFORM_WEB,
-    PLATFORM_ARM,
-    PLATFORM_WINDOWS,
-    PLATFORM_LINUX,
-    PLATFORM_MACOS,
-    PLATFORM_UNKNOWN
+    PLATFORM_WEB, PLATFORM_ARM, PLATFORM_WINDOWS, PLATFORM_LINUX, PLATFORM_MACOS, PLATFORM_UNKNOWN
 }
 
+
 func _ready() -> void:
-    var scenes_to_load: PackedStringArray = _determine_scenes_to_load()
-    for scene_path: String in scenes_to_load:
-        _load_and_add_scene(scene_path)
+    var scene_path: String = _determine_scene_to_load()
+    _load_and_show_scene(scene_path)
 
 
-func _load_and_add_scene(scene_path: String) -> void:
+func _load_and_show_scene(scene_path: String) -> void:
+    if scene_path == "":
+        push_error("No scene path resolved.")
+        return
     var packed: PackedScene = load(scene_path) as PackedScene
+    if packed == null:
+        push_error("Failed to load scene: %s" % scene_path)
+        return
     var inst: Node = packed.instantiate()
     add_child(inst)
 
 
-func _determine_scenes_to_load() -> PackedStringArray:
+func _determine_scene_to_load() -> String:
     match _get_platform():
         Platform.PLATFORM_WEB:
-            return _scenes_from_url()
+            return _scene_from_url()
         _:
-            return _scenes_from_cli()
+            return _scene_from_cli()
 
 
-func _scenes_from_url() -> PackedStringArray:
+func _scene_from_url() -> String:
     var full_url: String = JavaScriptBridge.eval("window.location.href") as String
     var key: String = _extract_url_parameter(full_url, URL_PARAM_SCENE_KEY)
     if key != "":
         var path: String = _find_matching_scene(key)
         if path != "":
-            return PackedStringArray([ path ])
-    return HARDCODED_TEST_SCENES.duplicate() as PackedStringArray
+            return path
+    # Default for root URL = TestHarness
+    return "res://TestScenes/TestHarness.tscn"
 
 
-func _scenes_from_cli() -> PackedStringArray:
+func _scene_from_cli() -> String:
     var args: PackedStringArray = OS.get_cmdline_args()
     var idx: int = args.find(CLI_SCENE_FLAG)
     if idx >= 0 and idx + 1 < args.size():
-        return PackedStringArray([ args[idx + 1] ])
-    return HARDCODED_TEST_SCENES.duplicate() as PackedStringArray
+        return args[idx + 1]
+    return "res://TestScenes/TestHarness.tscn"
 
 
 func _get_platform() -> int:
