@@ -24,7 +24,7 @@ var onset_intervals_history_buffer: PackedFloat32Array = PackedFloat32Array()
 var time_of_previous_onset: float = 0.0
 var onset_event_counter: int = 0
 
-var metronome_click: AudioStream = preload(AudioConsts.METRONOME_CLICK)
+#var metronome_click: AudioStream = preload(AudioConsts.METRONOME_CLICK)
 var time_of_next_click: float = 0.0
 var rust_util: RustUtil
 var bpm: float
@@ -97,14 +97,14 @@ func debug_custom_onsets(delta: float) -> void:
         var next_uki_onset: float = custom_onsets_flat_buffer[uki_onset_index].x
         if song_time < next_uki_onset:
             break
-        AudioPoolManager.play_sfx(metronome_click)
+        #AudioPoolManager.play_sfx(metronome_click)
         uki_onset_index += 1
 
     while shizumi_onset_index < custom_onsets_flat_buffer.size():
         var next_j_start: float = custom_onsets_flat_buffer[shizumi_onset_index].z
         if song_time < next_j_start:
             break
-        AudioPoolManager.play_sfx(metronome_click)
+        #AudioPoolManager.play_sfx(metronome_click)
         shizumi_onset_index += 1
 
 
