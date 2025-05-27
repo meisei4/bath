@@ -29,10 +29,13 @@ func _ready() -> void:
     BufferAShaderMaterial = ShaderMaterial.new()
     BufferAShaderMaterial.shader = BufferAShader
     BufferAShaderMaterial.set_shader_parameter("iResolution", iResolution)
-    BufferAShaderMaterial.set_shader_parameter("sprite_count", 0)
-    BufferAShaderMaterial.set_shader_parameter("sprite_textures", _sprite_textures)
-    BufferAShaderMaterial.set_shader_parameter("sprite_data0", _sprite_data0)
-    BufferAShaderMaterial.set_shader_parameter("sprite_data1", _sprite_data1)
+    #BufferAShaderMaterial.set_shader_parameter("sprite_count", 0)
+    #BufferAShaderMaterial.set_shader_parameter("sprite_textures", _sprite_textures)
+    #BufferAShaderMaterial.set_shader_parameter("sprite_data0", _sprite_data0)
+    #BufferAShaderMaterial.set_shader_parameter("sprite_data1", _sprite_data1)
+    BufferAShaderMaterial.set_shader_parameter("sprite_texture", _sprite_textures[0])
+    BufferAShaderMaterial.set_shader_parameter("sprite_data0", _sprite_data0[0])
+    BufferAShaderMaterial.set_shader_parameter("sprite_data1", _sprite_data1[0])
     BufferAShaderNode = ColorRect.new()
     BufferAShaderNode.size = iResolution
     BufferAShaderNode.material = BufferAShaderMaterial

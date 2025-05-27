@@ -50,20 +50,19 @@ func get_collision_mask_texture_fragment() -> Texture:
 
 
 func _on_frame_post_draw() -> void:
+    #TODO: figure out how to prevent this call every fucking frame jesus
     var img: Image = BufferA.get_texture().get_image()
-    var raw_rgba: PackedByteArray = img.get_data()
-    var width: int = int(iResolution.x)
-    var height: int = int(iResolution.y)
-
-    var raw_pixel_data: PackedByteArray
-    raw_pixel_data.resize(width * height)
-    for i: int in raw_pixel_data.size():
-        var byte: int = raw_rgba[i * 4]
-        raw_pixel_data[i] = byte
+    var raw_rgba_image_data: PackedByteArray = img.get_data()
+    var w = int(iResolution.x)
+    var h = int(iResolution.y)
+    var raw_pixel_data = PackedByteArray()
+    raw_pixel_data.resize(w * h)
+    for i in range(w * h):
+        raw_pixel_data[i] = raw_rgba_image_data[i * 4]  # red channel = mask
     var collision_polygons: Array[PackedVector2Array] = (
         MusicDimensionsManager
         . rust_util
-        . compute_concave_collision_polygons(raw_pixel_data, width, height, TILE_SIZE_PIXELS)
+        . compute_concave_collision_polygons(raw_pixel_data, w, h, TILE_SIZE_PIXELS)
     )
     _update_concave_polygons(collision_polygons)
     debug_print_ascii(raw_pixel_data)

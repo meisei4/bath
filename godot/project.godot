@@ -46,6 +46,7 @@ gdscript/warnings/unsafe_call_argument=1
 window/size/viewport_width=256
 window/size/viewport_height=384
 window/size/always_on_top=true
+window/stretch/mode="canvas_items"
 
 [editor_plugins]
 
