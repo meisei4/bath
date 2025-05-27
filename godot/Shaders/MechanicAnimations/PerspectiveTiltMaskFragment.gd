@@ -1,7 +1,7 @@
 extends Node2D
 class_name PerspectiveTiltMaskFragment
 
-const MAXIMUM_SPRITE_COUNT: int = 16
+const MAXIMUM_SPRITE_COUNT: int = 12
 
 var BufferAShaderNode: ColorRect
 var BufferAShader: Shader = load(

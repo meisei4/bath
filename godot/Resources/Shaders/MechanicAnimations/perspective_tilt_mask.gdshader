@@ -1,16 +1,20 @@
 shader_type canvas_item;
-render_mode blend_disabled; 
+render_mode blend_disabled;
 #include "res://Resources/Shaders/MechanicAnimations/perspective_tilt.gdshaderinc"
 
+//TODO: opengl3 doesnt work witht he sprite bounds, also size 12 only works on opengl3
+// all the gl verisons with webgl not allowing ANY fucking arrays of vectors is broken
+// vulkan works the best, but im done with vulkan, moving to webgl and opengles3 hopefully
+//Thius is exhausting with the gpu constrainsttstainotsfanoiseioahsdfiopafhjiopsdjf
 
 //TODO: this is the fragment shader rewrite of the compute shader perspective tilt mask
 // still not 100% confident on it but it seems to work...
 // there might be some issues with the sprite boundaries not being followed in the mask shape.. idk
 uniform vec2    iResolution;
 uniform int     sprite_count;
-uniform vec4    sprite_data0[16];
-uniform vec4    sprite_data1[16];
-uniform sampler2D sprite_textures[16];
+uniform vec4    sprite_data0[12];
+uniform vec4    sprite_data1[12];
+uniform sampler2D sprite_textures[12];
 
 const float MAX_TILT_ANGLE =
     MAXIMUM_TILT_ANGLE_ACHIEVED_AT_IMMEDIATE_ASCENSION_AND_FINAL_DESCENT;

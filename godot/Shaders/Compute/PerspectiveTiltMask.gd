@@ -14,7 +14,7 @@ class SpriteDataSSBOStruct:  # 32 bytes total (std430 aligned)
     var _pad: Vector2  # 8 bytes (keeps each row 16-byte aligned)
 
 
-const MAXIMUM_SPRITE_COUNT: int = 16
+const MAXIMUM_SPRITE_COUNT: int = 12
 const SPRITE_DATA_STRUCT_SIZE_BYTES: int = 32  # vec2 + vec2 + float + float + vec2_padding
 const SPRITE_DATA_SSBO_TOTAL_BYTES: int = MAXIMUM_SPRITE_COUNT * SPRITE_DATA_STRUCT_SIZE_BYTES
 
