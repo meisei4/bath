@@ -12,7 +12,7 @@ config_version=5
 
 config/name="bath"
 run/main_scene="uid://yf8wnlan0xq1"
-config/use_hidden_project_data_directory=false
+config/use_hidden_project_data_directory=true
 config/project_settings_override="res://experimental_resolution_override.cfg"
 config/features=PackedStringArray("4.4", "Forward Plus")
 
