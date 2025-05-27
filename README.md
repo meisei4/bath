@@ -11,7 +11,7 @@ For editor experimentation only: an optional override config (`experimental_reso
   * [https://github.com/meisei4/bath/blob/main/godot/Autoloads/ResolutionManager.gd](https://github.com/meisei4/bath/blob/main/godot/Autoloads/ResolutionManager.gd)
 * **Override file**: `experimental_resolution_override.cfg`
 
-  * [https://github.com/meisei4/bath/blob/main/experimental\_resolution\_override.cfg](https://github.com/meisei4/bath/blob/main/experimental_resolution_override.cfg)
+  * [https://github.com/meisei4/bath/blob/main/godot/experimental\_resolution\_override.cfg](https://github.com/meisei4/bath/blob/main/godot/experimental_resolution_override.cfg)
 
 This setup helps resolve inconsistent window sizes across scenes and devices during development.
 
