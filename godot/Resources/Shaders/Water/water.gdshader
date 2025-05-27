@@ -1,7 +1,7 @@
 shader_type canvas_item;
 
 #include "res://Resources/Shaders/Water/constants.gdshaderinc"
-#include "res://Resources/Shaders/Glacier/projections.gdshaderinc"
+#include "res://Resources/Shaders/IceSheets/projections.gdshaderinc"
 uniform vec2 iResolution;
 
 uniform sampler2D iChannel0: repeat_enable;//, filter_nearest; //"file://assets/textures/gray_noise_small.png"  // noise displacement map (red channel)

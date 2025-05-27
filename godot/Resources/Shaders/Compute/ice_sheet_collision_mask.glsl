@@ -1,7 +1,7 @@
 #[compute]
 #version 450
-#include "res://Resources/Shaders/Glacier/noise.gdshaderinc"
-#include "res://Resources/Shaders/Glacier/projections.gdshaderinc"
+#include "res://Resources/Shaders/IceSheets/noise.gdshaderinc"
+#include "res://Resources/Shaders/IceSheets/projections.gdshaderinc"
 
 layout(local_size_x = 2, local_size_y = 2, local_size_z = 1) in;
 

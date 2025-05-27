@@ -19,7 +19,7 @@ const TILE_SIZE_PIXELS: int = 2
 
 
 func _ready() -> void:
-    ComputeShaderSignalManager.register_collision_mask_fragment(self)
+    FragmentShaderSignalManager.register_collision_mask_fragment(self)
     iResolution = ResolutionManager.resolution
     BufferA = ShaderToyUtil.create_buffer_viewport(iResolution)
     BufferA.render_target_clear_mode = SubViewport.CLEAR_MODE_ALWAYS
@@ -60,7 +60,7 @@ func _on_frame_post_draw() -> void:
     for i in range(w * h):
         raw_pixel_data[i] = raw_rgba_image_data[i * 4]  # red channel = mask
     var collision_polygons: Array[PackedVector2Array] = (
-        MusicDimensionsManager
+        RustUtilSingleton
         . rust_util
         . compute_concave_collision_polygons(raw_pixel_data, w, h, TILE_SIZE_PIXELS)
     )

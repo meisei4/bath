@@ -36,7 +36,10 @@ var iChannel3: Texture
 
 
 func _ready() -> void:
-    initialize_shadertoy_uniforms_and_textures()
+    iChannel0 = ImageTexture.create_from_image(NoiseTexture)
+    iChannel1 = ImageTexture.create_from_image(BackgroundTexture)
+    iChannel2 = ImageTexture.create_from_image(CausticsTexture)
+    iResolution = ResolutionManager.resolution
     BufferA = ShaderToyUtil.create_buffer_viewport(iResolution)
     BufferA.use_hdr_2d = true
     RippleShaderMaterial = ShaderMaterial.new()
@@ -67,16 +70,6 @@ func _ready() -> void:
     BufferB.add_child(WaterShaderNode)
     add_child(BufferB)
     add_child(MainImage)
-
-
-func initialize_shadertoy_uniforms_and_textures() -> void:
-    iResolution = ResolutionManager.resolution
-    #NoiseTexture.convert(Image.FORMAT_R8)
-    #BackgroundTexture.convert(Image.FORMAT_RGBA8)
-    #CausticsTexture.convert(Image.FORMAT_R8)
-    iChannel0 = ImageTexture.create_from_image(NoiseTexture)
-    iChannel1 = ImageTexture.create_from_image(BackgroundTexture)
-    iChannel2 = ImageTexture.create_from_image(CausticsTexture)
 
 
 func _process(delta: float) -> void:

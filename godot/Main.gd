@@ -19,7 +19,7 @@ var HARDCODED_TEST_SCENES: PackedStringArray = PackedStringArray(
         "res://TestScenes/Mechanics/MechanicsTest.tscn",
         "res://TestScenes/Shaders/Compute/CollisionMask.tscn",
         "res://TestScenes/Shaders/Compute/PerspectiveTiltMask.tscn",
-        "res://TestScenes/Shaders/Glacier/GlacierFlow.tscn",
+        "res://TestScenes/Shaders/IceSheets/IceSheets.tscn",
         "res://TestScenes/Shaders/Shape/GhostShape.tscn",
         "res://TestScenes/Shaders/Shadows/ShadowsTest.tscn",
         "res://TestScenes/TestHarness.tscn"

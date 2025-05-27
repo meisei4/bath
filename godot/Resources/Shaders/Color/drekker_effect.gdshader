@@ -1,6 +1,6 @@
 //this is a verbose study of cotterrzz max drecker reproduction https://www.shadertoy.com/view/33SSDm
 shader_type canvas_item;
-render_mode blend_disabled; //THIS WILL MAYBE MAKE THE ALPHA CHANNEL 1.0 assignment not needed/optimized???
+render_mode blend_disabled;
 #include "res://Resources/Shaders/Color/supersampling.gdshaderinc"
 
 uniform vec2 iResolution;

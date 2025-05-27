@@ -64,7 +64,8 @@ func process_visual_illusion(_frame_delta: float) -> void:
     sprite_node.material.set_shader_parameter("ascending", is_ascending())
     sprite_node.material.set_shader_parameter("altitude_normal", altitude_normal)
     _update_sprite_scale(sprite_node, altitude_normal)
-    ComputeShaderSignalManager.visual_illusion_updated.emit(
+    #ComputeShaderSignalManager.visual_illusion_updated.emit(
+    FragmentShaderSignalManager.visual_illusion_updated.emit(
         sprite_texture_index,
         sprite_node.global_position,
         (sprite_node.texture.get_size() * 0.5) * sprite_node.scale,

@@ -1,3 +1,8 @@
-[gd_resource type="Resource" format=3 uid="uid://d3mgm0tl1ntn3"]
+[gd_resource type="Resource" script_class="RhythmOnsetData" load_steps=2 format=3 uid="uid://cd80og3swtnds"]
+
+[ext_resource type="Script" uid="uid://b4bac2kk5j2nc" path="res://Audio/RhythmOnsetData.gd" id="1_tvsqv"]
 
 [resource]
+script = ExtResource("1_tvsqv")
+uki = PackedFloat32Array()
+shizumi = PackedFloat32Array()

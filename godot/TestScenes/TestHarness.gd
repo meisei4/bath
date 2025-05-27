@@ -3,7 +3,7 @@ class_name TestHarness
 
 
 func _ready() -> void:
-    add_glacier_flow_scene()
+    add_ice_sheets_scene()
     #add_collision_mask_scene()
     add_collision_mask_fragment_scene()
     #add_perspective_tilt_mask_scene()
@@ -30,10 +30,10 @@ func add_collision_mask_fragment_scene() -> void:
     add_child(collision_mask_fragment)
 
 
-func add_glacier_flow_scene() -> void:
-    var glacier_scene: PackedScene = preload("res://TestScenes/Shaders/Glacier/GlacierFlow.tscn")
-    var glacier_flow: GlacierFlow = glacier_scene.instantiate() as GlacierFlow
-    add_child(glacier_flow)
+func add_ice_sheets_scene() -> void:
+    var ice_sheets_scene: PackedScene = preload("res://TestScenes/Shaders/IceSheets/IceSheets.tscn")
+    var ice_sheets: IceSheets = ice_sheets_scene.instantiate() as IceSheets
+    add_child(ice_sheets)
 
 
 func add_perspective_tilt_mask_scene() -> void:

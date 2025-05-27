@@ -1,12 +1,12 @@
 extends CharacterBody2D
 class_name CapsuleDummy
 
-#var mechanics: Array[Mechanic] = []
 var mechanics: Dictionary[Mechanic.TYPE, Mechanic]
 
 
 func _ready() -> void:
-    ComputeShaderSignalManager.register_character_body(self)
+    FragmentShaderSignalManager.register_character_body_fragment(self)
+    #ComputeShaderSignalManager.register_character_body(self)
     var lateral_movement: LateralMovement = LateralMovement.new()
     lateral_movement.character_body = self
     add_child(lateral_movement)

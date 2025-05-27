@@ -25,7 +25,6 @@ var onset_event_counter: int = 0
 
 #var metronome_click: AudioStream = preload(AudioConsts.METRONOME_CLICK)
 var time_of_next_click: float = 0.0
-var rust_util: RustUtil
 var bpm: float
 var song_time: float = 0.0
 
@@ -35,7 +34,6 @@ var song: String = AudioConsts.SNUFFY
 
 
 func _ready() -> void:
-    rust_util = RustUtil.new()
     var bus_index: int = AudioBus.get_bus_index(AudioBus.BUS.MUSIC)
     var effect: AudioEffectSpectrumAnalyzer = AudioEffectSpectrumAnalyzer.new()
     effect.fft_size = AudioEffectSpectrumAnalyzer.FFTSize.FFT_SIZE_2048

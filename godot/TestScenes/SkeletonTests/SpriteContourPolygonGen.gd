@@ -1,8 +1,8 @@
 extends Node2D
 class_name SpriteContourPolygonGen
 
-@export var sprite_texture_path: String = "res://Assets/Sprites/Dolphin2.png"
-@export var save_path: String = "res://godot/TestScenes/SkeletonTests/SpriteContourPolygon.tscn"
+var sprite_texture_path: String = "res://Assets/Sprites/Dolphin2.png"
+var save_path: String = "res://TestScenes/SkeletonTests/SpriteContourPolygon.tscn"
 
 var polygon_node: Polygon2D
 

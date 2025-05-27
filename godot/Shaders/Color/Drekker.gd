@@ -1,6 +1,7 @@
 extends Node2D
 class_name DrekkerColor
-
+#TODO: this is also resulting in texel level alpha/transparency issues in gl_compatability mode
+# studying this as Forward+/Vulkan vs Compatibility/GL could perhaps also explain issues with the perspective tilt mask behavior
 var SampleTexture: Image = Image.load_from_file("res://Assets/Textures/icebergs.jpg")
 
 var BufferAShaderNode: ColorRect
@@ -14,7 +15,7 @@ var iChannel0: Texture
 
 
 func _ready() -> void:
-    self.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+    #self.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST  #TODO: whoa whoa whoa what?
     iResolution = ResolutionManager.resolution
     BufferA = ShaderToyUtil.create_buffer_viewport(iResolution)
     BufferAShaderMaterial = ShaderMaterial.new()

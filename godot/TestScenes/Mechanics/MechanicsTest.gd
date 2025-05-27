@@ -17,6 +17,3 @@ func _ready() -> void:
     var sprite_size: Vector2 = sprite_node.texture.get_size()
     capsule_dummy.position = Vector2(viewport_size.x * 0.5, viewport_size.y - sprite_size.y * 0.5)
     MechanicManager.register_controller(capsule_dummy)
-
-    #var music_resource: AudioStream = load(AudioConsts.HELLION_MP3)
-    #AudioManager.play_music(music_resource, 0.0)

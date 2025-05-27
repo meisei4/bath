@@ -7,9 +7,9 @@
 // NOTE: There is some commented out shadertoy code throughout, if interested, see shadertoy port here:
 // https://www.shadertoy.com/view/3XfSDX
 shader_type canvas_item;
-#include "res://Resources/Shaders/Glacier/noise.gdshaderinc"
-#include "res://Resources/Shaders/Glacier/projections.gdshaderinc"
-#include "res://Resources/Shaders/Glacier/color.gdshaderinc"
+#include "res://Resources/Shaders/IceSheets/noise.gdshaderinc"
+#include "res://Resources/Shaders/IceSheets/projections.gdshaderinc"
+#include "res://Resources/Shaders/IceSheets/color.gdshaderinc"
 uniform vec2 iResolution;
 uniform sampler2D iChannel0: filter_nearest; // ← this will become our water background
 

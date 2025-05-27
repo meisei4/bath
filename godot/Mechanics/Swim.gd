@@ -57,8 +57,8 @@ func process_visual_illusion(_frame_delta: float) -> void:
     var depth_normal: float = InterpolationUtil.depth_normal(current_depth_position, MAX_DIVE_DEPTH)
     sprite_node.material.set_shader_parameter("depth_normal", depth_normal)
     _update_sprite_scale(sprite_node, depth_normal, _frame_delta)
-
-    ComputeShaderSignalManager.visual_illusion_updated.emit(
+    #ComputeShaderSignalManager.visual_illusion_updated.emit(
+    FragmentShaderSignalManager.visual_illusion_updated.emit(
         sprite_texture_index,
         sprite_node.global_position,
         (sprite_node.texture.get_size() * 0.5) * sprite_node.scale,

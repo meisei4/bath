@@ -44,7 +44,7 @@ const PUSH_CONSTANTS_BYTE_ALIGNMENT_12: int = 12
 
 
 func _ready() -> void:
-    ComputeShaderSignalManager.register_perspective_tilt_mask(self)
+    #ComputeShaderSignalManager.register_perspective_tilt_mask(self)
     _init_shader()
     _init_compute_shader_pipeline()
     _init_sprite_data_ssbo_uniform()

@@ -2,7 +2,7 @@ shader_type canvas_item;
 
 // includes
 #include "res://Resources/Shaders/Water/constants.gdshaderinc"
-#include "res://Resources/Shaders/Glacier/projections.gdshaderinc"
+#include "res://Resources/Shaders/IceSheets/projections.gdshaderinc"
 
 // uniforms
 uniform vec2 iResolution;

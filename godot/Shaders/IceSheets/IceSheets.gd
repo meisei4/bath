@@ -1,8 +1,8 @@
 extends Node2D
-class_name GlacierFlow
+class_name IceSheets
 
 var BufferAShaderNode: ColorRect
-var BufferAShader: Shader = load("res://Resources/Shaders/Glacier/glacier_main.gdshader")
+var BufferAShader: Shader = load("res://Resources/Shaders/IceSheets/ice_sheets.gdshader")
 var BufferAShaderMaterial: ShaderMaterial
 var BufferA: SubViewport
 var MainImage: TextureRect
@@ -13,8 +13,8 @@ var iTime: float
 
 
 func _ready() -> void:
-    #ComputeShaderSignalManager.register_glacier_flow(self)
-    ComputeShaderSignalManager.register_glacier_flow_fragment(self)
+    FragmentShaderSignalManager.register_ice_sheets_fragment(self)
+    #ComputeShaderSignalManager.register_ice_sheets(self)
     #TODO: i just set the default for canvas items to this in the project settings but seriously its annoying
     self.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
     iResolution = ResolutionManager.resolution
@@ -39,5 +39,6 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
     iTime += delta
-    ComputeShaderSignalManager.iTime_update.emit(iTime)
+    FragmentShaderSignalManager.iTime_update.emit(iTime)
+    #ComputeShaderSignalManager.iTime_update.emit(iTime)
     BufferAShaderMaterial.set_shader_parameter("iTime", iTime)

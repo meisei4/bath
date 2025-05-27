@@ -1,8 +1,8 @@
 shader_type canvas_item;
 render_mode blend_disabled;
 
-#include "res://Resources/Shaders/Glacier/noise.gdshaderinc"
-#include "res://Resources/Shaders/Glacier/projections.gdshaderinc"
+#include "res://Resources/Shaders/IceSheets/noise.gdshaderinc"
+#include "res://Resources/Shaders/IceSheets/projections.gdshaderinc"
 
 uniform vec2  iResolution;
 uniform float iTime;
