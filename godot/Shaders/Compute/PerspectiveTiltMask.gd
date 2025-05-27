@@ -3,6 +3,7 @@ class_name PerspectiveTiltMask
 
 const SPRITE_DATA_SSBO_UNIFORM_BINDING: int = 0
 var sprite_data_ssbo_uniform: RDUniform
+var sprite_data_ssbo_bytes: PackedByteArray
 
 
 class SpriteDataSSBOStruct:  # 32 bytes total (std430 aligned)
@@ -17,12 +18,12 @@ const MAXIMUM_SPRITE_COUNT: int = 16
 const SPRITE_DATA_STRUCT_SIZE_BYTES: int = 32  # vec2 + vec2 + float + float + vec2_padding
 const SPRITE_DATA_SSBO_TOTAL_BYTES: int = MAXIMUM_SPRITE_COUNT * SPRITE_DATA_STRUCT_SIZE_BYTES
 
-var cpu_side_sprite_data_ssbo_cache: Array[SpriteDataSSBOStruct]
+var cpu_side_sprite_data_ssbo_cache: Array[SpriteDataSSBOStruct] = []
 var sprite_data_ssbo_rid: RID
 
 const SPRITE_TEXTURES_BINDING: int = 1
 var sprite_textures_uniform: RDUniform
-var sprite_textures_rids: Array[RID]
+var sprite_textures_rids: Array[RID] = []
 var memory_padding_sprite_textures_rid: RID  # to fill up the unused sprite texture blocks
 var resuable_sampler_state: RDSamplerState
 var resuable_sampler_state_rid: RID
@@ -50,8 +51,7 @@ func _ready() -> void:
     _init_sprite_textures_uniform()
     _init_perspective_tilt_mask_uniform()
     _init_uniform_set()
-    #TODO: just a unique way to make sure the tilt mask is computed before anything else is drawn to the screen...
-    RenderingServer.frame_pre_draw.connect(_dispatch_compute)
+    #RenderingServer.frame_pre_draw.connect(_dispatch_compute)
 
 
 #TODO: MOVE ALL PUBLIC API ENTRY POINTS SOMEWHERE AND BLACK BOX ALL THE COMPUTE PIPELINE STUFF
@@ -69,6 +69,10 @@ func register_sprite_texture(sprite_texture: Texture2D) -> int:
     cpu_side_sprite_data_ssbo_cache.append(sprite_data_ssbo)
     _update_sprite_textures_uniform()
     var index: int = sprite_textures_rids.size() - 1
+    if sprite_textures_rids.size() == 1:
+        # first sprite; now it’s safe to connect
+        #TODO: just a unique way to make sure the tilt mask is computed before anything else is drawn to the screen...
+        RenderingServer.frame_pre_draw.connect(_dispatch_compute)
     return index
 
 
@@ -94,14 +98,22 @@ func _init_shader() -> void:
 
 
 func _init_sprite_data_ssbo_uniform() -> void:
+    sprite_data_ssbo_bytes = PackedByteArray()
+    sprite_data_ssbo_bytes.resize(SPRITE_DATA_SSBO_TOTAL_BYTES)
     sprite_data_ssbo_rid = rendering_device.storage_buffer_create(
         SPRITE_DATA_SSBO_TOTAL_BYTES, PackedByteArray()
     )
     sprite_data_ssbo_uniform = RDUniform.new()
     sprite_data_ssbo_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_STORAGE_BUFFER
-    sprite_data_ssbo_uniform.binding = SPRITE_DATA_SSBO_UNIFORM_BINDING
+    sprite_data_ssbo_uniform.binding      = SPRITE_DATA_SSBO_UNIFORM_BINDING
     sprite_data_ssbo_uniform.add_id(sprite_data_ssbo_rid)
     uniform_set.append(sprite_data_ssbo_uniform)
+    # ► seed the GPU buffer once with the zero-filled byte-array
+    rendering_device.buffer_update(
+        sprite_data_ssbo_rid, 0,
+        SPRITE_DATA_SSBO_TOTAL_BYTES,
+        sprite_data_ssbo_bytes
+    )
 
 
 func _init_sprite_textures_uniform() -> void:
@@ -138,7 +150,7 @@ func _init_sprite_textures_uniform() -> void:
 func _init_perspective_tilt_mask_uniform() -> void:
     perspective_tilt_mask_texture_format = RDTextureFormat.new()
     perspective_tilt_mask_texture_format.texture_type = RenderingDevice.TEXTURE_TYPE_2D
-    perspective_tilt_mask_texture_format.format = RenderingDevice.DATA_FORMAT_R32_SFLOAT
+    perspective_tilt_mask_texture_format.format = RenderingDevice.DATA_FORMAT_R8_UNORM
     perspective_tilt_mask_texture_format.width = iResolution.x as int
     perspective_tilt_mask_texture_format.height = iResolution.y as int
     perspective_tilt_mask_texture_format.depth = 1
@@ -177,7 +189,30 @@ func _update_sprite_textures_uniform() -> void:
     uniform_set_rid = rendering_device.uniform_set_create(uniform_set, compute_shader_rid, 0)
 
 
+
 func _update_sprite_data_ssbo() -> void:
+    for i: int in range(cpu_side_sprite_data_ssbo_cache.size()):
+        var sprite_data_ssbo: SpriteDataSSBOStruct = cpu_side_sprite_data_ssbo_cache[i]
+        var byte_offset: int = i * SPRITE_DATA_STRUCT_SIZE_BYTES
+        # write32 assumes little‐endian, same as std430
+        sprite_data_ssbo_bytes.encode_float(byte_offset + 0,   sprite_data_ssbo.center_px.x)
+        sprite_data_ssbo_bytes.encode_float(byte_offset + 4,   sprite_data_ssbo.center_px.y)
+        sprite_data_ssbo_bytes.encode_float(byte_offset + 8,   sprite_data_ssbo.half_size_px.x)
+        sprite_data_ssbo_bytes.encode_float(byte_offset + 12,  sprite_data_ssbo.half_size_px.y)
+        sprite_data_ssbo_bytes.encode_float(byte_offset + 16,  sprite_data_ssbo.altitude_normal)
+        sprite_data_ssbo_bytes.encode_float(byte_offset + 20,  sprite_data_ssbo.ascending)
+        # explicit padding (optional—will already be zero)
+        sprite_data_ssbo_bytes.encode_float(byte_offset + 24, 0.0)
+        sprite_data_ssbo_bytes.encode_float(byte_offset + 28, 0.0)
+
+    rendering_device.buffer_update(
+        sprite_data_ssbo_rid, 0,
+        SPRITE_DATA_SSBO_TOTAL_BYTES,
+        sprite_data_ssbo_bytes
+    )
+
+
+func _update_sprite_data_ssbo1() -> void:
     var serialized_sprite_data_ssbo: PackedFloat32Array = PackedFloat32Array()
     for sprite_data_ssbo: SpriteDataSSBOStruct in cpu_side_sprite_data_ssbo_cache:
         serialized_sprite_data_ssbo.append_array(
@@ -223,9 +258,3 @@ func _dispatch_compute() -> void:
     )
     push_constants.encode_u32(PUSH_CONSTANTS_BYTE_ALIGNMENT_12, 0)  # uint at bytes 12–15
     super.dispatch_compute(push_constants)
-    #TODO: this is not allowed when targetting main/global rendering device...
-    # but cpu side textures can not share RID'S with a local rendering device...
-    #TODO: option for later is to look at adding a heavy weight full cpu texture copying
-    #to a local rendering device to allow for more control but risking bloat and stuff
-    #rendering_device.submit()
-    #rendering_device.sync()  # blocks CPU until GPU finished this queue

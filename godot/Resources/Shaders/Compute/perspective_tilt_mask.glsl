@@ -1,7 +1,6 @@
 #[compute]
 #version 450
 #include "res://Resources/Shaders/MechanicAnimations/perspective_tilt.gdshaderinc"
-#extension GL_KHR_shader_subgroup_basic : enable  
 
 layout(local_size_x = 2, local_size_y = 2, local_size_z = 1) in;
 
@@ -29,7 +28,7 @@ layout(std430, set = 0, binding = SPRITE_DATA_SSBO_UNIFORM_BINDING) readonly buf
 layout(set = 0, binding = SPRITE_TEXTURES_BINDING) uniform sampler2D sprite_textures_uniform[MAXIMUM_SPRITE_COUNT]; 
 
 #define PERSPECTIVE_TILT_MASK_UNIFORM_BINDING 2
-layout(r32f, set = 0, binding = PERSPECTIVE_TILT_MASK_UNIFORM_BINDING) writeonly uniform image2D perspective_tilt_mask_uniform;
+layout(r8, set = 0, binding = PERSPECTIVE_TILT_MASK_UNIFORM_BINDING) writeonly uniform image2D perspective_tilt_mask_uniform;
 
 
 #define DISCARD_PIXELS_OUTSIDE_OF_ALTERED_UV_BOUNDS_COMPUTE(uv, texel_size) \

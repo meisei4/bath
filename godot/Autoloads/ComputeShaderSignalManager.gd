@@ -76,13 +76,8 @@ func _on_iTime_update(iTime: float) -> void:
         collision_mask.iTime = iTime
 
 
-func _on_visual_illusion_updated(
-    sprite_index: int,
-    center_px: Vector2,
-    half_size_px: Vector2,
-    altitude_normal: float,
-    ascending: float
-) -> void:
-    perspective_tilt_mask.update_cpu_side_sprite_data_ssbo_cache(
-        sprite_index, center_px, half_size_px, altitude_normal, ascending
-    )
+func _on_visual_illusion_updated(sprite_index: int, center: Vector2, half_size: Vector2, altitude: float, ascending: bool) -> void:
+    if sprite_index >= 0 && sprite_index < perspective_tilt_mask.cpu_side_sprite_data_ssbo_cache.size():
+        perspective_tilt_mask.update_cpu_side_sprite_data_ssbo_cache(
+            sprite_index, center, half_size, altitude, ascending
+        )

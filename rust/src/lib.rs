@@ -47,7 +47,15 @@ impl RustUtil {
         image_height_pixels: i32,
         tile_edge_length: i32,
     ) -> Array<PackedVector2Array> {
-        let pixel_data: Vec<u8> = raw_pixel_mask.to_vec();
+        // TODO: because godot complains about unsigned int r8 format, we just convert it here
+        //  this is really gross to me and i think i could perhaps learn enought o argue for supporting
+        //  R8_UINT in godot's RenderDevice.DataFormat <-> ImageFormat mapping in the source code.
+        //  see: https://github.com/godotengine/godot/blob/6c9765d87e142e786f0190783f41a0250a835c99/servers/rendering/renderer_rd/storage_rd/texture_storage.cpp#L2281C1-L2664C1
+        let pixel_data: Vec<u8> = raw_pixel_mask
+            .to_vec()
+            .into_iter()
+            .map(|b| if b != 0 { 1 } else { 0 })
+            .collect();
         let width: usize = image_width_pixels as usize;
         let height: usize = image_height_pixels as usize;
         let tile_size: usize = tile_edge_length as usize;

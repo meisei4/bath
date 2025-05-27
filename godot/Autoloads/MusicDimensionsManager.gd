@@ -1,7 +1,6 @@
 extends Node
 #class_name MusicDimensionsManager
 
-signal offline_pitch_buffer_ready(buffer: PackedFloat32Array)
 signal onset_detected(current_playback_time: float)
 
 const PERCUSSIVE_FREQUENCY_LOWER_BOUND_HZ: float = 20.0
@@ -45,9 +44,8 @@ func _ready() -> void:
     spectrum_analyzer_instance = AudioServer.get_bus_effect_instance(bus_index, effect_index)
 
     #derive_bpm()
-    #isolate_melody()
     #load_custom_onsets()
-    var music_resource: AudioStream = load(song)
+    #var music_resource: AudioStream = load(song)
     #AudioPoolManager.play_music(music_resource)
     #var input_resource: AudioStreamMicrophone = AudioStreamMicrophone.new()
     #AudioManager.play_input(input_resource, 0.0)
@@ -55,7 +53,7 @@ func _ready() -> void:
 
 
 func derive_bpm() -> void:
-    var wav_fs_path: String = ProjectSettings.globalize_path(song)
+    #var wav_fs_path: String = ProjectSettings.globalize_path(song)
     #bpm = rust_util.detect_bpm(wav_fs_path)
     print("aubio derived bpm is:", bpm)
 
@@ -252,17 +250,3 @@ static func _compute_smooth_energy(
     _previous_smooth_energy: float, new_normalized_energy: float
 ) -> float:
     return MDN_SMOOTHING * _previous_smooth_energy + (1.0 - MDN_SMOOTHING) * new_normalized_energy
-
-
-## DECOMPOSITION AUXILARIES
-# TODO: these can change over time depending on the song structure... how do we account for that??
-var TIME_SIG_N: int = 4  # default “4/4”
-var TIME_SIG_D: int = 4
-var SUBDIVISIONS_PER_onset: int = 1  # default = sixteenth-notes
-
-
-func _decompose_percussive_onsets(onsets_per_minute: float) -> void:
-    var time_signature: Vector2i = Vector2i(TIME_SIG_N, TIME_SIG_D)
-    var seconds_per_onset: float = SECONDS_PER_MINUTE / onsets_per_minute
-    var seconds_per_subdivision: float = seconds_per_onset / SUBDIVISIONS_PER_onset
-    var seconds_per_bar: float = seconds_per_onset * TIME_SIG_N

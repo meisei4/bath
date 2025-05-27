@@ -20,10 +20,6 @@ func _ready() -> void:
     mechanic_shader = preload("res://Resources/Shaders/MechanicAnimations/swim.gdshader")
     current_depth_position = LEVEL_DEPTH
     _set_phase(DivePhase.LEVEL)
-    #TODO: figure out how to make this shaders default effect be at scale = 1 and absolutely no glitch snapping of the sprite when jumping finishes
-    if !debug_autoswim:
-        pass
-        #MusicDimensionsManager.rhythm_indicator.connect(_on_rhythm_indicator)
 
 
 func _process(delta: float) -> void:
@@ -35,14 +31,6 @@ func _process(delta: float) -> void:
         target_depth_position = (
             MAX_DIVE_DEPTH if target_depth_position == LEVEL_DEPTH else LEVEL_DEPTH
         )
-
-
-func _on_rhythm_indicator(beat_index: int) -> void:
-    #print("Swim got beat:", beat_index, "→ target_depth=", target_depth_position)
-    if beat_index % MusicDimensionsManager.time_signature == 0:
-        target_depth_position = MAX_DIVE_DEPTH
-    else:
-        target_depth_position = LEVEL_DEPTH
 
 
 func process_input(delta: float) -> void:

@@ -116,10 +116,10 @@ func _update_convex_polygons(collision_polygons: Array[PackedVector2Array]) -> v
 func _init_collision_mask_uniform() -> void:
     collision_mask_texture_format = RDTextureFormat.new()
     collision_mask_texture_format.texture_type = RenderingDevice.TEXTURE_TYPE_2D
-    collision_mask_texture_format.format = RenderingDevice.DATA_FORMAT_R8_UINT
-    #TODO: image format support bug???
-    #collision_mask_texture_format.format = RenderingDevice.DATA_FORMAT_R32_UINT
-    #collision_mask_texture_format.format = RenderingDevice.DATA_FORMAT_R8G8B8A8_UNORM
+    #TODO: godot does not support using unsigned 8 bit ints.. so we have to use unorm float
+    # see https://github.com/godotengine/godot/blob/6c9765d87e142e786f0190783f41a0250a835c99/servers/rendering/renderer_rd/storage_rd/texture_storage.cpp#L2281C1-L2664C1
+    #collision_mask_texture_format.format = RenderingDevice.DATA_FORMAT_R8_UINT
+    collision_mask_texture_format.format = RenderingDevice.DATA_FORMAT_R8_UNORM
     collision_mask_texture_format.width = int(iResolution.x)
     collision_mask_texture_format.height = int(iResolution.y)
     collision_mask_texture_format.depth = 1
@@ -157,22 +157,19 @@ func _dispatch_compute() -> void:
 func debug_print_ascii(
     raw_pixel_data: PackedByteArray, tile_width: int = 8, tile_height: int = 16
 ) -> void:
-    var width: int = int(iResolution.x)
-    var height: int = int(iResolution.y)
-    var tile_column_count: int = _calculate_tile_column_count(width, tile_width)
-    var tile_row_count: int = _calculate_tile_row_count(height, tile_height)
-    for row_index: int in range(tile_row_count):
-        var sample_y_position: int = clamp(row_index * tile_height + tile_height / 2, 0, height - 1)
+    var width  : int = int(iResolution.x)
+    var height : int = int(iResolution.y)
+    var cols   : int = _calculate_tile_column_count(width, tile_width)
+    var rows   : int = _calculate_tile_row_count(height, tile_height)
+    for row: int in range(rows):
+        var sample_y: int = clamp(row * tile_height + tile_height/2, 0, height-1)
         var line_text: String = ""
-        for column_index: int in range(tile_column_count):
-            var sample_x_position: int = clamp(
-                column_index * tile_width + tile_width / 2, 0, width - 1
-            )
-            line_text += (
-                "#" if raw_pixel_data[sample_y_position * width + sample_x_position] == 1 else "."
-            )
+        for col: int in range(cols):
+            var sample_x: int = clamp(col * tile_width + tile_width/2, 0, width-1)
+            var byte: float = raw_pixel_data[sample_y * width + sample_x]
+            # treat any non-zero byte (i.e. 255) as “on”:
+            line_text += "#" if byte != 0 else "."
         print(" ", line_text)
-
 
 func _calculate_tile_column_count(image_width: int, tile_size: int) -> int:
     return int((image_width + tile_size - 1) / tile_size)

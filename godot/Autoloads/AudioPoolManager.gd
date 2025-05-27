@@ -58,20 +58,8 @@ func play_sfx(sound_resource: AudioStream, volume_db: float = 0.0) -> void:
     sfx_pool.play(sound_resource, volume_db)
 
 
-func stop_all_sfx() -> void:
-    sfx_pool.stop_all()  # you can add a stop_all() inside AudioPool similarly
-
-
 func play_music(music_resource: AudioStream, volume_db: float = 0.0) -> void:
     music_pool.play(music_resource, volume_db)
-
-
-func stop_music() -> void:
-    music_pool.stop_all()  # same as above
-
-
-func is_music_playing() -> bool:
-    return music_pool.is_any_playing()
 
 
 func play_input(input_resource: AudioStream, volume_db: float = 0.0) -> void:
