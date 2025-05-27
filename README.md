@@ -1,53 +1,97 @@
-NEW SETTINGS THINGS:
-- In order to centralize resolution settings i have introduced an optional project settings override config file, read about it to learn about it plox:
-    - https://github.com/meisei4/bath/blob/main/godot/Autoloads/ResolutionManager.gd
-- new file:
-    - https://github.com/meisei4/bath/blob/main/experimental_resolution_override.cfg
+#### Project Overview
 
-This was all caused by different scene contexts, and different device screen sizes causing ugly behavior with the window sizes...
+This project uses the Rust GDExtension (via [godot-rust](https://godot-rust.github.io/)) to speed up fragment shader ↔ physics utilities in Godot 4.4.x.
 
-This project uses the Rust GDExtension (https://godot-rust.github.io/) to accelerate compute‐shader <-> physics utilities in Godot 4.4.x.
-Before opening the project, make sure you have Rust and Cargo installed so that the extension can be built.
-## 1. Install Rust & Cargo
-### Windows (winget)
+#### New Settings
+
+For editor experimentation only: an optional override config (`experimental_resolution_override.cfg`) lets you test different resolutions in the Godot editor without affecting runtime builds.
+
+* **Manager script**: `godot/Autoloads/ResolutionManager.gd`
+
+  * [https://github.com/meisei4/bath/blob/main/godot/Autoloads/ResolutionManager.gd](https://github.com/meisei4/bath/blob/main/godot/Autoloads/ResolutionManager.gd)
+* **Override file**: `experimental_resolution_override.cfg`
+
+  * [https://github.com/meisei4/bath/blob/main/experimental\_resolution\_override.cfg](https://github.com/meisei4/bath/blob/main/experimental_resolution_override.cfg)
+
+This setup helps resolve inconsistent window sizes across scenes and devices during development.
+
+#### Prerequisites
+
+* Rust & Cargo (via [rustup](https://rustup.rs/))
+* LLVM (needed for Web builds and `aubio-sys`)
+* Emscripten SDK (for `wasm32-unknown-emscripten`)
+
+#### Installing Rust & Cargo
+
+##### Windows (PowerShell)
+
 ```powershell
 winget install --id=Rustlang.Rustup -e
 ```
 
-### Linux (any distro)
-```bash
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-source "$HOME/.cargo/env"
-```
+##### macOS (Homebrew)
 
-### macOS (Homebrew)
 ```bash
 brew install rustup
 rustup-init
 source "$HOME/.cargo/env"
 ```
 
-## 2. Build the Rust GDExtension
-1. Change into the `rust` directory (IN THIS PROJECT, like the actual rust directory in this git repo):
-    ```bash
-    cd rust
-    ```
-2. For a debug build (default):
-    ```bash
-    cargo build
-    ```
-    
-> The compiled dynamic library (`.dll` / `.so` / `.dylib`) will be placed in `rust/target/{debug,release}` and is automatically referenced by `rust_bath.gdextension`.
+#### Installing LLVM (Windows)
 
-## 3. Open in Godot
-1. Launch Godot 4 (MUST BE IN FORWARD+, compatibility is not supported yet because of compute shaders)
-2. Open `project.godot` at the project root.
-3. The GDExtension will load the Rust library on startup.
+Download and install LLVM 18.1.8:
+[https://github.com/llvm/llvm-project/releases/download/llvmorg-18.1.8/LLVM-18.1.8-win64.exe](https://github.com/llvm/llvm-project/releases/download/llvmorg-18.1.8/LLVM-18.1.8-win64.exe)
 
+#### Setup Commands
 
-## 4. Code Formatting
-Before committing any changes, run this in the bath main project directory:
+From the project root:
+
+```bash
+# Get nightly toolchain
+rustup toolchain install nightly
+# Add WebAssembly target
+rustup target add wasm32-unknown-emscripten
+```
+
+#### Cargo Configuration
+
+Add this to `rust/.cargo/config.toml`:
+
+```toml
+[target.wasm32-unknown-emscripten]
+linker = "emcc"
+rustflags = [
+  "-C", "link-args=-sSIDE_MODULE=2",
+  "-Zlink-native-libraries=no",
+  "-Cllvm-args=-enable-emscripten-cxx-exceptions=0",
+]
+```
+
+#### Build Commands
+
+##### Native (debug)
+
+```bash
+cd rust
+cargo build --lib
+```
+
+##### Web (Emscripten)
+
+```bash
+cd rust
+cargo +nightly build -Zbuild-std --target wasm32-unknown-emscripten --lib
+```
+
+The `.wasm` and support files are in `rust/target/wasm32-unknown-emscripten/debug`.
+
+#### Formatting
+
+Before committing, run (in the `bath/godot` directory:
+
 ```bash
 gdformat --use-spaces=4 .
 ```
-This keeps GDScript files formatted consistently across the repo.
+
+### NOTE
+- non of the release build features of rust are working due to emcc linker issues, i will solve this much later, debug builds are perfectly fine for now
