@@ -105,14 +105,12 @@ func _init_sprite_data_ssbo_uniform() -> void:
     )
     sprite_data_ssbo_uniform = RDUniform.new()
     sprite_data_ssbo_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_STORAGE_BUFFER
-    sprite_data_ssbo_uniform.binding      = SPRITE_DATA_SSBO_UNIFORM_BINDING
+    sprite_data_ssbo_uniform.binding = SPRITE_DATA_SSBO_UNIFORM_BINDING
     sprite_data_ssbo_uniform.add_id(sprite_data_ssbo_rid)
     uniform_set.append(sprite_data_ssbo_uniform)
     # ► seed the GPU buffer once with the zero-filled byte-array
     rendering_device.buffer_update(
-        sprite_data_ssbo_rid, 0,
-        SPRITE_DATA_SSBO_TOTAL_BYTES,
-        sprite_data_ssbo_bytes
+        sprite_data_ssbo_rid, 0, SPRITE_DATA_SSBO_TOTAL_BYTES, sprite_data_ssbo_bytes
     )
 
 
@@ -194,20 +192,18 @@ func _update_sprite_data_ssbo() -> void:
         var sprite_data_ssbo: SpriteDataSSBOStruct = cpu_side_sprite_data_ssbo_cache[i]
         var byte_offset: int = i * SPRITE_DATA_STRUCT_SIZE_BYTES
         # write32 assumes little‐endian, same as std430
-        sprite_data_ssbo_bytes.encode_float(byte_offset + 0,   sprite_data_ssbo.center_px.x)
-        sprite_data_ssbo_bytes.encode_float(byte_offset + 4,   sprite_data_ssbo.center_px.y)
-        sprite_data_ssbo_bytes.encode_float(byte_offset + 8,   sprite_data_ssbo.half_size_px.x)
-        sprite_data_ssbo_bytes.encode_float(byte_offset + 12,  sprite_data_ssbo.half_size_px.y)
-        sprite_data_ssbo_bytes.encode_float(byte_offset + 16,  sprite_data_ssbo.altitude_normal)
-        sprite_data_ssbo_bytes.encode_float(byte_offset + 20,  sprite_data_ssbo.ascending)
+        sprite_data_ssbo_bytes.encode_float(byte_offset + 0, sprite_data_ssbo.center_px.x)
+        sprite_data_ssbo_bytes.encode_float(byte_offset + 4, sprite_data_ssbo.center_px.y)
+        sprite_data_ssbo_bytes.encode_float(byte_offset + 8, sprite_data_ssbo.half_size_px.x)
+        sprite_data_ssbo_bytes.encode_float(byte_offset + 12, sprite_data_ssbo.half_size_px.y)
+        sprite_data_ssbo_bytes.encode_float(byte_offset + 16, sprite_data_ssbo.altitude_normal)
+        sprite_data_ssbo_bytes.encode_float(byte_offset + 20, sprite_data_ssbo.ascending)
         # explicit padding (optional—will already be zero)
         sprite_data_ssbo_bytes.encode_float(byte_offset + 24, 0.0)
         sprite_data_ssbo_bytes.encode_float(byte_offset + 28, 0.0)
 
     rendering_device.buffer_update(
-        sprite_data_ssbo_rid, 0,
-        SPRITE_DATA_SSBO_TOTAL_BYTES,
-        sprite_data_ssbo_bytes
+        sprite_data_ssbo_rid, 0, SPRITE_DATA_SSBO_TOTAL_BYTES, sprite_data_ssbo_bytes
     )
 
 

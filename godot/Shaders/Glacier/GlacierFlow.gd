@@ -13,7 +13,8 @@ var iTime: float
 
 
 func _ready() -> void:
-    ComputeShaderSignalManager.register_glacier_flow(self)
+    #ComputeShaderSignalManager.register_glacier_flow(self)
+    ComputeShaderSignalManager.register_glacier_flow_fragment(self)
     #TODO: i just set the default for canvas items to this in the project settings but seriously its annoying
     self.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
     iResolution = ResolutionManager.resolution

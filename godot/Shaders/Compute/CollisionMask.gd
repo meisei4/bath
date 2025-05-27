@@ -157,19 +157,20 @@ func _dispatch_compute() -> void:
 func debug_print_ascii(
     raw_pixel_data: PackedByteArray, tile_width: int = 8, tile_height: int = 16
 ) -> void:
-    var width  : int = int(iResolution.x)
-    var height : int = int(iResolution.y)
-    var cols   : int = _calculate_tile_column_count(width, tile_width)
-    var rows   : int = _calculate_tile_row_count(height, tile_height)
+    var width: int = int(iResolution.x)
+    var height: int = int(iResolution.y)
+    var cols: int = _calculate_tile_column_count(width, tile_width)
+    var rows: int = _calculate_tile_row_count(height, tile_height)
     for row: int in range(rows):
-        var sample_y: int = clamp(row * tile_height + tile_height/2, 0, height-1)
+        var sample_y: int = clamp(row * tile_height + tile_height / 2, 0, height - 1)
         var line_text: String = ""
         for col: int in range(cols):
-            var sample_x: int = clamp(col * tile_width + tile_width/2, 0, width-1)
+            var sample_x: int = clamp(col * tile_width + tile_width / 2, 0, width - 1)
             var byte: float = raw_pixel_data[sample_y * width + sample_x]
             # treat any non-zero byte (i.e. 255) as “on”:
             line_text += "#" if byte != 0 else "."
         print(" ", line_text)
+
 
 func _calculate_tile_column_count(image_width: int, tile_size: int) -> int:
     return int((image_width + tile_size - 1) / tile_size)
