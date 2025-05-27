@@ -73,8 +73,8 @@ func _configure_character_body(_character_body: CapsuleDummy) -> void:
         #if !perspective_tilt_mask:
         return
     var sprite_node: Sprite2D = _character_body.get_node("Sprite2D") as Sprite2D
-    var tex: Texture2D = sprite_node.texture
-    var index: int = perspective_tilt_mask_fragment.register_sprite_texture(tex)
+    var sprite_texture: Texture2D = sprite_node.texture
+    var index: int = perspective_tilt_mask_fragment.register_sprite_texture(sprite_texture)
     #var index: int = perspective_tilt_mask.register_sprite_texture(tex)
     for mechanic_type: Mechanic.TYPE in _character_body.mechanics.keys():
         match mechanic_type:

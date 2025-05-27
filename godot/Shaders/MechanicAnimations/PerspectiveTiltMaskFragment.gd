@@ -58,15 +58,18 @@ func set_sprite_data(
         return
     _sprite_data0[sprite_index] = Vector4(center_px.x, center_px.y, half_size_px.x, half_size_px.y)
     _sprite_data1[sprite_index] = Vector4(altitude_normal, 1.0 if ascending else 0.0, 0.0, 0.0)
-    BufferAShaderMaterial.set_shader_parameter("sprite_data0", _sprite_data0)
-    BufferAShaderMaterial.set_shader_parameter("sprite_data1", _sprite_data1)
+    #BufferAShaderMaterial.set_shader_parameter("sprite_data0", _sprite_data0)
+    #BufferAShaderMaterial.set_shader_parameter("sprite_data1", _sprite_data1)
+    BufferAShaderMaterial.set_shader_parameter("sprite_data0", _sprite_data0[0])
+    BufferAShaderMaterial.set_shader_parameter("sprite_data1", _sprite_data1[0])
 
 
-func set_sprite_texture(sprite_index: int, tex: Texture2D) -> void:
+func set_sprite_texture(sprite_index: int, sprite_texture: Texture2D) -> void:
     if sprite_index < 0 or sprite_index >= MAXIMUM_SPRITE_COUNT:
         return
-    _sprite_textures[sprite_index] = tex
-    BufferAShaderMaterial.set_shader_parameter("sprite_textures", _sprite_textures)
+    _sprite_textures[sprite_index] = sprite_texture
+    #BufferAShaderMaterial.set_shader_parameter("sprite_textures", _sprite_textures)
+    BufferAShaderMaterial.set_shader_parameter("sprite_texture", _sprite_textures[0])
 
 
 func get_perspective_tilt_mask_texture_fragment() -> Texture:
@@ -79,6 +82,7 @@ func register_sprite_texture(sprite_texture: Texture2D) -> int:
         push_error("No more mask slots!")
         return -1
     _sprite_textures[index] = sprite_texture
-    BufferAShaderMaterial.set_shader_parameter("sprite_textures", _sprite_textures)
-    BufferAShaderMaterial.set_shader_parameter("sprite_count", index + 1)
+    BufferAShaderMaterial.set_shader_parameter("sprite_texture", _sprite_textures[0])
+    #BufferAShaderMaterial.set_shader_parameter("sprite_textures", _sprite_textures)
+    #BufferAShaderMaterial.set_shader_parameter("sprite_count", index + 1)
     return index

@@ -11,7 +11,7 @@ const DEPTH_SPEED: float = 8.0
 var current_depth_position: float = LEVEL_DEPTH
 var target_depth_position: float = LEVEL_DEPTH
 
-var debug_autoswim: bool = true
+var debug_autoswim: bool = false
 const _DEBUG_PERIOD: float = 1.0
 var _debug_clock: float = 0.0
 
