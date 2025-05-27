@@ -189,7 +189,6 @@ func _update_sprite_textures_uniform() -> void:
     uniform_set_rid = rendering_device.uniform_set_create(uniform_set, compute_shader_rid, 0)
 
 
-
 func _update_sprite_data_ssbo() -> void:
     for i: int in range(cpu_side_sprite_data_ssbo_cache.size()):
         var sprite_data_ssbo: SpriteDataSSBOStruct = cpu_side_sprite_data_ssbo_cache[i]
@@ -209,42 +208,6 @@ func _update_sprite_data_ssbo() -> void:
         sprite_data_ssbo_rid, 0,
         SPRITE_DATA_SSBO_TOTAL_BYTES,
         sprite_data_ssbo_bytes
-    )
-
-
-func _update_sprite_data_ssbo1() -> void:
-    var serialized_sprite_data_ssbo: PackedFloat32Array = PackedFloat32Array()
-    for sprite_data_ssbo: SpriteDataSSBOStruct in cpu_side_sprite_data_ssbo_cache:
-        serialized_sprite_data_ssbo.append_array(
-            [
-                sprite_data_ssbo.center_px.x,
-                sprite_data_ssbo.center_px.y,
-                sprite_data_ssbo.half_size_px.x,
-                sprite_data_ssbo.half_size_px.y,
-                sprite_data_ssbo.altitude_normal,
-                sprite_data_ssbo.ascending,
-                0.0,  # padding total +4 float
-                0.0  # padding total +4 float = 8 floats padding
-            ]
-        )
-    #TODO: because we create a completely new serialized ssbo copy in this function everytime, we have to pad it
-    # the other way would be to have a serialized ssbo copy that gets padded in the _init_ssbo function and then whenever we
-    # want to pass new bytes to the gpu, we just update the first N entries of how many sprites exist
-    # The only reason for this is because i like to keep the Struct for readability, in reality we could just
-    # only ever maintain the SSBO as a structured PackedFloat32Array but thats confusing for me
-    var remaining_padding: int = MAXIMUM_SPRITE_COUNT - cpu_side_sprite_data_ssbo_cache.size()
-    if remaining_padding > 0:
-        serialized_sprite_data_ssbo.resize(
-            serialized_sprite_data_ssbo.size() + remaining_padding * 8
-        )
-    var serialized_sprite_data_ssbo_bytes: PackedByteArray = (
-        serialized_sprite_data_ssbo.to_byte_array()
-    )
-    rendering_device.buffer_update(
-        sprite_data_ssbo_rid,
-        0,
-        serialized_sprite_data_ssbo_bytes.size(),
-        serialized_sprite_data_ssbo_bytes
     )
 
 

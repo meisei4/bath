@@ -14,7 +14,7 @@ uniform sampler2D iChannel0 : hint_screen_texture, filter_nearest; //TODO: FIGUR
 // source: https://github.com/godotengine/godot/issues/17234
 //uniform sampler2D iChannel0: filter_nearest; //filter hint ust to remind me that later if background texture is pixel perfect or mip mapped...
 
-uniform sampler2D iChannel1 : filter_nearest;   // R32F tilt mask generated in compute shader
+uniform sampler2D iChannel1 : filter_nearest;   // tilt mask generated in compute shader
 
 uniform vec2 iResolution;
 uniform vec2 umbral_zone_bounds;
