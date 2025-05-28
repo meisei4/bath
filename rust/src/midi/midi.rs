@@ -2,19 +2,16 @@
 //TODO: this is very hard to strucutre becuase it needs to be shared with my main.rs testing and the lib.rs
 // but there isa ton of unused code between both of them so you get compiler warnings all over the place
 use godot::builtin::{Dictionary, PackedVector2Array, Vector2, Vector2i};
+use godot::classes::file_access::ModeFlags;
+use godot::classes::FileAccess;
 use godot::prelude::PackedByteArray;
 use hound::{SampleFormat, WavSpec, WavWriter};
 use midly::num::{u4, u7};
 use midly::{MetaMessage, MidiMessage, Smf, Timing, TrackEventKind};
 use rustysynth::{SoundFont, Synthesizer};
 use std::collections::HashMap;
-use std::fs;
 use std::fs::File;
 use std::io::{BufReader, Cursor};
-use godot::classes::file_access::ModeFlags;
-use godot::classes::FileAccess;
-use ogg::PacketWriter;
-use vorbis::{Encoder, VorbisQuality};
 
 pub fn prepare_events(smf: &Smf) -> Vec<(u64, TrackEventKind<'static>)> {
     let mut events = Vec::new();
@@ -107,7 +104,41 @@ pub fn write_samples_to_pcm_bytes(samples: Vec<(i16, i16)>) -> PackedByteArray {
     PackedByteArray::from(pcm)
 }
 
-pub fn write_samples_to_ogg_bytes(
+// use ogg::{PacketWriter, PacketWriteEndInfo};
+// pub fn write_samples_to_ogg_bytes(
+//     sample_rate: i32,
+//     mut samples: Vec<(i16, i16)>,
+// ) -> PackedByteArray {
+//     let num_frames = samples.len();
+//     let mut pcm_bytes = Vec::with_capacity(num_frames * 2 * 2);
+//     for (l, r) in samples.drain(..) {
+//         pcm_bytes.extend_from_slice(&l.to_le_bytes());
+//         pcm_bytes.extend_from_slice(&r.to_le_bytes());
+//     }
+//     let buffer = Vec::new();
+//     let mut wtr = PacketWriter::new(buffer);
+//     let serial = 0u32;
+//     let mut granule_pos = 0u64;
+//     wtr.write_packet(
+//         &pcm_bytes,
+//         serial,
+//         PacketWriteEndInfo::NormalPacket,
+//         granule_pos,
+//     )
+//        .expect("Failed to write PCM packet");
+//     granule_pos += num_frames as u64;
+//     wtr.write_packet(
+//         &[],
+//         serial,
+//         PacketWriteEndInfo::EndStream,
+//         granule_pos,
+//     )
+//        .expect("Failed to write end-of-stream");
+//     PackedByteArray::from(wtr.into_inner())
+// }
+
+use vorbis::{Encoder, VorbisQuality};
+pub fn write_samples_to_vorbis_bytes(
     sample_rate: i32,
     samples: Vec<(i16, i16)>,
 ) -> PackedByteArray {
@@ -118,14 +149,10 @@ pub fn write_samples_to_ogg_bytes(
     }
     let mut enc = Encoder::new(2, sample_rate as u64, VorbisQuality::Midium)
         .expect("Failed to create Vorbis encoder");
-    let mut ogg_data = enc.encode(&pcm_flat)
-        .expect("Vorbis encode error");
-    ogg_data.extend_from_slice(
-        &enc.flush().expect("Vorbis flush error")
-    );
+    let mut ogg_data = enc.encode(&pcm_flat).expect("Vorbis encode error");
+    ogg_data.extend_from_slice(&enc.flush().expect("Vorbis flush error"));
     PackedByteArray::from(ogg_data)
 }
-
 
 pub fn process_midi_events_with_timing(
     events: Vec<(u64, TrackEventKind<'static>)>,
@@ -423,75 +450,4 @@ where
         let _ = dict.insert(dict_key, arr);
     }
     dict
-}
-
-pub fn debug_print_all_midi_events(midi_path: &str) {
-    // 1) load & parse
-    let data = fs::read(midi_path).expect("Failed to read MIDI file");
-    let smf = Smf::parse(&data).expect("Failed to parse MIDI");
-
-    // 2) iterate tracks
-    for (track_idx, track) in smf.tracks.iter().enumerate() {
-        println!("\n=== Track {} ===", track_idx);
-        let mut abs_tick = 0u64;
-
-        for event in track {
-            // accumulate absolute tick
-            abs_tick += event.delta.as_int() as u64;
-
-            match &event.kind {
-                // MIDI channel messages
-                TrackEventKind::Midi { channel, message } => {
-                    let ch = channel.as_int() + 1; // make it 1–16 instead of 0–15
-                    match message {
-                        MidiMessage::NoteOn { key, vel } => {
-                            println!(
-                                "[Tick {:>6}] [Ch {:>2}] NoteOn  key={:>3} vel={:>3}",
-                                abs_tick,
-                                ch,
-                                key.as_int(),
-                                vel.as_int()
-                            );
-                        }
-                        MidiMessage::NoteOff { key, vel } => {
-                            println!(
-                                "[Tick {:>6}] [Ch {:>2}] NoteOff key={:>3} vel={:>3}",
-                                abs_tick,
-                                ch,
-                                key.as_int(),
-                                vel.as_int()
-                            );
-                        }
-                        MidiMessage::ProgramChange { program } => {
-                            println!(
-                                "[Tick {:>6}] [Ch {:>2}] ProgramChange program={}",
-                                abs_tick,
-                                ch,
-                                program.as_int()
-                            );
-                        }
-                        other => {
-                            // any other channel‐message (PitchBend, CC, etc.)
-                            println!("[Tick {:>6}] [Ch {:>2}] {:?}", abs_tick, ch, other);
-                        }
-                    }
-                }
-
-                // Meta messages: Tempo, TimeSignature, etc.
-                TrackEventKind::Meta(meta) => {
-                    println!("[Tick {:>6}] [Meta    ] {:?}", abs_tick, meta);
-                }
-
-                // System Exclusive
-                TrackEventKind::SysEx(bytes) | TrackEventKind::Escape(bytes) => {
-                    println!("[Tick {:>6}] [SysEx   ] {} bytes", abs_tick, bytes.len());
-                }
-
-                // (Shouldn’t happen, but cover all cases)
-                other => {
-                    println!("[Tick {:>6}] [Other   ] {:?}", abs_tick, other);
-                }
-            }
-        }
-    }
 }

@@ -24,10 +24,10 @@ var wav_path: String = "res://Resources/Audio/Cache/cached_midi.wav"
 func _ready() -> void:
     _song_time = 0.0
     _last_time = 0.0
-    #midi_note_on_off_event_buffer = (
-        #RustUtilSingleton.rust_util.get_midi_note_on_off_event_buffer_seconds(mid_path)
-        #as Dictionary[Vector2i, PackedVector2Array]
-    #)
+    midi_note_on_off_event_buffer = (
+        RustUtilSingleton.rust_util.get_midi_note_on_off_event_buffer_seconds(mid_path)
+        as Dictionary[Vector2i, PackedVector2Array]
+    )
 
     var bytes: PackedByteArray
     if self.use_cache and FileAccess.file_exists(ogg_path):
@@ -43,13 +43,8 @@ func _ready() -> void:
         var f = FileAccess.open(ogg_path, FileAccess.WRITE)
         f.store_buffer(bytes)
         f.close()
-
     var ogg_stream: AudioStreamOggVorbis = AudioStreamOggVorbis.load_from_buffer(bytes)
     AudioPoolManager.play_music(ogg_stream)
-
-
-func setup_ogg() -> void:
-    pass
 
 
 func _process(delta_time: float) -> void:

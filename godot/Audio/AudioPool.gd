@@ -28,7 +28,7 @@ func acquire() -> AudioStreamPlayer:
 
 func play(resource: AudioStream, volume_db: float = 0.0) -> void:
     var p: AudioStreamPlayer = acquire()
-    p.playback_type =AudioServer.PLAYBACK_TYPE_STREAM
+    p.playback_type = AudioServer.PLAYBACK_TYPE_SAMPLE #TODO this fixes web export playback
     if p:
         p.stream = resource
         p.volume_db = volume_db

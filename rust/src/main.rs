@@ -2,8 +2,7 @@
 
 mod midi;
 
-use crate::midi::midi::{
-    debug_print_all_midi_events, parse_midi_events_into_note_on_off_event_buffer_seconds,
+use crate::midi::midi::{ parse_midi_events_into_note_on_off_event_buffer_seconds,
     prepare_events, process_midi_events_with_timing,
 };
 use midi::midi::parse_midi_events_into_note_on_off_event_buffer_ticks;
@@ -28,7 +27,6 @@ const MIDI_FILE_PATH: &str = "/Users/ann/Documents/misc_game/Fingerbib.mid";
 
 fn main() {
     //print!("\x1B[2J");
-    debug_print_all_midi_events(MIDI_FILE_PATH);
     if let Err(err) = print_full_structure(SOUND_FONT_FILE_PATH, 0, 0) {
         eprintln!("️SoundFont debug error: {}", err);
     }

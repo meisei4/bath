@@ -2,22 +2,28 @@
 mod collision_mask;
 mod midi;
 
-use crate::midi::midi::{inject_program_change, make_note_on_off_event_dict, parse_midi_events_into_note_on_off_event_buffer_seconds, parse_midi_events_into_note_on_off_event_buffer_ticks, prepare_events, process_midi_events_with_timing, render_sample_frame, write_samples_to_ogg_bytes, write_samples_to_pcm_bytes, write_samples_to_wav};
+use crate::midi::midi::{
+    inject_program_change, make_note_on_off_event_dict,
+    parse_midi_events_into_note_on_off_event_buffer_seconds,
+    parse_midi_events_into_note_on_off_event_buffer_ticks, prepare_events,
+    process_midi_events_with_timing, render_sample_frame, write_samples_to_vorbis_bytes,
+};
 // use audio_analysis::util::{detect_bpm};
 use collision_mask::util::{
     generate_concave_collision_polygons_pixel_perfect,
     generate_convex_collision_polygons_pixel_perfect,
 };
 use godot::builtin::{PackedByteArray, PackedVector2Array, Vector2};
+use godot::classes::file_access::ModeFlags;
 use godot::classes::{FileAccess, Node2D};
-use godot::prelude::{gdextension, godot_api, godot_print, Array, Base, Dictionary, ExtensionLibrary, GString, GodotClass};
+use godot::prelude::{
+    gdextension, godot_api, godot_print, Array, Base, Dictionary, ExtensionLibrary, GString,
+    GodotClass,
+};
 use midly::{MidiMessage, Smf, TrackEventKind};
 use rustysynth::{SoundFont, Synthesizer, SynthesizerSettings};
-use std::fs;
-use std::fs::File;
-use std::io::{BufReader, Cursor};
+use std::io::Cursor;
 use std::sync::Arc;
-use godot::classes::file_access::ModeFlags;
 
 struct MyExtension;
 
@@ -129,13 +135,17 @@ impl RustUtil {
     }
 
     #[func]
-    pub fn render_midi_to_sound_bytes_constant_time(&self, sample_rate: i32, midi_file_path: GString, sf2_file_path: GString) -> PackedByteArray {
+    pub fn render_midi_to_sound_bytes_constant_time(
+        &self,
+        sample_rate: i32,
+        midi_file_path: GString,
+        sf2_file_path: GString,
+    ) -> PackedByteArray {
         let sf2_path = sf2_file_path.to_string();
-        let sf2_file = FileAccess::open(&sf2_path, ModeFlags::READ)
-            .unwrap_or_else(|| {
-                godot_print!("❌ Failed to open sf2 at {}", sf2_path);
-                panic!("Cannot continue without sf2");
-            });
+        let sf2_file = FileAccess::open(&sf2_path, ModeFlags::READ).unwrap_or_else(|| {
+            godot_print!("❌ Failed to open sf2 at {}", sf2_path);
+            panic!("Cannot continue without sf2");
+        });
         let sf2_bytes = sf2_file.get_buffer(sf2_file.get_length() as i64).to_vec();
         let mut sf2_cursor = Cursor::new(sf2_bytes);
         let soundfont = Arc::new(SoundFont::new(&mut sf2_cursor).unwrap());
@@ -144,11 +154,10 @@ impl RustUtil {
         let mut synth =
             Synthesizer::new(&soundfont, &SynthesizerSettings::new(sample_rate)).unwrap();
         let midi_path = midi_file_path.to_string();
-        let file = FileAccess::open(&midi_path, ModeFlags::READ)
-            .unwrap_or_else(|| {
-                godot_print!("❌ Failed to open MIDI at {}", midi_path);
-                panic!("Cannot continue without MIDI");
-            });
+        let file = FileAccess::open(&midi_path, ModeFlags::READ).unwrap_or_else(|| {
+            godot_print!("❌ Failed to open MIDI at {}", midi_path);
+            panic!("Cannot continue without MIDI");
+        });
         let midi_file_bytes = file.get_buffer(file.get_length() as i64).to_vec();
         let smf = Smf::parse(&midi_file_bytes).unwrap();
         //TODO: make this more about the acccordian, "program" is such a shitty name for an instrument in midi
@@ -194,7 +203,7 @@ impl RustUtil {
             time_cursor += step_secs;
         }
         //write_samples_to_wav(sample_rate, audio)
-        write_samples_to_ogg_bytes(sample_rate, audio)
+        write_samples_to_vorbis_bytes(sample_rate, audio)
         //write_samples_to_pcm_bytes(audio)
     }
 }

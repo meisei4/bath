@@ -20,8 +20,6 @@ var input_pool: AudioPool
 func _ready() -> void:
     _setup_buses([AudioBus.BUS.MASTER, AudioBus.BUS.SFX, AudioBus.BUS.MUSIC, AudioBus.BUS.INPUT])
     _set_bus_volumes()
-
-    # create and configure each pooled player
     sfx_pool = AudioPool.new()
     sfx_pool.pool_size = SFX_POOL_SIZE
     sfx_pool.bus = AudioBus.BUS.SFX
