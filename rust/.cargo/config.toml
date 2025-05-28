@@ -1,8 +1,10 @@
-[target.x86_64-apple-darwin]
-linker = "/usr/bin/cc"
+#[target.x86_64-apple-darwin]
+#linker = "/usr/bin/cc"
 
 [target.wasm32-unknown-emscripten]
-linker = "emcc"
+#linker = "emcc"
+#"C:\Users\pl\emsdk\upstream\emscripten\emcc.bat"
+linker = "C:/Users/pl/emsdk/upstream/emscripten/emcc.bat"
 rustflags = [
   "-C", "link-args=-g",
   "-C", "link-args=-sSIDE_MODULE=2",
