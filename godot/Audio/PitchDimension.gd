@@ -15,40 +15,41 @@ const TAU: float = 2.0 * PI
 var use_cache: bool = true  # <- Toggle this to disable caching when debugging Rust
 
 
+var mid_path: String = "res://Resources/Audio/Fingerbib.mid"
+var sf2_path: String = "res://Resources/Audio/Animal_Crossing_Wild_World.sf2"
+var pcm_path: String = "user://Resources/Audio/Cache/cached_midi.pcm"
+var ogg_path: String = "res://Resources/Audio/Cache/cached_midi.ogg"
+var wav_path: String = "res://Resources/Audio/Cache/cached_midi.wav"
+
 func _ready() -> void:
     _song_time = 0.0
     _last_time = 0.0
-    midi_note_on_off_event_buffer = (
-        RustUtilSingleton.rust_util.get_midi_note_on_off_event_buffer_seconds()
-        as Dictionary[Vector2i, PackedVector2Array]
-    )
+    #midi_note_on_off_event_buffer = (
+        #RustUtilSingleton.rust_util.get_midi_note_on_off_event_buffer_seconds(mid_path)
+        #as Dictionary[Vector2i, PackedVector2Array]
+    #)
 
-    var res_dir: String = "res://Resources/Audio/Cache"
-    var abs_dir: String = ProjectSettings.globalize_path(res_dir)
-    DirAccess.make_dir_recursive_absolute(abs_dir)
-    var wav_path: String = abs_dir + "/cached_midi.wav"
-    var wav: AudioStreamWAV = AudioStreamWAV.new()
-    wav.format = AudioStreamWAV.FORMAT_16_BITS
-    wav.mix_rate = MusicDimensionsManager.SAMPLE_RATE
-    wav.stereo = true
-
-    if self.use_cache and FileAccess.file_exists(wav_path):
-        var f: FileAccess = FileAccess.open(wav_path, FileAccess.READ)
-        var bytes: PackedByteArray = f.get_buffer(f.get_length())
+    var bytes: PackedByteArray
+    if self.use_cache and FileAccess.file_exists(ogg_path):
+        var f = FileAccess.open(ogg_path, FileAccess.READ)
+        bytes = f.get_buffer(f.get_length())
         f.close()
-        wav.data = bytes
     else:
-        var wav_bytes: PackedByteArray = (
-            RustUtilSingleton
-            . rust_util
-            . render_midi_to_wav_bytes_constant_time(int(MusicDimensionsManager.SAMPLE_RATE))
+        bytes = RustUtilSingleton.rust_util.render_midi_to_sound_bytes_constant_time(
+            int(MusicDimensionsManager.SAMPLE_RATE),
+            mid_path,
+            sf2_path
         )
-        wav.data = wav_bytes
-        var f: FileAccess = FileAccess.open(wav_path, FileAccess.WRITE)
-        f.store_buffer(wav_bytes)
+        var f = FileAccess.open(ogg_path, FileAccess.WRITE)
+        f.store_buffer(bytes)
         f.close()
 
-    AudioPoolManager.play_music(wav)
+    var ogg_stream: AudioStreamOggVorbis = AudioStreamOggVorbis.load_from_buffer(bytes)
+    AudioPoolManager.play_music(ogg_stream)
+
+
+func setup_ogg() -> void:
+    pass
 
 
 func _process(delta_time: float) -> void:

@@ -2,28 +2,22 @@
 mod collision_mask;
 mod midi;
 
-use crate::midi::midi::{
-    inject_program_change, make_note_on_off_event_dict,
-    parse_midi_events_into_note_on_off_event_buffer_seconds,
-    parse_midi_events_into_note_on_off_event_buffer_ticks, prepare_events,
-    process_midi_events_with_timing, render_sample_frame, write_samples_to_wav,
-};
+use crate::midi::midi::{inject_program_change, make_note_on_off_event_dict, parse_midi_events_into_note_on_off_event_buffer_seconds, parse_midi_events_into_note_on_off_event_buffer_ticks, prepare_events, process_midi_events_with_timing, render_sample_frame, write_samples_to_ogg_bytes, write_samples_to_pcm_bytes, write_samples_to_wav};
 // use audio_analysis::util::{detect_bpm};
 use collision_mask::util::{
     generate_concave_collision_polygons_pixel_perfect,
     generate_convex_collision_polygons_pixel_perfect,
 };
 use godot::builtin::{PackedByteArray, PackedVector2Array, Vector2};
-use godot::classes::Node2D;
-use godot::prelude::{
-    gdextension, godot_api, Array, Base, Dictionary, ExtensionLibrary, GodotClass,
-};
+use godot::classes::{FileAccess, Node2D};
+use godot::prelude::{gdextension, godot_api, godot_print, Array, Base, Dictionary, ExtensionLibrary, GString, GodotClass};
 use midly::{MidiMessage, Smf, TrackEventKind};
 use rustysynth::{SoundFont, Synthesizer, SynthesizerSettings};
 use std::fs;
 use std::fs::File;
-use std::io::BufReader;
+use std::io::{BufReader, Cursor};
 use std::sync::Arc;
+use godot::classes::file_access::ModeFlags;
 
 struct MyExtension;
 
@@ -36,6 +30,10 @@ struct RustUtil {
     #[base]
     base: Base<Node2D>,
 }
+
+const PRESET_NAME: &str = "Accordion";
+const TARGET_CHANNEL: u8 = 0;
+const PROGRAM: u8 = 0;
 
 #[godot_api]
 impl RustUtil {
@@ -111,40 +109,48 @@ impl RustUtil {
     // }
 
     #[func]
-    pub fn get_midi_note_on_off_event_buffer_ticks(&self) -> Dictionary {
-        const MIDI_FILE_PATH: &str = "/Users/ann/Documents/misc_game/2am.mid";
+    pub fn get_midi_note_on_off_event_buffer_ticks(&self, midi_file_path: GString) -> Dictionary {
+        let path = midi_file_path.to_string();
         make_note_on_off_event_dict(
-            MIDI_FILE_PATH,
+            &path,
             parse_midi_events_into_note_on_off_event_buffer_ticks,
             |x| x as f32, // u64 → f32
         )
     }
 
     #[func]
-    pub fn get_midi_note_on_off_event_buffer_seconds(&self) -> Dictionary {
-        const MIDI_FILE_PATH: &str = "/Users/ann/Documents/misc_game/4.mid";
-        // const MIDI_FILE_PATH: &str = "/Users/ann/Documents/misc_game/2am.mid";
+    pub fn get_midi_note_on_off_event_buffer_seconds(&self, midi_file_path: GString) -> Dictionary {
+        let path = midi_file_path.to_string();
         make_note_on_off_event_dict(
-            MIDI_FILE_PATH,
+            &path,
             parse_midi_events_into_note_on_off_event_buffer_seconds,
             |x| x as f32, // f64 → f32
         )
     }
 
     #[func]
-    pub fn render_midi_to_wav_bytes_constant_time(&self, sample_rate: i32) -> PackedByteArray {
-        //const MIDI_FILE_PATH: &str = "/Users/ann/Documents/misc_game/2am.mid";
-        const MIDI_FILE_PATH: &str = "/Users/ann/Documents/misc_game/4.mid";
-        const SF2_PATH: &str = "/Users/ann/Documents/misc_game/Animal_Crossing_Wild_World.sf2";
-        const PRESET_NAME: &str = "Accordion";
-        const TARGET_CHANNEL: u8 = 0;
-        const PROGRAM: u8 = 0;
-        let mut reader = BufReader::new(File::open(SF2_PATH).unwrap());
-        let soundfont = Arc::new(SoundFont::new(&mut reader).unwrap());
+    pub fn render_midi_to_sound_bytes_constant_time(&self, sample_rate: i32, midi_file_path: GString, sf2_file_path: GString) -> PackedByteArray {
+        let sf2_path = sf2_file_path.to_string();
+        let sf2_file = FileAccess::open(&sf2_path, ModeFlags::READ)
+            .unwrap_or_else(|| {
+                godot_print!("❌ Failed to open sf2 at {}", sf2_path);
+                panic!("Cannot continue without sf2");
+            });
+        let sf2_bytes = sf2_file.get_buffer(sf2_file.get_length() as i64).to_vec();
+        let mut sf2_cursor = Cursor::new(sf2_bytes);
+        let soundfont = Arc::new(SoundFont::new(&mut sf2_cursor).unwrap());
+        // let mut reader = BufReader::new(File::open(&sf2_path).unwrap());
+        // let soundfont = Arc::new(SoundFont::new(&mut reader).unwrap());
         let mut synth =
             Synthesizer::new(&soundfont, &SynthesizerSettings::new(sample_rate)).unwrap();
-        let data = fs::read(MIDI_FILE_PATH).unwrap();
-        let smf = Smf::parse(&data).unwrap();
+        let midi_path = midi_file_path.to_string();
+        let file = FileAccess::open(&midi_path, ModeFlags::READ)
+            .unwrap_or_else(|| {
+                godot_print!("❌ Failed to open MIDI at {}", midi_path);
+                panic!("Cannot continue without MIDI");
+            });
+        let midi_file_bytes = file.get_buffer(file.get_length() as i64).to_vec();
+        let smf = Smf::parse(&midi_file_bytes).unwrap();
         //TODO: make this more about the acccordian, "program" is such a shitty name for an instrument in midi
         // i am not a fan of who ever made that naming decision, they better not be japanese
         let mut events = prepare_events(&smf);
@@ -187,6 +193,8 @@ impl RustUtil {
             audio.push(render_sample_frame(&mut synth));
             time_cursor += step_secs;
         }
-        write_samples_to_wav(sample_rate, audio)
+        //write_samples_to_wav(sample_rate, audio)
+        write_samples_to_ogg_bytes(sample_rate, audio)
+        //write_samples_to_pcm_bytes(audio)
     }
 }

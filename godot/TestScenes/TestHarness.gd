@@ -10,6 +10,9 @@ func _ready() -> void:
     add_perspective_tilt_mask_fragment_scene()
     add_shadows_test_scene()
     add_jump_mechanic_test_scene()
+    var ogg_path: String = "res://Resources/Audio/Cache/cached_midi.ogg"
+    var ogg_stream: AudioStreamOggVorbis = AudioStreamOggVorbis.load_from_file(ogg_path)
+    AudioPoolManager.play_music(ogg_stream)
 
 
 func add_collision_mask_scene() -> void:

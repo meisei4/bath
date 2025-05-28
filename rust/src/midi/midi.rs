@@ -11,6 +11,10 @@ use std::collections::HashMap;
 use std::fs;
 use std::fs::File;
 use std::io::{BufReader, Cursor};
+use godot::classes::file_access::ModeFlags;
+use godot::classes::FileAccess;
+use ogg::PacketWriter;
+use vorbis::{Encoder, VorbisQuality};
 
 pub fn prepare_events(smf: &Smf) -> Vec<(u64, TrackEventKind<'static>)> {
     let mut events = Vec::new();
@@ -94,6 +98,35 @@ pub fn write_samples_to_wav(sample_rate: i32, samples: Vec<(i16, i16)>) -> Packe
     PackedByteArray::from(buffer.into_inner())
 }
 
+pub fn write_samples_to_pcm_bytes(samples: Vec<(i16, i16)>) -> PackedByteArray {
+    let mut pcm = Vec::with_capacity(samples.len() * 4);
+    for (l, r) in samples {
+        pcm.extend_from_slice(&l.to_le_bytes());
+        pcm.extend_from_slice(&r.to_le_bytes());
+    }
+    PackedByteArray::from(pcm)
+}
+
+pub fn write_samples_to_ogg_bytes(
+    sample_rate: i32,
+    samples: Vec<(i16, i16)>,
+) -> PackedByteArray {
+    let mut pcm_flat = Vec::with_capacity(samples.len() * 2);
+    for (l, r) in samples {
+        pcm_flat.push(l);
+        pcm_flat.push(r);
+    }
+    let mut enc = Encoder::new(2, sample_rate as u64, VorbisQuality::Midium)
+        .expect("Failed to create Vorbis encoder");
+    let mut ogg_data = enc.encode(&pcm_flat)
+        .expect("Vorbis encode error");
+    ogg_data.extend_from_slice(
+        &enc.flush().expect("Vorbis flush error")
+    );
+    PackedByteArray::from(ogg_data)
+}
+
+
 pub fn process_midi_events_with_timing(
     events: Vec<(u64, TrackEventKind<'static>)>,
     smf: &Smf,
@@ -151,7 +184,9 @@ pub fn parse_midi_events_into_note_on_off_event_buffer_ticks(
             );
         },
     );
-    let midi_file_bytes = fs::read(midi_path).unwrap();
+    let file = FileAccess::open(midi_path, ModeFlags::READ).unwrap();
+    let midi_file_bytes = file.get_buffer(file.get_length() as i64).to_vec();
+    //let midi_file_bytes = fs::read(midi_path).unwrap();
     let smf = Smf::parse(&midi_file_bytes).unwrap();
 
     let ticks_per_quarter: u64 = match smf.header.timing {
@@ -165,8 +200,9 @@ pub fn parse_midi_events_into_note_on_off_event_buffer_ticks(
 pub fn parse_midi_events_into_note_on_off_event_buffer_seconds(
     midi_path: &str,
 ) -> HashMap<MidiNote, Vec<(f64, f64)>> {
-    let bytes = fs::read(midi_path).unwrap();
-    let smf = Smf::parse(&bytes).unwrap();
+    let file = FileAccess::open(midi_path, ModeFlags::READ).unwrap();
+    let midi_file_bytes = file.get_buffer(file.get_length() as i64).to_vec();
+    let smf = Smf::parse(&midi_file_bytes).unwrap();
     let tpq = match smf.header.timing {
         Timing::Metrical(tpq) => tpq.as_int() as u64,
         _ => panic!("Unsupported MIDI timing format"),
@@ -211,7 +247,8 @@ fn parse_midi_events_into_note_on_off<T>(
     mut time_fn: impl FnMut(u64, &TrackEventKind<'_>) -> T,
     mut handle_note_fn: impl FnMut(u8, u8, u8, T, &[u8; 16]),
 ) {
-    let midi_file_bytes = fs::read(midi_path).unwrap();
+    let file = FileAccess::open(midi_path, ModeFlags::READ).unwrap();
+    let midi_file_bytes = file.get_buffer(file.get_length() as i64).to_vec();
     let smf = Smf::parse(&midi_file_bytes).unwrap();
     let mut current_instrument_for_channel = [0u8; 16];
     let mut events = Vec::new();
@@ -386,4 +423,75 @@ where
         let _ = dict.insert(dict_key, arr);
     }
     dict
+}
+
+pub fn debug_print_all_midi_events(midi_path: &str) {
+    // 1) load & parse
+    let data = fs::read(midi_path).expect("Failed to read MIDI file");
+    let smf = Smf::parse(&data).expect("Failed to parse MIDI");
+
+    // 2) iterate tracks
+    for (track_idx, track) in smf.tracks.iter().enumerate() {
+        println!("\n=== Track {} ===", track_idx);
+        let mut abs_tick = 0u64;
+
+        for event in track {
+            // accumulate absolute tick
+            abs_tick += event.delta.as_int() as u64;
+
+            match &event.kind {
+                // MIDI channel messages
+                TrackEventKind::Midi { channel, message } => {
+                    let ch = channel.as_int() + 1; // make it 1–16 instead of 0–15
+                    match message {
+                        MidiMessage::NoteOn { key, vel } => {
+                            println!(
+                                "[Tick {:>6}] [Ch {:>2}] NoteOn  key={:>3} vel={:>3}",
+                                abs_tick,
+                                ch,
+                                key.as_int(),
+                                vel.as_int()
+                            );
+                        }
+                        MidiMessage::NoteOff { key, vel } => {
+                            println!(
+                                "[Tick {:>6}] [Ch {:>2}] NoteOff key={:>3} vel={:>3}",
+                                abs_tick,
+                                ch,
+                                key.as_int(),
+                                vel.as_int()
+                            );
+                        }
+                        MidiMessage::ProgramChange { program } => {
+                            println!(
+                                "[Tick {:>6}] [Ch {:>2}] ProgramChange program={}",
+                                abs_tick,
+                                ch,
+                                program.as_int()
+                            );
+                        }
+                        other => {
+                            // any other channel‐message (PitchBend, CC, etc.)
+                            println!("[Tick {:>6}] [Ch {:>2}] {:?}", abs_tick, ch, other);
+                        }
+                    }
+                }
+
+                // Meta messages: Tempo, TimeSignature, etc.
+                TrackEventKind::Meta(meta) => {
+                    println!("[Tick {:>6}] [Meta    ] {:?}", abs_tick, meta);
+                }
+
+                // System Exclusive
+                TrackEventKind::SysEx(bytes) | TrackEventKind::Escape(bytes) => {
+                    println!("[Tick {:>6}] [SysEx   ] {} bytes", abs_tick, bytes.len());
+                }
+
+                // (Shouldn’t happen, but cover all cases)
+                other => {
+                    println!("[Tick {:>6}] [Other   ] {:?}", abs_tick, other);
+                }
+            }
+        }
+    }
 }

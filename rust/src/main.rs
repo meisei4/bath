@@ -3,8 +3,8 @@
 mod midi;
 
 use crate::midi::midi::{
-    parse_midi_events_into_note_on_off_event_buffer_seconds, prepare_events,
-    process_midi_events_with_timing,
+    debug_print_all_midi_events, parse_midi_events_into_note_on_off_event_buffer_seconds,
+    prepare_events, process_midi_events_with_timing,
 };
 use midi::midi::parse_midi_events_into_note_on_off_event_buffer_ticks;
 use midir::{MidiOutput, MidiOutputConnection, MidiOutputPort};
@@ -21,12 +21,14 @@ use terminal_size::{terminal_size, Width};
 
 const SOUND_FONT_FILE_PATH: &str = "/Users/ann/Documents/misc_game/Animal_Crossing_Wild_World.sf2";
 //const MIDI_FILE_PATH: &str = "/Users/ann/Documents/misc_game/2am.mid";
-const MIDI_FILE_PATH: &str = "/Users/ann/Documents/misc_game/4.mid";
+//const MIDI_FILE_PATH: &str = "/Users/ann/Documents/misc_game/4.mid";
+const MIDI_FILE_PATH: &str = "/Users/ann/Documents/misc_game/Fingerbib.mid";
 
 //fluidsynth -a coreaudio -m coremidi /Users/ann/Documents/misc_game/Animal_Crossing_Wild_World.sf2
 
 fn main() {
     //print!("\x1B[2J");
+    debug_print_all_midi_events(MIDI_FILE_PATH);
     if let Err(err) = print_full_structure(SOUND_FONT_FILE_PATH, 0, 0) {
         eprintln!("️SoundFont debug error: {}", err);
     }
@@ -40,7 +42,7 @@ fn main() {
     let _ = fluidsynth_process.kill();
     let _ = parse_midi_events_into_note_on_off_event_buffer_ticks(MIDI_FILE_PATH);
     let _ = parse_midi_events_into_note_on_off_event_buffer_seconds(MIDI_FILE_PATH);
-    //play_midi(MIDI_FILE_PATH, SOUND_FONT_FILE_PATH, "Accordion");
+    play_midi(MIDI_FILE_PATH, SOUND_FONT_FILE_PATH, "Accordion");
 }
 
 pub fn launch_fluidsynth_with_font(sf2_path: &str) -> Child {
