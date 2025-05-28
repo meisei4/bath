@@ -17,6 +17,8 @@
                 (color).a = 0.0;                               \
             }                                                \
         }
+                //discard; \
+                //(color).a = 1.0;                               \
                 //(color).r = 1.0;                               \
                 //(color).g = 0.0;                               \
                 //(color).b = 0.0;                               \

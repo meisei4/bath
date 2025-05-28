@@ -1,5 +1,5 @@
 shader_type canvas_item;
-render_mode blend_disabled;
+//render_mode blend_disabled;
 #include "res://Resources/Shaders/MechanicAnimations/perspective_tilt.gdshaderinc"
 
 //uniform vec2    iResolution;
@@ -21,6 +21,7 @@ const float MAX_TILT_ANGLE =
 void fragment() {
     vec2 frag_coord = FRAGCOORD.xy;
     float max_tilt = 0.0;
+    float alpha = 0.0;
     //for (int i = 0; i < sprite_count; ++i) {
     for (int i = 0; i < 1; ++i) {
         //vec2  center_px    = sprite_data0[i].xy;
@@ -49,13 +50,19 @@ void fragment() {
             warped_uv,
             tilt_val
         );
-        vec2 sprite_uv_pixel_step = 1.0 / (half_size_px * 2.0);
-        DISCARD_PIXELS_OUTSIDE_OF_ALTERED_UV_BOUNDS_FRAG(warped_uv, sprite_uv_pixel_step);
-        //if (texture(sprite_textures[i], warped_uv).a == 0.0) {
-        if (texture(sprite_texture, warped_uv).a == 0.0) {
+        vec2 sprite_texel_size = 1.0 / (half_size_px * 2.0);
+        DISCARD_PIXELS_OUTSIDE_OF_ALTERED_UV_BOUNDS_FRAG(warped_uv, sprite_texel_size);
+        //vec2 uv_min = vec2(0.0);
+        //vec2 uv_max = vec2(1.0) - sprite_texel_size;
+        //warped_uv = clamp(warped_uv, uv_min, uv_max);
+        //float sprite_alpha = texture(sprite_textures[i], warped_uv).a;
+        float sprite_alpha = texture(sprite_texture, warped_uv).a;
+        if (sprite_alpha < 0.5) {
             continue;
         }
         max_tilt = max(max_tilt, clamp(tilt_val, 0.0, 1.0));
+        alpha = max(alpha, sprite_alpha);
     }
-    COLOR = vec4(max_tilt, 0.0, 0.0, 0.0);
+    vec4 col = vec4(max_tilt, 0.0, 0.0, alpha);
+    COLOR = col;
 }

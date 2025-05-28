@@ -1,6 +1,6 @@
 //this is a verbose study of cotterrzz max drecker reproduction https://www.shadertoy.com/view/33SSDm
 shader_type canvas_item;
-render_mode blend_disabled;
+//render_mode blend_disabled;
 #include "res://Resources/Shaders/Color/supersampling.gdshaderinc"
 
 uniform vec2 iResolution;
@@ -226,6 +226,7 @@ vec4 sample_uv_in_grid_space(vec2 uv, vec2 grid_dimensions) {
     float u = column_normal;
     float v = row_normal + cubic_color_squish_scaled - vertical_row_shift_per_column;
     vec4 texture_color = textureLod(iChannel0, vec2(u,v), TEXTURE_LOD_BASE_LEVEL);
+    //vec4 texture_color = texture(iChannel0, vec2(u,v));
 
     ALPHA_CLEAR_TEXELS_OUTSIDE_CELL_BOUNDARIES(texture_color, local_cell_progress_x, local_cell_progress_y);
 
@@ -295,11 +296,12 @@ void fragment() {
     vec4 src_color = sample_uv_in_grid_space(uv, grid_dimensions);
     if (src_color.a > 0.0) {
         //src_color.a = 1.0; // HARDCODE STRAIGHT ALPHA BLEND TO NOT OCCUR (i.e. destination.rgb * 0.0)
+        src_color.a = 1.0;
         COLOR = src_color;
         //frag_color = src_color;
     } else {
         src_color = SUPERSAMPLE(frag_coord, grid_dimensions);
-        //src_color.a = 1.0;
+        src_color.a = 1.0;
         COLOR = src_color;
         //frag_color = src_color;
     }
