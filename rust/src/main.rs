@@ -2,8 +2,9 @@
 
 mod midi;
 
-use crate::midi::midi::{ parse_midi_events_into_note_on_off_event_buffer_seconds,
-    prepare_events, process_midi_events_with_timing,
+use crate::midi::midi::{
+    parse_midi_events_into_note_on_off_event_buffer_seconds, prepare_events,
+    process_midi_events_with_timing,
 };
 use midi::midi::parse_midi_events_into_note_on_off_event_buffer_ticks;
 use midir::{MidiOutput, MidiOutputConnection, MidiOutputPort};

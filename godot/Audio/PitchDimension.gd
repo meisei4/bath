@@ -14,12 +14,12 @@ const TAU: float = 2.0 * PI
 
 var use_cache: bool = true  # <- Toggle this to disable caching when debugging Rust
 
-
 var mid_path: String = "res://Resources/Audio/Fingerbib.mid"
 var sf2_path: String = "res://Resources/Audio/Animal_Crossing_Wild_World.sf2"
 var pcm_path: String = "user://Resources/Audio/Cache/cached_midi.pcm"
 var ogg_path: String = "res://Resources/Audio/Cache/cached_midi.ogg"
 var wav_path: String = "res://Resources/Audio/Cache/cached_midi.wav"
+
 
 func _ready() -> void:
     _song_time = 0.0
@@ -36,9 +36,7 @@ func _ready() -> void:
         f.close()
     else:
         bytes = RustUtilSingleton.rust_util.render_midi_to_sound_bytes_constant_time(
-            int(MusicDimensionsManager.SAMPLE_RATE),
-            mid_path,
-            sf2_path
+            int(MusicDimensionsManager.SAMPLE_RATE), mid_path, sf2_path
         )
         var f = FileAccess.open(ogg_path, FileAccess.WRITE)
         f.store_buffer(bytes)

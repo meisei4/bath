@@ -33,4 +33,4 @@ midir          = "0.10.1"
 [dependencies.godot]
 git      = "https://github.com/godot-rust/gdext"
 branch   = "master"
-features = ["experimental-wasm"]#, "experimental-wasm-nothreads"]
+features = ["experimental-wasm", "lazy-function-tables"]#, "experimental-wasm-nothreads"]

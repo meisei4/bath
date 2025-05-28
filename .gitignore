@@ -30,6 +30,7 @@ export/
 *.it
 *.s3m
 *.xm
+*.sf2
 
 # Documentation folder
 /docs/
@@ -90,6 +91,3 @@ __pycache__/
 python_bath/audio/output/track_metadata.json
 python_bath/audio/output/trim_metadata.json
 
-rust/.cargo/
-
-*.sf2

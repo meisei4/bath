@@ -1,0 +1,14 @@
+[target.x86_64-apple-darwin]
+linker = "/usr/bin/cc"
+
+[target.wasm32-unknown-emscripten]
+linker = "emcc"
+rustflags = [
+  "-C", "link-args=-g",
+  "-C", "link-args=-sSIDE_MODULE=2",
+  "-C", "link-args=-pthread",
+  "-C", "target-feature=+atomics",
+  "-Zlink-native-libraries=no",
+  "-C", "link-args=-sDISABLE_EXCEPTION_CATCHING=1",
+  "-C", "llvm-args=-enable-emscripten-cxx-exceptions=0"
+]
