@@ -12,7 +12,6 @@ config_version=5
 
 config/name="bath"
 run/main_scene="uid://bak2dlcb0b63h"
-config/project_settings_override="res://experimental_resolution_override.cfg"
 config/features=PackedStringArray("4.4", "Forward Plus")
 
 [audio]
@@ -45,20 +44,17 @@ gdscript/warnings/unsafe_call_argument=1
 
 [display]
 
-window/size/viewport_width=855
-window/size/viewport_height=481
 window/size/always_on_top=true
-window/size/window_width_override=855
-window/size/window_height_override=481
 window/stretch/mode="canvas_items"
-#window/size/viewport_width=256
-#window/size/viewport_height=384
-#window/size/window_width_override=768
-#window/size/window_height_override=1152
+
 
 [editor_plugins]
 
 enabled=PackedStringArray("res://addons/script-tabs/plugin.cfg")
+
+[global_group]
+
+display_experimental=""
 
 [input]
 

@@ -38,7 +38,7 @@ func _ready() -> void:
     var err: int = cfg.load(CFG_PATH)
     resolution.x = DEFAULT_VIEWPORT_WIDTH
     resolution.y = DEFAULT_VIEWPORT_HEIGHT
-    #_apply_resolution()
+    _apply_resolution()
 
 
 func _apply_resolution() -> void:
@@ -51,11 +51,15 @@ func _apply_resolution() -> void:
     var viewport_height: int = cfg.get_value(section, "window/size/viewport_height", DEFAULT_VIEWPORT_HEIGHT)
     var window_width_override: int = cfg.get_value(section, "window/size/window_width_override", DEFAULT_WINDOW_OVERRIDE_WIDTH)
     var window_height_override: int = cfg.get_value(section, "window/size/window_height_override", DEFAULT_WINDOW_OVERRIDE_HEIGHT)
-
     resolution = Vector2(viewport_width, viewport_height)
     print("ResolutionManager: applying viewport %sx%s and window %sx%s for '%s'" % [viewport_width, viewport_height, window_width_override, window_height_override, section])
-    var root_vp: Viewport = get_tree().get_root().get_viewport()
     DisplayServer.window_set_size(Vector2(window_width_override, window_height_override))
+    var window: Window = get_tree().root
+    window.set_content_scale_size(Vector2i(viewport_width, viewport_height))
+    window.set_content_scale_mode(Window.ContentScaleMode.CONTENT_SCALE_MODE_VIEWPORT)
+    window.set_content_scale_aspect(Window.ContentScaleAspect.CONTENT_SCALE_ASPECT_KEEP)
+    window.set_content_scale_stretch(Window.ContentScaleStretch.CONTENT_SCALE_STRETCH_INTEGER)
+    window.set_content_scale_factor(1.0)
 
 
 func get_resolution() -> Vector2:

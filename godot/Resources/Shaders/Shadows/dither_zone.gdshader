@@ -5,7 +5,7 @@ uniform sampler2D iChannel1 : hint_screen_texture, filter_nearest;
 
 uniform vec2  iResolution;
 uniform vec2  dither_zone_bounds;
-uniform float BAYER_DIVISION_SCALAR = 16.0;
+uniform float BAYER_DIVISION_SCALAR = 8.0;
 uniform float dither_interpolation_weight = 0.5;
 
 void fragment() {
