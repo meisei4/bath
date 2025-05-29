@@ -21,10 +21,54 @@ extends Node
 # that way we can fully control the project settings procedurally and explicitly
 # instead of messing with the project gui shit and its link with the godot.project file
 
+var cfg: ConfigFile
+
 var resolution: Vector2
 
+const CFG_PATH: String = "res://experimental_resolution_override.cfg"
+const DEFAULT_SECTION: String = "display_default"
+const EXPERIMENTAL_SECTION: String = "display_experimental"
+var DEFAULT_VIEWPORT_WIDTH: int = ProjectSettings.get_setting("display/window/size/viewport_width")
+var DEFAULT_VIEWPORT_HEIGHT: int = ProjectSettings.get_setting("display/window/size/viewport_height")
+var DEFAULT_WINDOW_OVERRIDE_WIDTH: int = ProjectSettings.get_setting("display/window/size/window_width_override")
+var DEFAULT_WINDOW_OVERRIDE_HEIGHT: int = ProjectSettings.get_setting("display/window/size/window_height_override")
 
 func _ready() -> void:
-    resolution.x = ProjectSettings.get_setting("display/window/size/viewport_width")
-    resolution.y = ProjectSettings.get_setting("display/window/size/viewport_height")
-    print("Game resolution initialized to ", resolution)
+    cfg = ConfigFile.new()
+    var err: int = cfg.load(CFG_PATH)
+    resolution.x = DEFAULT_VIEWPORT_WIDTH
+    resolution.y = DEFAULT_VIEWPORT_HEIGHT
+    #_apply_resolution()
+
+
+func _apply_resolution() -> void:
+    var section: String = DEFAULT_SECTION
+    var scene_root: Node = get_tree().get_current_scene()
+    if scene_root and scene_root.is_in_group(EXPERIMENTAL_SECTION):
+        section = EXPERIMENTAL_SECTION
+
+    var viewport_width: int = cfg.get_value(section, "window/size/viewport_width", DEFAULT_VIEWPORT_WIDTH)
+    var viewport_height: int = cfg.get_value(section, "window/size/viewport_height", DEFAULT_VIEWPORT_HEIGHT)
+    var window_width_override: int = cfg.get_value(section, "window/size/window_width_override", DEFAULT_WINDOW_OVERRIDE_WIDTH)
+    var window_height_override: int = cfg.get_value(section, "window/size/window_height_override", DEFAULT_WINDOW_OVERRIDE_HEIGHT)
+
+    resolution = Vector2(viewport_width, viewport_height)
+    print("ResolutionManager: applying viewport %sx%s and window %sx%s for '%s'" % [viewport_width, viewport_height, window_width_override, window_height_override, section])
+    var root_vp: Viewport = get_tree().get_root().get_viewport()
+    DisplayServer.window_set_size(Vector2(window_width_override, window_height_override))
+
+
+func get_resolution() -> Vector2:
+    return resolution
+
+
+func get_window_override_size() -> Vector2:
+    return Vector2(
+        int(cfg.get_value(resolution_section(), "window/size/window_width_override", DEFAULT_WINDOW_OVERRIDE_WIDTH)),
+        int(cfg.get_value(resolution_section(), "window/size/window_height_override", DEFAULT_WINDOW_OVERRIDE_HEIGHT))
+    )
+
+
+func resolution_section() -> String:
+    var scene_root: Node = get_tree().get_current_scene()
+    return EXPERIMENTAL_SECTION if scene_root and scene_root.is_in_group(EXPERIMENTAL_SECTION) else DEFAULT_SECTION
