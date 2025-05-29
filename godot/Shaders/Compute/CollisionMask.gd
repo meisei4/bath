@@ -38,7 +38,7 @@ func _ready() -> void:
 
 
 func _init_shader() -> void:
-    compute_shader_file = preload("res://Resources/Shaders/Compute/ice_sheet_collision_mask.glsl")
+    compute_shader_file = load("res://Resources/Shaders/Compute/ice_sheet_collision_mask.glsl")
 
 
 func generate_collision_polygons() -> void:

@@ -35,7 +35,7 @@ var song_time: float = 0.0
 #var audio_stream: AudioStream = preload(AudioConsts.HELLION_WAV)
 #var audio_stream: AudioStream = preload(AudioConsts.SNUFFY)
 #var input_stream: AudioStreamMicrophone = AudioStreamMicrophone.new()
-var wav_stream: AudioStreamWAV = preload("res://Resources/Audio/Cache/cached_midi.wav")
+#var wav_stream: AudioStreamWAV = preload("res://Resources/Audio/Cache/cached_midi.wav")
 
 
 func _ready() -> void:

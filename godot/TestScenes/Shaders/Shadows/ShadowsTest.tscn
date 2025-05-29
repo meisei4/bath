@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://fj75lnt0x8kq"]
 
-[ext_resource type="Script" uid="uid://x3cs7ruujiyb" path="res://Shaders/Shadows/Shadows.gd" id="1_lcail"]
+[ext_resource type="Script" uid="uid://blnxai2raq3ja" path="res://Shaders/Shadows/Shadows.gd" id="1_lcail"]
 
 [node name="ShadowsTest" type="Node2D"]
 script = ExtResource("1_lcail")

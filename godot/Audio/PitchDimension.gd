@@ -40,7 +40,7 @@ func setup_wav() -> void:
     # This is very important for resource and file io in godot that really starts to become apparent in
     # runtime builds:
     # https://docs.godotengine.org/en/stable/tutorials/best_practices/logic_preferences.html
-    if self.use_cache:  # and FileAccess.file_exists(wav_path):
+    if self.use_cache and FileAccess.file_exists(AudioConsts.CACHED_WAV):
         #wav_stream = load("res://Resources/Audio/Cache/cached_midi.wav")
         pass
     else:
@@ -56,6 +56,10 @@ func setup_wav() -> void:
         file_access.store_buffer(sound_bytes)
         file_access.close()
         #use the raw bytes for the stream, no need to load a resource??
+        #TODO: this is a hack for when the wav file doesnt exist yet, so we
+        # comment out the #var wav_stream: AudioStreamWAV = preload(AudioConsts.CACHED_WAV) aswell
+        #THIS IS REALLY BAD!!! FIGURE OUT A BETTER APPROACH!!!
+        #var wav_stream: AudioStreamWAV
         wav_stream = AudioStreamWAV.load_from_buffer(sound_bytes)
 
 

@@ -1,6 +1,6 @@
 [gd_resource type="Resource" script_class="RhythmOnsetData" load_steps=2 format=3 uid="uid://c7bosfxurki5"]
 
-[ext_resource type="Script" uid="uid://b4bac2kk5j2nc" path="res://Audio/RhythmOnsetData.gd" id="1_tvsqv"]
+[ext_resource type="Script" uid="uid://c287karljnvcy" path="res://Audio/RhythmOnsetData.gd" id="1_tvsqv"]
 
 [resource]
 script = ExtResource("1_tvsqv")
