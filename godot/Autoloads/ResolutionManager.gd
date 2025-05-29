@@ -29,9 +29,16 @@ const CFG_PATH: String = "res://experimental_resolution_override.cfg"
 const DEFAULT_SECTION: String = "display_default"
 const EXPERIMENTAL_SECTION: String = "display_experimental"
 var DEFAULT_VIEWPORT_WIDTH: int = ProjectSettings.get_setting("display/window/size/viewport_width")
-var DEFAULT_VIEWPORT_HEIGHT: int = ProjectSettings.get_setting("display/window/size/viewport_height")
-var DEFAULT_WINDOW_OVERRIDE_WIDTH: int = ProjectSettings.get_setting("display/window/size/window_width_override")
-var DEFAULT_WINDOW_OVERRIDE_HEIGHT: int = ProjectSettings.get_setting("display/window/size/window_height_override")
+var DEFAULT_VIEWPORT_HEIGHT: int = ProjectSettings.get_setting(
+    "display/window/size/viewport_height"
+)
+var DEFAULT_WINDOW_OVERRIDE_WIDTH: int = ProjectSettings.get_setting(
+    "display/window/size/window_width_override"
+)
+var DEFAULT_WINDOW_OVERRIDE_HEIGHT: int = ProjectSettings.get_setting(
+    "display/window/size/window_height_override"
+)
+
 
 func _ready() -> void:
     cfg = ConfigFile.new()
@@ -47,12 +54,31 @@ func _apply_resolution() -> void:
     if scene_root and scene_root.is_in_group(EXPERIMENTAL_SECTION):
         section = EXPERIMENTAL_SECTION
 
-    var viewport_width: int = cfg.get_value(section, "window/size/viewport_width", DEFAULT_VIEWPORT_WIDTH)
-    var viewport_height: int = cfg.get_value(section, "window/size/viewport_height", DEFAULT_VIEWPORT_HEIGHT)
-    var window_width_override: int = cfg.get_value(section, "window/size/window_width_override", DEFAULT_WINDOW_OVERRIDE_WIDTH)
-    var window_height_override: int = cfg.get_value(section, "window/size/window_height_override", DEFAULT_WINDOW_OVERRIDE_HEIGHT)
+    var viewport_width: int = cfg.get_value(
+        section, "window/size/viewport_width", DEFAULT_VIEWPORT_WIDTH
+    )
+    var viewport_height: int = cfg.get_value(
+        section, "window/size/viewport_height", DEFAULT_VIEWPORT_HEIGHT
+    )
+    var window_width_override: int = cfg.get_value(
+        section, "window/size/window_width_override", DEFAULT_WINDOW_OVERRIDE_WIDTH
+    )
+    var window_height_override: int = cfg.get_value(
+        section, "window/size/window_height_override", DEFAULT_WINDOW_OVERRIDE_HEIGHT
+    )
     resolution = Vector2(viewport_width, viewport_height)
-    print("ResolutionManager: applying viewport %sx%s and window %sx%s for '%s'" % [viewport_width, viewport_height, window_width_override, window_height_override, section])
+    print(
+        (
+            "ResolutionManager: applying viewport %sx%s and window %sx%s for '%s'"
+            % [
+                viewport_width,
+                viewport_height,
+                window_width_override,
+                window_height_override,
+                section
+            ]
+        )
+    )
     DisplayServer.window_set_size(Vector2(window_width_override, window_height_override))
     var window: Window = get_tree().root
     window.set_content_scale_size(Vector2i(viewport_width, viewport_height))
@@ -68,11 +94,27 @@ func get_resolution() -> Vector2:
 
 func get_window_override_size() -> Vector2:
     return Vector2(
-        int(cfg.get_value(resolution_section(), "window/size/window_width_override", DEFAULT_WINDOW_OVERRIDE_WIDTH)),
-        int(cfg.get_value(resolution_section(), "window/size/window_height_override", DEFAULT_WINDOW_OVERRIDE_HEIGHT))
+        int(
+            cfg.get_value(
+                resolution_section(),
+                "window/size/window_width_override",
+                DEFAULT_WINDOW_OVERRIDE_WIDTH
+            )
+        ),
+        int(
+            cfg.get_value(
+                resolution_section(),
+                "window/size/window_height_override",
+                DEFAULT_WINDOW_OVERRIDE_HEIGHT
+            )
+        )
     )
 
 
 func resolution_section() -> String:
     var scene_root: Node = get_tree().get_current_scene()
-    return EXPERIMENTAL_SECTION if scene_root and scene_root.is_in_group(EXPERIMENTAL_SECTION) else DEFAULT_SECTION
+    return (
+        EXPERIMENTAL_SECTION
+        if scene_root and scene_root.is_in_group(EXPERIMENTAL_SECTION)
+        else DEFAULT_SECTION
+    )
