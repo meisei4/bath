@@ -1,8 +1,6 @@
 extends Node2D
 class_name TestHarness
 
-var wav_stream: AudioStreamWAV = preload("res://Resources/Audio/Cache/cached_midi.wav")
-
 
 func _ready() -> void:
     add_ice_sheets_scene()
@@ -12,7 +10,6 @@ func _ready() -> void:
     add_perspective_tilt_mask_fragment_scene()
     add_shadows_test_scene()
     add_jump_mechanic_test_scene()
-    AudioPoolManager.play_music(wav_stream)
 
 
 func add_collision_mask_scene() -> void:

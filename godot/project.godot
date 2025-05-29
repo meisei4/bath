@@ -11,7 +11,7 @@ config_version=5
 [application]
 
 config/name="bath"
-run/main_scene="uid://bak2dlcb0b63h"
+run/main_scene="uid://l5cvget1ulog"
 config/features=PackedStringArray("4.4", "Forward Plus")
 
 [audio]
@@ -20,6 +20,7 @@ driver/enable_input=true
 
 [autoload]
 
+SceneManager="*res://Autoloads/SceneManager.gd"
 ResolutionManager="*res://Autoloads/ResolutionManager.gd"
 AudioEffectManager="*res://Autoloads/AudioEffectManager.gd"
 AudioPoolManager="*res://Autoloads/AudioPoolManager.gd"

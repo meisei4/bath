@@ -35,12 +35,14 @@ func _ready() -> void:
 func setup_wav() -> void:
     #TODO: this is a wack, issue because i cant preload if the file doesnt exist,
     # but because of how slow the web build IndexedDB is for loading MB large files like wavs
-    # I cant really test the caching process or the midi->wav bytes process until i figure out
+    # I cant re`ally test the caching process or the midi->wav bytes process until i figure out
     # how godot's REsource Loader works with preload and load and get_buffer and all the file io
     # This is very important for resource and file io in godot that really starts to become apparent in
     # runtime builds:
     # https://docs.godotengine.org/en/stable/tutorials/best_practices/logic_preferences.html
-    if self.use_cache and FileAccess.file_exists(AudioConsts.CACHED_WAV):
+
+    #TODO: FileAccess.file_exists is not working on web build idk why, just assume cached wav
+    if self.use_cache: # and FileAccess.file_exists(AudioConsts.CACHED_WAV):
         #wav_stream = load("res://Resources/Audio/Cache/cached_midi.wav")
         pass
     else:
