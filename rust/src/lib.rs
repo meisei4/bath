@@ -6,7 +6,8 @@ use crate::midi::midi::{
     inject_program_change, make_note_on_off_event_dict,
     parse_midi_events_into_note_on_off_event_buffer_seconds,
     parse_midi_events_into_note_on_off_event_buffer_ticks, prepare_events,
-    process_midi_events_with_timing, render_sample_frame, write_samples_to_vorbis_bytes,
+    process_midi_events_with_timing, render_sample_frame,
+    write_samples_to_wav,
 };
 // use audio_analysis::util::{detect_bpm};
 use collision_mask::util::{
@@ -143,7 +144,7 @@ impl RustUtil {
     ) -> PackedByteArray {
         let sf2_path = sf2_file_path.to_string();
         let sf2_file = FileAccess::open(&sf2_path, ModeFlags::READ).unwrap_or_else(|| {
-            godot_print!("❌ Failed to open sf2 at {}", sf2_path);
+            godot_print!("!!!!Failed to open sf2 at {}", sf2_path);
             panic!("Cannot continue without sf2");
         });
         let sf2_bytes = sf2_file.get_buffer(sf2_file.get_length() as i64).to_vec();
@@ -155,7 +156,7 @@ impl RustUtil {
             Synthesizer::new(&soundfont, &SynthesizerSettings::new(sample_rate)).unwrap();
         let midi_path = midi_file_path.to_string();
         let file = FileAccess::open(&midi_path, ModeFlags::READ).unwrap_or_else(|| {
-            godot_print!("❌ Failed to open MIDI at {}", midi_path);
+            godot_print!("!!!!Failed to open MIDI at {}", midi_path);
             panic!("Cannot continue without MIDI");
         });
         let midi_file_bytes = file.get_buffer(file.get_length() as i64).to_vec();
@@ -202,8 +203,7 @@ impl RustUtil {
             audio.push(render_sample_frame(&mut synth));
             time_cursor += step_secs;
         }
-        //write_samples_to_wav(sample_rate, audio)
-        write_samples_to_vorbis_bytes(sample_rate, audio)
-        //write_samples_to_pcm_bytes(audio)
+        write_samples_to_wav(sample_rate, audio)
+        //TODO: look into vorbis later if needed, the rust support is very ugly with C libraries wrapped up and dragged in
     }
 }

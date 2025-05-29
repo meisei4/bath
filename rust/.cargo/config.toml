@@ -3,14 +3,13 @@
 
 [target.wasm32-unknown-emscripten]
 #linker = "emcc"
-#"C:\Users\pl\emsdk\upstream\emscripten\emcc.bat"
 linker = "C:/Users/pl/emsdk/upstream/emscripten/emcc.bat"
 rustflags = [
-  "-C", "link-args=-g",
-  "-C", "link-args=-sSIDE_MODULE=2",
-  "-C", "link-args=-pthread",
-  "-C", "target-feature=+atomics",
-  "-Zlink-native-libraries=no",
-  "-C", "link-args=-sDISABLE_EXCEPTION_CATCHING=1",
-  "-C", "llvm-args=-enable-emscripten-cxx-exceptions=0"
+    "-C", "link-args=-g",
+    "-C", "link-args=-sSIDE_MODULE=2",
+    "-C", "link-args=-pthread",
+    "-C", "target-feature=+atomics",
+    "-Zlink-native-libraries=no",
+    "-C", "link-args=-sDISABLE_EXCEPTION_CATCHING=1",
+    "-C", "llvm-args=-enable-emscripten-cxx-exceptions=0"
 ]

@@ -95,65 +95,6 @@ pub fn write_samples_to_wav(sample_rate: i32, samples: Vec<(i16, i16)>) -> Packe
     PackedByteArray::from(buffer.into_inner())
 }
 
-pub fn write_samples_to_pcm_bytes(samples: Vec<(i16, i16)>) -> PackedByteArray {
-    let mut pcm = Vec::with_capacity(samples.len() * 4);
-    for (l, r) in samples {
-        pcm.extend_from_slice(&l.to_le_bytes());
-        pcm.extend_from_slice(&r.to_le_bytes());
-    }
-    PackedByteArray::from(pcm)
-}
-
-// use ogg::{PacketWriter, PacketWriteEndInfo};
-// pub fn write_samples_to_ogg_bytes(
-//     sample_rate: i32,
-//     mut samples: Vec<(i16, i16)>,
-// ) -> PackedByteArray {
-//     let num_frames = samples.len();
-//     let mut pcm_bytes = Vec::with_capacity(num_frames * 2 * 2);
-//     for (l, r) in samples.drain(..) {
-//         pcm_bytes.extend_from_slice(&l.to_le_bytes());
-//         pcm_bytes.extend_from_slice(&r.to_le_bytes());
-//     }
-//     let buffer = Vec::new();
-//     let mut wtr = PacketWriter::new(buffer);
-//     let serial = 0u32;
-//     let mut granule_pos = 0u64;
-//     wtr.write_packet(
-//         &pcm_bytes,
-//         serial,
-//         PacketWriteEndInfo::NormalPacket,
-//         granule_pos,
-//     )
-//        .expect("Failed to write PCM packet");
-//     granule_pos += num_frames as u64;
-//     wtr.write_packet(
-//         &[],
-//         serial,
-//         PacketWriteEndInfo::EndStream,
-//         granule_pos,
-//     )
-//        .expect("Failed to write end-of-stream");
-//     PackedByteArray::from(wtr.into_inner())
-// }
-
-use vorbis::{Encoder, VorbisQuality};
-pub fn write_samples_to_vorbis_bytes(
-    sample_rate: i32,
-    samples: Vec<(i16, i16)>,
-) -> PackedByteArray {
-    let mut pcm_flat = Vec::with_capacity(samples.len() * 2);
-    for (l, r) in samples {
-        pcm_flat.push(l);
-        pcm_flat.push(r);
-    }
-    let mut enc = Encoder::new(2, sample_rate as u64, VorbisQuality::Midium)
-        .expect("Failed to create Vorbis encoder");
-    let mut ogg_data = enc.encode(&pcm_flat).expect("Vorbis encode error");
-    ogg_data.extend_from_slice(&enc.flush().expect("Vorbis flush error"));
-    PackedByteArray::from(ogg_data)
-}
-
 pub fn process_midi_events_with_timing(
     events: Vec<(u64, TrackEventKind<'static>)>,
     smf: &Smf,

@@ -12,13 +12,14 @@ var _last_active_notes: Array[int] = []
 var _note_log_history: Array[String] = []
 const TAU: float = 2.0 * PI
 
-var use_cache: bool = true  # <- Toggle this to disable caching when debugging Rust
+var use_cache: bool = true
 
 var mid_path: String = "res://Resources/Audio/Fingerbib.mid"
 var sf2_path: String = "res://Resources/Audio/Animal_Crossing_Wild_World.sf2"
 var pcm_path: String = "user://Resources/Audio/Cache/cached_midi.pcm"
 var ogg_path: String = "res://Resources/Audio/Cache/cached_midi.ogg"
 var wav_path: String = "res://Resources/Audio/Cache/cached_midi.wav"
+var wav_stream: AudioStreamWAV = preload("res://Resources/Audio/Cache/cached_midi.wav")
 
 
 func _ready() -> void:
@@ -28,7 +29,36 @@ func _ready() -> void:
         RustUtilSingleton.rust_util.get_midi_note_on_off_event_buffer_seconds(mid_path)
         as Dictionary[Vector2i, PackedVector2Array]
     )
+    setup_wav()
 
+
+func setup_wav() -> void:
+    var bytes: PackedByteArray
+    #TODO: this is a wack, issue because i cant preload if the file doesnt exist,
+    # but because of how slow the web build IndexedDB is for loading MB large files like wavs
+    # I cant really test the caching process or the midi->wav bytes process until i figure out
+    # how godot's REsource Loader works with preload and load and get_buffer and all the file io
+    # This is very important for resource and file io in godot that really starts to become apparent in
+    # runtime builds:
+    # https://docs.godotengine.org/en/stable/tutorials/best_practices/logic_preferences.html
+    if self.use_cache:  # and FileAccess.file_exists(wav_path):
+        #wav_stream = load("res://Resources/Audio/Cache/cached_midi.wav")
+        AudioPoolManager.play_music(wav_stream)
+    else:
+        bytes = RustUtilSingleton.rust_util.render_midi_to_sound_bytes_constant_time(
+            int(MusicDimensionsManager.SAMPLE_RATE), mid_path, sf2_path
+        )
+        #cache the file
+        var f = FileAccess.open(wav_path, FileAccess.WRITE)
+        f.store_buffer(bytes)
+        f.close()
+        #use the raw bytes for the stream, no need to load a resource??
+        wav_stream = AudioStreamWAV.load_from_buffer(bytes)
+        AudioPoolManager.play_music(wav_stream)
+
+
+#TODO: this is for later when compression is even neccessary i guess, but its ugly in rust crates rn
+func setup_vorbis() -> void:
     var bytes: PackedByteArray
     if self.use_cache and FileAccess.file_exists(ogg_path):
         var f = FileAccess.open(ogg_path, FileAccess.READ)
