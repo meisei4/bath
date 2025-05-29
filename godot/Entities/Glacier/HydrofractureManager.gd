@@ -4,14 +4,14 @@ class_name HydrofractureManager
 
 #TODO: introduce this to finally make all the representations of fractures/maps to fractures and stuff actually make sense
 class Hydrofracture:
-    var seed: Vector2i
+    var fracture_seed: Vector2i
     var depth: int  #TODO shouldnt this be like a vertical height? not the actual amount of cells in the fracture
     var cells: Array[Vector2i]
 
-    func _init(seed: Vector2i, initial_depth: int) -> void:
-        self.seed = seed
+    func _init(intial_fracture_seed: Vector2i, initial_depth: int) -> void:
+        self.fracture_seed = intial_fracture_seed
         self.depth = initial_depth
-        self.cells = [seed]
+        self.cells = [intial_fracture_seed]
 
 
 #TODO: still bad design, but optimizes fracture search (look at the neighbor propagation vs "ALL cell bfs search"
@@ -74,7 +74,7 @@ func reduce_hydrofracture_candidates_for_current_cycle(
     fracture_candidates: Array[Vector2i]
 ) -> Array[Vector2i]:
     return fracture_candidates.slice(
-        0, min(GlacierConstants.MAXIMUM_NEW_FRACTURES_PER_CYCLE, fracture_candidates.size())
+        0, mini(GlacierConstants.MAXIMUM_NEW_FRACTURES_PER_CYCLE, fracture_candidates.size())
     )
 
 

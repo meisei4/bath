@@ -2,7 +2,7 @@ extends Node2D
 class_name CollisionMaskFragment
 
 var BufferAShaderNode: ColorRect
-var BufferAShader: Shader = load(
+var BufferAShader: Shader = preload(
     "res://Resources/Shaders/Collision/collision_mask_fragment.gdshader"
 )
 var BufferAShaderMaterial: ShaderMaterial
@@ -53,11 +53,11 @@ func _on_frame_post_draw() -> void:
     #TODO: figure out how to prevent this call every fucking frame jesus
     var img: Image = BufferA.get_texture().get_image()
     var raw_rgba_image_data: PackedByteArray = img.get_data()
-    var w = int(iResolution.x)
-    var h = int(iResolution.y)
-    var raw_pixel_data = PackedByteArray()
+    var w: int = int(iResolution.x)
+    var h: int = int(iResolution.y)
+    var raw_pixel_data: PackedByteArray
     raw_pixel_data.resize(w * h)
-    for i in range(w * h):
+    for i: int in range(w * h):
         raw_pixel_data[i] = raw_rgba_image_data[i * 4]  # red channel = mask
     var collision_polygons: Array[PackedVector2Array] = (
         RustUtilSingleton
@@ -106,18 +106,18 @@ func debug_print_ascii(
     var cols: int = _calculate_tile_column_count(width, tile_width)
     var rows: int = _calculate_tile_row_count(height, tile_height)
     for row: int in range(rows):
-        var sample_y: int = clamp(row * tile_height + tile_height / 2, 0, height - 1)
+        var sample_y: int = clampi(row * tile_height + tile_height / 2, 0, height - 1)
         var line_text: String = ""
         for col: int in range(cols):
-            var sample_x: int = clamp(col * tile_width + tile_width / 2, 0, width - 1)
+            var sample_x: int = clampi(col * tile_width + tile_width / 2, 0, width - 1)
             var byte: float = raw_pixel_data[sample_y * width + sample_x]
             line_text += "#" if byte != 0 else "."
         print(" ", line_text)
 
 
 func _calculate_tile_column_count(image_width: int, tile_size: int) -> int:
-    return int((image_width + tile_size - 1) / tile_size)
+    return (image_width + tile_size - 1) / tile_size
 
 
 func _calculate_tile_row_count(image_height: int, tile_size: int) -> int:
-    return int((image_height + tile_size - 1) / tile_size)
+    return (image_height + tile_size - 1) / tile_size

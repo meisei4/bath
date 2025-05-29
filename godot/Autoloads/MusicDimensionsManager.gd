@@ -23,14 +23,19 @@ var onset_intervals_history_buffer: PackedFloat32Array = PackedFloat32Array()
 var time_of_previous_onset: float = 0.0
 var onset_event_counter: int = 0
 
+var custom_onset_data: RhythmOnsetData = preload(
+    "res://Resources/Audio/CustomOnsets/custom_onsets.tres"
+)
 #var metronome_click: AudioStream = preload(AudioConsts.METRONOME_CLICK)
 var time_of_next_click: float = 0.0
 var bpm: float
 var song_time: float = 0.0
 
-#var song: String = AudioConsts.SHADERTOY_MUSIC_TRACK_EXPERIMENT_WAV
-#var song: String = AudioConsts.HELLION_WAV
-var song: String = AudioConsts.SNUFFY
+#var audio_stream: AudioStream = preload(AudioConsts.SHADERTOY_MUSIC_TRACK_EXPERIMENT_WAV)
+#var audio_stream: AudioStream = preload(AudioConsts.HELLION_WAV)
+#var audio_stream: AudioStream = preload(AudioConsts.SNUFFY)
+#var input_stream: AudioStreamMicrophone = AudioStreamMicrophone.new()
+var wav_stream: AudioStreamWAV = preload("res://Resources/Audio/Cache/cached_midi.wav")
 
 
 func _ready() -> void:
@@ -40,17 +45,21 @@ func _ready() -> void:
     AudioEffectManager.add_effect(bus_index, effect)
     var effect_index: int = AudioServer.get_bus_effect_count(bus_index) - 1
     spectrum_analyzer_instance = AudioServer.get_bus_effect_instance(bus_index, effect_index)
-
     #derive_bpm()
     #load_custom_onsets()
-    #var music_resource: AudioStream = load(song)
-    #AudioPoolManager.play_music(music_resource)
-    #var input_resource: AudioStreamMicrophone = AudioStreamMicrophone.new()
-    #AudioManager.play_input(input_resource, 0.0)
-    #TODO: ^^^ ew, figure out how to perhaps make it more obvious that the audio texture can target whatever audio bus...
+
+    #TODO: figure out where to actually have music play in the game, currently
+    # juggling too many locations where music is tested for playback
+    # especially PitchDimension scene with all the caching and shit
+
+    #AudioPoolManager.play_music(wav_stream)
+
+    #AudioPoolManager.play_music(audio_stream)
+    #AudioPoolManager.play_input(input_stream)
 
 
 func derive_bpm() -> void:
+    #TODO: we no longer use global paths, fix this
     #var wav_fs_path: String = ProjectSettings.globalize_path(song)
     #bpm = rust_util.detect_bpm(wav_fs_path)
     print("aubio derived bpm is:", bpm)
@@ -59,36 +68,28 @@ func derive_bpm() -> void:
 static var custom_onsets_flat_buffer: PackedVector4Array
 
 
-static func load_custom_onsets() -> void:
-    var res: RhythmOnsetData = ResourceLoader.load(
-        "res://Resources/Audio/CustomOnsets/custom_onsets.tres"
-    )
+func load_custom_onsets() -> void:
     custom_onsets_flat_buffer.clear()
-    var uki: PackedFloat32Array = res.uki
-    var shizumi: PackedFloat32Array = res.shizumi
+    var uki: PackedFloat32Array = custom_onset_data.uki
+    var shizumi: PackedFloat32Array = custom_onset_data.shizumi
     var total_onsets: float = min(uki.size(), shizumi.size()) / 2
     for i: int in range(int(total_onsets)):
         var u_start: float = uki[i * 2]
         var u_end: float = uki[i * 2 + 1]
         var s_start: float = shizumi[i * 2]
         var s_end: float = shizumi[i * 2 + 1]
-
         var uki_flat: Vector2 = Vector2(u_start, u_end)
         var shizumi_flat: Vector2 = Vector2(s_start, s_end)
-
         var uki_shizumi_flat: Vector4 = Vector4(
             uki_flat.x, uki_flat.y, shizumi_flat.x, shizumi_flat.y
         )
         custom_onsets_flat_buffer.append(uki_shizumi_flat)
 
 
-static var uki_onset_index: int = 0
-static var shizumi_onset_index: int = 0
-
-
 func debug_custom_onsets(delta: float) -> void:
+    var uki_onset_index: int = 0
+    var shizumi_onset_index: int = 0
     song_time += delta
-
     while uki_onset_index < custom_onsets_flat_buffer.size():
         var next_uki_onset: float = custom_onsets_flat_buffer[uki_onset_index].x
         if song_time < next_uki_onset:
@@ -237,14 +238,12 @@ func _compute_linear_average_for_frequency_range(from_hz: float, to_hz: float) -
     return (stereo_magnitude.x + stereo_magnitude.y) * 0.5
 
 
-static func _compute_normalized_energy_from_linear_magnitude(linear_magnitude: float) -> float:
+func _compute_normalized_energy_from_linear_magnitude(linear_magnitude: float) -> float:
     var db: float = linear_to_db(linear_magnitude)
     return clamp(
         (db - MDN_MIN_AUDIO_DECIBEL) / (MDN_MAX_AUDIO_DECIBEL - MDN_MIN_AUDIO_DECIBEL), 0.0, 1.0
     )
 
 
-static func _compute_smooth_energy(
-    _previous_smooth_energy: float, new_normalized_energy: float
-) -> float:
+func _compute_smooth_energy(_previous_smooth_energy: float, new_normalized_energy: float) -> float:
     return MDN_SMOOTHING * _previous_smooth_energy + (1.0 - MDN_SMOOTHING) * new_normalized_energy

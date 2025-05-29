@@ -28,7 +28,12 @@ func acquire() -> AudioStreamPlayer:
 
 func play(resource: AudioStream, volume_db: float = 0.0) -> void:
     var p: AudioStreamPlayer = acquire()
-    p.playback_type = AudioServer.PLAYBACK_TYPE_SAMPLE  #TODO this fixes web export playback
+    if OS.get_name() == "Web" or OS.has_feature("wasm32") or OS.has_feature("web"):
+        #TODO this fixes web export playback single threaded NO AUDIOEFFECTS THOUGH!!!!
+        #p.playback_type = AudioServer.PLAYBACK_TYPE_SAMPLE
+        #TODO this fixes web export playback multi-threaded with audio effects :^)
+        p.playback_type = AudioServer.PLAYBACK_TYPE_STREAM
+
     if p:
         p.stream = resource
         p.volume_db = volume_db

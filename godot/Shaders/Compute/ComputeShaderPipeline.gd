@@ -46,8 +46,8 @@ func dispatch_compute(push_constants: PackedByteArray) -> void:
         rendering_device.compute_list_set_push_constant(
             compute_list_int, push_constants, push_constants.size()
         )
-    var groups_x: int = int(ceil(iResolution.x / float(WORKGROUP_TILE_PIXELS_X)))
-    var groups_y: int = int(ceil(iResolution.y / float(WORKGROUP_TILE_PIXELS_Y)))
+    var groups_x: int = ceili(iResolution.x / float(WORKGROUP_TILE_PIXELS_X))
+    var groups_y: int = ceili(iResolution.y / float(WORKGROUP_TILE_PIXELS_Y))
     var groups_z: int = 1
     rendering_device.compute_list_dispatch(compute_list_int, groups_x, groups_y, groups_z)
     rendering_device.compute_list_end()

@@ -38,7 +38,7 @@ func _ready() -> void:
 
 
 func _init_shader() -> void:
-    compute_shader_file = load("res://Resources/Shaders/Compute/ice_sheet_collision_mask.glsl")
+    compute_shader_file = preload("res://Resources/Shaders/Compute/ice_sheet_collision_mask.glsl")
 
 
 func generate_collision_polygons() -> void:
@@ -162,10 +162,10 @@ func debug_print_ascii(
     var cols: int = _calculate_tile_column_count(width, tile_width)
     var rows: int = _calculate_tile_row_count(height, tile_height)
     for row: int in range(rows):
-        var sample_y: int = clamp(row * tile_height + tile_height / 2, 0, height - 1)
+        var sample_y: int = clampi(row * tile_height + tile_height / 2, 0, height - 1)
         var line_text: String = ""
         for col: int in range(cols):
-            var sample_x: int = clamp(col * tile_width + tile_width / 2, 0, width - 1)
+            var sample_x: int = clampi(col * tile_width + tile_width / 2, 0, width - 1)
             var byte: float = raw_pixel_data[sample_y * width + sample_x]
             # treat any non-zero byte (i.e. 255) as “on”:
             line_text += "#" if byte != 0 else "."
@@ -173,8 +173,8 @@ func debug_print_ascii(
 
 
 func _calculate_tile_column_count(image_width: int, tile_size: int) -> int:
-    return int((image_width + tile_size - 1) / tile_size)
+    return (image_width + tile_size - 1) / tile_size
 
 
 func _calculate_tile_row_count(image_height: int, tile_size: int) -> int:
-    return int((image_height + tile_size - 1) / tile_size)
+    return (image_height + tile_size - 1) / tile_size

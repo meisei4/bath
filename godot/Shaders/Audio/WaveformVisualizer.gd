@@ -2,7 +2,7 @@ extends Node2D
 class_name WaveformVisualizer
 
 var BufferAShaderNode: ColorRect
-var BufferAShader: Shader = load("res://Resources/Shaders/Audio/waveform.gdshader")
+var BufferAShader: Shader = preload("res://Resources/Shaders/Audio/waveform.gdshader")
 var BufferAShaderMaterial: ShaderMaterial
 var audio_texture: WaveformTexture
 var BufferA: SubViewport

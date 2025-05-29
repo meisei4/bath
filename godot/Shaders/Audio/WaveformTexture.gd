@@ -19,15 +19,14 @@ const DEAD_CHANNEL: float = 0.0
 
 func _ready() -> void:
     prepare_waveform_audio_effect_capture()
-
-    #TODO: make the image only 32-bit Red channel only: Image.FORMAT_RF = Red channel Full 32 bit range
-    audio_image = Image.create(BUFFER_SIZE, TEXTURE_HEIGHT, false, Image.FORMAT_RF)
+    #TODO: why would we need anything more than an 8 bit red channel for this??? the sound envelope???
+    audio_image = Image.create(BUFFER_SIZE, TEXTURE_HEIGHT, false, Image.FORMAT_R8)
     audio_texture = ImageTexture.create_from_image(audio_image)
 
 
-func _process(delta: float) -> void:
+func _process(_delta: float) -> void:
     update_waveform_texture_row()
-    audio_texture.set_image(audio_image)
+    audio_texture.update(audio_image)
 
 
 func prepare_waveform_audio_effect_capture() -> void:

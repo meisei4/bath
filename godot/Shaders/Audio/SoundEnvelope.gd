@@ -2,17 +2,17 @@ extends Node2D
 class_name SoundEnvelope
 
 var BufferAShaderNode: ColorRect
-var BufferAShader: Shader = load(
+var BufferAShader: Shader = preload(
     "res://Resources/Shaders/Audio/SoundEnvelopeWIP/BufferA_sound_envelope.gdshader"
 )
-#var BufferAShader: Shader = load("res://Resources/Shaders/Audio/SoundEnvelopeWIP/optimized_envelope_buffer_a.gdshader")
+#var BufferAShader: Shader = preload("res://Resources/Shaders/Audio/SoundEnvelopeWIP/optimized_envelope_buffer_a.gdshader")
 var BufferAShaderMaterial: ShaderMaterial
 
 var BufferBShaderNode: ColorRect
-var BufferBShader: Shader = load(
+var BufferBShader: Shader = preload(
     "res://Resources/Shaders/Audio/SoundEnvelopeWIP/Image_sound_envelope.gdshader"
 )
-#var BufferBShader: Shader = load("res://Resources/Shaders/Audio/SoundEnvelopeWIP/optimized_envelope_buffer_b.gdshader")
+#var BufferBShader: Shader = preload("res://Resources/Shaders/Audio/SoundEnvelopeWIP/optimized_envelope_buffer_b.gdshader")
 var BufferBShaderMaterial: ShaderMaterial
 
 var waveform_texture: WaveformTexture
@@ -61,7 +61,7 @@ func _ready() -> void:
 
 
 #TODO: its very important to control frame rate with these audio shaders
-func _process(delta: float) -> void:
+func _process(_delta: float) -> void:
     iFrame += 1
     iChannel1 = waveform_texture.audio_texture
     BufferAShaderMaterial.set_shader_parameter("iChannel1", iChannel1)

@@ -140,7 +140,7 @@ func _update_bpm(current_playback_time: float) -> void:
 
         if bpm_from_ioi < MIN_BPM or bpm_from_ioi > MAX_BPM:
             continue
-        var bin_index: int = int(round((bpm_from_ioi - MIN_BPM) * bin_scale))
+        var bin_index: int = roundi((bpm_from_ioi - MIN_BPM) * bin_scale)
         ioi_derived_bpm_histogram[bin_index] += 1
 
     var bin_of_current_mode: int = 0

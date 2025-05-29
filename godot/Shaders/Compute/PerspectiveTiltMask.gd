@@ -94,7 +94,7 @@ func update_cpu_side_sprite_data_ssbo_cache(
 
 
 func _init_shader() -> void:
-    compute_shader_file = load("res://Resources/Shaders/Compute/perspective_tilt_mask.glsl")
+    compute_shader_file = preload("res://Resources/Shaders/Compute/perspective_tilt_mask.glsl")
 
 
 func _init_sprite_data_ssbo_uniform() -> void:

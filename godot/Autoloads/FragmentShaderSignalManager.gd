@@ -74,10 +74,14 @@ func _on_iTime_update_fragment(iTime: float) -> void:
 
 
 func _on_visual_illusion_updated_fragment(
-    sprite_index, center_px, half_size_px, altitude_normal, ascending
+    sprite_index: int,
+    center_px: Vector2,
+    half_size_px: Vector2,
+    altitude_normal: float,
+    ascending: float
 ) -> void:
     perspective_tilt_mask_fragment.set_sprite_data(
         sprite_index, center_px, half_size_px, altitude_normal, ascending
     )
-    var tex = character_bodies[sprite_index].get_node("Sprite2D").texture
-    perspective_tilt_mask_fragment.set_sprite_texture(sprite_index, tex)
+    var sprite_texture: Texture2D = character_bodies[sprite_index].get_node("Sprite2D").texture
+    perspective_tilt_mask_fragment.set_sprite_texture(sprite_index, sprite_texture)

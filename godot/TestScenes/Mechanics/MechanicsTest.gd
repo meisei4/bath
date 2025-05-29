@@ -2,16 +2,13 @@ extends Node2D
 class_name MechanicsTest
 
 var capsule_dummy: CapsuleDummy
+var capsule_scene: PackedScene = preload("res://TestScenes/Entities/Characters/CapsuleDummy.tscn")
 
 
 func _ready() -> void:
-    var capsule_scene: PackedScene = (
-        ResourceLoader.load("res://TestScenes/Entities/Characters/CapsuleDummy.tscn") as PackedScene
-    )
     capsule_dummy = capsule_scene.instantiate() as CapsuleDummy
     capsule_dummy.z_index = 1
     add_child(capsule_dummy)
-
     var viewport_size: Vector2 = ResolutionManager.resolution
     var sprite_node: Sprite2D = capsule_dummy.get_node("Sprite2D") as Sprite2D
     var sprite_size: Vector2 = sprite_node.texture.get_size()

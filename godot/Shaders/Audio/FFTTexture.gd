@@ -14,13 +14,13 @@ var fft_data: PackedFloat32Array
 
 func _ready() -> void:
     fft_data.resize(BUFFER_SIZE)
-    audio_image = Image.create(BUFFER_SIZE, TEXTURE_HEIGHT, false, Image.FORMAT_R8)
+    audio_image = Image.create_empty(BUFFER_SIZE, TEXTURE_HEIGHT, false, Image.FORMAT_R8)
     audio_texture = ImageTexture.create_from_image(audio_image)
 
 
 func _process(_delta: float) -> void:
     update_fft_texture_row()
-    audio_texture.set_image(audio_image)
+    audio_texture.update(audio_image)
 
 
 func update_fft_texture_row() -> void:

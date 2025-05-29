@@ -2,24 +2,21 @@
 extends Node2D
 class_name Shadows
 
-var UmbralShader: Shader = load("res://Resources/Shaders/Shadows/umbral_zone.gdshader")
+var UmbralShader: Shader = preload("res://Resources/Shaders/Shadows/umbral_zone.gdshader")
 var UmbralShaderNode: ColorRect
 var UmbralShaderMaterial: ShaderMaterial
 var UmbralBackBuffer: BackBufferCopy
 const UMBRAL_ZONE_BOUNDS_UV_X: float = 0.5
 const UMBRAL_ZONE_BOUNDS_UV_Y: float = 1.0
 
-var DitherShader: Shader = load("res://Resources/Shaders/Shadows/dither_zone.gdshader")
-var BayerTexture2D: Texture2D = preload("res://Assets/Textures/bayer.png") as Texture2D
-var BayerTexture: Image = BayerTexture2D.get_image()
-
+var DitherShader: Shader = preload("res://Resources/Shaders/Shadows/dither_zone.gdshader")
 var DitherShaderNode: ColorRect
 var DitherShaderMaterial: ShaderMaterial
 var DitherBackBuffer: BackBufferCopy
 const DITHER_ZONE_BOUNDS_UV_X: float = 0.5
 const DITHER_ZONE_BOUNDS_UV_Y: float = 0.75
 
-var iChannel0: Texture
+var iChannel0: Texture = preload("res://Assets/Textures/bayer.png")
 var iResolution: Vector2
 
 var MainViewport: Viewport
@@ -104,7 +101,6 @@ func setup_dither_zone() -> void:
     DitherShaderNode.size = iResolution
     DitherShaderNode.material = DitherShaderMaterial
     DitherShaderMaterial.set_shader_parameter("iResolution", iResolution)
-    iChannel0 = ImageTexture.create_from_image(BayerTexture)
     DitherShaderMaterial.set_shader_parameter("iChannel0", iChannel0)
     DitherShaderMaterial.set_shader_parameter(
         "dither_zone_bounds", Vector2(DITHER_ZONE_BOUNDS_UV_X, DITHER_ZONE_BOUNDS_UV_Y)

@@ -14,7 +14,7 @@ func _ready() -> void:
 
     var wav: AudioStreamWAV = AudioStreamWAV.new()
     wav.format = AudioStreamWAV.FORMAT_16_BITS
-    wav.mix_rate = MusicDimensionsManager.SAMPLE_RATE
+    wav.mix_rate = int(MusicDimensionsManager.SAMPLE_RATE)
     wav.stereo = false
     wav.data = pcm
 

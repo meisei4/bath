@@ -44,7 +44,7 @@ func _handle_releases() -> void:
 
 
 func _debug_keys(
-    f_press_time: float, f_release_time: float, j_press_time: float, j_release_time: float
+    _f_press_time: float, _f_release_time: float, _j_press_time: float, _j_release_time: float
 ) -> void:
     var f_char: String = " "
     var j_char: String = " "
@@ -55,19 +55,19 @@ func _debug_keys(
 
     if Input.is_action_just_pressed("F"):
         f_char = "F"
-        f_press_fmt = "F_PRS:[%.3f,      ]" % f_press_time
+        f_press_fmt = "F_PRS:[%.3f,      ]" % _f_press_time
     elif Input.is_action_pressed("F"):
         f_char = "f"
     if Input.is_action_just_pressed("J"):
         j_char = "J"
-        j_press_fmt = "J_PRS:[%.3f,      ]" % j_press_time
+        j_press_fmt = "J_PRS:[%.3f,      ]" % _j_press_time
     elif Input.is_action_pressed("J"):
         j_char = "j"
 
     if Input.is_action_just_released("F"):
-        f_rel_fmt = "F_REL:[%.3f, %.3f]" % [f_press_time, f_release_time]
+        f_rel_fmt = "F_REL:[%.3f, %.3f]" % [_f_press_time, _f_release_time]
     if Input.is_action_just_released("J"):
-        j_rel_fmt = "J_REL:[%.3f, %.3f]" % [j_press_time, j_release_time]
+        j_rel_fmt = "J_REL:[%.3f, %.3f]" % [_j_press_time, _j_release_time]
 
     var event_body: String = f_press_fmt + f_rel_fmt + j_press_fmt + j_rel_fmt
     var status_body: String = "[%s] [%s]" % [f_char, j_char]
@@ -84,4 +84,4 @@ func _save_onsets() -> void:
     var onset_data: RhythmOnsetData = RhythmOnsetData.new()
     onset_data.uki = key_f_presses
     onset_data.shizumi = key_j_presses
-    var err: Error = ResourceSaver.save(onset_data, SAVE_PATH)
+    ResourceSaver.save(onset_data, SAVE_PATH)

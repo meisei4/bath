@@ -37,16 +37,16 @@ func _ready() -> void:
     for y: int in range(shape.size()):
         var line: String = shape[y]
         for x: int in range(sprite_width):
-            var char: String = line[x]
+            var character: String = line[x]
             var pixel_color: Color = Color(0, 0, 0, 0)
-            if char == "X":
+            if character == "X":
                 pixel_color = Color.BLACK
-                var center_x = x - sprite_width * 0.5 + 0.5
-                var center_y = y - sprite_height * 0.5 + 0.5
+                var center_x: float = x - sprite_width * 0.5 + 0.5
+                var center_y: float = y - sprite_height * 0.5 + 0.5
                 opaque_pixels.append(Vector2(center_x, center_y))
-            elif char == "W":
+            elif character == "W":
                 pixel_color = Color.DARK_GRAY
-            elif char == ".":
+            elif character == ".":
                 pixel_color = Color.WHITE
 
             image.set_pixel(x, y, pixel_color)
@@ -79,10 +79,10 @@ func _ready() -> void:
     collision.owner = character_body
 
     var capsule_script: Script = (
-        ResourceLoader.load("res://godot/Entities/Characters/CapsuleDummy.gd") as Script
+        ResourceLoader.load("res://Entities/Characters/CapsuleDummy.gd") as Script
     )
     character_body.set_script(capsule_script)
 
     var scene: PackedScene = PackedScene.new()
     scene.pack(character_body)
-    ResourceSaver.save(scene, "res://godot/TestScenes/Entities/Characters/CapsuleDummy.tscn")
+    ResourceSaver.save(scene, "res://TestScenes/Entities/Characters/CapsuleDummy.tscn")

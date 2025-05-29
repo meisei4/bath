@@ -1,14 +1,13 @@
 extends Node2D
 class_name SpriteContourPolygonGen
 
-var sprite_texture_path: String = "res://Assets/Sprites/Dolphin2.png"
 var save_path: String = "res://TestScenes/SkeletonTests/SpriteContourPolygon.tscn"
 
 var polygon_node: Polygon2D
+var texture: Texture2D = preload("res://Assets/Sprites/Dolphin2.png")
 
 
 func _ready() -> void:
-    var texture: Texture2D = load(sprite_texture_path) as Texture2D
     polygon_node = Polygon2D.new()
     polygon_node.texture = texture
     #TODO: THESE ARE COPY PASTED FROM THE PYTHON CONTOURING ALGORITHM!!!

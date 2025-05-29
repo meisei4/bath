@@ -2,7 +2,7 @@ extends Node2D
 class_name IOIVisualizer
 
 var BufferAShaderNode: ColorRect
-var BufferAShader: Shader = load("res://Resources/Shaders/Audio/ioi.gdshader")
+var BufferAShader: Shader = preload("res://Resources/Shaders/Audio/ioi.gdshader")
 var BufferAShaderMaterial: ShaderMaterial
 var BufferA: SubViewport
 var MainImage: TextureRect

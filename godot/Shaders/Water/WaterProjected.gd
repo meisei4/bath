@@ -2,25 +2,12 @@ extends Node2D
 class_name WaterProjected
 
 var RippleShaderNode: ColorRect
-var RippleShader: Shader = load("res://Resources/Shaders/Water/finite_approx_ripple.gdshader")
+var RippleShader: Shader = preload("res://Resources/Shaders/Water/finite_approx_ripple.gdshader")
 var RippleShaderMaterial: ShaderMaterial
 
 var WaterShaderNode: ColorRect
-var WaterShader: Shader = load("res://Resources/Shaders/Water/water_projected.gdshader")
+var WaterShader: Shader = preload("res://Resources/Shaders/Water/water_projected.gdshader")
 var WaterShaderMaterial: ShaderMaterial
-
-var noise_texture_resource: Texture2D = (
-    preload("res://Assets/Textures/gray_noise_small.png") as Texture2D
-)
-var NoiseTexture: Image = noise_texture_resource.get_image()
-
-var background_texture_resource: Texture2D = (
-    preload("res://Assets/Textures/moon_water.png") as Texture2D
-)
-var BackgroundTexture: Image = background_texture_resource.get_image()
-
-var caustics_texture_resource: Texture2D = preload("res://Assets/Textures/pebbles.png") as Texture2D
-var CausticsTexture: Image = caustics_texture_resource.get_image()
 
 var BufferA: SubViewport
 var BufferB: SubViewport
@@ -28,17 +15,13 @@ var MainImage: TextureRect
 
 var iResolution: Vector2
 
-var iChannel0: Texture
-#TODO: replace background texture with glacier waters depth texture and proejction alignment/zoom fix
-var iChannel1: Texture
-var iChannel2: Texture
+var iChannel0: Texture = preload("res://Assets/Textures/gray_noise_small.png")
+var iChannel1: Texture = preload("res://Assets/Textures/moon_water.png")
+var iChannel2: Texture = preload("res://Assets/Textures/pebbles.png")
 var iChannel3: Texture
 
 
 func _ready() -> void:
-    iChannel0 = ImageTexture.create_from_image(NoiseTexture)
-    iChannel1 = ImageTexture.create_from_image(BackgroundTexture)
-    iChannel2 = ImageTexture.create_from_image(CausticsTexture)
     iResolution = ResolutionManager.resolution
     BufferA = ShaderToyUtil.create_buffer_viewport(iResolution)
     BufferA.use_hdr_2d = true
@@ -72,7 +55,7 @@ func _ready() -> void:
     add_child(MainImage)
 
 
-func _process(delta: float) -> void:
+func _process(_delta: float) -> void:
     iChannel3 = BufferA.get_texture() as ViewportTexture
     WaterShaderMaterial.set_shader_parameter("iChannel3", iChannel3)
 

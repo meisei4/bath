@@ -2,25 +2,12 @@ extends Node2D
 class_name Water
 
 var RippleShaderNode: ColorRect
-var RippleShader: Shader = load("res://Resources/Shaders/Water/finite_approx_ripple.gdshader")
+var RippleShader: Shader = preload("res://Resources/Shaders/Water/finite_approx_ripple.gdshader")
 var RippleShaderMaterial: ShaderMaterial
 
 var WaterShaderNode: ColorRect
-var WaterShader: Shader = load("res://Resources/Shaders/Water/water.gdshader")
+var WaterShader: Shader = preload("res://Resources/Shaders/Water/water.gdshader")
 var WaterShaderMaterial: ShaderMaterial
-
-var noise_texture_resource: Texture2D = (
-    preload("res://Assets/Textures/gray_noise_small.png") as Texture2D
-)
-var NoiseTexture: Image = noise_texture_resource.get_image()
-
-var background_texture_resource: Texture2D = (
-    preload("res://Assets/Textures/moon_water.png") as Texture2D
-)
-var BackgroundTexture: Image = background_texture_resource.get_image()
-
-var caustics_texture_resource: Texture2D = preload("res://Assets/Textures/pebbles.png") as Texture2D
-var CausticsTexture: Image = caustics_texture_resource.get_image()
 
 var BufferA: SubViewport
 var BufferB: SubViewport
@@ -40,22 +27,14 @@ var cluster_offsets: PackedInt32Array = PackedInt32Array()
 
 var interpolation_timer: float = 0.0
 
-var iChannel0: Texture
-var iChannel1: Texture
-var iChannel2: Texture
+var iChannel0: Texture = preload("res://Assets/Textures/gray_noise_small.png")
+var iChannel1: Texture = preload("res://Assets/Textures/moon_water.png")
+var iChannel2: Texture = preload("res://Assets/Textures/pebbles.png")
 var iChannel3: Texture
 
 
 func _ready() -> void:
     iResolution = ResolutionManager.resolution
-    #NoiseTexture.convert(Image.FORMAT_R8)
-    #BackgroundTexture.convert(Image.FORMAT_RGBA8)
-    #CausticsTexture.convert(Image.FORMAT_R8)
-    #TODO: ^^ the above is something to look into because godot doesnt have clear ways
-    # to set the texture data type beyond the use_hdr attribute flag... (RGBA8 vs RGBA16)
-    iChannel0 = ImageTexture.create_from_image(NoiseTexture)
-    iChannel1 = ImageTexture.create_from_image(BackgroundTexture)
-    iChannel2 = ImageTexture.create_from_image(CausticsTexture)
     BufferA = ShaderToyUtil.create_buffer_viewport(iResolution)
     BufferA.use_hdr_2d = true
     RippleShaderMaterial = ShaderMaterial.new()

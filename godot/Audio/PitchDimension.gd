@@ -1,7 +1,9 @@
 extends Node
 class_name PitchDimension
 
-var midi_note_on_off_event_buffer: Dictionary
+#TODO: rust godot gdextension cant return typed Dictionaries yet i dont think, have to use
+# dict = rust_util.function() as Dictionary[key_type, value_type] for that i guess
+var midi_note_on_off_event_buffer: Dictionary  #[Vector2i, PackedVector2Array]
 var _song_time: float = 0.0
 var _last_time: float = 0.0
 
@@ -13,27 +15,24 @@ var _note_log_history: Array[String] = []
 const TAU: float = 2.0 * PI
 
 var use_cache: bool = true
-
-var mid_path: String = "res://Resources/Audio/Fingerbib.mid"
-var sf2_path: String = "res://Resources/Audio/Animal_Crossing_Wild_World.sf2"
-var pcm_path: String = "user://Resources/Audio/Cache/cached_midi.pcm"
-var ogg_path: String = "res://Resources/Audio/Cache/cached_midi.ogg"
-var wav_path: String = "res://Resources/Audio/Cache/cached_midi.wav"
-var wav_stream: AudioStreamWAV = preload("res://Resources/Audio/Cache/cached_midi.wav")
+var wav_stream: AudioStreamWAV = preload(AudioConsts.CACHED_WAV)
 
 
 func _ready() -> void:
     _song_time = 0.0
     _last_time = 0.0
     midi_note_on_off_event_buffer = (
-        RustUtilSingleton.rust_util.get_midi_note_on_off_event_buffer_seconds(mid_path)
+        RustUtilSingleton.rust_util.get_midi_note_on_off_event_buffer_seconds(
+            AudioConsts.FINGERBIB_MIDI
+        )
         as Dictionary[Vector2i, PackedVector2Array]
     )
+    #TODO: look into ogg vorbis compression for better audio file resources later, maybe OPUS too
     setup_wav()
+    AudioPoolManager.play_music(wav_stream)
 
 
 func setup_wav() -> void:
-    var bytes: PackedByteArray
     #TODO: this is a wack, issue because i cant preload if the file doesnt exist,
     # but because of how slow the web build IndexedDB is for loading MB large files like wavs
     # I cant really test the caching process or the midi->wav bytes process until i figure out
@@ -43,40 +42,25 @@ func setup_wav() -> void:
     # https://docs.godotengine.org/en/stable/tutorials/best_practices/logic_preferences.html
     if self.use_cache:  # and FileAccess.file_exists(wav_path):
         #wav_stream = load("res://Resources/Audio/Cache/cached_midi.wav")
-        AudioPoolManager.play_music(wav_stream)
+        pass
     else:
-        bytes = RustUtilSingleton.rust_util.render_midi_to_sound_bytes_constant_time(
-            int(MusicDimensionsManager.SAMPLE_RATE), mid_path, sf2_path
+        var sound_bytes: PackedByteArray = (
+            RustUtilSingleton
+            . rust_util
+            . render_midi_to_sound_bytes_constant_time(
+                int(MusicDimensionsManager.SAMPLE_RATE), AudioConsts.FINGERBIB_MIDI, AudioConsts.SF2
+            )
         )
         #cache the file
-        var f = FileAccess.open(wav_path, FileAccess.WRITE)
-        f.store_buffer(bytes)
-        f.close()
+        var file_access: FileAccess = FileAccess.open(AudioConsts.CACHED_WAV, FileAccess.WRITE)
+        file_access.store_buffer(sound_bytes)
+        file_access.close()
         #use the raw bytes for the stream, no need to load a resource??
-        wav_stream = AudioStreamWAV.load_from_buffer(bytes)
-        AudioPoolManager.play_music(wav_stream)
+        wav_stream = AudioStreamWAV.load_from_buffer(sound_bytes)
 
 
-#TODO: this is for later when compression is even neccessary i guess, but its ugly in rust crates rn
-func setup_vorbis() -> void:
-    var bytes: PackedByteArray
-    if self.use_cache and FileAccess.file_exists(ogg_path):
-        var f = FileAccess.open(ogg_path, FileAccess.READ)
-        bytes = f.get_buffer(f.get_length())
-        f.close()
-    else:
-        bytes = RustUtilSingleton.rust_util.render_midi_to_sound_bytes_constant_time(
-            int(MusicDimensionsManager.SAMPLE_RATE), mid_path, sf2_path
-        )
-        var f = FileAccess.open(ogg_path, FileAccess.WRITE)
-        f.store_buffer(bytes)
-        f.close()
-    var ogg_stream: AudioStreamOggVorbis = AudioStreamOggVorbis.load_from_buffer(bytes)
-    AudioPoolManager.play_music(ogg_stream)
-
-
-func _process(delta_time: float) -> void:
-    _song_time += delta_time
+func _process(delta: float) -> void:
+    _song_time += delta
     var active_notes: Array[int] = sample_active_notes_at_time(_song_time)
     hsv_buffer.clear()
     var max_notes: int = 6
@@ -110,11 +94,11 @@ func _process(delta_time: float) -> void:
 
 func midi_note_to_color_dict(note: int, polyphony: int) -> Dictionary:
     var pitch_class: int = note % 12
-    var pitch_radians: float = float(pitch_class) / 12.0 * TAU
+    var pitch_radians: float = pitch_class / 12.0 * TAU
     var octave: int = note / 12 - 1
-    var value: float = clamp(float(octave - 1) / 7.0, 0.3, 1.0)
-    var saturation: float = clamp(float(polyphony) / 8.0, 0.3, 1.0)
-    var freq: float = 440.0 * pow(2.0, float(note - 69) / 12.0)
+    var value: float = clampf((octave - 1) / 7.0, 0.3, 1.0)
+    var saturation: float = clampf((polyphony) / 8.0, 0.3, 1.0)
+    var freq: float = 440.0 * pow(2.0, (note - 69) / 12.0)
     var _name: String = midi_note_to_name(note)
     return {
         "note": note,
@@ -150,7 +134,7 @@ func midi_note_to_name(note: int) -> String:
         "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"
     ]
     var _name: String = note_names[note % 12]
-    var octave: int = int(note / 12) - 1
+    var octave: int = (note / 12) - 1
     return "%s%d" % [_name, octave]
 
 

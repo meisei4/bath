@@ -4,7 +4,7 @@ class_name PerspectiveTiltMaskFragment
 const MAXIMUM_SPRITE_COUNT: int = 12
 
 var BufferAShaderNode: ColorRect
-var BufferAShader: Shader = load(
+var BufferAShader: Shader = preload(
     "res://Resources/Shaders/MechanicAnimations/perspective_tilt_mask.gdshader"
 )
 var BufferAShaderMaterial: ShaderMaterial
@@ -77,7 +77,7 @@ func get_perspective_tilt_mask_texture_fragment() -> Texture:
 
 
 func register_sprite_texture(sprite_texture: Texture2D) -> int:
-    var index = _sprite_textures.find(null)
+    var index: int = _sprite_textures.find(null)
     if index == -1:
         push_error("No more mask slots!")
         return -1

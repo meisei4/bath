@@ -57,13 +57,12 @@ func _determine_scene_to_load() -> String:
 
 
 func _scene_from_url() -> String:
-    var full_url: String = JavaScriptBridge.eval("window.location.href") as String
+    var full_url: String = JavaScriptBridge.eval("window.location.href")
     var key: String = _extract_url_parameter(full_url, URL_PARAM_SCENE_KEY)
     if key != "":
         var path: String = _find_matching_scene(key)
         if path != "":
             return path
-    # Default for root URL = TestHarness
     return "res://TestScenes/TestHarness.tscn"
 
 
