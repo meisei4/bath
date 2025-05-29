@@ -2,19 +2,6 @@
 
 This project uses the Rust GDExtension (via [godot-rust](https://godot-rust.github.io/)) to speed up fragment shader ↔ physics utilities in Godot 4.4.x.
 
-#### New Settings
-
-For editor experimentation only: an optional override config (`experimental_resolution_override.cfg`) lets you test different resolutions in the Godot editor without affecting runtime builds.
-
-* **Manager script**: `godot/Autoloads/ResolutionManager.gd`
-
-  * [https://github.com/meisei4/bath/blob/main/godot/Autoloads/ResolutionManager.gd](https://github.com/meisei4/bath/blob/main/godot/Autoloads/ResolutionManager.gd)
-* **Override file**: `experimental_resolution_override.cfg`
-
-  * [https://github.com/meisei4/bath/blob/main/godot/experimental\_resolution\_override.cfg](https://github.com/meisei4/bath/blob/main/godot/experimental_resolution_override.cfg)
-
-This setup helps resolve inconsistent window sizes across scenes and devices during development.
-
 #### Prerequisites
 
 * Rust & Cargo (via [rustup](https://rustup.rs/))
