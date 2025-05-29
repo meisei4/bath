@@ -138,7 +138,7 @@ func debug_custom_onsets_ASCII(delta: float) -> void:
         print(status_body)
 
 
-func _process(_delta_time: float) -> void:
+func _process(_delta: float) -> void:
     #TODO: LMAO these are expensive and should not be called every frame:
     #https://docs.godotengine.org/en/stable/classes/class_audioserver.html#class-audioserver-method-get-output-latency
     var time_since_previous_mix: float = AudioServer.get_time_since_last_mix()

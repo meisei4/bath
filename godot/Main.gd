@@ -1,107 +1,33 @@
 extends Node2D
 class_name Main
 
-const TEST_SCENES_DIRECTORY: String = "res://TestScenes"
+#TODO: try the following urls, and or any other scenes
+# in order to change scenes you need to reload the webpage with the new #/ url
 
-const CLI_SCENE_FLAG: String = "--scene"
-const URL_PARAM_SCENE_KEY: String = "scene"
-
-const FEATURE_WEB: String = "web"
-const FEATURE_WINDOWS: String = "windows"
-const FEATURE_LINUX: String = "linux"
-const FEATURE_MACOS: String = "macos"
-const FEATURE_ARM: String = "arm"
-
-var HARDCODED_TEST_SCENES: PackedStringArray = PackedStringArray(
-    [
-        "res://TestScenes/Audio/ManualRhythmOnsetRecorder.tscn",
-        "res://TestScenes/Audio/PitchDimension.tscn",
-        "res://TestScenes/Mechanics/MechanicsTest.tscn",
-        "res://TestScenes/Shaders/Compute/CollisionMask.tscn",
-        "res://TestScenes/Shaders/Compute/PerspectiveTiltMask.tscn",
-        "res://TestScenes/Shaders/IceSheets/IceSheets.tscn",
-        "res://TestScenes/Shaders/Shape/GhostShape.tscn",
-        "res://TestScenes/Shaders/Shadows/ShadowsTest.tscn",
-        "res://TestScenes/TestHarness.tscn"
-    ]
-)
-
-enum Platform {
-    PLATFORM_WEB, PLATFORM_ARM, PLATFORM_WINDOWS, PLATFORM_LINUX, PLATFORM_MACOS, PLATFORM_UNKNOWN
-}
+# http://localhost:8060/tmp_js_export.html#/TestScenes/Shaders/Shape/GhostShape
+# http://localhost:8060/tmp_js_export.html#/TestScenes/TestHarness
 
 
 func _ready() -> void:
-    var scene_path: String = _determine_scene_to_load()
-    _load_and_show_scene(scene_path)
+    if OS.get_name() == "Web" or OS.has_feature("wasm32") or OS.has_feature("web"):
+        #TODO: this is assuming http://localhost:8060/tmp_js_export.html#/ is always in front?
+        #substring(2) to cut off the "#/" prefix
+        var scene_path: String = JavaScriptBridge.eval("location.hash.substring(2)")
+        var resource_path: String = "res://" + scene_path + ".tscn"
+        _load_scene(resource_path)
+    else:
+        push_error("dont use this scene outside of web mode")
 
 
-func _load_and_show_scene(scene_path: String) -> void:
-    if scene_path == "":
-        push_error("No scene path resolved.")
-        return
-    var packed: PackedScene = load(scene_path) as PackedScene
-    if packed == null:
-        push_error("Failed to load scene: %s" % scene_path)
-        return
-    var inst: Node = packed.instantiate()
-    add_child(inst)
-
-
-func _determine_scene_to_load() -> String:
-    match _get_platform():
-        Platform.PLATFORM_WEB:
-            return _scene_from_url()
-        _:
-            return _scene_from_cli()
-
-
-func _scene_from_url() -> String:
-    var full_url: String = JavaScriptBridge.eval("window.location.href")
-    var key: String = _extract_url_parameter(full_url, URL_PARAM_SCENE_KEY)
-    if key != "":
-        var path: String = _find_matching_scene(key)
-        if path != "":
-            return path
-    return "res://TestScenes/TestHarness.tscn"
-
-
-func _scene_from_cli() -> String:
-    var args: PackedStringArray = OS.get_cmdline_args()
-    var idx: int = args.find(CLI_SCENE_FLAG)
-    if idx >= 0 and idx + 1 < args.size():
-        return args[idx + 1]
-    return "res://TestScenes/TestHarness.tscn"
-
-
-func _get_platform() -> int:
-    if OS.has_feature(FEATURE_WEB):
-        return Platform.PLATFORM_WEB
-    elif OS.has_feature(FEATURE_ARM):
-        return Platform.PLATFORM_ARM
-    elif OS.has_feature(FEATURE_WINDOWS):
-        return Platform.PLATFORM_WINDOWS
-    elif OS.has_feature(FEATURE_LINUX):
-        return Platform.PLATFORM_LINUX
-    elif OS.has_feature(FEATURE_MACOS):
-        return Platform.PLATFORM_MACOS
-    return Platform.PLATFORM_UNKNOWN
-
-
-func _extract_url_parameter(url: String, param: String) -> String:
-    var qidx: int = url.find("?")
-    if qidx < 0:
-        return ""
-    var query: String = url.substr(qidx + 1, url.length() - qidx - 1)
-    for pair: String in query.split("&"):
-        var kv: Array[String] = pair.split("=")
-        if kv.size() == 2 and kv[0] == param:
-            return kv[1]
-    return ""
-
-
-func _find_matching_scene(key: String) -> String:
-    for path: String in HARDCODED_TEST_SCENES:
-        if path.ends_with("%s.tscn" % key) or path == key:
-            return path
-    return ""
+func _load_scene(resource_path: String) -> void:
+    if not ResourceLoader.exists(resource_path):
+        push_error(
+            (
+                "Scene not found: %s, could be empty path upon intialization, or scene path is wrong"
+                % resource_path
+            )
+        )
+    else:
+        var scene_resource: PackedScene = load(resource_path) as PackedScene
+        var scene_instance: Node = scene_resource.instantiate()
+        add_child(scene_instance)
