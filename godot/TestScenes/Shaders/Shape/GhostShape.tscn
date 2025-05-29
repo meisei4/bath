@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://l5cvget1ulog"]
 
-[ext_resource type="Script" uid="uid://pbx17n7wbpm" path="res://Shaders/Shape/GhostShape.gd" id="1_su6io"]
+[ext_resource type="Script" uid="uid://dib1lkxkj4n7w" path="res://Shaders/Shape/GhostShape.gd" id="1_su6io"]
 
 [node name="GhostShape" type="Node2D" groups=["display_experimental"]]
 script = ExtResource("1_su6io")
