@@ -28,12 +28,11 @@ func _ready() -> void:
     BufferA.use_hdr_2d = false
     BufferAShaderMaterial = ShaderMaterial.new()
     BufferAShaderMaterial.shader = BufferAShader
-    BufferAShaderMaterial.set_shader_parameter("iResolution", iResolution)
     #BufferAShaderMaterial.set_shader_parameter("sprite_count", 0)
     #BufferAShaderMaterial.set_shader_parameter("sprite_textures", _sprite_textures)
     #BufferAShaderMaterial.set_shader_parameter("sprite_data0", _sprite_data0)
     #BufferAShaderMaterial.set_shader_parameter("sprite_data1", _sprite_data1)
-    BufferAShaderMaterial.set_shader_parameter("sprite_texture", _sprite_textures[0])
+    BufferAShaderMaterial.set_shader_parameter("iChannel0", _sprite_textures[0])
     BufferAShaderMaterial.set_shader_parameter("sprite_data0", _sprite_data0[0])
     BufferAShaderMaterial.set_shader_parameter("sprite_data1", _sprite_data1[0])
     BufferAShaderNode = ColorRect.new()
@@ -69,8 +68,8 @@ func set_sprite_texture(sprite_index: int, sprite_texture: Texture2D) -> void:
         return
     _sprite_textures[sprite_index] = sprite_texture
     #BufferAShaderMaterial.set_shader_parameter("sprite_textures", _sprite_textures)
-    BufferAShaderMaterial.set_shader_parameter("sprite_texture", _sprite_textures[0])
-
+    BufferAShaderMaterial.set_shader_parameter("iChannel0", _sprite_textures[0])
+    BufferAShaderMaterial.set_shader_parameter("iResolution", _sprite_textures[0].get_size())
 
 func get_perspective_tilt_mask_texture_fragment() -> Texture:
     return BufferA.get_texture()

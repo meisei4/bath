@@ -1,14 +1,10 @@
 # Godot 4+ specific ignores
 .godot/
 addons/
-Resources/Audio
 python_bath/assets
 
 #build
 build/
-
-# Exported binaries
-export/
 
 # Godot cache files
 .import/

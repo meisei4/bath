@@ -2,7 +2,7 @@ shader_type canvas_item;
 //render_mode blend_disabled;
 #include "res://Resources/Shaders/MechanicAnimations/perspective_tilt.gdshaderinc"
 
-//uniform vec2    iResolution;
+uniform vec2    iResolution;
 //uniform int     sprite_count;
 //uniform vec4    sprite_data0[12];
 //uniform vec4    sprite_data1[12];
@@ -13,7 +13,7 @@ uniform vec4    sprite_data1;
 // causing that tiny little white sliver to show up in the non-dithered regions when the jump shader activates
 // and thus this mask is a little late or something, i have no idea, ill figure it out when working more with mechanic
 // shader handovers
-uniform sampler2D sprite_texture: filter_nearest;
+uniform sampler2D iChannel0: filter_nearest;
 
 const float MAX_TILT_ANGLE =
     MAXIMUM_TILT_ANGLE_ACHIEVED_AT_IMMEDIATE_ASCENSION_AND_FINAL_DESCENT;
@@ -40,27 +40,23 @@ void fragment() {
             continue;
         }
         vec2 uv = (frag_coord - (center_px - half_size_px)) / (half_size_px * 2.0);
-        vec2 warped_uv;
-        float tilt_val;
+        vec2 warped_uv_continious;
+        float perspective_tilt;
         compute_perspective_tilt(
             uv,
             altitude_n,
             ascending,
             MAX_TILT_ANGLE,
-            warped_uv,
-            tilt_val
+            warped_uv_continious,
+            perspective_tilt
         );
         vec2 sprite_texel_size = 1.0 / (half_size_px * 2.0);
-        DISCARD_PIXELS_OUTSIDE_OF_ALTERED_UV_BOUNDS_FRAG(warped_uv, sprite_texel_size);
-        //vec2 uv_min = vec2(0.0);
-        //vec2 uv_max = vec2(1.0) - sprite_texel_size;
-        //warped_uv = clamp(warped_uv, uv_min, uv_max);
-        //float sprite_alpha = texture(sprite_textures[i], warped_uv).a;
-        float sprite_alpha = texture(sprite_texture, warped_uv).a;
+        DISCARD_PIXELS_OUTSIDE_OF_ALTERED_UV_BOUNDS_FRAG(warped_uv_continious, sprite_texel_size);
+        float sprite_alpha = texture(iChannel0, warped_uv_continious).a;
         if (sprite_alpha < 0.5) {
             continue;
         }
-        max_tilt = max(max_tilt, clamp(tilt_val, 0.0, 1.0));
+        max_tilt = max(max_tilt, clamp(perspective_tilt, 0.0, 1.0));
         alpha = max(alpha, sprite_alpha);
     }
     vec4 col = vec4(max_tilt, 0.0, 0.0, alpha);

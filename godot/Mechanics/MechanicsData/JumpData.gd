@@ -9,9 +9,12 @@ class_name JumpData
 # Controls jump height: higher velocity -> higher apex
 # Units: px/s
 
-@export var FORWARD_SPEED: float = 6.0
+@export var FORWARD_SPEED: float = 4.0
 # Horizontal movement while airborne
 # Units: world units/s
+
+@export var SPRITE_SCALE_AT_MIN_ALTITUDE: float = 1.0
+
 
 @export var SPRITE_SCALE_AT_MAX_ALTITUDE: float = 3.0
 # Max sprite scale at jump apex
