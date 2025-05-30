@@ -62,13 +62,13 @@ func process_visual_illusion(_frame_delta: float) -> void:
     #_update_sprite_scale_continious(sprite_node, altitude_normal)
     _update_sprite_scale_discrete(sprite_node, altitude_normal)
     sprite_node.material.set_shader_parameter("iChannel0", sprite_node.texture)
-    sprite_node.material.set_shader_parameter("iResolution", sprite_node.texture.get_size())# * sprite_node.scale)
+    sprite_node.material.set_shader_parameter("iResolution", sprite_node.texture.get_size())  # * sprite_node.scale)
 
     sprite_node.material.set_shader_parameter("ascending", is_ascending())
     var sprite_height: float = sprite_node.texture.get_size().y
     #TODO: quantize the altitude normal is super important to study for later as it controls exactly how many
     # unique warped sprite frames can exist in the animation
-    altitude_normal = round(altitude_normal * sprite_height) / (sprite_height)# * 2.0)
+    altitude_normal = round(altitude_normal * sprite_height) / (sprite_height)  # * 2.0)
     sprite_node.material.set_shader_parameter("altitude_normal", altitude_normal)
 
     #ComputeShaderSignalManager.visual_illusion_updated.emit(
@@ -102,12 +102,10 @@ func _compute_altitude_normal_in_jump_parabola(
         return clamp(altitude_normal, 0.0, 1.0)
 
 
-
 func _update_sprite_scale_continious(sprite_node: Sprite2D, _altitude_normal: float) -> void:
-    var scale_minimum: float =  PARAMETERS.SPRITE_SCALE_AT_MIN_ALTITUDE
+    var scale_minimum: float = PARAMETERS.SPRITE_SCALE_AT_MIN_ALTITUDE
     var scale_maximum: float = PARAMETERS.SPRITE_SCALE_AT_MAX_ALTITUDE
-    var scale_multiplier: float = (scale_minimum +
-        (scale_maximum - scale_minimum) * _altitude_normal)
+    var scale_multiplier: float = scale_minimum + (scale_maximum - scale_minimum) * _altitude_normal
     sprite_node.scale = Vector2.ONE * scale_multiplier
 
 
@@ -119,13 +117,14 @@ func _eased_phase(_altitude_normal: float) -> float:
 func _update_sprite_scale_discrete(sprite_node: Sprite2D, _altitude_normal: float) -> void:
     var base_width_i: int = int(sprite_node.texture.get_size().x)
     var base_height_i: int = int(sprite_node.texture.get_size().y)
-    var scale_minimum_f: float =  PARAMETERS.SPRITE_SCALE_AT_MIN_ALTITUDE
+    var scale_minimum_f: float = PARAMETERS.SPRITE_SCALE_AT_MIN_ALTITUDE
     var scale_maximum_f: float = PARAMETERS.SPRITE_SCALE_AT_MAX_ALTITUDE
     var eased_altitude_normal: float = _eased_phase(_altitude_normal)
     #var interpolated_scale_f: float = lerp(scale_minimum_f, scale_maximum_f, altitude_location)
     #TODO: below is an explicit lerp function
-    var interpolated_scale_f: float = (scale_minimum_f +
-        (scale_maximum_f - scale_minimum_f) * eased_altitude_normal)
+    var interpolated_scale_f: float = (
+        scale_minimum_f + (scale_maximum_f - scale_minimum_f) * eased_altitude_normal
+    )
     # Example (base 16×24), min scale = 1.0, max scale = 3.0
     # altitude_normal | interp_scale_f |  gcd_uniform  | scale_mult_f | final dimensions
     # -----------------------------------------------------------------------------------
@@ -145,8 +144,6 @@ func _update_sprite_scale_discrete(sprite_node: Sprite2D, _altitude_normal: floa
     var quantized_steps_i: int = roundi(interpolated_scale_f * steps_i)
     var scale_multiplier_f: float = quantized_steps_i / float(steps_i)
     sprite_node.scale = Vector2.ONE * scale_multiplier_f
-
-
 
 
 func process_collision_shape(_delta: float) -> void:

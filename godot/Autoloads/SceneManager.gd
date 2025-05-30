@@ -16,7 +16,7 @@ func _ready() -> void:
         var resource_path: String = "res://" + scene_path + ".tscn"
         _load_scene(resource_path)
     else:
-       print("not running web mode, you're fine")
+        print("not running web mode, you're fine")
 
 
 func _load_scene(resource_path: String) -> void:

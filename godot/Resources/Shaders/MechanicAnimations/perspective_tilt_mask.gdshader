@@ -30,34 +30,38 @@ void fragment() {
         //bool  ascending    = (sprite_data1[i].y > 0.5);
         vec2  center_px    = sprite_data0.xy;
         vec2  half_size_px = sprite_data0.zw;
-        float altitude_n   = sprite_data1.x;
+        float altitude_normal   = sprite_data1.x;
         bool  ascending    = (sprite_data1.y > 0.5);
-        if (altitude_n <= 0.0) {
+        if (altitude_normal <= 0.0) {
             continue;
         }
-        vec2 d = abs(frag_coord - center_px);
-        if (d.x > half_size_px.x || d.y > half_size_px.y) {
-            continue;
-        }
-        vec2 uv = (frag_coord - (center_px - half_size_px)) / (half_size_px * 2.0);
+        vec2 uv = (frag_coord + vec2(0.5) - (center_px - half_size_px)) / (half_size_px * 2.0);
+        vec2  base_texel       = floor(uv * iResolution);
+        vec2  center_pixel_uv  = (base_texel + 0.5) / iResolution;
         vec2 warped_uv_continious;
         float perspective_tilt;
         compute_perspective_tilt(
-            uv,
-            altitude_n,
+            center_pixel_uv,
+            altitude_normal,
             ascending,
             MAX_TILT_ANGLE,
             warped_uv_continious,
             perspective_tilt
         );
-        vec2 sprite_texel_size = 1.0 / (half_size_px * 2.0);
-        DISCARD_PIXELS_OUTSIDE_OF_ALTERED_UV_BOUNDS_FRAG(warped_uv_continious, sprite_texel_size);
-        float sprite_alpha = texture(iChannel0, warped_uv_continious).a;
-        if (sprite_alpha < 0.5) {
+        vec2 warped_virtual_pixel = floor(warped_uv_continious * iResolution);
+        if (warped_virtual_pixel.x < 0.0
+            || warped_virtual_pixel.x >= iResolution.x
+            || warped_virtual_pixel.y < 0.0
+            || warped_virtual_pixel.y >= iResolution.y) {
+                continue;
+        }
+        vec2 warped_virtual_pixel_uv = (warped_virtual_pixel + 0.5) / iResolution;
+        float sprite_alpha = texture(iChannel0, warped_virtual_pixel_uv).a;
+        if (sprite_alpha == 0.0) {
             continue;
         }
         max_tilt = max(max_tilt, clamp(perspective_tilt, 0.0, 1.0));
-        alpha = max(alpha, sprite_alpha);
+        alpha = 1.0;
     }
     vec4 col = vec4(max_tilt, 0.0, 0.0, alpha);
     COLOR = col;

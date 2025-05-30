@@ -42,7 +42,7 @@ func setup_wav() -> void:
     # https://docs.godotengine.org/en/stable/tutorials/best_practices/logic_preferences.html
 
     #TODO: FileAccess.file_exists is not working on web build idk why, just assume cached wav
-    if self.use_cache: # and FileAccess.file_exists(AudioConsts.CACHED_WAV):
+    if self.use_cache:  # and FileAccess.file_exists(AudioConsts.CACHED_WAV):
         #wav_stream = load("res://Resources/Audio/Cache/cached_midi.wav")
         pass
     else:

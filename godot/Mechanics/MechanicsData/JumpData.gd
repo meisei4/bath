@@ -15,7 +15,6 @@ class_name JumpData
 
 @export var SPRITE_SCALE_AT_MIN_ALTITUDE: float = 1.0
 
-
 @export var SPRITE_SCALE_AT_MAX_ALTITUDE: float = 3.0
 # Max sprite scale at jump apex
 # Range: >1.0 for foreshortening illusion
