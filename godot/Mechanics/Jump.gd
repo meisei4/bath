@@ -62,20 +62,20 @@ func process_visual_illusion(_frame_delta: float) -> void:
     #_update_sprite_scale_continious(sprite_node, altitude_normal)
     _update_sprite_scale_discrete(sprite_node, altitude_normal)
     sprite_node.material.set_shader_parameter("iChannel0", sprite_node.texture)
-    sprite_node.material.set_shader_parameter("iResolution", sprite_node.texture.get_size())  # * sprite_node.scale)
-
+    sprite_node.material.set_shader_parameter("iResolution", sprite_node.texture.get_size())
+    var is_ascending: bool = is_ascending()
     sprite_node.material.set_shader_parameter("ascending", is_ascending())
     var sprite_height: float = sprite_node.texture.get_size().y
     #TODO: quantize the altitude normal is super important to study for later as it controls exactly how many
     # unique warped sprite frames can exist in the animation
-    altitude_normal = round(altitude_normal * sprite_height) / (sprite_height)  # * 2.0)
+    #TODO: the biggest thing left is quantizing such that we can control a hand-drawn looking pixel perfect tilt animation
+    altitude_normal = roundf(altitude_normal * sprite_height) / (sprite_height)  #* 2.0)
     sprite_node.material.set_shader_parameter("altitude_normal", altitude_normal)
-
     #ComputeShaderSignalManager.visual_illusion_updated.emit(
     FragmentShaderSignalManager.visual_illusion_updated.emit(
         sprite_texture_index,
         sprite_node.global_position,
-        (sprite_node.texture.get_size() * 0.5) * sprite_node.scale,
+        sprite_node.scale,
         altitude_normal,
         1.0 if is_ascending() else 0.0
     )

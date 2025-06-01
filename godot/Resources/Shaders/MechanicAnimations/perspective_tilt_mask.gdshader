@@ -1,68 +1,61 @@
 shader_type canvas_item;
-//render_mode blend_disabled;
 #include "res://Resources/Shaders/MechanicAnimations/perspective_tilt.gdshaderinc"
 
 uniform vec2    iResolution;
-//uniform int     sprite_count;
-//uniform vec4    sprite_data0[12];
-//uniform vec4    sprite_data1[12];
-//uniform sampler2D sprite_textures[12];
-uniform vec4    sprite_data0;
-uniform vec4    sprite_data1;
-//TODO: I think somewhere during the shader handoff in the mechanics there is a tiny fuck up which is
-// causing that tiny little white sliver to show up in the non-dithered regions when the jump shader activates
-// and thus this mask is a little late or something, i have no idea, ill figure it out when working more with mechanic
-// shader handovers
-uniform sampler2D iChannel0: filter_nearest;
+uniform vec2    sprite_texture_size;
+uniform vec2    sprite_scale;
+uniform vec2    sprite_position;
+uniform float   altitude_normal;
+uniform bool    ascending;
+
+uniform sampler2D iChannel0 : filter_nearest;
 
 const float MAX_TILT_ANGLE =
     MAXIMUM_TILT_ANGLE_ACHIEVED_AT_IMMEDIATE_ASCENSION_AND_FINAL_DESCENT;
 
 void fragment() {
-    vec2 frag_coord = FRAGCOORD.xy;
-    float max_tilt = 0.0;
-    float alpha = 0.0;
-    //for (int i = 0; i < sprite_count; ++i) {
-    for (int i = 0; i < 1; ++i) {
-        //vec2  center_px    = sprite_data0[i].xy;
-        //vec2  half_size_px = sprite_data0[i].zw;
-        //float altitude_n   = sprite_data1[i].x;
-        //bool  ascending    = (sprite_data1[i].y > 0.5);
-        vec2  center_px    = sprite_data0.xy;
-        vec2  half_size_px = sprite_data0.zw;
-        float altitude_normal   = sprite_data1.x;
-        bool  ascending    = (sprite_data1.y > 0.5);
-        if (altitude_normal <= 0.0) {
-            continue;
-        }
-        vec2 uv = (frag_coord + vec2(0.5) - (center_px - half_size_px)) / (half_size_px * 2.0);
-        vec2  base_texel       = floor(uv * iResolution);
-        vec2  center_pixel_uv  = (base_texel + 0.5) / iResolution;
-        vec2 warped_uv_continious;
-        float perspective_tilt;
-        compute_perspective_tilt(
-            center_pixel_uv,
-            altitude_normal,
-            ascending,
-            MAX_TILT_ANGLE,
-            warped_uv_continious,
-            perspective_tilt
-        );
-        vec2 warped_virtual_pixel = floor(warped_uv_continious * iResolution);
-        if (warped_virtual_pixel.x < 0.0
-            || warped_virtual_pixel.x >= iResolution.x
-            || warped_virtual_pixel.y < 0.0
-            || warped_virtual_pixel.y >= iResolution.y) {
-                continue;
-        }
-        vec2 warped_virtual_pixel_uv = (warped_virtual_pixel + 0.5) / iResolution;
-        float sprite_alpha = texture(iChannel0, warped_virtual_pixel_uv).a;
-        if (sprite_alpha == 0.0) {
-            continue;
-        }
-        max_tilt = max(max_tilt, clamp(perspective_tilt, 0.0, 1.0));
-        alpha = 1.0;
+    if (altitude_normal <= 0.0) {
+        discard;
     }
-    vec4 col = vec4(max_tilt, 0.0, 0.0, alpha);
-    COLOR = col;
+    vec2 frag_coord = FRAGCOORD.xy;
+    vec2 full_size_px = sprite_texture_size * sprite_scale;
+    vec2 half_size_px = full_size_px * 0.5;
+    vec2 top_left     = sprite_position - half_size_px;
+    vec2 bottom_right = sprite_position + half_size_px;
+    if (frag_coord.x < top_left.x || frag_coord.x >= bottom_right.x ||
+        frag_coord.y < top_left.y || frag_coord.y >= bottom_right.y) {
+        discard;
+    }
+    vec2 normalized_uv = (frag_coord - top_left) / full_size_px;
+    vec2 src_texel = floor(normalized_uv * sprite_texture_size);
+    vec2 src_uv    = (src_texel + 0.5) / sprite_texture_size;
+    vec2 warped_uv_continuous;
+    float perspective_tilt;
+    compute_perspective_tilt(
+        src_uv,
+        altitude_normal,
+        ascending,
+        MAX_TILT_ANGLE,
+        warped_uv_continuous,
+        perspective_tilt
+    );
+    vec2 warped_texel = floor(warped_uv_continuous * sprite_texture_size);
+    if (warped_texel.x < 0.0 || warped_texel.x > (sprite_texture_size.x - 1.0) ||
+        warped_texel.y < 0.0 || warped_texel.y > (sprite_texture_size.y - 1.0)) {
+        discard;
+    }
+    vec2 warped_uv_texcenter = (warped_texel + 0.5) / sprite_texture_size;
+    float sprite_alpha = texture(iChannel0, warped_uv_texcenter).a;
+    if (sprite_alpha < 0.5) {
+        discard;
+    }
+    float  quantize_strength = 2.0;
+    bool quantize_in_screen_space = false;
+    float base_step  = quantize_in_screen_space
+                  ? 1.0 / full_size_px.y
+                  : 1.0 / sprite_texture_size.y;
+
+    float q_step    = base_step * max(1.0, quantize_strength);
+    float qauntized_tilt    = floor(perspective_tilt / q_step + 0.5) * q_step;
+    COLOR = vec4(qauntized_tilt, 0.0, 0.0, 1.0);
 }

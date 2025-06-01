@@ -1,7 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://bgttm82glka7e"]
 
-[ext_resource type="Script" uid="uid://bnfarvhu23ln2" path="res://Shaders/MechanicAnimations/PerspectiveTiltMaskFragment.gd" id="1_vuie7"]
+[ext_resource type="Script" uid="uid://bub4n256nkuy1" path="res://Shaders/MechanicAnimations/PerspectiveTiltMaskFragment.gd" id="1_vuie7"]
 
 [node name="PerspectiveTiltMaskFragment" type="Node2D"]
 script = ExtResource("1_vuie7")
-metadata/_custom_type_script = "uid://bnfarvhu23ln2"

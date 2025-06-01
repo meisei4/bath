@@ -14,7 +14,7 @@ var DitherShaderNode: ColorRect
 var DitherShaderMaterial: ShaderMaterial
 var DitherBackBuffer: BackBufferCopy
 const DITHER_ZONE_BOUNDS_UV_X: float = 0.5
-const DITHER_ZONE_BOUNDS_UV_Y: float = 0.25
+const DITHER_ZONE_BOUNDS_UV_Y: float = 0.75
 
 var iChannel0: Texture = preload("res://Assets/Textures/bayer.png")
 var iResolution: Vector2

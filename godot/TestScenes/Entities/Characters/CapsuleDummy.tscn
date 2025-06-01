@@ -1,6 +1,6 @@
 [gd_scene load_steps=4 format=3 uid="uid://bouuwx15ejow1"]
 
-[ext_resource type="Script" uid="uid://od3hojk68g2e" path="res://Entities/Characters/CapsuleDummy.gd" id="1_a2kt7"]
+[ext_resource type="Script" uid="uid://cfndhqfjgfs1a" path="res://Entities/Characters/CapsuleDummy.gd" id="1_a2kt7"]
 [ext_resource type="Texture2D" uid="uid://ckgqwg6yky1er" path="res://Assets/Sprites/capsule.png" id="2_iykol"]
 
 [sub_resource type="ConvexPolygonShape2D" id="ConvexPolygonShape2D_n4eky"]
