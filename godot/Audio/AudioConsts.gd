@@ -58,11 +58,12 @@ const MUSIC_TRACK_3: String = "res://Resources/Audio/Music/trimmed_03___Touched_
 const MUSIC_TRACK_4: String = "res://Resources/Audio/Music/trimmed_04___To_Here_Knows_When_00-12-38_00-13-23.mp3"
 const MUSIC_TRACK_5: String = "res://Resources/Audio/Music/trimmed_05___When_You_Sleep_00-17-20_00-17-35.mp3"
 
-#MISC types:
+#MISC:
 const FINGERBIB_MIDI: String = "res://Resources/Audio/Fingerbib.mid"
 const TWOAM_MIDI: String = "res://Resources/Audio/2am.mid"
 const SF2: String = "res://Resources/Audio/dsdnm.sf2"
 
-#CACHED STUFF:
-const CACHED_OGG: String = "res://Resources/Audio/Cache/cached_midi.ogg"
-const CACHED_WAV: String = "res://Resources/Audio/Cache/cached_midi.wav"
+#CACHING:
+const CACHED_OGG: String = "res://Resources/Audio/Cache/cached_ogg.ogg"
+const CACHED_WAV: String = "res://Resources/Audio/Cache/cached_wav.wav"
+const CACHED_RHYTHM_DATA: String = "res://Resources/Audio/Cache/rhythm_data.tres"

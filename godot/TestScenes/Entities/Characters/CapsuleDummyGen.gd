@@ -64,7 +64,7 @@ func _ready() -> void:
     sprite.centered = true
 
     #TODO: this next part is a race condition because the image wont be saved in time, so you have to run this twice lol
-    sprite.texture = ResourceLoader.load("res://Assets/Sprites/capsule.png")
+    sprite.texture = load("res://Assets/Sprites/capsule.png")
     character_body.add_child(sprite)
     sprite.owner = character_body
 
@@ -78,9 +78,7 @@ func _ready() -> void:
     character_body.add_child(collision)
     collision.owner = character_body
 
-    var capsule_script: Script = (
-        ResourceLoader.load("res://Entities/Characters/CapsuleDummy.gd") as Script
-    )
+    var capsule_script: Script = load("res://Entities/Characters/CapsuleDummy.gd") as Script
     character_body.set_script(capsule_script)
 
     var scene: PackedScene = PackedScene.new()

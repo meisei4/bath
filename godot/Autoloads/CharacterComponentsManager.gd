@@ -16,7 +16,7 @@ func load_upgrades() -> void:
         var resource_path: String = character_components_dir + file_name
         if file_name.ends_with(".tres"):
             #TODO: figure out better resource error checking??
-            var resource: CharacterComponentsResource = ResourceLoader.load(resource_path)
+            var resource: CharacterComponentsResource = load(resource_path)
             character_components.append(resource)
         file_name = dir.get_next()
     dir.list_dir_end()

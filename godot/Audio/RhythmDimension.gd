@@ -1,26 +1,33 @@
 extends Node
 class_name RhythmDimension
 
-#var metronome_click: AudioStream = preload(AudioConsts.METRONOME_CLICK)
-
-var custom_onset_data: RhythmOnsetData = preload(
-    "res://Resources/Audio/CustomOnsets/custom_onsets.tres"
-)
-
-static var f_onsets_flat_buffer: PackedVector2Array = PackedVector2Array()
-static var j_onsets_flat_buffer: PackedVector2Array = PackedVector2Array()
-
+var metronome_click: AudioStream  # = preload(AudioConsts.METRONOME_CLICK)
+var rhythm_data: RhythmData  # = preload(AudioConsts.CACHED_RHYTHM_DATA)
+var bpm: float
+var f_onsets_flat_buffer: PackedVector2Array = PackedVector2Array()
+var j_onsets_flat_buffer: PackedVector2Array = PackedVector2Array()
 var f_onset_count: int = 0
 var j_onset_count: int = 0
 
 var time_of_next_click: float = 0.0
-var bpm: float
 var wav_stream: AudioStreamWAV = preload(AudioConsts.SNUFFY)
 
 
 func _ready() -> void:
-    bpm = RustUtilSingleton.rust_util.detect_bpm(AudioConsts.SNUFFY)
-    print("aubio derived bpm is:", bpm)
+    if ResourceLoader.exists(AudioConsts.CACHED_RHYTHM_DATA):
+        rhythm_data = load(AudioConsts.CACHED_RHYTHM_DATA) as RhythmData
+    else:
+        rhythm_data = RhythmData.new()
+
+    if rhythm_data.bpm <= 0.0:
+        bpm = RustUtilSingleton.rust_util.detect_bpm(AudioConsts.SNUFFY)
+        print("Offline BPM detection → ", bpm)
+        rhythm_data.bpm = bpm
+        ResourceSaver.save(rhythm_data, AudioConsts.CACHED_RHYTHM_DATA)
+    else:
+        bpm = rhythm_data.bpm
+        print("Using cached BPM → ", bpm)
+
     load_custom_onsets()
     AudioPoolManager.play_music(wav_stream)
 
@@ -28,8 +35,8 @@ func _ready() -> void:
 func load_custom_onsets() -> void:
     f_onsets_flat_buffer.clear()
     j_onsets_flat_buffer.clear()
-    var uki: PackedFloat32Array = custom_onset_data.uki
-    var shizumi: PackedFloat32Array = custom_onset_data.shizumi
+    var uki: PackedFloat32Array = rhythm_data.uki
+    var shizumi: PackedFloat32Array = rhythm_data.shizumi
     for i: int in range(0, uki.size(), 2):
         var f_press: float = uki[i]
         var f_release: float = uki[i + 1]
@@ -46,7 +53,6 @@ func debug_custom_onsets_metronome_sfx(delta: float) -> void:
     var uki_onset_index: int = 0
     var shizumi_onset_index: int = 0
     MusicDimensionsManager.song_time += delta
-    # Iterate over F‐onsets (press times in .x)
     while uki_onset_index < f_onsets_flat_buffer.size():
         var next_uki_onset: float = f_onsets_flat_buffer[uki_onset_index].x
         if MusicDimensionsManager.song_time < next_uki_onset:
@@ -70,7 +76,7 @@ func debug_custom_onsets_ASCII(delta: float) -> void:
     var f_rel_fmt: String = ""
     var j_press_fmt: String = ""
     var j_rel_fmt: String = ""
-    for v in f_onsets_flat_buffer:
+    for v: Vector2 in f_onsets_flat_buffer:
         var u_start: float = v.x
         var u_end: float = v.y
         if prev_time < u_start and MusicDimensionsManager.song_time >= u_start:
@@ -78,7 +84,7 @@ func debug_custom_onsets_ASCII(delta: float) -> void:
             f_press_fmt = "F_PRS:[%.3f,      ]" % u_start
         if prev_time < u_end and MusicDimensionsManager.song_time >= u_end:
             f_rel_fmt = "F_REL:[%.3f, %.3f]" % [u_start, u_end]
-    for v in j_onsets_flat_buffer:
+    for v: Vector2 in j_onsets_flat_buffer:
         var s_start: float = v.x
         var s_end: float = v.y
         if prev_time < s_start and MusicDimensionsManager.song_time >= s_start:

@@ -9,13 +9,12 @@ var _last_time: float = 0.0
 
 var hsv_buffer: PackedVector3Array = PackedVector3Array()
 
+const TAU: float = 2.0 * PI
 const MAX_NOTE_HISTORY: int = 6
 var _last_active_notes: Array[int] = []
 var _note_log_history: Array[String] = []
-const TAU: float = 2.0 * PI
 
-var use_cache: bool = true
-var wav_stream: AudioStreamWAV = preload(AudioConsts.CACHED_WAV)
+var wav_stream: AudioStreamWAV  # = preload(AudioConsts.CACHED_WAV)
 
 
 func _ready() -> void:
@@ -41,10 +40,10 @@ func setup_wav() -> void:
     # runtime builds:
     # https://docs.godotengine.org/en/stable/tutorials/best_practices/logic_preferences.html
 
-    #TODO: FileAccess.file_exists is not working on web build idk why, just assume cached wav
-    if self.use_cache:  #and FileAccess.file_exists(AudioConsts.CACHED_WAV):
-        #wav_stream = load("res://Resources/Audio/Cache/cached_midi.wav")
-        pass
+    #TODO: this is seriously needing of a completely new approach with all this
+    # caching stuff and offline builds vs web build (which parts of the rust util can wasm use etc)
+    if ResourceLoader.exists(AudioConsts.CACHED_WAV):
+        wav_stream = load(AudioConsts.CACHED_WAV) as AudioStreamWAV
     else:
         var sound_bytes: PackedByteArray = (
             RustUtilSingleton
@@ -53,17 +52,12 @@ func setup_wav() -> void:
                 int(MusicDimensionsManager.SAMPLE_RATE), AudioConsts.FINGERBIB_MIDI, AudioConsts.SF2
             )
         )
-        #cache the file
         var file_access: FileAccess = FileAccess.open(AudioConsts.CACHED_WAV, FileAccess.WRITE)
         file_access.store_buffer(sound_bytes)
         file_access.close()
-        #use the raw bytes for the stream, no need to load a resource??
-        #TODO: this is a hack for when the wav file doesnt exist yet, so we
-        # comment out the #var wav_stream: AudioStreamWAV = preload(AudioConsts.CACHED_WAV) aswell
-        #THIS IS REALLY BAD!!! FIGURE OUT A BETTER APPROACH!!!
-        var wav_stream: AudioStreamWAV
         wav_stream = AudioStreamWAV.load_from_buffer(sound_bytes)
-        AudioPoolManager.play_music(wav_stream)
+
+    AudioPoolManager.play_music(wav_stream)
 
 
 func _process(delta: float) -> void:

@@ -1,8 +1,6 @@
 extends Node
 class_name RhythmOnsetRecorder
 
-const SAVE_PATH: String = "res://Resources/Audio/CustomOnsets/custom_onsets.tres"
-
 var key_f_presses: PackedFloat32Array
 var key_j_presses: PackedFloat32Array
 
@@ -84,7 +82,12 @@ func _exit_tree() -> void:
 
 
 func _save_onsets() -> void:
-    var onset_data: RhythmOnsetData = RhythmOnsetData.new()
+    var onset_data: RhythmData
+    if ResourceLoader.exists(AudioConsts.CACHED_RHYTHM_DATA):
+        onset_data = load(AudioConsts.CACHED_RHYTHM_DATA) as RhythmData
+    else:
+        onset_data = RhythmData.new()
+
     onset_data.uki = key_f_presses
     onset_data.shizumi = key_j_presses
-    ResourceSaver.save(onset_data, SAVE_PATH)
+    ResourceSaver.save(onset_data, AudioConsts.CACHED_RHYTHM_DATA)
