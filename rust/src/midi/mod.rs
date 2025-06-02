@@ -1,5 +1,5 @@
-pub mod core;
-pub mod midi_lib;
+pub mod godot;
+pub mod util;
 
 #[cfg(feature = "tests-only")]
-pub mod test_playback;
+pub mod tests;

@@ -1,15 +1,16 @@
-// pub mod audio_analysis;
+pub mod audio_analysis;
 pub mod collision_mask;
 pub mod midi;
 
-use crate::midi::core::{
-    inject_program_change, prepare_events, process_midi_events_with_timing, render_sample_frame,
-};
-use crate::midi::midi_lib::{
+use crate::midi::godot::{
     make_note_on_off_event_dict_seconds, make_note_on_off_event_dict_ticks, write_samples_to_wav,
 };
-// use audio_analysis::util::{detect_bpm};
-use collision_mask::util::{
+use crate::midi::util::{
+    inject_program_change, prepare_events, process_midi_events_with_timing, render_sample_frame,
+};
+use audio_analysis::godot::detect_bpm_aubio;
+//use audio_analysis::godot::{detect_bpm_beat_detector};
+use collision_mask::godot::{
     generate_concave_collision_polygons_pixel_perfect,
     generate_convex_collision_polygons_pixel_perfect,
 };
@@ -107,11 +108,18 @@ impl RustUtil {
         godot_polygons_array
     }
 
-    // #[func]
-    // pub fn detect_bpm(&self, path: GString) -> f32 {
-    //     detect_bpm(path)
-    //     //TODO: this is not actually accurate bpm sometimes, look at offline vs realtime later
-    // }
+    #[func]
+    pub fn detect_bpm(&self, wav_file_path: GString) -> f32 {
+        //TODO: this is not actually accurate bpm sometimes, look at offline vs realtime later
+        let wav_path = wav_file_path.to_string();
+        let wav_file = FileAccess::open(&wav_path, ModeFlags::READ).unwrap_or_else(|| {
+            godot_print!("!!!!Failed to open wav at {}", wav_path);
+            panic!("Cannot continue without wav");
+        });
+        let wav_bytes = wav_file.get_buffer(wav_file.get_length() as i64).to_vec();
+        detect_bpm_aubio(&wav_bytes)
+        //detect_bpm_from_beat_detector(&wav_bytes)
+    }
 
     #[func]
     pub fn get_midi_note_on_off_event_buffer_ticks(&self, midi_file_path: GString) -> Dictionary {

@@ -13,7 +13,7 @@ use std::time::Duration;
 use std::{fs, thread};
 use terminal_size::{terminal_size, Width};
 
-use crate::midi::core::{
+use crate::midi::util::{
     parse_midi_events_into_note_on_off_event_buffer_seconds_from_bytes,
     parse_midi_events_into_note_on_off_event_buffer_ticks_from_bytes, prepare_events,
     process_midi_events_with_timing,
@@ -302,7 +302,6 @@ fn note_name_no_octave(note_number: u8) -> &'static str {
 }
 
 pub fn play_midi(midi_path: &str) {
-
     const MIDI_NOTE_ON: u8 = 0x90;
     const MIDI_NOTE_OFF: u8 = 0x80;
 
