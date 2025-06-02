@@ -3,7 +3,7 @@ class_name GhostShape
 
 var BufferAShaderNode: ColorRect
 #var BufferAShader: Shader = preload("res://Resources/Shaders/Shape/ghost.gdshader")
-var BufferAShader: Shader = preload("res://Resources/Shaders/Audio/rhythm_ball.gdshader")
+var BufferAShader: Shader = preload("res://Resources/Shaders/Audio/music_ball.gdshader")
 var BufferAShaderMaterial: ShaderMaterial
 var BufferA: SubViewport
 var MainImage: TextureRect
@@ -17,6 +17,7 @@ var fft_texture: FFTTexture
 var ioi_texture: IOITexture
 
 var pitch_dimension: PitchDimension
+var rhythm_dimension: RhythmDimension
 
 
 func _ready() -> void:
@@ -29,15 +30,10 @@ func _ready() -> void:
     BufferAShaderNode.material = BufferAShaderMaterial
     BufferAShaderMaterial.set_shader_parameter("iResolution", iResolution)
     BufferAShaderMaterial.set_shader_parameter("iChannel0", iChannel0)
-    BufferAShaderMaterial.set_shader_parameter("bpm", MusicDimensionsManager.bpm)
     fft_texture = FFTTexture.new()
-    ioi_texture = IOITexture.new()
-
-    var onsets_buf: PackedVector4Array = MusicDimensionsManager.custom_onsets_flat_buffer
-    BufferAShaderMaterial.set_shader_parameter("custom_onsets", onsets_buf)
-    BufferAShaderMaterial.set_shader_parameter("custom_onset_count", onsets_buf.size())
-
-    pitch_dimension = PitchDimension.new()
+    #ioi_texture = IOITexture.new()
+    #pitch_dimension = PitchDimension.new()
+    rhythm_dimension = RhythmDimension.new()
 
     MainImage = TextureRect.new()
     MainImage.texture = BufferA.get_texture()
@@ -46,17 +42,28 @@ func _ready() -> void:
     add_child(BufferA)
     add_child(MainImage)
     add_child(fft_texture)
-    add_child(ioi_texture)
-    add_child(pitch_dimension)
+    #add_child(ioi_texture)
+    #add_child(pitch_dimension)
+    add_child(rhythm_dimension)
+    BufferAShaderMaterial.set_shader_parameter("bpm", rhythm_dimension.bpm)
+    var f_onsets: PackedVector2Array = rhythm_dimension.f_onsets_flat_buffer
+    var j_onsets: PackedVector2Array = rhythm_dimension.j_onsets_flat_buffer
+    BufferAShaderMaterial.set_shader_parameter("f_onsets", f_onsets)
+    BufferAShaderMaterial.set_shader_parameter("j_onsets", j_onsets)
+    BufferAShaderMaterial.set_shader_parameter("f_onset_count", f_onsets.size())
+    BufferAShaderMaterial.set_shader_parameter("j_onset_count", j_onsets.size())
 
 
 func _process(delta: float) -> void:
+    BufferAShaderMaterial.set_shader_parameter("song_time", MusicDimensionsManager.song_time)
     iChannel1 = fft_texture.audio_texture
     BufferAShaderMaterial.set_shader_parameter("iChannel1", iChannel1)
     #iChannel2 = ioi_texture.audio_texture
     #BufferAShaderMaterial.set_shader_parameter("iChannel2", iChannel2)
-    #MusicDimensionsManager.debug_bpm_onsets(delta)
-    #MusicDimensionsManager.debug_custom_onsets(delta)
-    MusicDimensionsManager.debug_custom_onsets_ASCII(delta)
-    var hsv_buffer: PackedVector3Array = pitch_dimension.hsv_buffer
+    #rhythm_dimension.debug_custom_onsets_metronome_sfx(delta)
+    rhythm_dimension.debug_custom_onsets_ASCII(delta)
+    #var hsv_buffer: PackedVector3Array = pitch_dimension.hsv_buffer
+    var fft_hsv_dummy: Vector3 = Vector3(0, 0, 1)
+    var light_ball_hsv_dummy: Vector3 = Vector3(0, 0, 1)
+    var hsv_buffer: PackedVector3Array = PackedVector3Array([light_ball_hsv_dummy, fft_hsv_dummy])
     BufferAShaderMaterial.set_shader_parameter("hsv_buffer", hsv_buffer)

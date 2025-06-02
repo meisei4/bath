@@ -23,19 +23,14 @@ var onset_intervals_history_buffer: PackedFloat32Array = PackedFloat32Array()
 var time_of_previous_onset: float = 0.0
 var onset_event_counter: int = 0
 
-var custom_onset_data: RhythmOnsetData = preload(
-    "res://Resources/Audio/CustomOnsets/custom_onsets.tres"
-)
-#var metronome_click: AudioStream = preload(AudioConsts.METRONOME_CLICK)
-var time_of_next_click: float = 0.0
-var bpm: float
+# TODO: where tf does this go, not good,
+# do not run rhythmdimension and manual onset recorder at the same time ever
 var song_time: float = 0.0
 
 #var audio_stream: AudioStream = preload(AudioConsts.SHADERTOY_MUSIC_TRACK_EXPERIMENT_WAV)
 #var audio_stream: AudioStream = preload(AudioConsts.HELLION_WAV)
 #var audio_stream: AudioStream = preload(AudioConsts.SNUFFY)
 #var input_stream: AudioStreamMicrophone = AudioStreamMicrophone.new()
-#var wav_stream: AudioStreamWAV = preload("res://Resources/Audio/Cache/cached_midi.wav")
 
 
 func _ready() -> void:
@@ -45,97 +40,14 @@ func _ready() -> void:
     AudioEffectManager.add_effect(bus_index, effect)
     var effect_index: int = AudioServer.get_bus_effect_count(bus_index) - 1
     spectrum_analyzer_instance = AudioServer.get_bus_effect_instance(bus_index, effect_index)
-    #derive_bpm()
-    #load_custom_onsets()
 
     #TODO: figure out where to actually have music play in the game, currently
     # juggling too many locations where music is tested for playback
     # especially PitchDimension scene with all the caching and shit
 
-    #AudioPoolManager.play_music(wav_stream)
-
     #AudioPoolManager.play_music(audio_stream)
+
     #AudioPoolManager.play_input(input_stream)
-
-
-func derive_bpm() -> void:
-    #TODO: we no longer use global paths, fix this
-    #var wav_fs_path: String = ProjectSettings.globalize_path(song)
-    #bpm = rust_util.detect_bpm(wav_fs_path)
-    print("aubio derived bpm is:", bpm)
-
-
-static var custom_onsets_flat_buffer: PackedVector4Array
-
-
-func load_custom_onsets() -> void:
-    custom_onsets_flat_buffer.clear()
-    var uki: PackedFloat32Array = custom_onset_data.uki
-    var shizumi: PackedFloat32Array = custom_onset_data.shizumi
-    var total_onsets: float = min(uki.size(), shizumi.size()) / 2
-    for i: int in range(int(total_onsets)):
-        var u_start: float = uki[i * 2]
-        var u_end: float = uki[i * 2 + 1]
-        var s_start: float = shizumi[i * 2]
-        var s_end: float = shizumi[i * 2 + 1]
-        var uki_flat: Vector2 = Vector2(u_start, u_end)
-        var shizumi_flat: Vector2 = Vector2(s_start, s_end)
-        var uki_shizumi_flat: Vector4 = Vector4(
-            uki_flat.x, uki_flat.y, shizumi_flat.x, shizumi_flat.y
-        )
-        custom_onsets_flat_buffer.append(uki_shizumi_flat)
-
-
-func debug_custom_onsets(delta: float) -> void:
-    var uki_onset_index: int = 0
-    var shizumi_onset_index: int = 0
-    song_time += delta
-    while uki_onset_index < custom_onsets_flat_buffer.size():
-        var next_uki_onset: float = custom_onsets_flat_buffer[uki_onset_index].x
-        if song_time < next_uki_onset:
-            break
-        #AudioPoolManager.play_sfx(metronome_click)
-        uki_onset_index += 1
-
-    while shizumi_onset_index < custom_onsets_flat_buffer.size():
-        var next_j_start: float = custom_onsets_flat_buffer[shizumi_onset_index].z
-        if song_time < next_j_start:
-            break
-        #AudioPoolManager.play_sfx(metronome_click)
-        shizumi_onset_index += 1
-
-
-#TODO: this identical to ManualRhythmOnsetRecorder._debug_keys()
-func debug_custom_onsets_ASCII(delta: float) -> void:
-    var prev_time: float = song_time
-    song_time += delta
-    var f_char: String = " "
-    var j_char: String = " "
-    var f_press_fmt: String = ""
-    var f_rel_fmt: String = ""
-    var j_press_fmt: String = ""
-    var j_rel_fmt: String = ""
-    for v: Vector4 in custom_onsets_flat_buffer:
-        var u_start: float = v.x
-        var u_end: float = v.y
-        var s_start: float = v.z
-        var s_end: float = v.w
-        if prev_time < u_start and song_time >= u_start:
-            f_char = "F"
-            f_press_fmt = "F_PRS:[%.3f,      ]" % u_start
-        if prev_time < u_end and song_time >= u_end:
-            f_rel_fmt = "F_REL:[%.3f, %.3f]" % [u_start, u_end]
-        if prev_time < s_start and song_time >= s_start:
-            j_char = "J"
-            j_press_fmt = "J_PRS:[%.3f,      ]" % s_start
-
-        if prev_time < s_end and song_time >= s_end:
-            j_rel_fmt = "J_REL:[%.3f, %.3f]" % [s_start, s_end]
-    var event_body: String = f_press_fmt + f_rel_fmt + j_press_fmt + j_rel_fmt
-    var status_body: String = "[%s] [%s]" % [f_char, j_char]
-    if event_body != "":
-        status_body += "   " + event_body
-        print(status_body)
 
 
 func _process(_delta: float) -> void:

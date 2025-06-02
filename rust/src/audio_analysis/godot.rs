@@ -1,11 +1,11 @@
 #[cfg(not(target_arch = "wasm32"))]
+use aubio_rs::{OnsetMode::SpecFlux, Smpl, Tempo};
+#[cfg(not(target_arch = "wasm32"))]
 use godot::global::godot_print;
 #[cfg(not(target_arch = "wasm32"))]
 use hound::WavReader;
 #[cfg(not(target_arch = "wasm32"))]
 use std::io::Cursor;
-#[cfg(not(target_arch = "wasm32"))]
-use aubio_rs::{OnsetMode::SpecFlux, Smpl, Tempo};
 #[cfg(not(target_arch = "wasm32"))]
 const BUF_SIZE: usize = 1024;
 #[cfg(not(target_arch = "wasm32"))]

@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3 uid="uid://b5r5vgtqs1j30"]
+
+[ext_resource type="Script" uid="uid://lo3wbjgu1j66" path="res://Audio/RhythmDimension.gd" id="1_0jllm"]
+
+[node name="RhythmDimension" type="Node"]
+script = ExtResource("1_0jllm")
+metadata/_custom_type_script = "uid://lo3wbjgu1j66"

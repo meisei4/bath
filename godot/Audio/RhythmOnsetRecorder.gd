@@ -1,5 +1,5 @@
 extends Node
-class_name ManualRhythmOnsetRecorder
+class_name RhythmOnsetRecorder
 
 const SAVE_PATH: String = "res://Resources/Audio/CustomOnsets/custom_onsets.tres"
 
@@ -11,10 +11,13 @@ var j_press_time: float = -1.0
 var f_release_time: float = -1.0
 var j_release_time: float = -1.0
 
+var wav_stream: AudioStreamWAV = preload(AudioConsts.SNUFFY)
+
 
 func _ready() -> void:
     key_f_presses.clear()
     key_j_presses.clear()
+    AudioPoolManager.play_music(wav_stream)
 
 
 func _process(delta: float) -> void:

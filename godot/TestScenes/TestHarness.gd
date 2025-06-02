@@ -57,7 +57,7 @@ func add_perspective_tilt_mask_fragment_scene() -> void:
 
 
 func add_shadows_test_scene() -> void:
-    var shadows_scene: PackedScene = preload("res://TestScenes/Shaders/Shadows/ShadowsTest.tscn")
+    var shadows_scene: PackedScene = preload("res://TestScenes/Shaders/Shadows/Shadows.tscn")
     var shadows_test: Shadows = shadows_scene.instantiate() as Shadows
     add_child(shadows_test)
 
