@@ -19,7 +19,7 @@ var iResolution: Vector2
 # :E 0:00:01:279   _display_error_with_code: CanvasShaderGLES3: Program linking failed:
 # WARNING: Output of vertex shader 'varying_G' not read by fragment shader
 # ERROR: Implementation limit of 16 active fragment shader samplers (e.g., maximum number of supported image units) exceeded, fragment shader uses 19 samplers
-  #<C++ Source>  drivers/gles3/shader_gles3.cpp:265 @ _display_error_with_code()
+#<C++ Source>  drivers/gles3/shader_gles3.cpp:265 @ _display_error_with_code()
 
 var _sprite_textures: Array[Texture2D] = []
 var sprite_position_data: PackedVector2Array
