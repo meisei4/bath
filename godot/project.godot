@@ -11,7 +11,7 @@ config_version=5
 [application]
 
 config/name="bath"
-run/main_scene="uid://bvlmsxs2y84gp"
+run/main_scene="uid://yf8wnlan0xq1"
 config/features=PackedStringArray("4.4", "Forward Plus")
 
 [audio]
