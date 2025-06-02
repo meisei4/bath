@@ -5,6 +5,7 @@
 #linker = "emcc"
 linker = "C:/Users/pl/emsdk/upstream/emscripten/emcc.bat"
 rustflags = [
+    "--verbose",
     "-C", "link-args=-g",
     "-C", "link-args=-sSIDE_MODULE=2",
     "-C", "link-args=-pthread",
