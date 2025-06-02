@@ -1,47 +1,46 @@
-#![cfg(not(target_arch = "wasm32"))]
+#![cfg(feature = "tests-only")]
 
-mod midi;
-
-use crate::midi::midi::{
-    parse_midi_events_into_note_on_off_event_buffer_seconds, prepare_events,
-    process_midi_events_with_timing,
-};
-use midi::midi::parse_midi_events_into_note_on_off_event_buffer_ticks;
 use midir::{MidiOutput, MidiOutputConnection, MidiOutputPort};
 use midly::{MidiMessage, Smf, TrackEventKind};
-use rdev::{Event, EventType, Key};
+use rdev::{listen, Event, EventType, Key};
 use rustysynth::{Instrument, InstrumentRegion, Preset, SoundFont};
 use std::collections::HashSet;
-use std::io::{stdout, Write};
+use std::error::Error;
+use std::fs::File;
+use std::io::{stdout, BufReader, Write};
 use std::process::{exit, Child, Command};
 use std::time::Duration;
-use std::{error::Error, fs::File, io::BufReader};
 use std::{fs, thread};
 use terminal_size::{terminal_size, Width};
 
-const SOUND_FONT_FILE_PATH: &str = "/Users/ann/Documents/misc_game/Animal_Crossing_Wild_World.sf2";
-//const MIDI_FILE_PATH: &str = "/Users/ann/Documents/misc_game/2am.mid";
-//const MIDI_FILE_PATH: &str = "/Users/ann/Documents/misc_game/4.mid";
-const MIDI_FILE_PATH: &str = "/Users/ann/Documents/misc_game/Fingerbib.mid";
+use crate::midi::core::{
+    parse_midi_events_into_note_on_off_event_buffer_seconds_from_bytes,
+    parse_midi_events_into_note_on_off_event_buffer_ticks_from_bytes, prepare_events,
+    process_midi_events_with_timing,
+};
 
-//fluidsynth -a coreaudio -m coremidi /Users/ann/Documents/misc_game/Animal_Crossing_Wild_World.sf2
+const SOUND_FONT_FILE_PATH: &str = "../godot/Resources/Audio/dsdnm.sf2";
+const MIDI_FILE_PATH: &str = "../godot/Resources/Audio/Fingerbib.mid";
 
-fn main() {
-    //print!("\x1B[2J");
-    if let Err(err) = print_full_structure(SOUND_FONT_FILE_PATH, 0, 0) {
-        eprintln!("️SoundFont debug error: {}", err);
-    }
+pub fn run_playback() -> Result<(), Box<dyn Error>> {
+    print_full_structure(SOUND_FONT_FILE_PATH, 0, 0)?;
     let mut fluidsynth_process = launch_fluidsynth_with_font(SOUND_FONT_FILE_PATH);
     let (midi_output, midi_port) = connect_to_first_midi_port();
-    let mut midi_connection = midi_output.connect(&midi_port, "rust-midi").unwrap();
+    let mut midi_connection = midi_output.connect(&midi_port, "rust-midi")?;
     let mut pressed_keys: HashSet<Key> = HashSet::new();
-    // let _ = listen(move |event| {
-    //     handle_key_event(event, &mut midi_connection, &mut pressed_keys);
-    // });
+    // to use rdev‐based real‐time input, uncomment and use:
+    let _ = listen(move |event| {
+        handle_key_event(event, &mut midi_connection, &mut pressed_keys);
+    });
     let _ = fluidsynth_process.kill();
-    let _ = parse_midi_events_into_note_on_off_event_buffer_ticks(MIDI_FILE_PATH);
-    let _ = parse_midi_events_into_note_on_off_event_buffer_seconds(MIDI_FILE_PATH);
-    play_midi(MIDI_FILE_PATH, SOUND_FONT_FILE_PATH, "Accordion");
+    let midi_bytes = fs::read(MIDI_FILE_PATH)
+        .unwrap_or_else(|e| panic!("Failed to read MIDI '{}': {}", MIDI_FILE_PATH, e));
+
+    let _ = parse_midi_events_into_note_on_off_event_buffer_ticks_from_bytes(&midi_bytes);
+    let _ = parse_midi_events_into_note_on_off_event_buffer_seconds_from_bytes(&midi_bytes);
+    play_midi(MIDI_FILE_PATH);
+
+    Ok(())
 }
 
 pub fn launch_fluidsynth_with_font(sf2_path: &str) -> Child {
@@ -112,10 +111,7 @@ pub struct KeyBinding {
     pub midi_note: u8,
 }
 
-//this is just the middle of a piano i guess
-// MIDI: C4 = 60
 const BASE_OCTAVE: i8 = 5;
-
 const C: u8 = 0;
 const C_S: u8 = 1;
 const D: u8 = 2;
@@ -197,6 +193,7 @@ pub fn key_bindings() -> Vec<KeyBinding> {
         },
     ]
 }
+
 pub fn render(active_keys: &HashSet<rdev::Key>) {
     let bindings = key_bindings();
     let mut buffer = String::new();
@@ -276,7 +273,6 @@ pub fn render(active_keys: &HashSet<rdev::Key>) {
         }
     }
     buffer.push('\n');
-    //buffer.push_str(" A  S  D  F  G  H  J \n");
     print!("{}", buffer);
     let _ = stdout().flush();
 }
@@ -298,15 +294,6 @@ fn key_for_label(label: char) -> rdev::Key {
     panic!("Invalid label: {}", label);
 }
 
-pub fn note_to_name(note_number: u8) -> String {
-    const NAMES: [&str; 12] = [
-        "C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B",
-    ];
-    let octave = (note_number / 12).saturating_sub(1);
-    let name = NAMES[(note_number % 12) as usize];
-    format!("{}{}", name, octave)
-}
-
 fn note_name_no_octave(note_number: u8) -> &'static str {
     const NAMES: [&str; 12] = [
         "C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B",
@@ -314,21 +301,21 @@ fn note_name_no_octave(note_number: u8) -> &'static str {
     NAMES[(note_number % 12) as usize]
 }
 
-pub fn play_midi(midi_path: &str, sf2_path: &str, preset: &str) {
-    const TARGET_CHANNEL: u8 = 0;
-    const PROGRAM: u8 = 0; // Accordion
+pub fn play_midi(midi_path: &str) {
+
     const MIDI_NOTE_ON: u8 = 0x90;
     const MIDI_NOTE_OFF: u8 = 0x80;
+
     let (midi_out, port) = connect_to_first_midi_port();
     let mut conn = midi_out.connect(&port, "rust-midi").unwrap();
-    //TODO: this might not even be neccessary anymore, the program change event actually assigns the instruments apparently
-    // assign_midi_instrument_from_soundfont(TARGET_CHANNEL, preset, sf2_path, |msg| {
-    //     conn.send(msg).ok();
-    // });
-    let bytes = fs::read(midi_path).unwrap();
+
+    let bytes = std::fs::read(midi_path).unwrap();
     let smf = Smf::parse(&bytes).unwrap();
-    let mut events = prepare_events(&smf);
-    //events = inject_program_change(events, TARGET_CHANNEL, PROGRAM);
+    let events = prepare_events(&smf);
+    // const TARGET_CHANNEL: u8 = 0;
+    // const PROGRAM: u8 = 0; // Accordion
+    // events = inject_program_change(events, TARGET_CHANNEL, PROGRAM); // if you want
+
     let mut last_time = 0.0;
     process_midi_events_with_timing(events, &smf, |event_time, event, ch| {
         let delay = event_time - last_time;
@@ -337,8 +324,8 @@ pub fn play_midi(midi_path: &str, sf2_path: &str, preset: &str) {
         }
         last_time = event_time;
         if let Some(channel) = ch {
-            match event {
-                TrackEventKind::Midi { message, .. } => match message {
+            if let TrackEventKind::Midi { message, .. } = event {
+                match message {
                     MidiMessage::NoteOn { key, vel } => {
                         let msg = if vel.as_int() > 0 {
                             vec![MIDI_NOTE_ON | channel, key.as_int(), vel.as_int()]
@@ -352,8 +339,7 @@ pub fn play_midi(midi_path: &str, sf2_path: &str, preset: &str) {
                         let _ = conn.send(&msg);
                     }
                     _ => {}
-                },
-                _ => {}
+                }
             }
         }
     });
@@ -523,4 +509,13 @@ fn print_aligned_right(lines: &[String]) {
     for line in lines {
         println!("{}{}", " ".repeat(pad), line);
     }
+}
+
+pub fn note_to_name(note_number: u8) -> String {
+    const NAMES: [&str; 12] = [
+        "C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B",
+    ];
+    let octave = (note_number / 12).saturating_sub(1);
+    let name = NAMES[(note_number % 12) as usize];
+    format!("{}{}", name, octave)
 }

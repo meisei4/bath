@@ -1,13 +1,12 @@
-// mod audio_analysis;
-mod collision_mask;
-mod midi;
+// pub mod audio_analysis;
+pub mod collision_mask;
+pub mod midi;
 
-use crate::midi::midi::{
-    inject_program_change, make_note_on_off_event_dict,
-    parse_midi_events_into_note_on_off_event_buffer_seconds,
-    parse_midi_events_into_note_on_off_event_buffer_ticks, prepare_events,
-    process_midi_events_with_timing, render_sample_frame,
-    write_samples_to_wav,
+use crate::midi::core::{
+    inject_program_change, prepare_events, process_midi_events_with_timing, render_sample_frame,
+};
+use crate::midi::midi_lib::{
+    make_note_on_off_event_dict_seconds, make_note_on_off_event_dict_ticks, write_samples_to_wav,
 };
 // use audio_analysis::util::{detect_bpm};
 use collision_mask::util::{
@@ -38,9 +37,8 @@ struct RustUtil {
     base: Base<Node2D>,
 }
 
-const PRESET_NAME: &str = "Accordion";
 const TARGET_CHANNEL: u8 = 0;
-const PROGRAM: u8 = 0;
+const PROGRAM: u8 = 0; //"Accordion", figure out a better way to do this
 
 #[godot_api]
 impl RustUtil {
@@ -117,22 +115,12 @@ impl RustUtil {
 
     #[func]
     pub fn get_midi_note_on_off_event_buffer_ticks(&self, midi_file_path: GString) -> Dictionary {
-        let path = midi_file_path.to_string();
-        make_note_on_off_event_dict(
-            &path,
-            parse_midi_events_into_note_on_off_event_buffer_ticks,
-            |x| x as f32, // u64 → f32
-        )
+        make_note_on_off_event_dict_ticks(&midi_file_path)
     }
 
     #[func]
     pub fn get_midi_note_on_off_event_buffer_seconds(&self, midi_file_path: GString) -> Dictionary {
-        let path = midi_file_path.to_string();
-        make_note_on_off_event_dict(
-            &path,
-            parse_midi_events_into_note_on_off_event_buffer_seconds,
-            |x| x as f32, // f64 → f32
-        )
+        make_note_on_off_event_dict_seconds(&midi_file_path)
     }
 
     #[func]
