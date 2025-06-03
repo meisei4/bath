@@ -7,6 +7,8 @@
 // NOTE: There is some commented out shadertoy code throughout, if interested, see shadertoy port here:
 // https://www.shadertoy.com/view/3XfSDX
 shader_type canvas_item;
+render_mode blend_disabled;
+
 #include "res://Resources/Shaders/IceSheets/noise.gdshaderinc"
 #include "res://Resources/Shaders/IceSheets/projections.gdshaderinc"
 #include "res://Resources/Shaders/IceSheets/color.gdshaderinc"
@@ -98,7 +100,8 @@ void fragment() {
     // 2) now do exactly your same math
     vec2 normCoord = (fragCoord * 2.0 - iResolution) / iResolution.y;
     float noiseScale;
-    vec3 color;
+    vec3 color; //RGB
+    float solidness_alpha_mask_for_collision; //A
     #ifdef ENABLE_MODE7
         if (normCoord.y >= HORIZON_LINE_ZERO_SCREEN_CENTER_UV_ADDITIVE){
             color = getSkyColorMode7(normCoord).rgb;
@@ -116,6 +119,9 @@ void fragment() {
         vec3  terrainWithWater      = applyWater(terrain, isSolid, depth, normCoord);
         //color = terrainWithWater; //RAW give it a try... its gross... :^)
         color = sqrt(terrainWithWater); //GAMMAMAMA CORREECCTIONNN.... GOOD
+        //TODO: this is pretty wacky, it draws the mask channel for the collisions
+        // but we have to add a second pass to the MainImage that redraws the alpha as 1.0
+        solidness_alpha_mask_for_collision = isSolid ? 1.0 : 0.0;
         //TODO: add the water projected texture somehow...
         //vec3 water = texture(iChannel0, UV * 0.5).rgb;
         //vec3 waterWithCaustics = color + water * 0.5;
@@ -123,6 +129,6 @@ void fragment() {
             //? color
             //: waterWithCaustics;
     }
-    COLOR = vec4(color.r, color.g, color.b, 1.0);
+    COLOR = vec4(color.r, color.g, color.b, solidness_alpha_mask_for_collision);
     //fragColor = vec4(color.r, color.g, color.b, 1.0);
 }

@@ -1,71 +1,41 @@
 extends Node2D
 class_name CollisionMaskFragment
 
-var BufferAShaderNode: ColorRect
-var BufferAShader: Shader = preload(
-    "res://Resources/Shaders/Collision/collision_mask_fragment.gdshader"
-)
-var BufferAShaderMaterial: ShaderMaterial
-var BufferA: SubViewport
-var MainImage: TextureRect
 var iResolution: Vector2
-var iTime: float
 
 const MAX_COLLISION_SHAPES: int = 8
 var collision_mask_concave_polygons_pool: Array[CollisionShape2D] = []
 var collision_mask_bodies: Array[StaticBody2D] = []
 
-const TILE_SIZE_PIXELS: int = 2
+const TILE_SIZE_PIXELS: int = 4
 
 
 func _ready() -> void:
-    FragmentShaderSignalManager.register_collision_mask_fragment(self)
     iResolution = ResolutionManager.resolution
-    BufferA = ShaderToyUtil.create_buffer_viewport(iResolution)
-    BufferA.render_target_clear_mode = SubViewport.CLEAR_MODE_ALWAYS
-    BufferA.transparent_bg = true
-    BufferA.use_hdr_2d = false
-    BufferAShaderMaterial = ShaderMaterial.new()
-    BufferAShaderMaterial.shader = BufferAShader
-    BufferAShaderMaterial.set_shader_parameter("iResolution", iResolution)
-    BufferAShaderNode = ColorRect.new()
-    BufferAShaderNode.size = iResolution
-    BufferAShaderNode.material = BufferAShaderMaterial
-    BufferA.add_child(BufferAShaderNode)
-    add_child(BufferA)
-    MainImage = TextureRect.new()
-    MainImage.texture = BufferA.get_texture()
-    MainImage.flip_v = true
-    add_child(MainImage)
     _init_concave_collision_polygon_pool()
     RenderingServer.frame_post_draw.connect(_on_frame_post_draw)
 
 
-func _process(_delta: float) -> void:
-    BufferAShaderMaterial.set_shader_parameter("iTime", iTime)
-
-
-func get_collision_mask_texture_fragment() -> Texture:
-    return BufferA.get_texture()
-
-
 func _on_frame_post_draw() -> void:
-    #TODO: figure out how to prevent this call every fucking frame jesus
-    var img: Image = BufferA.get_texture().get_image()
-    var raw_rgba_image_data: PackedByteArray = img.get_data()
+    #TODO: figure out how to prevent this call every fucking frame jesus: probably not possible
+    var img: Image = FragmentShaderSignalManager.ice_sheets.BufferA.get_texture().get_image()
+    img.flip_y()
+    img.convert(Image.FORMAT_RGBA8)  # Fast conversion to RGBA8?? seems dangerous
+    var raw_rgba: PackedByteArray = img.get_data()
     var w: int = int(iResolution.x)
     var h: int = int(iResolution.y)
-    var raw_pixel_data: PackedByteArray
-    raw_pixel_data.resize(w * h)
+    var mask_data: PackedByteArray
+    mask_data.resize(w * h)
     for i: int in range(w * h):
-        raw_pixel_data[i] = raw_rgba_image_data[i * 4]  # red channel = mask
+        mask_data[i] = raw_rgba[4 * i + 3]
+
     var collision_polygons: Array[PackedVector2Array] = (
         RustUtilSingleton
         . rust_util
-        . compute_concave_collision_polygons(raw_pixel_data, w, h, TILE_SIZE_PIXELS)
+        . compute_concave_collision_polygons(mask_data, w, h, TILE_SIZE_PIXELS)
     )
     _update_concave_polygons(collision_polygons)
-    debug_print_ascii(raw_pixel_data)
+    debug_print_ascii(mask_data)
 
 
 func _init_concave_collision_polygon_pool() -> void:

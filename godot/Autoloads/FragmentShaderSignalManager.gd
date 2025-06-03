@@ -1,7 +1,6 @@
 extends Node
 #class_name FragmentShaderSignalManager
 
-var collision_mask_fragment: CollisionMaskFragment
 var ice_sheets: IceSheets
 var perspective_tilt_mask_fragment: PerspectiveTiltMaskFragment
 var character_bodies: Array[CharacterBody2D]
@@ -61,16 +60,7 @@ func register_collision_mask_fragment(_collision_mask_fragment: CollisionMaskFra
 
 
 func register_ice_sheets_fragment(_ice_sheets: IceSheets) -> void:
-    if self.ice_sheets and self.iTime_update.is_connected(_on_iTime_update_fragment):
-        self.iTime_update.disconnect(_on_iTime_update_fragment)
-
     self.ice_sheets = _ice_sheets
-    self.iTime_update.connect(_on_iTime_update_fragment)
-
-
-func _on_iTime_update_fragment(iTime: float) -> void:
-    if collision_mask_fragment:
-        collision_mask_fragment.iTime = iTime
 
 
 func _on_visual_illusion_updated_fragment(

@@ -5,7 +5,7 @@ class_name TestHarness
 func _ready() -> void:
     add_ice_sheets_scene()
     #add_collision_mask_scene()
-    #add_collision_mask_fragment_scene()
+    add_collision_mask_fragment_scene()
     #add_perspective_tilt_mask_scene()
     add_perspective_tilt_mask_fragment_scene()
     add_shadows_test_scene()

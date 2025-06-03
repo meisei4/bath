@@ -5,7 +5,10 @@ var BufferAShaderNode: ColorRect
 var BufferAShader: Shader = preload("res://Resources/Shaders/IceSheets/ice_sheets.gdshader")
 var BufferAShaderMaterial: ShaderMaterial
 var BufferA: SubViewport
-var MainImage: TextureRect
+var MainImage: Sprite2D
+var AlphaOverrideShader: Shader = preload("res://Resources/Shaders/free_alpha_channel.gdshader")
+var MainImageMaterial: ShaderMaterial
+
 var iResolution: Vector2
 
 var iChannel0: Texture
@@ -29,9 +32,15 @@ func _ready() -> void:
     #var water_projected: WaterProjected = WaterProjected.new()
     #add_child(water_projected)
     #BufferAShaderMaterial.set_shader_parameter("iChannel0", water_projected.get_water_texture())
-    MainImage = TextureRect.new()
+    MainImage = Sprite2D.new()
     MainImage.texture = BufferA.get_texture()
     MainImage.flip_v = true
+    MainImage.centered = false
+    MainImageMaterial = ShaderMaterial.new()
+    MainImageMaterial.shader = AlphaOverrideShader
+    MainImageMaterial.set_shader_parameter("iChannel0", BufferA.get_texture())
+
+    MainImage.material = MainImageMaterial
     BufferA.add_child(BufferAShaderNode)
     add_child(BufferA)
     add_child(MainImage)
