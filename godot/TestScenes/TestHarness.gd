@@ -5,7 +5,8 @@ class_name TestHarness
 func _ready() -> void:
     add_ice_sheets_scene()
     #add_collision_mask_scene()
-    add_collision_mask_fragment_scene()
+    #add_collision_mask_fragment_scene()
+    add_collision_mask_isp_scene()
     #add_perspective_tilt_mask_scene()
     add_perspective_tilt_mask_fragment_scene()
     add_shadows_test_scene()
@@ -28,6 +29,16 @@ func add_collision_mask_fragment_scene() -> void:
         collision_fragment_scene.instantiate() as CollisionMaskFragment
     )
     add_child(collision_mask_fragment)
+
+
+func add_collision_mask_isp_scene() -> void:
+    var collision_mask_isp_scene: PackedScene = preload(
+        "res://TestScenes/Shaders/Collision/CollisionMaskScanlinePolygonizer.tscn"
+    )
+    var collision_mask_isp: CollisionMaskScanlinePolygonizer = (
+        collision_mask_isp_scene.instantiate() as CollisionMaskScanlinePolygonizer
+    )
+    add_child(collision_mask_isp)
 
 
 func add_ice_sheets_scene() -> void:

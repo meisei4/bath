@@ -1,4 +1,5 @@
 extends Node2D
+#TODO: this is no longer a shader wrapper... should probably move it at some point...
 class_name CollisionMaskFragment
 
 var iResolution: Vector2

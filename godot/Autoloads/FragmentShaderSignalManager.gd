@@ -6,8 +6,6 @@ var perspective_tilt_mask_fragment: PerspectiveTiltMaskFragment
 var character_bodies: Array[CharacterBody2D]
 var umbral_shadow: ShaderMaterial
 
-signal iTime_update(iTime: float)
-
 signal visual_illusion_updated(
     sprite_index: int,
     center_px: Vector2,

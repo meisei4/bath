@@ -92,12 +92,8 @@ vec3 applyWater(vec3 color, bool isSolid, int depth, vec2 normCoord) {
     #endif
 }
 
-//void mainImage(out vec4 fragColor, in vec2 fragCoord){
 void fragment() {
-    //vec2 normCoord = (fragCoord * 2.0 - iResolution.xy) / iResolution.y;
-    //vec2 normCoord = (FRAGCOORD.xy * 2.0 - iResolution.xy) / iResolution.y;
     vec2 fragCoord = UV * iResolution;
-    // 2) now do exactly your same math
     vec2 normCoord = (fragCoord * 2.0 - iResolution) / iResolution.y;
     float noiseScale;
     vec3 color; //RGB
@@ -110,25 +106,13 @@ void fragment() {
     {
         vec2 projectedTopLayerCoord = projectTopLayerForParallax(normCoord, noiseScale);
         float stride                = getStrideLength(normCoord);
-        //float firstStepOffset       = getFirstStepOffset(normCoord, TIME);
         float firstStepOffset       = getFirstStepOffset(normCoord);
         int   depth                 = depthMarch(normCoord, stride, firstStepOffset);
-        //bool  isSolid               = isSolidAtCoord(projectedTopLayerCoord, noiseScale, TIME);
         bool  isSolid               = isSolidAtCoord(projectedTopLayerCoord, noiseScale, iTime);
         vec3  terrain               = getTerrainColorWithWater(isSolid, depth, normCoord);
         vec3  terrainWithWater      = applyWater(terrain, isSolid, depth, normCoord);
-        //color = terrainWithWater; //RAW give it a try... its gross... :^)
-        color = sqrt(terrainWithWater); //GAMMAMAMA CORREECCTIONNN.... GOOD
-        //TODO: this is pretty wacky, it draws the mask channel for the collisions
-        // but we have to add a second pass to the MainImage that redraws the alpha as 1.0
+        color = sqrt(terrainWithWater);
         solidness_alpha_mask_for_collision = isSolid ? 1.0 : 0.0;
-        //TODO: add the water projected texture somehow...
-        //vec3 water = texture(iChannel0, UV * 0.5).rgb;
-        //vec3 waterWithCaustics = color + water * 0.5;
-        //color = isSolid
-            //? color
-            //: waterWithCaustics;
     }
     COLOR = vec4(color.r, color.g, color.b, solidness_alpha_mask_for_collision);
-    //fragColor = vec4(color.r, color.g, color.b, 1.0);
 }
