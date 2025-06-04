@@ -4,4 +4,3 @@
 
 [node name="IceSheets" type="Node2D"]
 script = ExtResource("1_6ekma")
-metadata/_custom_type_script = "uid://dev10j4yc3jo8"

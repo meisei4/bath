@@ -58,7 +58,8 @@ func _ready() -> void:
     add_child(BufferA)
     add_child(MainImage)
     add_child(Scanline)
-    var img := Scanline.get_texture().get_image()
+    #TODO: this is an ugly little issue where if i try to set the scanline texture to height 1 it wont work
+    var img: Image = Scanline.get_texture().get_image()
     print("Scanline image is actually ", img.get_width(), "×", img.get_height())
 
 

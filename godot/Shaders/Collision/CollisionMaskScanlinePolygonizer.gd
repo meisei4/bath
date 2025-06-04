@@ -1,7 +1,15 @@
 extends Node2D
 class_name CollisionMaskScanlinePolygonizer
 
-const MAX_POLYGONS: int = 8
+const MAX_POLYGONS: int = 12
+
+#TODO: hacked and they don't work as you'd think. two issues:
+# 1. gdscript is using f64, glsl is using f32, all the velocity math gets fucked
+# 2. gpu frame buffers are asynchronous and thus the collision shapes will never be scrolling at the same rate as if the cpu can capture it
+var NOISE_SCROLL_VELOCITY: Vector2 = Vector2(0.0, 0.05)
+var GLOBAL_COORD_SCALAR: float = 180.0
+var STRETCH_SCALAR_Y: float = 2.0
+var UNIFORM_STRETCH_CORRECTION_SCALAR: float = sqrt(2.0)
 
 var isp_texture: ISPTexture
 var collision_mask_concave_polygons_pool: Array[CollisionShape2D]
@@ -23,22 +31,14 @@ func _on_frame_post_draw() -> void:
     var iFrameCount: int = FragmentShaderSignalManager.ice_sheets.iFrameCount
     if iFrameCount == previous_frame_count:
         return
-    print("FrameCount=", iFrameCount)
+
     var iTime: float = FragmentShaderSignalManager.ice_sheets.iTime
-    ##define NOISE_SCROLL_VELOCITY       vec2(0.0, 0.05)
-    var NOISE_SCROLL_VELOCITY: Vector2 = Vector2(0.0, 0.05)
-    ##define GLOBAL_COORD_SCALAR         180.0
-    var GLOBAL_COORD_SCALAR: float = 180.0
-    ##define STRETCH_SCALAR_Y            2.0
-    var STRETCH_SCALAR_Y: float = 2.0
-    var UNIFORM_STRETCH_CORRECTION_SCALAR: float = sqrt(2.0)
-    ##define UNIFORM_STRETCH_CORRECTION_SCALAR     sqrt(2.0)
     previous_frame_count = iFrameCount
     var scanline_image: Image = (
         FragmentShaderSignalManager.ice_sheets.Scanline.get_texture().get_image()
     )
     isp_texture.update_scanline_mask_from_scanline_image(scanline_image)
-    var buckets: PackedVector2Array = isp_texture.get_edge_buckets_in_scanline()
+    var buckets: PackedVector2Array = isp_texture.get_alpha_buckets_in_scanline()
     var arbitrary_virtual_frame_rate: float = 1.0 / 60.0
     var continuous_full: float = (
         float(iFrameCount)
@@ -51,8 +51,8 @@ func _on_frame_post_draw() -> void:
     var discrete_full: int = floori(continuous_full)
     var new_rows_this_frame: int = discrete_full - previous_rows_scrolled
     previous_rows_scrolled = discrete_full
-    for i in range(new_rows_this_frame):
-        _update_polygons_with_edge_buckets(buckets)
+    for i: int in range(new_rows_this_frame):
+        _update_polygons_with_alpha_buckets(buckets)
         _advance_polygons_by_scanline_height()
 
 
@@ -78,11 +78,11 @@ func _init_concave_collision_polygon_pool() -> void:
         collision_mask_concave_polygons_pool.append(shape_node)
 
 
-func _update_polygons_with_edge_buckets(edge_buckets: PackedVector2Array) -> void:
-    var num_buckets: int = edge_buckets.size() / 2
+func _update_polygons_with_alpha_buckets(alpha_buckets: PackedVector2Array) -> void:
+    var num_buckets: int = alpha_buckets.size() / 2
     for bucket_index: int in range(num_buckets):
-        var bucket_start: Vector2 = edge_buckets[bucket_index * 2]
-        var bucket_end: Vector2 = edge_buckets[bucket_index * 2 + 1]
+        var bucket_start: Vector2 = alpha_buckets[bucket_index * 2]
+        var bucket_end: Vector2 = alpha_buckets[bucket_index * 2 + 1]
         var bucket_x_start: float = bucket_start.x
         var bucket_x_end: float = bucket_end.x
         var matched: bool = false
@@ -119,16 +119,98 @@ func _update_polygons_with_edge_buckets(edge_buckets: PackedVector2Array) -> voi
                     break
 
 
-func _advance_polygons_by_scanline_height() -> void:
+func _advance_polygons_by_scanline_height1() -> void:
     for i: int in range(MAX_POLYGONS):
         if polygon_active_global[i] == 1:
             var shape_node: CollisionShape2D = collision_mask_concave_polygons_pool[i]
-            var old_y: float = shape_node.position.y
             shape_node.position.y += isp_texture.TEXTURE_HEIGHT
-            var new_y: float = shape_node.position.y
-            print("  [ADVANCE] Polygon slot=", i, " moved from Y=", old_y, " to Y=", new_y)
             if shape_node.position.y > ResolutionManager.resolution.y:
                 _clear_polygon(i)
+
+
+var polygon_centroid_cache: Dictionary = {}
+
+
+func _advance_polygons_by_scanline_height() -> void:
+    print("DEBUG: _update_concave_polygons: prev cache size =", polygon_centroid_cache.size())
+    var new_centroid_cache: Dictionary = {}
+    var previous_centroids: Array[Vector2] = []
+    var previous_matched: Array[bool] = []
+    for key in polygon_centroid_cache.keys():
+        previous_centroids.append(polygon_centroid_cache[key] as Vector2)
+        previous_matched.append(false)
+    var MATCH_THRESHOLD: float = 4.0 * 4.0  # Same as other system
+    for i: int in range(MAX_POLYGONS):
+        if polygon_active_global[i] == 1:
+            var shape_node: CollisionShape2D = collision_mask_concave_polygons_pool[i]
+            shape_node.position.y += isp_texture.TEXTURE_HEIGHT
+            var concave: ConcavePolygonShape2D = shape_node.shape as ConcavePolygonShape2D
+            var segments: PackedVector2Array = concave.segments
+            var centroid: Vector2 = Vector2.ZERO
+            var point_count: int = segments.size()
+            for pt in segments:
+                centroid += pt + shape_node.position  # Local to global
+            if point_count > 0:
+                centroid /= point_count
+            else:
+                centroid = shape_node.position  # Fallback in case empty
+
+            var touching_top: bool = centroid.y <= 0.0
+            var touching_bottom: bool = centroid.y >= ResolutionManager.resolution.y
+            var fully_inside: bool = not touching_top and not touching_bottom
+            var best_match_idx: int = -1
+            var best_dist: float = INF
+            for j: int in range(previous_centroids.size()):
+                if previous_matched[j]:
+                    continue
+
+                var dist: float = centroid.distance_to(previous_centroids[j])
+                if dist < best_dist and dist < MATCH_THRESHOLD:
+                    best_dist = dist
+                    best_match_idx = j
+
+            if best_match_idx != -1:
+                previous_matched[best_match_idx] = true
+                var dy: float = centroid.y - previous_centroids[best_match_idx].y
+                var label: String = ""
+                if touching_bottom:
+                    label = "TOUCHING BOTTOM → REMOVE"
+                elif touching_top:
+                    label = "TOUCHING TOP"
+                elif fully_inside:
+                    label = "FULLY INSIDE"
+                else:
+                    label = "PARTIAL"
+                print(
+                    "  [idx=",
+                    i,
+                    "] MATCHED prev_idx=",
+                    best_match_idx,
+                    " dy=",
+                    dy,
+                    " label=",
+                    label,
+                    " dist=",
+                    best_dist
+                )
+            else:
+                print(
+                    "  NEW polygon [idx=",
+                    i,
+                    "] vcount=",
+                    segments.size(),
+                    " centroid=(",
+                    centroid.x,
+                    ",",
+                    centroid.y,
+                    ")"
+                )
+            if not touching_bottom:
+                new_centroid_cache[str(i)] = centroid
+            if shape_node.position.y > ResolutionManager.resolution.y:
+                _clear_polygon(i)
+    polygon_centroid_cache = new_centroid_cache
+    print("DEBUG: _update_concave_polygons: new cache size =", polygon_centroid_cache.size())
 
 
 func _clear_polygon(index: int) -> void:
@@ -139,4 +221,3 @@ func _clear_polygon(index: int) -> void:
     concave.segments = PackedVector2Array()
     shape_node.position = Vector2.ZERO
     shape_node.disabled = true
-    print("  [CLEAR]   Polygon slot=", index, " reset to origin and disabled")
