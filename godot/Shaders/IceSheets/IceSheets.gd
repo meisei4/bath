@@ -5,6 +5,12 @@ var BufferAShaderNode: ColorRect
 var BufferAShader: Shader = preload("res://Resources/Shaders/IceSheets/ice_sheets.gdshader")
 var BufferAShaderMaterial: ShaderMaterial
 var BufferA: SubViewport
+
+var ScanlineShaderNode: ColorRect
+var ScanlineShader: Shader = preload("res://Resources/Shaders/Collision/scanline.gdshader")
+var ScanlineShaderMaterial: ShaderMaterial
+var Scanline: SubViewport
+
 var MainImage: TextureRect
 var AlphaOverrideShader: Shader = preload("res://Resources/Shaders/free_alpha_channel.gdshader")
 var MainImageMaterial: ShaderMaterial
@@ -21,12 +27,24 @@ func _ready() -> void:
     self.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
     iResolution = ResolutionManager.resolution
     BufferA = ShaderToyUtil.create_buffer_viewport(iResolution)
+
     BufferAShaderMaterial = ShaderMaterial.new()
     BufferAShaderNode = ColorRect.new()
     BufferAShaderNode.size = iResolution
     BufferAShaderMaterial.shader = BufferAShader
     BufferAShaderNode.material = BufferAShaderMaterial
     BufferAShaderMaterial.set_shader_parameter("iResolution", iResolution)
+
+    Scanline = ShaderToyUtil.create_buffer_viewport(Vector2(iResolution.x, 2.0))
+    Scanline.use_hdr_2d = false
+    ScanlineShaderMaterial = ShaderMaterial.new()
+    ScanlineShaderNode = ColorRect.new()
+    ScanlineShaderNode.size = Vector2(iResolution.x, 2.0)  # THIS IS WHERE THE CROP OCCURS
+    ScanlineShaderMaterial.shader = ScanlineShader
+    ScanlineShaderNode.material = ScanlineShaderMaterial
+    ScanlineShaderMaterial.set_shader_parameter("iResolution", iResolution)
+    ScanlineShaderMaterial.set_shader_parameter("iChannel0", BufferA.get_texture())
+
     MainImage = TextureRect.new()
     MainImage.texture = BufferA.get_texture()
     MainImage.flip_v = true
@@ -36,8 +54,12 @@ func _ready() -> void:
 
     MainImage.material = MainImageMaterial
     BufferA.add_child(BufferAShaderNode)
+    Scanline.add_child(ScanlineShaderNode)
     add_child(BufferA)
     add_child(MainImage)
+    add_child(Scanline)
+    var img := Scanline.get_texture().get_image()
+    print("Scanline image is actually ", img.get_width(), "×", img.get_height())
 
 
 func _process(delta: float) -> void:

@@ -34,10 +34,10 @@ func _on_frame_post_draw() -> void:
     var UNIFORM_STRETCH_CORRECTION_SCALAR: float = sqrt(2.0)
     ##define UNIFORM_STRETCH_CORRECTION_SCALAR     sqrt(2.0)
     previous_frame_count = iFrameCount
-    var full_screen_image: Image = (
-        FragmentShaderSignalManager.ice_sheets.BufferA.get_texture().get_image()
+    var scanline_image: Image = (
+        FragmentShaderSignalManager.ice_sheets.Scanline.get_texture().get_image()
     )
-    isp_texture.update_from_full_screen_image(full_screen_image)
+    isp_texture.update_scanline_mask_from_scanline_image(scanline_image)
     var buckets: PackedVector2Array = isp_texture.get_edge_buckets_in_scanline()
     var arbitrary_virtual_frame_rate: float = 1.0 / 60.0
     var continuous_full: float = (
