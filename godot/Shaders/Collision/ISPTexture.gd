@@ -1,7 +1,7 @@
 extends Node
 class_name ISPTexture
 
-const TEXTURE_HEIGHT: int = 1
+const TEXTURE_HEIGHT: int = 2
 var TEXTURE_WIDTH: int
 const DEAD_CHANNEL: float = 0.0
 

@@ -112,11 +112,28 @@ float voronoi_edge_fast(vec2 p) {
 //─────┼──────────┼─────────
 //2.2  │  2.6     │ 2.95
 
-float sampleNoise(vec2 coord, float localNoiseScale, float iTime) {
+float sampleNoise(vec2 coord, float localNoiseScale, float iTime, int iFrameCount) {
     float x_displacement = iTime * NOISE_SCROLL_VELOCITY.x;
-    float y_displacement = iTime * NOISE_SCROLL_VELOCITY.y;
-    //float x_displacement = TIME * NOISE_SCROLL_VELOCITY.x;
-    //float y_displacement = TIME * NOISE_SCROLL_VELOCITY.y;
+    //float y_displacement = iTime * NOISE_SCROLL_VELOCITY.y;
+    // float x_displacement = TIME * NOISE_SCROLL_VELOCITY.x;
+    // float y_displacement = TIME * NOISE_SCROLL_VELOCITY.y;
+    float arbitrary_virtual_frame_rate = 1.0 / 60.0;
+    float continuous_full = float(iFrameCount) * arbitrary_virtual_frame_rate
+        * NOISE_SCROLL_VELOCITY.y
+        * GLOBAL_COORD_SCALAR
+        * STRETCH_SCALAR_Y
+        * UNIFORM_STRETCH_CORRECTION_SCALAR;
+
+    float discrete_full = floor(continuous_full);
+    float y_displacement = discrete_full
+                           / (GLOBAL_COORD_SCALAR * STRETCH_SCALAR_Y * UNIFORM_STRETCH_CORRECTION_SCALAR);
+    // float continuous_full = iTime
+    //     * NOISE_SCROLL_VELOCITY.y
+    //     * GLOBAL_COORD_SCALAR
+    //     * STRETCH_SCALAR_Y
+    //     * UNIFORM_STRETCH_CORRECTION_SCALAR;
+    // float discrete_full = floor(continuous_full);
+    // float y_displacement = discrete_full / (GLOBAL_COORD_SCALAR * STRETCH_SCALAR_Y * UNIFORM_STRETCH_CORRECTION_SCALAR);
     vec2 displaced_coordinate = vec2(
         coord.x + x_displacement,
         coord.y + y_displacement
@@ -149,8 +166,8 @@ float sampleNoise(vec2 coord, float localNoiseScale, float iTime) {
     return sampled_noise;
 }
 
-bool isSolidAtCoord(vec2 coord, float localNoiseScale, float iTime) {
-    float noiseValue = sampleNoise(coord, localNoiseScale, iTime);
+bool isSolidAtCoord(vec2 coord, float localNoiseScale, float iTime, int iFrameTime) {
+    float noiseValue = sampleNoise(coord, localNoiseScale, iTime, iFrameTime);
     #ifdef USE_VORONOI
         return (noiseValue > VORONOI_SOLID_THRESHOLD);
     #else

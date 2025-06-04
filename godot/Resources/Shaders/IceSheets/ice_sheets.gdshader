@@ -16,6 +16,7 @@ uniform vec2 iResolution;
 uniform sampler2D iChannel0: filter_nearest; // ← this will become our water background
 
 uniform float iTime;
+uniform int iFrameCount;
 
 // NOTE: Please only disable parallax if you want to just see the raw noise textures overlayed
 // but keep in mind there is no gating to prevent the depth march,
@@ -33,7 +34,7 @@ int depthMarch(vec2 normalizedCoord, float strideLength, float firstStepOffset){
         float localNoiseScale;
         vec2 projectedCoord = projectLayer(nextStep, localNoiseScale);
        //if(isSolidAtCoord(projectedCoord, localNoiseScale, TIME)) {
-        if(isSolidAtCoord(projectedCoord, localNoiseScale, iTime)) {
+        if(isSolidAtCoord(projectedCoord, localNoiseScale, iTime, iFrameCount)) {
             break;
         }
         if(normalizedCoord.y + (float(depthCount) / GLOBAL_COORD_SCALAR) >= iResolution.y) {
@@ -108,7 +109,7 @@ void fragment() {
         float stride                = getStrideLength(normCoord);
         float firstStepOffset       = getFirstStepOffset(normCoord);
         int   depth                 = depthMarch(normCoord, stride, firstStepOffset);
-        bool  isSolid               = isSolidAtCoord(projectedTopLayerCoord, noiseScale, iTime);
+        bool  isSolid               = isSolidAtCoord(projectedTopLayerCoord, noiseScale, iTime, iFrameCount);
         vec3  terrain               = getTerrainColorWithWater(isSolid, depth, normCoord);
         vec3  terrainWithWater      = applyWater(terrain, isSolid, depth, normCoord);
         color = sqrt(terrainWithWater);

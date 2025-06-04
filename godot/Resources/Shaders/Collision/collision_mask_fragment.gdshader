@@ -16,6 +16,6 @@ void fragment() {
     );
     float localNoiseScale;
     vec2  projectedTop = projectTopLayerForParallax(normCoord, localNoiseScale);
-    bool  solidTop     = isSolidAtCoord(projectedTop, localNoiseScale, iTime);
+    bool  solidTop     = isSolidAtCoord(projectedTop, localNoiseScale, iTime, 0);
     COLOR = vec4(solidTop ? 1.0 : 0.0, 0.0, 0.0, 0.0);
 }
