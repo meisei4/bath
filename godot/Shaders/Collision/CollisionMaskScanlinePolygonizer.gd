@@ -81,14 +81,14 @@ func compute_quantized_vertical_pixel_coord(iTime: float) -> int:
     var base_norm_top: Vector2 = Vector2(0.0, -1.0)
     var projected_base: Vector2 = projectLayer(base_norm_top)
     var y_displacement: float = iTime * NOISE_SCROLL_VELOCITY.y
+    projected_base.y = (
+        (projected_base.y * PARALLAX_PROJECTION_ASYMPTOTIC_DEPTH_SCALAR)
+        / (1.0 + projected_base.y)
+    )
     var projected_top_with_scroll: float = projected_base.y + y_displacement
     projected_top_with_scroll *= STRETCH_SCALAR_Y
     projected_top_with_scroll *= UNIFORM_STRETCH_CORRECTION_SCALAR
-    projected_top_with_scroll -= NOISE_COORD_OFFSET.y
-    var norm_top_after_scroll: float = (
-        (projected_top_with_scroll * PARALLAX_PROJECTION_ASYMPTOTIC_DEPTH_SCALAR)
-        / (1.0 + projected_top_with_scroll)
-    )
+    projected_top_with_scroll *= ROT_COS
     var fragment_y: float = (projected_top_with_scroll * iResolution.y + iResolution.y) * 0.5
     var pixel_top_index: int = floori(fragment_y)
     return pixel_top_index
