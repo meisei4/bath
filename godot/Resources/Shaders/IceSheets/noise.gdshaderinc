@@ -59,7 +59,7 @@ float voronoi_edge_fast(vec2 p) {
 #define M_PI_4   0.785398163397448309616
 #define TAU      (M_PI + M_PI)
 
-#define NOISE_SCROLL_VELOCITY       vec2(0.0, 0.05)
+#define NOISE_SCROLL_VELOCITY       vec2(0.0, 0.025)
 #define GLOBAL_COORD_SCALAR         180.0
 
 #define STRETCH_SCALAR_X            1.0
@@ -70,22 +70,20 @@ float voronoi_edge_fast(vec2 p) {
 //#define USE_VORONOI
     #define VORONOI_SOLID_THRESHOLD 0.34
 
-//#define ENABLE_ROTATION
+#define ENABLE_ROTATION
     #define ROTATION_ANGLE          -M_PI_4
     //#define ROTATION_ANGLE        (-M_PI_4 * 0.5)
     #define ROTATION_MATRIX         mat2(vec2(cos(ROTATION_ANGLE), -sin(ROTATION_ANGLE)), \
                                          vec2(sin(ROTATION_ANGLE),  cos(ROTATION_ANGLE)))
 
-//#define ENABLE_STRETCH_CORRECTION
+#define ENABLE_STRETCH_CORRECTION
     #define UNIFORM_STRETCH_CORRECTION_SCALAR    sqrt(2.0)
     /*
     #define UNIFORM_STRETCH_CORRECTION_SCALAR  (sqrt((pow(STRETCH_SCALAR_X, 2.0) \
                                                        + pow(STRETCH_SCALAR_Y, 2.0)) \
                                                        / 2.0))
    */
-#define ENABLE_COMPOSED_AFFINE_TRANSFORMATIONS
-    #define UNIFORM_STRETCH_CORRECTION_AND_ROTATION_COMPOSITION mat2(vec2(1.0,  1.0), \
-                                                                     vec2(-1.0,  1.0))
+
 
 #define UNIFORM_DEPTH_MARCH_FIRST_STEP_SCALAR                    0.0
 //#define ENABLE_DEPTH_MARCH_FIRST_STEP_SCRAMBLING
@@ -112,28 +110,9 @@ float voronoi_edge_fast(vec2 p) {
 //─────┼──────────┼─────────
 //2.2  │  2.6     │ 2.95
 
-float sampleNoise(vec2 coord, float localNoiseScale, float iTime, int iFrameCount) {
+float sampleNoise(vec2 coord, float localNoiseScale, float iTime) {
     float x_displacement = iTime * NOISE_SCROLL_VELOCITY.x;
-    //float y_displacement = iTime * NOISE_SCROLL_VELOCITY.y;
-    // float x_displacement = TIME * NOISE_SCROLL_VELOCITY.x;
-    // float y_displacement = TIME * NOISE_SCROLL_VELOCITY.y;
-    float arbitrary_virtual_frame_rate = 1.0 / 60.0;
-    float continuous_full = float(iFrameCount) * arbitrary_virtual_frame_rate
-        * NOISE_SCROLL_VELOCITY.y
-        * GLOBAL_COORD_SCALAR
-        * STRETCH_SCALAR_Y
-        * UNIFORM_STRETCH_CORRECTION_SCALAR;
-
-    float discrete_full = floor(continuous_full);
-    float y_displacement = discrete_full
-                           / (GLOBAL_COORD_SCALAR * STRETCH_SCALAR_Y * UNIFORM_STRETCH_CORRECTION_SCALAR);
-    // float continuous_full = iTime
-    //     * NOISE_SCROLL_VELOCITY.y
-    //     * GLOBAL_COORD_SCALAR
-    //     * STRETCH_SCALAR_Y
-    //     * UNIFORM_STRETCH_CORRECTION_SCALAR;
-    // float discrete_full = floor(continuous_full);
-    // float y_displacement = discrete_full / (GLOBAL_COORD_SCALAR * STRETCH_SCALAR_Y * UNIFORM_STRETCH_CORRECTION_SCALAR);
+    float y_displacement = iTime * NOISE_SCROLL_VELOCITY.y;
     vec2 displaced_coordinate = vec2(
         coord.x + x_displacement,
         coord.y + y_displacement
@@ -143,31 +122,21 @@ float sampleNoise(vec2 coord, float localNoiseScale, float iTime, int iFrameCoun
         scaled_coordinate.x * STRETCH_SCALAR_X,
         scaled_coordinate.y * STRETCH_SCALAR_Y
     );
-
-    #ifdef ENABLE_COMPOSED_AFFINE_TRANSFORMATIONS
-        vec2 stretch_corrected_and_rotated_coordinate = UNIFORM_STRETCH_CORRECTION_AND_ROTATION_COMPOSITION * stretched_coordinate;
-        vec2 local_noise_scaled_coordinate = stretch_corrected_and_rotated_coordinate * localNoiseScale;
-    #else
-        #ifdef ENABLE_STRETCH_CORRECTION
-            stretched_coordinate = UNIFORM_STRETCH_CORRECTION_SCALAR * stretched_coordinate;
-        #endif
-        #ifdef ENABLE_ROTATION
-            stretched_coordinate = ROTATION_MATRIX * stretched_coordinate;
-        #endif
-        vec2 local_noise_scaled_coordinate = stretched_coordinate * localNoiseScale;
+    #ifdef ENABLE_STRETCH_CORRECTION
+        stretched_coordinate = UNIFORM_STRETCH_CORRECTION_SCALAR * stretched_coordinate;
     #endif
-
+    #ifdef ENABLE_ROTATION
+        stretched_coordinate = ROTATION_MATRIX * stretched_coordinate;
+    #endif
+    vec2 local_noise_scaled_coordinate = stretched_coordinate * localNoiseScale;
     vec2 final_noise_coordinate = local_noise_scaled_coordinate - NOISE_COORD_OFFSET;
-    #ifdef USE_VORONOI
-        float sampled_noise = voronoi_edge_fast(final_noise_coordinate);
-    #else
-        float sampled_noise = perlin_noise_iq(final_noise_coordinate);
-    #endif
+    //final_noise_coordinate.y = floor(final_noise_coordinate.y);
+    float sampled_noise = perlin_noise_iq(final_noise_coordinate);
     return sampled_noise;
 }
 
-bool isSolidAtCoord(vec2 coord, float localNoiseScale, float iTime, int iFrameTime) {
-    float noiseValue = sampleNoise(coord, localNoiseScale, iTime, iFrameTime);
+bool isSolidAtCoord(vec2 coord, float localNoiseScale, float iTime) {
+    float noiseValue = sampleNoise(coord, localNoiseScale, iTime);
     #ifdef USE_VORONOI
         return (noiseValue > VORONOI_SOLID_THRESHOLD);
     #else

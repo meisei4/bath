@@ -19,7 +19,6 @@ var iResolution: Vector2
 
 var iChannel0: Texture
 var iTime: float
-var iFrameCount: int
 
 
 func _ready() -> void:
@@ -65,6 +64,4 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
     iTime += delta
-    iFrameCount = Engine.get_frames_drawn()
-    BufferAShaderMaterial.set_shader_parameter("iFrameCount", iFrameCount)
     BufferAShaderMaterial.set_shader_parameter("iTime", iTime)
