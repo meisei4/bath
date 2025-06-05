@@ -17,6 +17,7 @@ var previous_frame_count: int = 0
 var previous_rows_scrolled: int = 0
 var iResolution: Vector2
 
+
 func _ready() -> void:
     iResolution = ResolutionManager.resolution
     _init_isp_texture()
@@ -25,70 +26,76 @@ func _ready() -> void:
 
 
 const PARALLAX_PROJECTION_ASYMPTOTIC_DEPTH_SCALAR: float = 6.0
-const PARALLAX_NEAR_SCALAR: float                        = 0.025
+const PARALLAX_NEAR_SCALAR: float = 0.025
 var polygon_original_nxs: Array[PackedFloat32Array]
 
+
 func projectLayer(originalCoord: Vector2) -> Vector2:
-    return originalCoord / (PARALLAX_PROJECTION_ASYMPTOTIC_DEPTH_SCALAR - originalCoord.y);
+    return originalCoord / (PARALLAX_PROJECTION_ASYMPTOTIC_DEPTH_SCALAR - originalCoord.y)
 
 
-const NOISE_SCROLL_VELOCITY          : Vector2 = Vector2(0.0, 0.05)
-const GLOBAL_COORD_SCALAR            : float    = 180.0
+const NOISE_SCROLL_VELOCITY: Vector2 = Vector2(0.0, 0.05)
+const GLOBAL_COORD_SCALAR: float = 180.0
 
-const STRETCH_SCALAR_X               : float    = 1.0
-const STRETCH_SCALAR_Y               : float    = 2.0
+const STRETCH_SCALAR_X: float = 1.0
+const STRETCH_SCALAR_Y: float = 2.0
 
-const NOISE_COORD_OFFSET             : Vector2 = Vector2(2.0, 0.0)
+const NOISE_COORD_OFFSET: Vector2 = Vector2(2.0, 0.0)
 
-const ENABLE_STRETCH_CORRECTION      : bool     = true
-const UNIFORM_STRETCH_CORRECTION_SCALAR : float = sqrt(2.0)
+const ENABLE_STRETCH_CORRECTION: bool = true
+const UNIFORM_STRETCH_CORRECTION_SCALAR: float = sqrt(2.0)
 
-const ENABLE_ROTATION                : bool     = true
-const ROTATION_ANGLE                 : float    = -PI * 0.25
+const ENABLE_ROTATION: bool = true
+const ROTATION_ANGLE: float = -PI * 0.25
 
-const ROT_COS                        : float    = cos(ROTATION_ANGLE)
-const ROT_SIN                        : float    = sin(ROTATION_ANGLE)
+const ROT_COS: float = cos(ROTATION_ANGLE)
+const ROT_SIN: float = sin(ROTATION_ANGLE)
 
-func compute_quantized_vertical_pixel_coord(iTime: float) -> int:
+
+func compute_quantized_vertical_pixel_coord_wrong(iTime: float) -> int:
     var dummy_norm_coord: Vector2 = Vector2(0.0, 0.0)
     var projected: Vector2 = projectLayer(dummy_norm_coord)
-    var local_noise_scale: float = PARALLAX_NEAR_SCALAR;
+    var local_noise_scale: float = PARALLAX_NEAR_SCALAR
 
-    var x_displacement : float = iTime * NOISE_SCROLL_VELOCITY.x
-    var y_displacement : float = iTime * NOISE_SCROLL_VELOCITY.y
-    var displaced_coordinate : Vector2 = projected + Vector2(x_displacement, y_displacement)
-    var scaled_coordinate : Vector2 = displaced_coordinate * GLOBAL_COORD_SCALAR
-    var stretched_coordinate : Vector2 = Vector2(
-        scaled_coordinate.x * STRETCH_SCALAR_X,
-        scaled_coordinate.y * STRETCH_SCALAR_Y
+    var x_displacement: float = iTime * NOISE_SCROLL_VELOCITY.x
+    var y_displacement: float = iTime * NOISE_SCROLL_VELOCITY.y
+    var displaced_coordinate: Vector2 = projected + Vector2(x_displacement, y_displacement)
+    var scaled_coordinate: Vector2 = displaced_coordinate * GLOBAL_COORD_SCALAR
+    var stretched_coordinate: Vector2 = Vector2(
+        scaled_coordinate.x * STRETCH_SCALAR_X, scaled_coordinate.y * STRETCH_SCALAR_Y
     )
     if ENABLE_STRETCH_CORRECTION:
         stretched_coordinate *= UNIFORM_STRETCH_CORRECTION_SCALAR
     if ENABLE_ROTATION:
-        var tx : float = stretched_coordinate.x
-        var ty : float = stretched_coordinate.y
-        stretched_coordinate = Vector2(
-            ROT_COS * tx - ROT_SIN * ty,
-            ROT_SIN * tx + ROT_COS * ty
-        )
-    var local_noise_scaled_coordinate : Vector2 = stretched_coordinate * local_noise_scale
-    var final_noise_coordinate : Vector2 = local_noise_scaled_coordinate - NOISE_COORD_OFFSET
+        var tx: float = stretched_coordinate.x
+        var ty: float = stretched_coordinate.y
+        stretched_coordinate = Vector2(ROT_COS * tx - ROT_SIN * ty, ROT_SIN * tx + ROT_COS * ty)
+    var local_noise_scaled_coordinate: Vector2 = stretched_coordinate * local_noise_scale
+    var final_noise_coordinate: Vector2 = local_noise_scaled_coordinate - NOISE_COORD_OFFSET
     var approximate_pixel_space_coord = final_noise_coordinate.y * iResolution.y
     var current_frames_quantized_vertical_pixel_coord: int = floori(approximate_pixel_space_coord)
     return current_frames_quantized_vertical_pixel_coord
 
-func compute_quantized_vertical_pixel_coord_psycho(iTime: float) -> int:
-    var base_norm_top : Vector2 = Vector2(0.0, -1.0)
+
+func compute_quantized_vertical_pixel_coord(iTime: float) -> int:
+    var base_norm_top: Vector2 = Vector2(0.0, -1.0)
     var projected_base: Vector2 = projectLayer(base_norm_top)
-    var y_displacement : float = iTime * NOISE_SCROLL_VELOCITY.y
+    var y_displacement: float = iTime * NOISE_SCROLL_VELOCITY.y
     var projected_top_with_scroll: float = projected_base.y + y_displacement
-    var norm_top_after_scroll: float = (projected_top_with_scroll * PARALLAX_PROJECTION_ASYMPTOTIC_DEPTH_SCALAR) / (1.0 + projected_top_with_scroll)
-    var fragment_y: float = (norm_top_after_scroll * iResolution.y + iResolution.y) * 0.5
+    projected_top_with_scroll *= STRETCH_SCALAR_Y
+    projected_top_with_scroll *= UNIFORM_STRETCH_CORRECTION_SCALAR
+    projected_top_with_scroll -= NOISE_COORD_OFFSET.y
+    var norm_top_after_scroll: float = (
+        (projected_top_with_scroll * PARALLAX_PROJECTION_ASYMPTOTIC_DEPTH_SCALAR)
+        / (1.0 + projected_top_with_scroll)
+    )
+    var fragment_y: float = (projected_top_with_scroll * iResolution.y + iResolution.y) * 0.5
     var pixel_top_index: int = floori(fragment_y)
     return pixel_top_index
 
 
 var previous_frames_quantized_vertical_pixel_coord: int = 0
+
 
 func _on_frame_post_draw() -> void:
     var iTime: float = FragmentShaderSignalManager.ice_sheets.iTime
@@ -97,17 +104,18 @@ func _on_frame_post_draw() -> void:
     )
     isp_texture.update_scanline_mask_from_scanline_image(scanline_image)
     var buckets: PackedVector2Array = isp_texture.get_alpha_buckets_in_scanline()
-    #var current_frames_quantized_vertical_pixel_coord = compute_quantized_vertical_pixel_coord(iTime)
-    var current_frames_quantized_vertical_pixel_coord = compute_quantized_vertical_pixel_coord_psycho(iTime)
-    var new_rows_this_frame: int = current_frames_quantized_vertical_pixel_coord - previous_frames_quantized_vertical_pixel_coord
+    var current_frames_quantized_vertical_pixel_coord = compute_quantized_vertical_pixel_coord(
+        iTime
+    )
+    var new_rows_this_frame: int = (
+        current_frames_quantized_vertical_pixel_coord
+        - previous_frames_quantized_vertical_pixel_coord
+    )
     previous_frames_quantized_vertical_pixel_coord = current_frames_quantized_vertical_pixel_coord
     print("new rows this frame: ", new_rows_this_frame)
     for i: int in range(new_rows_this_frame):
         _update_polygons_with_alpha_buckets(buckets)
         _advance_polygons_by_one_pixel()
-
-
-
 
 
 func _init_isp_texture() -> void:
@@ -138,9 +146,9 @@ func _update_polygons_with_alpha_buckets(alpha_buckets: PackedVector2Array) -> v
     var num_buckets: int = alpha_buckets.size() / 2
     for bucket_index: int in range(num_buckets):
         var bucket_start: Vector2 = alpha_buckets[bucket_index * 2]
-        var bucket_end:   Vector2 = alpha_buckets[bucket_index * 2 + 1]
+        var bucket_end: Vector2 = alpha_buckets[bucket_index * 2 + 1]
         var bucket_x_start: float = bucket_start.x
-        var bucket_x_end:   float = bucket_end.x
+        var bucket_x_end: float = bucket_end.x
         var matched: bool = false
         for i: int in range(MAX_POLYGONS):
             if polygon_active_global[i] == 1:
@@ -158,15 +166,18 @@ func _update_polygons_with_alpha_buckets(alpha_buckets: PackedVector2Array) -> v
                         concave.segments = segments
                         polygon_active_local[i] += 1
                         matched = true
-                        var nx_left  = (2.0 * bucket_x_start - iResolution.x) / iResolution.y
-                        var nx_right = (2.0 * bucket_x_end   - iResolution.x) / iResolution.y
+                        var nx_left = (2.0 * bucket_x_start - iResolution.x) / iResolution.y
+                        var nx_right = (2.0 * bucket_x_end - iResolution.x) / iResolution.y
                         var orig_normY = (2.0 * 0 - iResolution.y) / iResolution.y  # = -1.0 at the top scanline
-                        var world_left  = nx_left  * (PARALLAX_PROJECTION_ASYMPTOTIC_DEPTH_SCALAR - orig_normY)
-                        var world_right = nx_right * (PARALLAX_PROJECTION_ASYMPTOTIC_DEPTH_SCALAR - orig_normY)
-                        polygon_original_nxs[i].insert(0, world_right)   # matches segments[1]
-                        polygon_original_nxs[i].insert(0, world_left)    # matches segments[0]
+                        var world_left = (
+                            nx_left * (PARALLAX_PROJECTION_ASYMPTOTIC_DEPTH_SCALAR - orig_normY)
+                        )
+                        var world_right = (
+                            nx_right * (PARALLAX_PROJECTION_ASYMPTOTIC_DEPTH_SCALAR - orig_normY)
+                        )
+                        polygon_original_nxs[i].insert(0, world_right)  # matches segments[1]
+                        polygon_original_nxs[i].insert(0, world_left)  # matches segments[0]
                         break
-
 
         if not matched:
             for i: int in range(MAX_POLYGONS):
@@ -177,20 +188,27 @@ func _update_polygons_with_alpha_buckets(alpha_buckets: PackedVector2Array) -> v
                     var concave: ConcavePolygonShape2D = shape_node.shape as ConcavePolygonShape2D
                     var new_segments: PackedVector2Array = PackedVector2Array()
                     new_segments.push_back(Vector2(bucket_x_start, 0))
-                    new_segments.push_back(Vector2(bucket_x_end,   0))
+                    new_segments.push_back(Vector2(bucket_x_end, 0))
                     concave.segments = new_segments
                     shape_node.disabled = false
                     var nx_left: float = (2.0 * bucket_x_start - iResolution.x) / iResolution.y
-                    var nx_right: float = (2.0 * bucket_x_end   - iResolution.x) / iResolution.y
+                    var nx_right: float = (2.0 * bucket_x_end - iResolution.x) / iResolution.y
                     var orig_normY = -1.0  # because it’s still the top scanline
-                    var world_left  = nx_left  * (PARALLAX_PROJECTION_ASYMPTOTIC_DEPTH_SCALAR - orig_normY)
-                    var world_right = nx_right * (PARALLAX_PROJECTION_ASYMPTOTIC_DEPTH_SCALAR - orig_normY)
-                    polygon_original_nxs[i].append(world_left)    # index 0 → matches segments[0]
+                    var world_left = (
+                        nx_left * (PARALLAX_PROJECTION_ASYMPTOTIC_DEPTH_SCALAR - orig_normY)
+                    )
+                    var world_right = (
+                        nx_right * (PARALLAX_PROJECTION_ASYMPTOTIC_DEPTH_SCALAR - orig_normY)
+                    )
+                    polygon_original_nxs[i].append(world_left)  # index 0 → matches segments[0]
                     polygon_original_nxs[i].append(world_right)
                     break
 
+
 const ONE_PIXEL: float = 1.0
 var polygon_centroid_cache: Dictionary = {}
+
+
 func _advance_polygons_by_one_pixel() -> void:
     var new_centroid_cache: Dictionary = {}
     var previous_centroids: Array[Vector2] = []
@@ -255,13 +273,13 @@ func _correct_polygon_horizontal(i: int) -> void:
 
     for j: int in range(segments.size()):
         var local_pt: Vector2 = segments[j]
-        var fragY: float    = local_pt.y + shape_node.position.y
+        var fragY: float = local_pt.y + shape_node.position.y
         var normY_shader: float = (2.0 * fragY - iResolution.y) / iResolution.y
-        var denom_shader: float  = PARALLAX_PROJECTION_ASYMPTOTIC_DEPTH_SCALAR - normY_shader
-        var scale_shader: float  = 1.0 / denom_shader
-        var worldX: float        = orig_nxs[j]    # (stored earlier when this vertex was spawned)
-        var projX: float         = worldX * scale_shader
-        var scrX: float          = projX * (iResolution.y * 0.5) + (iResolution.x * 0.5)
+        var denom_shader: float = PARALLAX_PROJECTION_ASYMPTOTIC_DEPTH_SCALAR - normY_shader
+        var scale_shader: float = 1.0 / denom_shader
+        var worldX: float = orig_nxs[j]  # (stored earlier when this vertex was spawned)
+        var projX: float = worldX * scale_shader
+        var scrX: float = projX * (iResolution.y * 0.5) + (iResolution.x * 0.5)
 
         segments.set(j, Vector2(scrX, local_pt.y))
     concave.segments = segments
