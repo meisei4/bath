@@ -4,7 +4,7 @@ use godot::prelude::{Array, PackedFloat32Array, PackedInt32Array, PackedVector2A
 pub const MAX_POLYGONS: usize = 24;
 
 const PARALLAX_PROJECTION_ASYMPTOTIC_DEPTH_SCALAR: f32 = 6.0;
-const NOISE_SCROLL_VELOCITY_Y: f32 = 0.05;
+const NOISE_SCROLL_VELOCITY_Y: f32 = 0.025;
 
 pub fn compute_quantized_vertical_pixel_coord(i_time: f32, i_resolution: Vector2) -> i32 {
     let base_normalized_y = -1.0;
@@ -36,8 +36,9 @@ fn push_1d_coord_pair(
     let depth_scalar = PARALLAX_PROJECTION_ASYMPTOTIC_DEPTH_SCALAR - normalized_spawn_y;
     world_x_coord_array.insert(0, normalized_right_x * depth_scalar);
     world_x_coord_array.insert(0, normalized_left_x * depth_scalar);
-    world_y_coord_array.insert(0, normalized_spawn_y);
-    world_y_coord_array.insert(0, normalized_spawn_y);
+    let world_spawn_y = normalized_spawn_y / depth_scalar;
+    world_y_coord_array.insert(0, world_spawn_y);
+    world_y_coord_array.insert(0, world_spawn_y);
     polygon_1d_x_coords.set(polygon_slot, &world_x_coord_array);
     polygon_1d_y_coords.set(polygon_slot, &world_y_coord_array);
 }
@@ -80,7 +81,9 @@ pub fn update_polygons_with_alpha_buckets(
                     polygon_index,
                     bucket_x_start,
                     bucket_x_end,
-                    new_local_y - polygon_positions_y.get(polygon_index).unwrap(),
+                    //0.0,
+                    //TODO: THIS IS BORKED AS FUCK
+                    new_local_y + polygon_positions_y.get(polygon_index).unwrap(),
                     screen_resolution,
                 );
                 polygon_found = true;
@@ -135,7 +138,7 @@ pub fn advance_polygons_by_one_frame(
             polygon_positions_y,
             screen_resolution,
         );
-        vertical_scroll_one_pixel(idx, polygon_positions_y);
+        //vertical_scroll_one_pixel(idx, polygon_positions_y);
         apply_horizontal_projection(
             idx,
             polygon_segments,
@@ -205,10 +208,12 @@ fn vertical_scroll_projected(
     let mut screen_y_values: Vec<f32> = Vec::with_capacity(len);
     let mut min_screen_y = f32::MAX;
     for i in 0..len {
-        let n = world_y_array.get(i).unwrap();
-        let scale = 1.0 / (PARALLAX_PROJECTION_ASYMPTOTIC_DEPTH_SCALAR - n);
-        //TODO: this is the fucked place i think
-        let scr_y = n * scale * half_h + half_h;
+        // let n = world_y_array.get(i).unwrap();
+        // let scale = 1.0 / (PARALLAX_PROJECTION_ASYMPTOTIC_DEPTH_SCALAR - n);
+        // let scr_y = n * scale * half_h + half_h;
+        let w = world_y_array.get(i).unwrap();
+        let n = w * PARALLAX_PROJECTION_ASYMPTOTIC_DEPTH_SCALAR / (1.0 + w);
+        let scr_y = (n + 1.0) * half_h;
         screen_y_values.push(scr_y);
         if scr_y < min_screen_y {
             min_screen_y = scr_y;
