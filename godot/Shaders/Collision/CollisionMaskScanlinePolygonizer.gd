@@ -3,10 +3,6 @@ class_name CollisionMaskScanlinePolygonizer
 
 const MAX_POLYGONS: int = 12
 
-#TODO: hacked and they don't work as you'd think. two issues:
-# 1. gdscript is using f64, glsl is using f32, all the velocity math gets fucked
-# 2. gpu frame buffers are asynchronous and thus the collision shapes will never be scrolling at the same rate as if the cpu can capture it
-
 var isp_texture: ISPTexture
 var collision_mask_concave_polygons_pool: Array[CollisionShape2D]
 var collision_mask_bodies: Array[StaticBody2D]
@@ -52,38 +48,12 @@ const ROT_COS: float = cos(ROTATION_ANGLE)
 const ROT_SIN: float = sin(ROTATION_ANGLE)
 
 
-func compute_quantized_vertical_pixel_coord_wrong(iTime: float) -> int:
-    var dummy_norm_coord: Vector2 = Vector2(0.0, 0.0)
-    var projected: Vector2 = projectLayer(dummy_norm_coord)
-    var local_noise_scale: float = PARALLAX_NEAR_SCALAR
-
-    var x_displacement: float = iTime * NOISE_SCROLL_VELOCITY.x
-    var y_displacement: float = iTime * NOISE_SCROLL_VELOCITY.y
-    var displaced_coordinate: Vector2 = projected + Vector2(x_displacement, y_displacement)
-    var scaled_coordinate: Vector2 = displaced_coordinate * GLOBAL_COORD_SCALAR
-    var stretched_coordinate: Vector2 = Vector2(
-        scaled_coordinate.x * STRETCH_SCALAR_X, scaled_coordinate.y * STRETCH_SCALAR_Y
-    )
-    if ENABLE_STRETCH_CORRECTION:
-        stretched_coordinate *= UNIFORM_STRETCH_CORRECTION_SCALAR
-    if ENABLE_ROTATION:
-        var tx: float = stretched_coordinate.x
-        var ty: float = stretched_coordinate.y
-        stretched_coordinate = Vector2(ROT_COS * tx - ROT_SIN * ty, ROT_SIN * tx + ROT_COS * ty)
-    var local_noise_scaled_coordinate: Vector2 = stretched_coordinate * local_noise_scale
-    var final_noise_coordinate: Vector2 = local_noise_scaled_coordinate - NOISE_COORD_OFFSET
-    var approximate_pixel_space_coord = final_noise_coordinate.y * iResolution.y
-    var current_frames_quantized_vertical_pixel_coord: int = floori(approximate_pixel_space_coord)
-    return current_frames_quantized_vertical_pixel_coord
-
-
 func compute_quantized_vertical_pixel_coord(iTime: float) -> int:
     var base_norm_top: Vector2 = Vector2(0.0, -1.0)
     var projected_base: Vector2 = projectLayer(base_norm_top)
     var y_displacement: float = iTime * NOISE_SCROLL_VELOCITY.y
     projected_base.y = (
-        (projected_base.y * PARALLAX_PROJECTION_ASYMPTOTIC_DEPTH_SCALAR)
-        / (1.0 + projected_base.y)
+        (projected_base.y * PARALLAX_PROJECTION_ASYMPTOTIC_DEPTH_SCALAR) / (1.0 + projected_base.y)
     )
     var projected_top_with_scroll: float = projected_base.y + y_displacement
     projected_top_with_scroll *= STRETCH_SCALAR_Y
@@ -96,9 +66,11 @@ func compute_quantized_vertical_pixel_coord(iTime: float) -> int:
 
 var previous_frames_quantized_vertical_pixel_coord: int = 0
 
+var iTime: float
+
 
 func _on_frame_post_draw() -> void:
-    var iTime: float = FragmentShaderSignalManager.ice_sheets.iTime
+    iTime = FragmentShaderSignalManager.ice_sheets.iTime
     var scanline_image: Image = (
         FragmentShaderSignalManager.ice_sheets.Scanline.get_texture().get_image()
     )
@@ -128,7 +100,6 @@ func _init_concave_collision_polygon_pool() -> void:
     polygon_active_global.fill(0)
     polygon_active_local.resize(MAX_POLYGONS)
     polygon_active_local.fill(0)
-    polygon_original_nxs.resize(MAX_POLYGONS)
     polygon_original_nxs.resize(MAX_POLYGONS)
     for i: int in range(MAX_POLYGONS):
         var static_body: StaticBody2D = StaticBody2D.new()
@@ -168,15 +139,16 @@ func _update_polygons_with_alpha_buckets(alpha_buckets: PackedVector2Array) -> v
                         matched = true
                         var nx_left = (2.0 * bucket_x_start - iResolution.x) / iResolution.y
                         var nx_right = (2.0 * bucket_x_end - iResolution.x) / iResolution.y
-                        var orig_normY = (2.0 * 0 - iResolution.y) / iResolution.y  # = -1.0 at the top scanline
+                        var fragY_spawn: float = localY - shape_node.position.y
+                        var orig_normY: float = (2.0 * fragY_spawn - iResolution.y) / iResolution.y
                         var world_left = (
                             nx_left * (PARALLAX_PROJECTION_ASYMPTOTIC_DEPTH_SCALAR - orig_normY)
                         )
                         var world_right = (
                             nx_right * (PARALLAX_PROJECTION_ASYMPTOTIC_DEPTH_SCALAR - orig_normY)
                         )
-                        polygon_original_nxs[i].insert(0, world_right)  # matches segments[1]
-                        polygon_original_nxs[i].insert(0, world_left)  # matches segments[0]
+                        polygon_original_nxs[i].insert(0, world_right)
+                        polygon_original_nxs[i].insert(0, world_left)
                         break
 
         if not matched:
@@ -193,71 +165,30 @@ func _update_polygons_with_alpha_buckets(alpha_buckets: PackedVector2Array) -> v
                     shape_node.disabled = false
                     var nx_left: float = (2.0 * bucket_x_start - iResolution.x) / iResolution.y
                     var nx_right: float = (2.0 * bucket_x_end - iResolution.x) / iResolution.y
-                    var orig_normY = -1.0  # because it’s still the top scanline
+                    var fragY_spawn: float = 0 + shape_node.position.y  # = shape_node.position.y (which is zero at creation)
+                    var orig_normY: float = (2.0 * fragY_spawn - iResolution.y) / iResolution.y
                     var world_left = (
                         nx_left * (PARALLAX_PROJECTION_ASYMPTOTIC_DEPTH_SCALAR - orig_normY)
                     )
                     var world_right = (
                         nx_right * (PARALLAX_PROJECTION_ASYMPTOTIC_DEPTH_SCALAR - orig_normY)
                     )
-                    polygon_original_nxs[i].append(world_left)  # index 0 → matches segments[0]
+                    polygon_original_nxs[i].append(world_left)
                     polygon_original_nxs[i].append(world_right)
                     break
 
 
 const ONE_PIXEL: float = 1.0
-var polygon_centroid_cache: Dictionary = {}
 
 
 func _advance_polygons_by_one_pixel() -> void:
-    var new_centroid_cache: Dictionary = {}
-    var previous_centroids: Array[Vector2] = []
-    var previous_matched: Array[bool] = []
-    for key in polygon_centroid_cache.keys():
-        previous_centroids.append(polygon_centroid_cache[key] as Vector2)
-        previous_matched.append(false)
-    var MATCH_THRESHOLD: float = 4.0 * 4.0
     for i: int in range(MAX_POLYGONS):
         if polygon_active_global[i] == 1:
             var shape_node: CollisionShape2D = collision_mask_concave_polygons_pool[i]
-            #shape_node.position.y += isp_texture.TEXTURE_HEIGHT
             shape_node.position.y += ONE_PIXEL
-            #for sub in isp_texture.TEXTURE_HEIGHT:
             _correct_polygon_horizontal(i)
-            var concave: ConcavePolygonShape2D = shape_node.shape as ConcavePolygonShape2D
-            var segments: PackedVector2Array = concave.segments
-            var centroid: Vector2 = Vector2.ZERO
-            var point_count: int = segments.size()
-            for pt in segments:
-                centroid += pt + shape_node.position
-            if point_count > 0:
-                centroid /= point_count
-            else:
-                centroid = shape_node.position
-
-            var touching_top: bool = centroid.y <= 0.0
-            var touching_bottom: bool = centroid.y >= iResolution.y
-            var fully_inside: bool = not touching_top and not touching_bottom
-            var best_match_idx: int = -1
-            var best_dist: float = INF
-            for j: int in range(previous_centroids.size()):
-                if previous_matched[j]:
-                    continue
-                var dist: float = centroid.distance_to(previous_centroids[j])
-                if dist < best_dist and dist < MATCH_THRESHOLD:
-                    best_dist = dist
-                    best_match_idx = j
-
-            if best_match_idx != -1:
-                previous_matched[best_match_idx] = true
-                var dy: float = centroid.y - previous_centroids[best_match_idx].y
-
-            if not touching_bottom:
-                new_centroid_cache[str(i)] = centroid
             if shape_node.position.y > iResolution.y:
                 _clear_polygon(i)
-
-    polygon_centroid_cache = new_centroid_cache
 
 
 func _correct_polygon_horizontal(i: int) -> void:
@@ -280,7 +211,6 @@ func _correct_polygon_horizontal(i: int) -> void:
         var worldX: float = orig_nxs[j]  # (stored earlier when this vertex was spawned)
         var projX: float = worldX * scale_shader
         var scrX: float = projX * (iResolution.y * 0.5) + (iResolution.x * 0.5)
-
         segments.set(j, Vector2(scrX, local_pt.y))
     concave.segments = segments
 
@@ -289,6 +219,7 @@ func _clear_polygon(index: int) -> void:
     polygon_active_global[index] = 0
     polygon_active_local[index] = 0
     polygon_original_nxs[index].clear()
+
     var shape_node: CollisionShape2D = collision_mask_concave_polygons_pool[index]
     var concave: ConcavePolygonShape2D = shape_node.shape as ConcavePolygonShape2D
     concave.segments = PackedVector2Array()

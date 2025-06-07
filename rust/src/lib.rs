@@ -2,6 +2,11 @@ pub mod audio_analysis;
 pub mod collision_mask;
 pub mod midi;
 
+//use audio_analysis::godot::{detect_bpm_beat_detector};
+use crate::collision_mask::isp::{
+    advance_polygons_by_one_frame, compute_quantized_vertical_pixel_coord,
+    update_polygons_with_alpha_buckets,
+};
 use crate::midi::godot::{
     make_note_on_off_event_dict_seconds, make_note_on_off_event_dict_ticks, write_samples_to_wav,
 };
@@ -9,7 +14,6 @@ use crate::midi::util::{
     inject_program_change, prepare_events, process_midi_events_with_timing, render_sample_frame,
 };
 use audio_analysis::godot::detect_bpm_aubio;
-//use audio_analysis::godot::{detect_bpm_beat_detector};
 use collision_mask::godot::{
     generate_concave_collision_polygons_pixel_perfect,
     generate_convex_collision_polygons_pixel_perfect,
@@ -19,7 +23,7 @@ use godot::classes::file_access::ModeFlags;
 use godot::classes::{FileAccess, Node2D};
 use godot::prelude::{
     gdextension, godot_api, godot_print, Array, Base, Dictionary, ExtensionLibrary, GString,
-    GodotClass,
+    GodotClass, PackedFloat32Array, PackedInt32Array,
 };
 use midly::{MidiMessage, Smf, TrackEventKind};
 use rustysynth::{SoundFont, Synthesizer, SynthesizerSettings};
@@ -43,6 +47,59 @@ const PROGRAM: u8 = 0; //"Accordion", figure out a better way to do this
 
 #[godot_api]
 impl RustUtil {
+    #[func]
+    fn process_scanline(
+        &self,
+        i_time: f32,
+        alpha_buckets: PackedVector2Array,
+        previous_quantized_vertical_pixel_coord: i32,
+        mut polygon_active_global: PackedInt32Array,
+        mut polygon_active_local: PackedInt32Array,
+        mut polygon_positions_y: PackedFloat32Array,
+        mut polygon_segments: Array<PackedVector2Array>,
+        mut polygon_1d_x_coords: Array<PackedFloat32Array>,
+        mut polygon_1d_y_coords: Array<PackedFloat32Array>,
+        i_resolution: Vector2,
+    ) -> Dictionary {
+        let current_quantized_vertical_pixel_coord =
+            compute_quantized_vertical_pixel_coord(i_time, i_resolution);
+        let new_row_count =
+            current_quantized_vertical_pixel_coord - previous_quantized_vertical_pixel_coord;
+        for _ in 0..new_row_count {
+            update_polygons_with_alpha_buckets(
+                &mut polygon_active_global,
+                &mut polygon_active_local,
+                &mut polygon_positions_y,
+                &mut polygon_segments,
+                &mut polygon_1d_x_coords,
+                &mut polygon_1d_y_coords,
+                &alpha_buckets,
+                i_resolution,
+            );
+            advance_polygons_by_one_frame(
+                &mut polygon_active_global,
+                &mut polygon_active_local,
+                &mut polygon_positions_y,
+                &mut polygon_segments,
+                &mut polygon_1d_x_coords,
+                &mut polygon_1d_y_coords,
+                i_resolution,
+            );
+        }
+        let mut output_dictionary = Dictionary::new();
+        let _ = output_dictionary.insert(
+            "current_quantized_vertical_pixel_coord",
+            current_quantized_vertical_pixel_coord,
+        );
+        let _ = output_dictionary.insert("polygon_active_global", polygon_active_global);
+        let _ = output_dictionary.insert("polygon_active_local", polygon_active_local);
+        let _ = output_dictionary.insert("polygon_positions_y", polygon_positions_y);
+        let _ = output_dictionary.insert("polygon_segments", polygon_segments);
+        let _ = output_dictionary.insert("polygon_1d_x_coords", polygon_1d_x_coords);
+        let _ = output_dictionary.insert("polygon_1d_y_coords", polygon_1d_y_coords);
+        output_dictionary
+    }
+
     #[func]
     pub fn compute_concave_collision_polygons(
         &self,

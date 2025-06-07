@@ -13,6 +13,7 @@ func _ready() -> void:
 
 
 func update_scanline_mask_from_scanline_image(_scanline_image: Image) -> void:
+    #_scanline_image.flip_y()  #unsure still
     var raw_rgba: PackedByteArray = _scanline_image.get_data()
     for i: int in range(TEXTURE_WIDTH * TEXTURE_HEIGHT):
         var alpha_byte: int = raw_rgba[4 * i + 3]
