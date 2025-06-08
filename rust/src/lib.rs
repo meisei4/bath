@@ -5,7 +5,7 @@ pub mod midi;
 //use audio_analysis::godot::{detect_bpm_beat_detector};
 use crate::collision_mask::isp::{
     advance_polygons_by_one_frame, compute_quantized_vertical_pixel_coord,
-    update_polygons_with_alpha_buckets,
+    update_polygons_with_scanline_alpha_buckets,
 };
 use crate::midi::godot::{
     make_note_on_off_event_dict_seconds, make_note_on_off_event_dict_ticks, write_samples_to_wav,
@@ -51,52 +51,32 @@ impl RustUtil {
     fn process_scanline(
         &self,
         i_time: f32,
-        alpha_buckets: PackedVector2Array,
-        previous_quantized_vertical_pixel_coord: i32,
-        mut polygon_active_global: PackedInt32Array,
-        mut polygon_active_local: PackedInt32Array,
-        mut polygon_positions_y: PackedFloat32Array,
-        mut polygon_segments: Array<PackedVector2Array>,
-        mut polygon_1d_x_coords: Array<PackedFloat32Array>,
-        mut polygon_1d_y_coords: Array<PackedFloat32Array>,
         i_resolution: Vector2,
+        mut on_screen_collision_polygon_vertices: Array<PackedVector2Array>,
+        scanline_alpha_buckets: PackedVector2Array,
+        previous_quantized_vertical_pixel_coord: i32,
+        mut scanline_count_per_polygon: PackedInt32Array,
     ) -> Dictionary {
-        let current_quantized_vertical_pixel_coord =
+        let quantized_vertical_pixel_coord =
             compute_quantized_vertical_pixel_coord(i_time, i_resolution);
-        let new_row_count =
-            current_quantized_vertical_pixel_coord - previous_quantized_vertical_pixel_coord;
-        for _ in 0..new_row_count {
-            update_polygons_with_alpha_buckets(
-                &mut polygon_active_global,
-                &mut polygon_active_local,
-                &mut polygon_positions_y,
-                &mut polygon_segments,
-                &mut polygon_1d_x_coords,
-                &mut polygon_1d_y_coords,
-                &alpha_buckets,
+        let quantized_vertical_pixel_coords_scrolled_this_frame =
+            quantized_vertical_pixel_coord - previous_quantized_vertical_pixel_coord;
+        for _ in 0..quantized_vertical_pixel_coords_scrolled_this_frame {
+            update_polygons_with_scanline_alpha_buckets(
                 i_resolution,
-            );
-            advance_polygons_by_one_frame(
-                &mut polygon_active_global,
-                &mut polygon_active_local,
-                &mut polygon_positions_y,
-                &mut polygon_segments,
-                &mut polygon_1d_x_coords,
-                &mut polygon_1d_y_coords,
-                i_resolution,
+                &mut on_screen_collision_polygon_vertices,
+                &scanline_alpha_buckets,
+                &mut scanline_count_per_polygon,
+                1.0,
             );
         }
         let mut output_dictionary = Dictionary::new();
         let _ = output_dictionary.insert(
-            "current_quantized_vertical_pixel_coord",
-            current_quantized_vertical_pixel_coord,
+            "previous_quantized_vertical_pixel_coord",
+            quantized_vertical_pixel_coord,
         );
-        let _ = output_dictionary.insert("polygon_active_global", polygon_active_global);
-        let _ = output_dictionary.insert("polygon_active_local", polygon_active_local);
-        let _ = output_dictionary.insert("polygon_positions_y", polygon_positions_y);
-        let _ = output_dictionary.insert("polygon_segments", polygon_segments);
-        let _ = output_dictionary.insert("polygon_1d_x_coords", polygon_1d_x_coords);
-        let _ = output_dictionary.insert("polygon_1d_y_coords", polygon_1d_y_coords);
+        let _ = output_dictionary.insert("scanline_count_per_polygon", scanline_count_per_polygon);
+        let _ = output_dictionary.insert("on_screen_collision_polygon_vertices", on_screen_collision_polygon_vertices);
         output_dictionary
     }
 

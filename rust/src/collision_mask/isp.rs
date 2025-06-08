@@ -1,5 +1,5 @@
 use godot::builtin::Vector2;
-use godot::prelude::{Array, PackedFloat32Array, PackedInt32Array, PackedVector2Array};
+use godot::prelude::{godot_print, real, Array, PackedFloat32Array, PackedInt32Array, PackedVector2Array};
 
 pub const MAX_POLYGONS: usize = 24;
 
@@ -10,109 +10,103 @@ pub fn compute_quantized_vertical_pixel_coord(i_time: f32, i_resolution: Vector2
     let base_normalized_y = -1.0;
     let projected_base_y =
         base_normalized_y / (PARALLAX_PROJECTION_ASYMPTOTIC_DEPTH_SCALAR - base_normalized_y);
+    let initial_screen_y = (projected_base_y * i_resolution.y + i_resolution.y) * 0.5;
     let projected_scrolled_y = projected_base_y + i_time * NOISE_SCROLL_VELOCITY_Y;
     let screen_y = (projected_scrolled_y * i_resolution.y + i_resolution.y) * 0.5;
-    screen_y.floor() as i32
+    (screen_y - initial_screen_y).floor() as i32
 }
 
-fn push_1d_coord_pair(
-    polygon_1d_x_coords: &mut Array<PackedFloat32Array>,
-    polygon_1d_y_coords: &mut Array<PackedFloat32Array>,
-    polygon_slot: usize,
-    bucket_x_start: f32,
-    bucket_x_end: f32,
-    fragment_y_spawn: f32,
-    screen_resolution: Vector2,
+fn polygon_found(scanline_count_per_polygon: &PackedInt32Array, polygon_index: usize) -> bool {
+    let row_count = scanline_count_per_polygon.get(polygon_index).unwrap();
+    row_count != 0
+}
+
+fn scanline_bucket_overlaps_polygon(
+    bucket_start: real,
+    collision_polygon_top_right_vertex: real,
+    bucket_end: real,
+    collision_polygon_top_left_vertex: real,
+) -> bool {
+    bucket_start <= collision_polygon_top_right_vertex
+        && bucket_end >= collision_polygon_top_left_vertex
+}
+
+fn shift_polygon_verticies_down_by_vertical_scroll(
+    vertical_scroll_per_scanline: f32,
+    on_screen_collision_polygon_vertices: &mut Array<PackedVector2Array>,
 ) {
-    while polygon_1d_x_coords.len() <= polygon_slot {
-        polygon_1d_x_coords.push(&PackedFloat32Array::new());
-        polygon_1d_y_coords.push(&PackedFloat32Array::new());
+    for i in 0..MAX_POLYGONS {
+        let mut collision_polygon_vertices = on_screen_collision_polygon_vertices.get(i).unwrap();
+        let slice: &mut [Vector2] = collision_polygon_vertices.as_mut_slice();
+        for vertex in slice.iter_mut() {
+            vertex.y += vertical_scroll_per_scanline;
+        }
+        on_screen_collision_polygon_vertices.set(i, &collision_polygon_vertices);
     }
-    let mut world_x_coord_array = polygon_1d_x_coords.get(polygon_slot).unwrap();
-    let mut world_y_coord_array = polygon_1d_y_coords.get(polygon_slot).unwrap();
-    let normalized_spawn_y = (2.0 * fragment_y_spawn - screen_resolution.y) / screen_resolution.y;
-    let normalized_left_x = (2.0 * bucket_x_start - screen_resolution.x) / screen_resolution.y;
-    let normalized_right_x = (2.0 * bucket_x_end - screen_resolution.x) / screen_resolution.y;
-    let depth_scalar = PARALLAX_PROJECTION_ASYMPTOTIC_DEPTH_SCALAR - normalized_spawn_y;
-    world_x_coord_array.insert(0, normalized_right_x * depth_scalar);
-    world_x_coord_array.insert(0, normalized_left_x * depth_scalar);
-    let world_spawn_y = normalized_spawn_y / depth_scalar;
-    world_y_coord_array.insert(0, world_spawn_y);
-    world_y_coord_array.insert(0, world_spawn_y);
-    polygon_1d_x_coords.set(polygon_slot, &world_x_coord_array);
-    polygon_1d_y_coords.set(polygon_slot, &world_y_coord_array);
 }
 
-pub fn update_polygons_with_alpha_buckets(
-    polygon_active_global: &mut PackedInt32Array,
-    polygon_active_local: &mut PackedInt32Array,
-    polygon_positions_y: &mut PackedFloat32Array,
-    polygon_segments: &mut Array<PackedVector2Array>,
-    polygon_1d_x_coords: &mut Array<PackedFloat32Array>,
-    polygon_1d_y_coords: &mut Array<PackedFloat32Array>,
-    alpha_buckets: &PackedVector2Array,
-    screen_resolution: Vector2,
+pub fn update_polygons_with_scanline_alpha_buckets(
+    i_resolution: Vector2,
+    on_screen_collision_polygon_vertices: &mut Array<PackedVector2Array>,
+    scanline_alpha_buckets: &PackedVector2Array,
+    scanline_count_per_polygon: &mut PackedInt32Array,
+    vertical_scroll_per_scanline: f32,
 ) {
-    let bucket_pair_count = alpha_buckets.len() / 2;
-    for bucket_pair_index in 0..bucket_pair_count {
-        let bucket_x_start = alpha_buckets.get(bucket_pair_index * 2).unwrap().x;
-        let bucket_x_end = alpha_buckets.get(bucket_pair_index * 2 + 1).unwrap().x;
-        let mut polygon_found = false;
+    shift_polygon_verticies_down_by_vertical_scroll(
+        vertical_scroll_per_scanline,
+        on_screen_collision_polygon_vertices,
+    );
+    for alpha_bucket_index in 0..scanline_alpha_buckets.len() {
+        let bucket = scanline_alpha_buckets.get(alpha_bucket_index).unwrap();
+        let bucket_start = bucket.x;
+        let bucket_end = bucket.y;
+        let mut updated_polygon = false;
         for polygon_index in 0..MAX_POLYGONS {
-            if polygon_active_global.get(polygon_index).unwrap() == 0 {
+            if !polygon_found(scanline_count_per_polygon, polygon_index) {
                 continue;
             }
-            let mut local_segment_array = polygon_segments.get(polygon_index).unwrap();
-            if local_segment_array.len() < 2 {
+            let mut collision_polygon_vertices = on_screen_collision_polygon_vertices
+                .get(polygon_index)
+                .unwrap();
+            let count = scanline_count_per_polygon.get(polygon_index).unwrap();
+            godot_print!("slot {} active_count={} vert_count={}", polygon_index, count, collision_polygon_vertices.len());
+            if collision_polygon_vertices.len() < 2 {
                 continue;
             }
-            let current_top_left_x = local_segment_array.get(0).unwrap().x;
-            let current_top_right_x = local_segment_array.get(1).unwrap().x;
-            if bucket_x_start <= current_top_right_x && bucket_x_end >= current_top_left_x {
-                let new_local_y = -polygon_positions_y.get(polygon_index).unwrap();
-                local_segment_array.insert(0, Vector2::new(bucket_x_end, new_local_y));
-                local_segment_array.insert(0, Vector2::new(bucket_x_start, new_local_y));
-                polygon_segments.set(polygon_index, &local_segment_array);
-                let updated_local_row_count = polygon_active_local.get(polygon_index).unwrap() + 1;
-                polygon_active_local.insert(polygon_index, updated_local_row_count);
-                push_1d_coord_pair(
-                    polygon_1d_x_coords,
-                    polygon_1d_y_coords,
-                    polygon_index,
-                    bucket_x_start,
-                    bucket_x_end,
-                    //0.0,
-                    //TODO: THIS IS BORKED AS FUCK
-                    new_local_y + polygon_positions_y.get(polygon_index).unwrap(),
-                    screen_resolution,
-                );
-                polygon_found = true;
+            let collision_polygon_top_right_vertex = collision_polygon_vertices.get(1).unwrap().x;
+            let collision_polygon_top_left_vertex = collision_polygon_vertices.get(0).unwrap().x;
+            if scanline_bucket_overlaps_polygon(
+                bucket_start,
+                collision_polygon_top_right_vertex,
+                bucket_end,
+                collision_polygon_top_left_vertex,
+            ) {
+                collision_polygon_vertices
+                    .insert(0, Vector2::new(bucket_end, vertical_scroll_per_scanline));
+                collision_polygon_vertices
+                    .insert(0, Vector2::new(bucket_start, vertical_scroll_per_scanline));
+                on_screen_collision_polygon_vertices
+                    .set(polygon_index, &collision_polygon_vertices);
+                let updated_scanline_count =
+                    scanline_count_per_polygon.get(polygon_index).unwrap() + 1;
+                let slice: &mut [i32] = scanline_count_per_polygon.as_mut_slice();
+                slice[polygon_index] = updated_scanline_count;
+                updated_polygon = true;
                 break;
             }
         }
-        if polygon_found {
+        if updated_polygon {
             continue;
         }
         for polygon_index in 0..MAX_POLYGONS {
-            if polygon_active_global.get(polygon_index).unwrap() != 0 {
+            if polygon_found(scanline_count_per_polygon, polygon_index) {
                 continue;
             }
-            polygon_active_global.insert(polygon_index, 1);
-            polygon_active_local.insert(polygon_index, 1);
-            polygon_positions_y.insert(polygon_index, 0.0);
-            let mut new_segment_array = PackedVector2Array::new();
-            new_segment_array.push(Vector2::new(bucket_x_start, 0.0));
-            new_segment_array.push(Vector2::new(bucket_x_end, 0.0));
-            polygon_segments.set(polygon_index, &new_segment_array);
-            push_1d_coord_pair(
-                polygon_1d_x_coords,
-                polygon_1d_y_coords,
-                polygon_index,
-                bucket_x_start,
-                bucket_x_end,
-                0.0,
-                screen_resolution,
-            );
+            scanline_count_per_polygon.insert(polygon_index, 1);
+            let mut collision_polygon_vertices = PackedVector2Array::new();
+            collision_polygon_vertices.push(Vector2::new(bucket_start, 0.0));
+            collision_polygon_vertices.push(Vector2::new(bucket_end, 0.0));
+            on_screen_collision_polygon_vertices.set(polygon_index, &collision_polygon_vertices);
             break;
         }
     }
@@ -200,10 +194,19 @@ fn vertical_scroll_projected(
     let mut world_y_array = polygon_1d_y_coords.get(polygon_index).unwrap();
     let len = world_y_array.len();
     for i in 0..len {
-        let y_new = world_y_array.get(i).unwrap() + NOISE_SCROLL_VELOCITY_Y;
+        // let y_new = world_y_array.get(i).unwrap() + NOISE_SCROLL_VELOCITY_Y;
+        // world_y_array.remove(i);
+        // world_y_array.insert(i, y_new);
+        let w = world_y_array.get(i).unwrap();
+        let n = w * PARALLAX_PROJECTION_ASYMPTOTIC_DEPTH_SCALAR / (1.0 + w);
+        let scr_y = (n + 1.0) * half_h;
+        let scr_y_next = scr_y + 1.0;
+        let m_next = 2.0 * scr_y_next / screen_resolution.y - 1.0;
+        let w_next = m_next / (PARALLAX_PROJECTION_ASYMPTOTIC_DEPTH_SCALAR - m_next);
         world_y_array.remove(i);
-        world_y_array.insert(i, y_new);
+        world_y_array.insert(i, w_next);
     }
+
     polygon_1d_y_coords.set(polygon_index, &world_y_array);
     let mut screen_y_values: Vec<f32> = Vec::with_capacity(len);
     let mut min_screen_y = f32::MAX;
