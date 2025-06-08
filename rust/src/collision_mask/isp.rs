@@ -68,10 +68,10 @@ pub fn update_polygons_with_scanline_alpha_buckets(
                 polygon_top_right_vertex,
                 polygon_top_left_vertex,
             ) {
-                let new_vertex_start = Vector2::new(bucket_start, 1.0);
-                let new_vertex_end = Vector2::new(bucket_end, 1.0);
-                polygon_vertices.insert(0, new_vertex_start);
+                let new_vertex_start = Vector2::new(bucket_start, 0.0);
+                let new_vertex_end = Vector2::new(bucket_end, 0.0);
                 polygon_vertices.insert(0, new_vertex_end);
+                polygon_vertices.insert(0, new_vertex_start);
                 collision_polygons.set(idx, &polygon_vertices);
                 let scanline_count = scanline_count_per_polygon.get(idx).unwrap() + 1;
                 let slice: &mut [i32] = scanline_count_per_polygon.as_mut_slice();
@@ -100,7 +100,7 @@ pub fn update_polygons_with_scanline_alpha_buckets(
 }
 
 pub fn apply_horizontal_projection(
-    collision_polygons: &Array<PackedVector2Array>,
+    collision_polygons: &mut Array<PackedVector2Array>,
     projected_polygons: &mut Array<PackedVector2Array>,
     i_resolution: Vector2,
 ) {
@@ -121,7 +121,7 @@ pub fn apply_horizontal_projection(
             let v = screen_space_slice[j];
             let ndc_y = (2.0 * v.y - screen_height)  / screen_height;
             let ndc_x = (2.0 * v.x - screen_width)  / screen_width;
-            let inv = 1.0 / (PARALLAX_PROJECTION_ASYMPTOTIC_DEPTH_SCALAR - ndc_y);
+            let inv = PARALLAX_PROJECTION_ASYMPTOTIC_DEPTH_SCALAR / (PARALLAX_PROJECTION_ASYMPTOTIC_DEPTH_SCALAR - ndc_y);
             let x_ndc_proj = ndc_x * inv;
             let x_pix_proj = x_ndc_proj * half_width + half_width;
             projected_slice[j].x = x_pix_proj;

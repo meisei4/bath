@@ -67,12 +67,13 @@ impl RustUtil {
                 &mut scanline_count_per_polygon,
             );
         }
-        apply_horizontal_projection(&collision_polygons, &mut projected_polygons, i_resolution);
+        apply_horizontal_projection(&mut collision_polygons, &mut projected_polygons, i_resolution);
         let mut output_dictionary = Dictionary::new();
         let _ = output_dictionary.insert(
             "previous_quantized_vertical_pixel_coord",
             quantized_vertical_pixel_coord,
         );
+
         let _ = output_dictionary.insert("scanline_count_per_polygon", scanline_count_per_polygon);
         let _ = output_dictionary.insert("collision_polygons", collision_polygons);
         let _ = output_dictionary.insert("projected_polygons", projected_polygons);
