@@ -3,10 +3,7 @@ pub mod collision_mask;
 pub mod midi;
 
 //use audio_analysis::godot::{detect_bpm_beat_detector};
-use crate::collision_mask::isp::{
-    advance_polygons_by_one_frame, compute_quantized_vertical_pixel_coord,
-    update_polygons_with_scanline_alpha_buckets,
-};
+use crate::collision_mask::isp::{apply_horizontal_projection, compute_quantized_vertical_pixel_coord, update_polygons_with_scanline_alpha_buckets};
 use crate::midi::godot::{
     make_note_on_off_event_dict_seconds, make_note_on_off_event_dict_ticks, write_samples_to_wav,
 };
@@ -52,7 +49,8 @@ impl RustUtil {
         &self,
         i_time: f32,
         i_resolution: Vector2,
-        mut on_screen_collision_polygon_vertices: Array<PackedVector2Array>,
+        mut collision_polygons: Array<PackedVector2Array>,
+        mut projected_polygons: Array<PackedVector2Array>,
         scanline_alpha_buckets: PackedVector2Array,
         previous_quantized_vertical_pixel_coord: i32,
         mut scanline_count_per_polygon: PackedInt32Array,
@@ -64,19 +62,20 @@ impl RustUtil {
         for _ in 0..quantized_vertical_pixel_coords_scrolled_this_frame {
             update_polygons_with_scanline_alpha_buckets(
                 i_resolution,
-                &mut on_screen_collision_polygon_vertices,
+                &mut collision_polygons,
                 &scanline_alpha_buckets,
                 &mut scanline_count_per_polygon,
-                1.0,
             );
         }
+        apply_horizontal_projection(&collision_polygons, &mut projected_polygons, i_resolution);
         let mut output_dictionary = Dictionary::new();
         let _ = output_dictionary.insert(
             "previous_quantized_vertical_pixel_coord",
             quantized_vertical_pixel_coord,
         );
         let _ = output_dictionary.insert("scanline_count_per_polygon", scanline_count_per_polygon);
-        let _ = output_dictionary.insert("on_screen_collision_polygon_vertices", on_screen_collision_polygon_vertices);
+        let _ = output_dictionary.insert("collision_polygons", collision_polygons);
+        let _ = output_dictionary.insert("projected_polygons", projected_polygons);
         output_dictionary
     }
 

@@ -8,7 +8,8 @@ var iResolution: Vector2
 
 var collision_mask_bodies: Array[StaticBody2D]
 var collision_mask_concave_polygons_pool: Array[CollisionShape2D]
-var on_screen_collision_polygon_vertices: Array[PackedVector2Array]
+var collision_polygons: Array[PackedVector2Array]
+var projected_polygons: Array[PackedVector2Array]
 var scanline_count_per_polygon: PackedInt32Array
 
 var previous_quantized_vertical_pixel_coord: int = 0
@@ -29,7 +30,8 @@ func _init_isp_texture() -> void:
 
 func _init_polygon_state_arrays() -> void:
     scanline_count_per_polygon.resize(MAX_POLYGONS)
-    on_screen_collision_polygon_vertices.resize(MAX_POLYGONS)
+    collision_polygons.resize(MAX_POLYGONS)
+    projected_polygons.resize(MAX_POLYGONS)
 
 
 func _init_concave_collision_polygon_pool() -> void:
@@ -53,25 +55,25 @@ func _on_frame_post_draw() -> void:
     isp_texture.update_scanline_alpha_bucket_bit_masks_from_image(scanline_image)
     var scanline_alpha_buckets_top_row: PackedVector2Array
     scanline_alpha_buckets_top_row = isp_texture.fill_scanline_alpha_buckets_top_row()
-    var scanline_alpha_buckets_bottom_row: PackedVector2Array
-    scanline_alpha_buckets_bottom_row = isp_texture.fill_scanline_alpha_buckets_bottom_row()
     var result: Dictionary = RustUtilSingleton.rust_util.process_scanline(
         iTime,
         iResolution,
-        on_screen_collision_polygon_vertices,
+        collision_polygons,
+        projected_polygons,
         scanline_alpha_buckets_top_row,
         previous_quantized_vertical_pixel_coord,
         scanline_count_per_polygon,
     )
     previous_quantized_vertical_pixel_coord = result["previous_quantized_vertical_pixel_coord"]
     scanline_count_per_polygon = result["scanline_count_per_polygon"]
-    on_screen_collision_polygon_vertices = result["on_screen_collision_polygon_vertices"]
+    collision_polygons = result["collision_polygons"]
+    projected_polygons = result["projected_polygons"]
     _update_collision_polygons()
 
 
 func _update_collision_polygons() -> void:
     for i: int in range(MAX_POLYGONS):
-        var segments: PackedVector2Array = on_screen_collision_polygon_vertices[i]
+        var segments: PackedVector2Array = projected_polygons[i]
         var shape_node: CollisionShape2D = collision_mask_concave_polygons_pool[i]
         var concave: ConcavePolygonShape2D = shape_node.shape as ConcavePolygonShape2D
         concave.segments = segments
