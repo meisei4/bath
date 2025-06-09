@@ -9,6 +9,7 @@ var iResolution: Vector2
 var collision_mask_bodies: Array[StaticBody2D]
 var collision_mask_concave_polygons_pool: Array[CollisionShape2D]
 var collision_polygons: Array[PackedVector2Array]
+var polygon_logical_ys: PackedFloat32Array
 var projected_polygons: Array[PackedVector2Array]
 var scanline_count_per_polygon: PackedInt32Array
 
@@ -31,7 +32,7 @@ func _init_isp_texture() -> void:
 func _init_polygon_state_arrays() -> void:
     scanline_count_per_polygon.resize(MAX_POLYGONS)
     collision_polygons.resize(MAX_POLYGONS)
-    projected_polygons.resize(MAX_POLYGONS)
+    polygon_logical_ys.resize(MAX_POLYGONS)
 
 
 func _init_concave_collision_polygon_pool() -> void:
@@ -55,18 +56,23 @@ func _on_frame_post_draw() -> void:
     isp_texture.update_scanline_alpha_bucket_bit_masks_from_image(scanline_image)
     var scanline_alpha_buckets_top_row: PackedVector2Array
     scanline_alpha_buckets_top_row = isp_texture.fill_scanline_alpha_buckets_top_row()
-    var result: Dictionary = RustUtilSingleton.rust_util.process_scanline(
-        iTime,
-        iResolution,
-        collision_polygons,
-        projected_polygons,
-        scanline_alpha_buckets_top_row,
-        previous_quantized_vertical_pixel_coord,
-        scanline_count_per_polygon,
+    var result: Dictionary = (
+        RustUtilSingleton
+        . rust_util
+        . process_scanline(
+            iTime,
+            iResolution,
+            collision_polygons,
+            polygon_logical_ys,
+            scanline_alpha_buckets_top_row,
+            previous_quantized_vertical_pixel_coord,
+            scanline_count_per_polygon,
+        )
     )
     previous_quantized_vertical_pixel_coord = result["previous_quantized_vertical_pixel_coord"]
     scanline_count_per_polygon = result["scanline_count_per_polygon"]
     collision_polygons = result["collision_polygons"]
+    polygon_logical_ys = result["polygon_logical_ys"]
     projected_polygons = result["projected_polygons"]
     _update_collision_polygons()
 
