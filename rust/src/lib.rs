@@ -4,7 +4,8 @@ pub mod midi;
 
 //use audio_analysis::godot::{detect_bpm_beat_detector};
 use crate::collision_mask::isp::{
-    apply_horizontal_projection, compute_quantized_vertical_pixel_coord,
+    apply_horizontal_projection, apply_vertical_projection, compute_quantized_vertical_pixel_coord,
+    shift_polygon_verticies_down_by_vertical_scroll_1_pixel,
     update_polygons_with_scanline_alpha_buckets,
 };
 use crate::midi::godot::{
@@ -23,7 +24,7 @@ use godot::classes::file_access::ModeFlags;
 use godot::classes::{FileAccess, Node2D};
 use godot::prelude::{
     gdextension, godot_api, godot_print, Array, Base, Dictionary, ExtensionLibrary, GString,
-    GodotClass, PackedFloat32Array, PackedInt32Array,
+    GodotClass, PackedInt32Array,
 };
 use midly::{MidiMessage, Smf, TrackEventKind};
 use rustysynth::{SoundFont, Synthesizer, SynthesizerSettings};
@@ -53,7 +54,6 @@ impl RustUtil {
         i_time: f32,
         i_resolution: Vector2,
         mut collision_polygons: Array<PackedVector2Array>,
-        mut polygon_logical_ys: PackedFloat32Array,
         scanline_alpha_buckets: PackedVector2Array,
         previous_quantized_vertical_pixel_coord: i32,
         mut scanline_count_per_polygon: PackedInt32Array,
@@ -66,13 +66,18 @@ impl RustUtil {
             update_polygons_with_scanline_alpha_buckets(
                 i_resolution,
                 &mut collision_polygons,
-                &mut polygon_logical_ys,
                 &scanline_alpha_buckets,
                 &mut scanline_count_per_polygon,
             );
         }
-        let projected_polygons = apply_horizontal_projection(&collision_polygons, i_resolution);
-        //let projected_polygons = apply_full_projection(&collision_polygons, &polygon_logical_ys, i_resolution);
+        let mut projected_polygons = apply_horizontal_projection(&collision_polygons, i_resolution);
+        shift_polygon_verticies_down_by_vertical_scroll_1_pixel(&mut collision_polygons);
+        apply_vertical_projection(
+            &mut projected_polygons,
+            i_resolution,
+            &scanline_count_per_polygon,
+            i_time,
+        );
         let mut output_dictionary = Dictionary::new();
         let _ = output_dictionary.insert(
             "previous_quantized_vertical_pixel_coord",
@@ -82,7 +87,6 @@ impl RustUtil {
         let _ = output_dictionary.insert("scanline_count_per_polygon", scanline_count_per_polygon);
         let _ = output_dictionary.insert("collision_polygons", collision_polygons);
         let _ = output_dictionary.insert("projected_polygons", projected_polygons);
-        let _ = output_dictionary.insert("polygon_logical_ys", polygon_logical_ys);
         output_dictionary
     }
 
