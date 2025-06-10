@@ -83,10 +83,10 @@ fn trace_boundary(
         for i in 0..4 {
             let nd = (dir + 3 + i) % 4;
             let (dx, dy) = match nd {
-                0 => (1isize, 0), // right
-                1 => (0, 1),      // down
-                2 => (-1, 0),     // left
-                3 => (0, -1),     // up
+                0 => (1isize, 0),
+                1 => (0, 1),
+                2 => (-1, 0),
+                3 => (0, -1),
                 _ => unreachable!(),
             };
             let nx = x as isize + dx;

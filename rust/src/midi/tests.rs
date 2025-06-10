@@ -19,23 +19,22 @@ use crate::midi::util::{
     process_midi_events_with_timing,
 };
 
-const SOUND_FONT_FILE_PATH: &str = "../godot/Resources/Audio/dsdnm.sf2";
-const MIDI_FILE_PATH: &str = "../godot/Resources/Audio/Fingerbib.mid";
+const SOUND_FONT_FILE_PATH: &str = "../godot/Resources/audio/dsdnm.sf2";
+const MIDI_FILE_PATH: &str = "../godot/Resources/audio/fingerbib.mid";
 
 pub fn run_playback() -> Result<(), Box<dyn Error>> {
     print_full_structure(SOUND_FONT_FILE_PATH, 0, 0)?;
+    // TODO: the below until the next TODO is commented out to play midi file
     let mut fluidsynth_process = launch_fluidsynth_with_font(SOUND_FONT_FILE_PATH);
     let (midi_output, midi_port) = connect_to_first_midi_port();
     let mut midi_connection = midi_output.connect(&midi_port, "rust-midi")?;
     let mut pressed_keys: HashSet<Key> = HashSet::new();
-    // to use rdev‐based real‐time input, uncomment and use:
     let _ = listen(move |event| {
         handle_key_event(event, &mut midi_connection, &mut pressed_keys);
     });
     let _ = fluidsynth_process.kill();
-    let midi_bytes = fs::read(MIDI_FILE_PATH)
-        .unwrap_or_else(|e| panic!("Failed to read MIDI '{}': {}", MIDI_FILE_PATH, e));
-
+    //TODO: the above is all^^ for testing midi keyboard user input
+    let midi_bytes = fs::read(MIDI_FILE_PATH).unwrap();
     let _ = parse_midi_events_into_note_on_off_event_buffer_ticks_from_bytes(&midi_bytes);
     let _ = parse_midi_events_into_note_on_off_event_buffer_seconds_from_bytes(&midi_bytes);
     play_midi(MIDI_FILE_PATH);
@@ -194,7 +193,7 @@ pub fn key_bindings() -> Vec<KeyBinding> {
     ]
 }
 
-pub fn render(active_keys: &HashSet<rdev::Key>) {
+pub fn render(active_keys: &HashSet<Key>) {
     let bindings = key_bindings();
     let mut buffer = String::new();
     const BLACK_KEY_CHAR: &str = "█";
@@ -209,7 +208,7 @@ pub fn render(active_keys: &HashSet<rdev::Key>) {
             let name = note_name_no_octave(binding.midi_note);
             buffer.push_str(&format!("{:^3}", name));
             if i == 1 {
-                buffer.push_str("   "); // Extra space after second black key
+                buffer.push_str("   ");
             }
         }
     }
@@ -277,7 +276,7 @@ pub fn render(active_keys: &HashSet<rdev::Key>) {
     let _ = stdout().flush();
 }
 
-fn draw_black(label: char, active_keys: &HashSet<rdev::Key>) -> &'static str {
+fn draw_black(label: char, active_keys: &HashSet<Key>) -> &'static str {
     if active_keys.contains(&key_for_label(label)) {
         "░"
     } else {
@@ -285,7 +284,7 @@ fn draw_black(label: char, active_keys: &HashSet<rdev::Key>) -> &'static str {
     }
 }
 
-fn key_for_label(label: char) -> rdev::Key {
+fn key_for_label(label: char) -> Key {
     for binding in key_bindings() {
         if binding.label == label {
             return binding.key;
@@ -308,13 +307,12 @@ pub fn play_midi(midi_path: &str) {
     let (midi_out, port) = connect_to_first_midi_port();
     let mut conn = midi_out.connect(&port, "rust-midi").unwrap();
 
-    let bytes = std::fs::read(midi_path).unwrap();
+    let bytes = fs::read(midi_path).unwrap();
     let smf = Smf::parse(&bytes).unwrap();
     let events = prepare_events(&smf);
     // const TARGET_CHANNEL: u8 = 0;
-    // const PROGRAM: u8 = 0; // Accordion
-    // events = inject_program_change(events, TARGET_CHANNEL, PROGRAM); // if you want
-
+    // const PROGRAM: u8 = 0;
+    // events = inject_program_change(events, TARGET_CHANNEL, PROGRAM);
     let mut last_time = 0.0;
     process_midi_events_with_timing(events, &smf, |event_time, event, ch| {
         let delay = event_time - last_time;
@@ -441,7 +439,7 @@ fn print_instrument_region_key_velocity_info(region: &InstrumentRegion, lines: &
 }
 
 fn print_sample_info(region: &InstrumentRegion, soundfont: &SoundFont, lines: &mut Vec<String>) {
-    let sample_id = region.get_sample_id() as usize;
+    let sample_id = region.get_sample_id();
     if let Some(sample) = soundfont.get_sample_headers().get(sample_id) {
         lines.push(format!("{L3}Sample: \"{}\"", sample.get_name()));
         lines.push(format!("{L4}Sample Rate: {} Hz", sample.get_sample_rate()));

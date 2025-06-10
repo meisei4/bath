@@ -16,12 +16,11 @@ pub fn compute_quantized_vertical_pixel_coord(i_time: f32, i_resolution: Vector2
 }
 
 pub fn update_polygons_with_scanline_alpha_buckets(
-    i_resolution: Vector2,
     collision_polygons: &mut Array<PackedVector2Array>,
     scanline_alpha_buckets: &PackedVector2Array,
     scanline_count_per_polygon: &mut PackedInt32Array,
 ) {
-    //shift_polygon_verticies_down_by_vertical_scroll_1_pixel(collision_polygons);
+    //shift_polygon_vertices_down_by_vertical_scroll_1_pixel(collision_polygons);
     for alpha_bucket_index in 0..scanline_alpha_buckets.len() {
         let bucket = scanline_alpha_buckets.get(alpha_bucket_index).unwrap();
         let bucket_start = bucket.x;
@@ -85,7 +84,7 @@ fn scanline_bucket_overlaps_polygon(
     bucket_start <= polygon_top_right_vertex && bucket_end >= polygon_top_left_vertex
 }
 
-pub fn shift_polygon_verticies_down_by_vertical_scroll_1_pixel(
+pub fn shift_polygon_vertices_down_by_vertical_scroll_1_pixel(
     collision_polygons: &mut Array<PackedVector2Array>,
 ) {
     for i in 0..MAX_POLYGONS {

@@ -56,17 +56,13 @@ pub fn render_midi_to_sound_bytes_constant_time(
     sf2_file_path: &GString,
 ) -> PackedByteArray {
     let sf2_path = sf2_file_path.to_string();
-    let sf2_file = FileAccess::open(&sf2_path, ModeFlags::READ).unwrap_or_else(|| {
-        panic!("Cannot open SF2 at {}", sf2_path);
-    });
+    let sf2_file = FileAccess::open(&sf2_path, ModeFlags::READ).unwrap();
     let sf2_bytes = sf2_file.get_buffer(sf2_file.get_length() as i64).to_vec();
     let mut sf2_cursor = std::io::Cursor::new(sf2_bytes);
     let soundfont = Arc::new(SoundFont::new(&mut sf2_cursor).unwrap());
     let mut synth = Synthesizer::new(&soundfont, &SynthesizerSettings::new(sample_rate)).unwrap();
     let midi_path = midi_file_path.to_string();
-    let midi_file = FileAccess::open(&midi_path, ModeFlags::READ).unwrap_or_else(|| {
-        panic!("Cannot open MIDI at {}", midi_path);
-    });
+    let midi_file = FileAccess::open(&midi_path, ModeFlags::READ).unwrap();
     let midi_bytes = midi_file.get_buffer(midi_file.get_length() as i64).to_vec();
     let smf = midly::Smf::parse(&midi_bytes).unwrap();
     let mut events = prepare_events(&smf);

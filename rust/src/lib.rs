@@ -2,10 +2,9 @@ pub mod audio_analysis;
 pub mod collision_mask;
 pub mod midi;
 
-//use audio_analysis::godot::{detect_bpm_beat_detector};
 use crate::collision_mask::isp::{
     apply_horizontal_projection, apply_vertical_projection, compute_quantized_vertical_pixel_coord,
-    shift_polygon_verticies_down_by_vertical_scroll_1_pixel,
+    shift_polygon_vertices_down_by_vertical_scroll_1_pixel,
     update_polygons_with_scanline_alpha_buckets,
 };
 use crate::midi::godot::{
@@ -23,8 +22,8 @@ use godot::builtin::{PackedByteArray, PackedVector2Array, Vector2};
 use godot::classes::file_access::ModeFlags;
 use godot::classes::{FileAccess, Node2D};
 use godot::prelude::{
-    gdextension, godot_api, godot_print, Array, Base, Dictionary, ExtensionLibrary, GString,
-    GodotClass, PackedInt32Array,
+    gdextension, godot_api, Array, Base, Dictionary, ExtensionLibrary, GString, GodotClass,
+    PackedInt32Array,
 };
 use midly::{MidiMessage, Smf, TrackEventKind};
 use rustysynth::{SoundFont, Synthesizer, SynthesizerSettings};
@@ -44,7 +43,7 @@ struct RustUtil {
 }
 
 const TARGET_CHANNEL: u8 = 0;
-const PROGRAM: u8 = 0; //"Accordion", figure out a better way to do this
+const PROGRAM: u8 = 0; //"Accordion" figure out a better way to do this
 
 #[godot_api]
 impl RustUtil {
@@ -64,14 +63,13 @@ impl RustUtil {
             quantized_vertical_pixel_coord - previous_quantized_vertical_pixel_coord;
         for _ in 0..quantized_vertical_pixel_coords_scrolled_this_frame {
             update_polygons_with_scanline_alpha_buckets(
-                i_resolution,
                 &mut collision_polygons,
                 &scanline_alpha_buckets,
                 &mut scanline_count_per_polygon,
             );
         }
         let mut projected_polygons = apply_horizontal_projection(&collision_polygons, i_resolution);
-        shift_polygon_verticies_down_by_vertical_scroll_1_pixel(&mut collision_polygons);
+        shift_polygon_vertices_down_by_vertical_scroll_1_pixel(&mut collision_polygons);
         apply_vertical_projection(
             &mut projected_polygons,
             i_resolution,
@@ -99,7 +97,7 @@ impl RustUtil {
         tile_edge_length: i32,
     ) -> Array<PackedVector2Array> {
         // TODO: because godot complains about unsigned int r8 format, we just convert it here
-        //  this is really gross to me and i think i could perhaps learn enought o argue for supporting
+        //  this is really gross to me and i think i could perhaps learn enough to argue for supporting
         //  R8_UINT in godot's RenderDevice.DataFormat <-> ImageFormat mapping in the source code.
         //  see: https://github.com/godotengine/godot/blob/6c9765d87e142e786f0190783f41a0250a835c99/servers/rendering/renderer_rd/storage_rd/texture_storage.cpp#L2281C1-L2664C1
         let pixel_data: Vec<u8> = raw_pixel_mask
@@ -157,15 +155,10 @@ impl RustUtil {
 
     #[func]
     pub fn detect_bpm(&self, wav_file_path: GString) -> f32 {
-        //TODO: this is not actually accurate bpm sometimes, look at offline vs realtime later
         let wav_path = wav_file_path.to_string();
-        let wav_file = FileAccess::open(&wav_path, ModeFlags::READ).unwrap_or_else(|| {
-            godot_print!("!!!!Failed to open wav at {}", wav_path);
-            panic!("Cannot continue without wav");
-        });
+        let wav_file = FileAccess::open(&wav_path, ModeFlags::READ).unwrap();
         let wav_bytes = wav_file.get_buffer(wav_file.get_length() as i64).to_vec();
         detect_bpm_aubio(&wav_bytes)
-        //detect_bpm_from_beat_detector(&wav_bytes)
     }
 
     #[func]
@@ -186,25 +179,17 @@ impl RustUtil {
         sf2_file_path: GString,
     ) -> PackedByteArray {
         let sf2_path = sf2_file_path.to_string();
-        let sf2_file = FileAccess::open(&sf2_path, ModeFlags::READ).unwrap_or_else(|| {
-            godot_print!("!!!!Failed to open sf2 at {}", sf2_path);
-            panic!("Cannot continue without sf2");
-        });
+        let sf2_file = FileAccess::open(&sf2_path, ModeFlags::READ).unwrap();
         let sf2_bytes = sf2_file.get_buffer(sf2_file.get_length() as i64).to_vec();
         let mut sf2_cursor = Cursor::new(sf2_bytes);
         let soundfont = Arc::new(SoundFont::new(&mut sf2_cursor).unwrap());
-        // let mut reader = BufReader::new(File::open(&sf2_path).unwrap());
-        // let soundfont = Arc::new(SoundFont::new(&mut reader).unwrap());
         let mut synth =
             Synthesizer::new(&soundfont, &SynthesizerSettings::new(sample_rate)).unwrap();
         let midi_path = midi_file_path.to_string();
-        let file = FileAccess::open(&midi_path, ModeFlags::READ).unwrap_or_else(|| {
-            godot_print!("!!!!Failed to open MIDI at {}", midi_path);
-            panic!("Cannot continue without MIDI");
-        });
+        let file = FileAccess::open(&midi_path, ModeFlags::READ).unwrap();
         let midi_file_bytes = file.get_buffer(file.get_length() as i64).to_vec();
         let smf = Smf::parse(&midi_file_bytes).unwrap();
-        //TODO: make this more about the acccordian, "program" is such a shitty name for an instrument in midi
+        //TODO: make this more about the accordion, "program" is such a shitty name for an instrument in midi
         // i am not a fan of who ever made that naming decision, they better not be japanese
         let mut events = prepare_events(&smf);
         events = inject_program_change(events, TARGET_CHANNEL, PROGRAM);
