@@ -48,10 +48,10 @@ const ROT_COS: float = cos(ROTATION_ANGLE)
 const ROT_SIN: float = sin(ROTATION_ANGLE)
 
 
-func compute_quantized_vertical_pixel_coord(iTime: float) -> int:
+func compute_quantized_vertical_pixel_coord(_iTime: float) -> int:
     var base_norm_top: Vector2 = Vector2(0.0, -1.0)
     var projected_base: Vector2 = projectLayer(base_norm_top)
-    var y_displacement: float = iTime * NOISE_SCROLL_VELOCITY.y
+    var y_displacement: float = _iTime * NOISE_SCROLL_VELOCITY.y
     projected_base.y = (
         (projected_base.y * PARALLAX_PROJECTION_ASYMPTOTIC_DEPTH_SCALAR) / (1.0 + projected_base.y)
     )
@@ -74,9 +74,9 @@ func _on_frame_post_draw() -> void:
     var scanline_image: Image = (
         FragmentShaderSignalManager.ice_sheets.Scanline.get_texture().get_image()
     )
-    isp_texture.update_scanline_mask_from_scanline_image(scanline_image)
-    var buckets: PackedVector2Array = isp_texture.get_alpha_buckets_in_scanline()
-    var current_frames_quantized_vertical_pixel_coord = compute_quantized_vertical_pixel_coord(
+    isp_texture.update_scanline_alpha_bucket_bit_masks_from_image(scanline_image)
+    var buckets: PackedVector2Array = isp_texture.fill_scanline_alpha_buckets_top_row()
+    var current_frames_quantized_vertical_pixel_coord: int = compute_quantized_vertical_pixel_coord(
         iTime
     )
     var new_rows_this_frame: int = (
@@ -137,14 +137,14 @@ func _update_polygons_with_alpha_buckets(alpha_buckets: PackedVector2Array) -> v
                         concave.segments = segments
                         polygon_active_local[i] += 1
                         matched = true
-                        var nx_left = (2.0 * bucket_x_start - iResolution.x) / iResolution.y
-                        var nx_right = (2.0 * bucket_x_end - iResolution.x) / iResolution.y
+                        var nx_left: float = (2.0 * bucket_x_start - iResolution.x) / iResolution.y
+                        var nx_right: float = (2.0 * bucket_x_end - iResolution.x) / iResolution.y
                         var fragY_spawn: float = localY - shape_node.position.y
                         var orig_normY: float = (2.0 * fragY_spawn - iResolution.y) / iResolution.y
-                        var world_left = (
+                        var world_left: float = (
                             nx_left * (PARALLAX_PROJECTION_ASYMPTOTIC_DEPTH_SCALAR - orig_normY)
                         )
-                        var world_right = (
+                        var world_right: float = (
                             nx_right * (PARALLAX_PROJECTION_ASYMPTOTIC_DEPTH_SCALAR - orig_normY)
                         )
                         polygon_original_nxs[i].insert(0, world_right)
@@ -167,10 +167,10 @@ func _update_polygons_with_alpha_buckets(alpha_buckets: PackedVector2Array) -> v
                     var nx_right: float = (2.0 * bucket_x_end - iResolution.x) / iResolution.y
                     var fragY_spawn: float = 0 + shape_node.position.y  # = shape_node.position.y (which is zero at creation)
                     var orig_normY: float = (2.0 * fragY_spawn - iResolution.y) / iResolution.y
-                    var world_left = (
+                    var world_left: float = (
                         nx_left * (PARALLAX_PROJECTION_ASYMPTOTIC_DEPTH_SCALAR - orig_normY)
                     )
-                    var world_right = (
+                    var world_right: float = (
                         nx_right * (PARALLAX_PROJECTION_ASYMPTOTIC_DEPTH_SCALAR - orig_normY)
                     )
                     polygon_original_nxs[i].append(world_left)

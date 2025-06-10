@@ -1,8 +1,8 @@
 extends Node
 class_name ISPTexture
 
-const TEXTURE_HEIGHT: int = 2  # fixed – 2-pixel viewport
-const ROW_HEIGHT: int = 1  # one pixel per stored row
+const TEXTURE_HEIGHT: int = 2
+const ROW_HEIGHT: int = 1
 var TEXTURE_WIDTH: int = ResolutionManager.resolution.x
 
 var scanline_alpha_buckets_bit_mask_0: PackedByteArray  # top raster row

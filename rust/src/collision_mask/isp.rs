@@ -32,7 +32,6 @@ pub fn update_polygons_with_scanline_alpha_buckets(
                 continue;
             }
             let mut polygon_vertices = collision_polygons.get(idx).unwrap();
-            let count = scanline_count_per_polygon.get(idx).unwrap();
             let polygon_top_right_vertex = polygon_vertices.get(1).unwrap().x;
             let polygon_top_left_vertex = polygon_vertices.get(0).unwrap().x;
             if scanline_bucket_overlaps_polygon(
