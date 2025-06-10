@@ -8,7 +8,7 @@ const MAX_COLLISION_SHAPES: int = 8
 var collision_mask_concave_polygons_pool: Array[CollisionShape2D] = []
 var collision_mask_bodies: Array[StaticBody2D] = []
 
-var polygon_shape_cache: Dictionary = {}
+var polygon_shape_cache: Dictionary[String, Vector2] = {}
 
 const TILE_SIZE_PIXELS: int = 4
 
@@ -59,10 +59,10 @@ var debug_dots: Array[ColorRect] = []
 
 func _update_concave_polygons(collision_polygons: Array[PackedVector2Array]) -> void:
     print("DEBUG: _update_concave_polygons: prev cache size =", polygon_shape_cache.size())
-    var new_polygon_cache: Dictionary = {}
+    var new_polygon_cache: Dictionary[String, Vector2] = {}
     var previous_centroids: Array[Vector2] = []
     var previous_centroid_matched: Array[bool] = []
-    for key in polygon_shape_cache.keys():
+    for key: String in polygon_shape_cache.keys():
         previous_centroids.append(polygon_shape_cache[key] as Vector2)
         previous_centroid_matched.append(false)
 

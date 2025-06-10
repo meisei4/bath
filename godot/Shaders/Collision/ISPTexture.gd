@@ -2,40 +2,51 @@ extends Node
 class_name ISPTexture
 
 const TEXTURE_HEIGHT: int = 2
+const ROW_HEIGHT: int = 1
 var TEXTURE_WIDTH: int = ResolutionManager.resolution.x
-const DEAD_CHANNEL: float = 0.0
 
-var scanline_alpha_bucket_data: PackedByteArray
+var scanline_alpha_buckets_bit_mask_0: PackedByteArray  # top raster row
+var scanline_alpha_buckets_bit_mask_1: PackedByteArray  # bottom raster row
 
 
 func _ready() -> void:
-    scanline_alpha_bucket_data.resize(TEXTURE_WIDTH * TEXTURE_HEIGHT)
+    scanline_alpha_buckets_bit_mask_0 = PackedByteArray()
+    scanline_alpha_buckets_bit_mask_1 = PackedByteArray()
+    scanline_alpha_buckets_bit_mask_0.resize(TEXTURE_WIDTH * ROW_HEIGHT)
+    scanline_alpha_buckets_bit_mask_1.resize(TEXTURE_WIDTH * ROW_HEIGHT)
 
 
-func update_scanline_mask_from_scanline_image(_scanline_image: Image) -> void:
-    var raw_rgba: PackedByteArray = _scanline_image.get_data()
-    for i: int in range(TEXTURE_WIDTH * TEXTURE_HEIGHT):
-        var alpha_byte: int = raw_rgba[4 * i + 3]
-        scanline_alpha_bucket_data[i] = alpha_byte
+func update_scanline_alpha_bucket_bit_masks_from_image(scanline_image: Image) -> void:
+    #scanline_image.flip_y() # unsure still
+    var raw_rgba: PackedByteArray = scanline_image.get_data()  # 4 bytes per pixel
+    var stride: int = TEXTURE_WIDTH * 4  # TO SHIFT IN THE FLATTENED BYTE BUFFER
+    for x: int in range(TEXTURE_WIDTH):
+        scanline_alpha_buckets_bit_mask_0[x] = raw_rgba[4 * x + 3]
+    for x: int in range(TEXTURE_WIDTH):
+        scanline_alpha_buckets_bit_mask_1[x] = raw_rgba[stride + 4 * x + 3]
 
 
-func get_alpha_buckets_in_scanline() -> PackedVector2Array:
-    var alpha_buckets: PackedVector2Array = PackedVector2Array()
-    var w: int = TEXTURE_WIDTH
-    var h: int = TEXTURE_HEIGHT
-    for row: int in range(h):
-        var in_bucket: bool = false
-        var bucket_start: int = 0
-        for x: int in range(w):
-            var alpha: int = scanline_alpha_bucket_data[row * w + x]
-            if alpha != 0 and not in_bucket:
-                bucket_start = x
-                in_bucket = true
-            elif alpha == 0 and in_bucket:
-                alpha_buckets.push_back(Vector2(bucket_start, row))
-                alpha_buckets.push_back(Vector2(x - 1, row))
-                in_bucket = false
-        if in_bucket:
-            alpha_buckets.push_back(Vector2(bucket_start, row))
-            alpha_buckets.push_back(Vector2(w - 1, row))
-    return alpha_buckets
+func _build_scanline_alpha_buckets_from_1D_mask(
+    alpha_byte_mask: PackedByteArray
+) -> PackedVector2Array:
+    var buckets: PackedVector2Array = PackedVector2Array()
+    var in_bucket: bool = false
+    var start_x: int = 0
+    for x: int in range(TEXTURE_WIDTH):
+        if alpha_byte_mask[x] != 0 and not in_bucket:
+            start_x = x
+            in_bucket = true
+        elif alpha_byte_mask[x] == 0 and in_bucket:
+            buckets.push_back(Vector2(start_x, x - 1))
+            in_bucket = false
+    if in_bucket:
+        buckets.push_back(Vector2(start_x, TEXTURE_WIDTH - 1))
+    return buckets
+
+
+func fill_scanline_alpha_buckets_top_row() -> PackedVector2Array:
+    return _build_scanline_alpha_buckets_from_1D_mask(scanline_alpha_buckets_bit_mask_0)
+
+
+func fill_scanline_alpha_buckets_bottom_row() -> PackedVector2Array:
+    return _build_scanline_alpha_buckets_from_1D_mask(scanline_alpha_buckets_bit_mask_1)

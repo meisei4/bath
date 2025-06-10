@@ -2,6 +2,12 @@ pub mod audio_analysis;
 pub mod collision_mask;
 pub mod midi;
 
+//use audio_analysis::godot::{detect_bpm_beat_detector};
+use crate::collision_mask::isp::{
+    apply_horizontal_projection, apply_vertical_projection, compute_quantized_vertical_pixel_coord,
+    shift_polygon_verticies_down_by_vertical_scroll_1_pixel,
+    update_polygons_with_scanline_alpha_buckets,
+};
 use crate::midi::godot::{
     make_note_on_off_event_dict_seconds, make_note_on_off_event_dict_ticks, write_samples_to_wav,
 };
@@ -9,7 +15,6 @@ use crate::midi::util::{
     inject_program_change, prepare_events, process_midi_events_with_timing, render_sample_frame,
 };
 use audio_analysis::godot::detect_bpm_aubio;
-//use audio_analysis::godot::{detect_bpm_beat_detector};
 use collision_mask::godot::{
     generate_concave_collision_polygons_pixel_perfect,
     generate_convex_collision_polygons_pixel_perfect,
@@ -19,7 +24,7 @@ use godot::classes::file_access::ModeFlags;
 use godot::classes::{FileAccess, Node2D};
 use godot::prelude::{
     gdextension, godot_api, godot_print, Array, Base, Dictionary, ExtensionLibrary, GString,
-    GodotClass,
+    GodotClass, PackedInt32Array,
 };
 use midly::{MidiMessage, Smf, TrackEventKind};
 use rustysynth::{SoundFont, Synthesizer, SynthesizerSettings};
@@ -43,6 +48,48 @@ const PROGRAM: u8 = 0; //"Accordion", figure out a better way to do this
 
 #[godot_api]
 impl RustUtil {
+    #[func]
+    fn process_scanline(
+        &self,
+        i_time: f32,
+        i_resolution: Vector2,
+        mut collision_polygons: Array<PackedVector2Array>,
+        scanline_alpha_buckets: PackedVector2Array,
+        previous_quantized_vertical_pixel_coord: i32,
+        mut scanline_count_per_polygon: PackedInt32Array,
+    ) -> Dictionary {
+        let quantized_vertical_pixel_coord =
+            compute_quantized_vertical_pixel_coord(i_time, i_resolution);
+        let quantized_vertical_pixel_coords_scrolled_this_frame =
+            quantized_vertical_pixel_coord - previous_quantized_vertical_pixel_coord;
+        for _ in 0..quantized_vertical_pixel_coords_scrolled_this_frame {
+            update_polygons_with_scanline_alpha_buckets(
+                i_resolution,
+                &mut collision_polygons,
+                &scanline_alpha_buckets,
+                &mut scanline_count_per_polygon,
+            );
+        }
+        let mut projected_polygons = apply_horizontal_projection(&collision_polygons, i_resolution);
+        shift_polygon_verticies_down_by_vertical_scroll_1_pixel(&mut collision_polygons);
+        apply_vertical_projection(
+            &mut projected_polygons,
+            i_resolution,
+            &scanline_count_per_polygon,
+            i_time,
+        );
+        let mut output_dictionary = Dictionary::new();
+        let _ = output_dictionary.insert(
+            "previous_quantized_vertical_pixel_coord",
+            quantized_vertical_pixel_coord,
+        );
+
+        let _ = output_dictionary.insert("scanline_count_per_polygon", scanline_count_per_polygon);
+        let _ = output_dictionary.insert("collision_polygons", collision_polygons);
+        let _ = output_dictionary.insert("projected_polygons", projected_polygons);
+        output_dictionary
+    }
+
     #[func]
     pub fn compute_concave_collision_polygons(
         &self,
