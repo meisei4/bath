@@ -1,8 +1,8 @@
 extends Node
 class_name RhythmDimension
 
-var metronome_click: AudioStream  # = preload(AudioConsts.METRONOME_CLICK)
-var rhythm_data: RhythmData  # = preload(AudioConsts.CACHED_RHYTHM_DATA)
+var metronome_click: AudioStream  # = preload(ResourcePaths.METRONOME_CLICK)
+var rhythm_data: RhythmData  # = preload(ResourcePaths.CACHED_RHYTHM_DATA)
 var bpm: float
 var f_onsets_flat_buffer: PackedVector2Array = PackedVector2Array()
 var j_onsets_flat_buffer: PackedVector2Array = PackedVector2Array()
@@ -10,20 +10,20 @@ var f_onset_count: int = 0
 var j_onset_count: int = 0
 
 var time_of_next_click: float = 0.0
-var wav_stream: AudioStreamWAV = preload(AudioConsts.SNUFFY)
+var wav_stream: AudioStreamWAV = preload(ResourcePaths.SNUFFY)
 
 
 func _ready() -> void:
-    if ResourceLoader.exists(AudioConsts.CACHED_RHYTHM_DATA):
-        rhythm_data = load(AudioConsts.CACHED_RHYTHM_DATA) as RhythmData
+    if ResourceLoader.exists(ResourcePaths.CACHED_RHYTHM_DATA):
+        rhythm_data = load(ResourcePaths.CACHED_RHYTHM_DATA) as RhythmData
     else:
         rhythm_data = RhythmData.new()
 
     if rhythm_data.bpm <= 0.0:
-        bpm = RustUtilSingleton.rust_util.detect_bpm(AudioConsts.SNUFFY)
+        bpm = RustUtilSingleton.rust_util.detect_bpm(ResourcePaths.SNUFFY)
         print("Offline BPM detection → ", bpm)
         rhythm_data.bpm = bpm
-        ResourceSaver.save(rhythm_data, AudioConsts.CACHED_RHYTHM_DATA)
+        ResourceSaver.save(rhythm_data, ResourcePaths.CACHED_RHYTHM_DATA)
     else:
         bpm = rhythm_data.bpm
         print("Using cached BPM → ", bpm)

@@ -27,9 +27,9 @@ var onset_event_counter: int = 0
 # do not run rhythmdimension and manual onset recorder at the same time ever
 var song_time: float = 0.0
 
-#var audio_stream: AudioStream = preload(AudioConsts.SHADERTOY_MUSIC_TRACK_EXPERIMENT_WAV)
-#var audio_stream: AudioStream = preload(AudioConsts.HELLION_WAV)
-#var audio_stream: AudioStream = preload(AudioConsts.SNUFFY)
+#var audio_stream: AudioStream = preload(ResourcePaths.SHADERTOY_MUSIC_TRACK_EXPERIMENT_WAV)
+#var audio_stream: AudioStream = preload(ResourcePaths.HELLION_WAV)
+#var audio_stream: AudioStream = preload(ResourcePaths.SNUFFY)
 #var input_stream: AudioStreamMicrophone = AudioStreamMicrophone.new()
 
 

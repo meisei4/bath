@@ -9,7 +9,7 @@ var j_press_time: float = -1.0
 var f_release_time: float = -1.0
 var j_release_time: float = -1.0
 
-var wav_stream: AudioStreamWAV = preload(AudioConsts.SNUFFY)
+var wav_stream: AudioStreamWAV = preload(ResourcePaths.SNUFFY)
 
 
 func _ready() -> void:
@@ -83,11 +83,11 @@ func _exit_tree() -> void:
 
 func _save_onsets() -> void:
     var onset_data: RhythmData
-    if ResourceLoader.exists(AudioConsts.CACHED_RHYTHM_DATA):
-        onset_data = load(AudioConsts.CACHED_RHYTHM_DATA) as RhythmData
+    if ResourceLoader.exists(ResourcePaths.CACHED_RHYTHM_DATA):
+        onset_data = load(ResourcePaths.CACHED_RHYTHM_DATA) as RhythmData
     else:
         onset_data = RhythmData.new()
 
     onset_data.uki = key_f_presses
     onset_data.shizumi = key_j_presses
-    ResourceSaver.save(onset_data, AudioConsts.CACHED_RHYTHM_DATA)
+    ResourceSaver.save(onset_data, ResourcePaths.CACHED_RHYTHM_DATA)

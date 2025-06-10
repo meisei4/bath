@@ -21,6 +21,7 @@ driver/enable_input=true
 [autoload]
 
 SceneManager="*res://Autoloads/SceneManager.gd"
+ResourcePaths="*res://Autoloads/ResourcePaths.gd"
 ResolutionManager="*res://Autoloads/ResolutionManager.gd"
 AudioEffectManager="*res://Autoloads/AudioEffectManager.gd"
 AudioPoolManager="*res://Autoloads/AudioPoolManager.gd"
@@ -28,7 +29,6 @@ AudioBus="*res://Audio/AudioBus.gd"
 MusicDimensionsManager="*res://Autoloads/MusicDimensionsManager.gd"
 ComponentsManager="*res://Autoloads/CharacterComponentsManager.gd"
 MechanicManager="*res://Autoloads/MechanicManager.gd"
-ComputeShaderSignalManager="res://Autoloads/ComputeShaderSignalManager.gd"
 FragmentShaderSignalManager="*res://Autoloads/FragmentShaderSignalManager.gd"
 SpacetimeManager="*res://Autoloads/SpacetimeManager.gd"
 InterpolationUtil="*res://Mechanics/InterpolationUtil.gd"

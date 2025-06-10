@@ -14,7 +14,7 @@ const MAX_NOTE_HISTORY: int = 6
 var _last_active_notes: Array[int] = []
 var _note_log_history: Array[String] = []
 
-var wav_stream: AudioStreamWAV  # = preload(AudioConsts.CACHED_WAV)
+var wav_stream: AudioStreamWAV  # = preload(ResourcePaths.CACHED_WAV)
 
 
 func _ready() -> void:
@@ -22,7 +22,7 @@ func _ready() -> void:
     _last_time = 0.0
     midi_note_on_off_event_buffer = (
         RustUtilSingleton.rust_util.get_midi_note_on_off_event_buffer_seconds(
-            AudioConsts.FINGERBIB_MIDI
+            ResourcePaths.FINGERBIB
         )
         as Dictionary[Vector2i, PackedVector2Array]
     )
@@ -42,17 +42,17 @@ func setup_wav() -> void:
 
     #TODO: this is seriously needing of a completely new approach with all this
     # caching stuff and offline builds vs web build (which parts of the rust util can wasm use etc)
-    if ResourceLoader.exists(AudioConsts.CACHED_WAV):
-        wav_stream = load(AudioConsts.CACHED_WAV) as AudioStreamWAV
+    if ResourceLoader.exists(ResourcePaths.CACHED_WAV):
+        wav_stream = load(ResourcePaths.CACHED_WAV) as AudioStreamWAV
     else:
         var sound_bytes: PackedByteArray = (
             RustUtilSingleton
             . rust_util
             . render_midi_to_sound_bytes_constant_time(
-                int(MusicDimensionsManager.SAMPLE_RATE), AudioConsts.FINGERBIB_MIDI, AudioConsts.SF2
+                int(MusicDimensionsManager.SAMPLE_RATE), ResourcePaths.FINGERBIB_MIDI, ResourcePaths.SF2
             )
         )
-        var file_access: FileAccess = FileAccess.open(AudioConsts.CACHED_WAV, FileAccess.WRITE)
+        var file_access: FileAccess = FileAccess.open(ResourcePaths.CACHED_WAV, FileAccess.WRITE)
         file_access.store_buffer(sound_bytes)
         file_access.close()
         wav_stream = AudioStreamWAV.load_from_buffer(sound_bytes)

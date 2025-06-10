@@ -67,7 +67,6 @@ func setup_ubmral_zone() -> void:
         "umbral_zone_bounds", Vector2(UMBRAL_ZONE_BOUNDS_UV_X, UMBRAL_ZONE_BOUNDS_UV_Y)
     )
     FragmentShaderSignalManager.register_umbral_shadow_fragment(UmbralShaderMaterial)
-    #ComputeShaderSignalManager.register_umbral_shadow(UmbralShaderMaterial)
 
     #TODO: in Compatibility Mode/opengl, sampling the MainViewport here doesnt result in a framebuffer error BUTTT,
     # it results in this zone in the top left quadrant of the viewport, where there is right triangle on the bottom half of the quadrant that ends up

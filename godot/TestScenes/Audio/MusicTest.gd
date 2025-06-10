@@ -7,11 +7,11 @@ const MAX_PITCH: float = 2.0
 const MIN_PITCH: float = 0.5
 
 var music_list: Array[String] = [
-    AudioConsts.MUSIC_TRACK_1,
-    AudioConsts.MUSIC_TRACK_2,
-    AudioConsts.MUSIC_TRACK_3,
-    AudioConsts.MUSIC_TRACK_4,
-    AudioConsts.MUSIC_TRACK_5,
+    ResourcePaths.MUSIC_TRACK_1,
+    ResourcePaths.MUSIC_TRACK_2,
+    ResourcePaths.MUSIC_TRACK_3,
+    ResourcePaths.MUSIC_TRACK_4,
+    ResourcePaths.MUSIC_TRACK_5,
 ]
 
 var option_button_music: OptionButton
