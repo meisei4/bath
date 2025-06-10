@@ -40,4 +40,3 @@ vec3 getTerrainColorWithWater(bool isSolid, int depth, vec2 normCoord) {
 uint getTerrainColorBinary(bool isSolid) {
     return isSolid ? 1u : 0u;
 }
-

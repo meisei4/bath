@@ -5,7 +5,7 @@ render_mode blend_disabled;
 
 uniform vec2 iResolution;
 uniform sampler2D iChannel0: hint_screen_texture;
-uniform sampler2D iChannel1; 
+uniform sampler2D iChannel1;
 uniform float cpu_next_envelope[DOWNSCALED_TARGET_NUMBER_OF_WAVEFORM_SEGMENTS];
 
 #define WAVEFORM_SAMPLE_COUNT 512 //TODO: derive this from the actual ShaderToyAudioTexture constants??? it doesnt even need to 512?
@@ -60,7 +60,7 @@ void fragment() {
     if (uv.y < 1.0 - uv_height_per_envelope_snapshot) {
         float envelope_fragment = propagate_envelope_injection_snapshot_upwards(uv, PROPAGATION_RATE_FRAME * uv_height_per_envelope_snapshot);
         COLOR = vec4(envelope_fragment, UNUSED_FEEDBACK_CHANNEL, UNUSED_FEEDBACK_CHANNEL, UNUSED_FEEDBACK_CHANNEL);
-    } else { 
+    } else {
         float current_envelope = texture(iChannel0, uv).r;
         float normalized_time_since_last_injection = fract(TIME / INJECTION_INTERVAL); //0 = injection cycle just started, 1 = waveform injection window opens and cycle restarts
         if (normalized_time_since_last_injection < INJECTION_WINDOW) {
