@@ -26,7 +26,7 @@ const TILE_SIZE_PIXELS: int = 2
 
 
 func _ready() -> void:
-    #ComputeShaderSignalManager.register_collision_mask(self)
+    ComputeShaderSignalManager.register_collision_mask(self)
     _init_shader()
     _init_compute_shader_pipeline()
     _init_convex_collision_polygon_pool()

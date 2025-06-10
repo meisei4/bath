@@ -14,7 +14,7 @@ class SpriteDataSSBOStruct:  # 32 bytes total (std430 aligned)
     var _pad: Vector2  # 8 bytes (keeps each row 16-byte aligned)
 
 
-const MAXIMUM_SPRITE_COUNT: int = 12
+const MAXIMUM_SPRITE_COUNT: int = 16
 const SPRITE_DATA_STRUCT_SIZE_BYTES: int = 32  # vec2 + vec2 + float + float + vec2_padding
 const SPRITE_DATA_SSBO_TOTAL_BYTES: int = MAXIMUM_SPRITE_COUNT * SPRITE_DATA_STRUCT_SIZE_BYTES
 
@@ -44,14 +44,13 @@ const PUSH_CONSTANTS_BYTE_ALIGNMENT_12: int = 12
 
 
 func _ready() -> void:
-    #ComputeShaderSignalManager.register_perspective_tilt_mask(self)
+    ComputeShaderSignalManager.register_perspective_tilt_mask(self)
     _init_shader()
     _init_compute_shader_pipeline()
     _init_sprite_data_ssbo_uniform()
     _init_sprite_textures_uniform()
     _init_perspective_tilt_mask_uniform()
     _init_uniform_set()
-    #RenderingServer.frame_pre_draw.connect(_dispatch_compute)
 
 
 #TODO: MOVE ALL PUBLIC API ENTRY POINTS SOMEWHERE AND BLACK BOX ALL THE COMPUTE PIPELINE STUFF

@@ -23,6 +23,7 @@ var iTime: float
 
 func _ready() -> void:
     FragmentShaderSignalManager.register_ice_sheets_fragment(self)
+    ComputeShaderSignalManager.register_ice_sheets(self)
     self.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
     iResolution = ResolutionManager.resolution
     BufferA = ShaderToyUtil.create_buffer_viewport(iResolution)
@@ -64,4 +65,5 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
     iTime += delta
+    ComputeShaderSignalManager.iTime_update.emit(iTime)
     BufferAShaderMaterial.set_shader_parameter("iTime", iTime)

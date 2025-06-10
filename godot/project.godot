@@ -28,7 +28,7 @@ AudioBus="*res://Audio/AudioBus.gd"
 MusicDimensionsManager="*res://Autoloads/MusicDimensionsManager.gd"
 ComponentsManager="*res://Autoloads/CharacterComponentsManager.gd"
 MechanicManager="*res://Autoloads/MechanicManager.gd"
-ComputeShaderSignalManager="res://Autoloads/ComputeShaderSignalManager.gd"
+ComputeShaderSignalManager="*res://Autoloads/ComputeShaderSignalManager.gd"
 FragmentShaderSignalManager="*res://Autoloads/FragmentShaderSignalManager.gd"
 SpacetimeManager="*res://Autoloads/SpacetimeManager.gd"
 InterpolationUtil="*res://Mechanics/InterpolationUtil.gd"
@@ -91,6 +91,4 @@ J={
 [rendering]
 
 textures/canvas_textures/default_texture_filter=0
-renderer/rendering_method="gl_compatibility"
-renderer/rendering_method.mobile="gl_compatibility"
 textures/vram_compression/import_etc2_astc=true
