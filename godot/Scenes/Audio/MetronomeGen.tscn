@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://bedoh0cxcgxl"]
 
-[ext_resource type="Script" uid="uid://dm34n4slyahju" path="res://TestScenes/Audio/MetronomeGen.gd" id="1_vsmab"]
+[ext_resource type="Script" uid="uid://dm34n4slyahju" path="res://Scenes/Audio/MetronomeGen.gd" id="1_vsmab"]
 
 [node name="MetronomeGen" type="Node"]
 script = ExtResource("1_vsmab")

@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://dv3j5lryfrhc1"]
+
+[ext_resource type="Script" uid="uid://bxw4adepr7scv" path="res://Scripts/Shaders/Color/Drekker.gd" id="1_llj6h"]
+
+[node name="Drekker" type="Node2D" groups=["display_experimental"]]
+script = ExtResource("1_llj6h")
