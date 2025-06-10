@@ -45,7 +45,7 @@ const SNUFFY: String = "res://Resources/audio/snuffy.wav"
 const SHADERTOY_MUSIC_EXPERIMENT_WAV: String = "res://Resources/audio/shadertoy_music_experiment.wav"
 const DSDNM_SF2: String = "res://Resources/audio/dsdnm.sf2"
 
-const CACHED_RHYTHM_DATA: String = "res://Resources/audio/Cache/rhythm_data.tres"
+const CACHED_RHYTHM_DATA: String = "res://Resources/audio/Cache/RhythmData.tres"
 const CACHED_OGG: String = "res://Resources/audio/Cache/cached_ogg.ogg"
 const CACHED_WAV: String = "res://Resources/audio/Cache/cached_wav.wav"
 
@@ -65,12 +65,10 @@ const MOON_WATER_PNG: String = "res://Resources/textures/moon_water.png"
 const PEBBLES_PNG: String = "res://Resources/textures/pebbles.png"
 const ROCKS_JPG: String = "res://Resources/textures/rocks.jpg"
 
-const WATER_PNG: String = "res://Resources/Tiles/water.png"
+const WATER_PNG: String = "res://Resources/tiles/water.png"
 
-const WATER_TILESET: String = "res://Resources/TileSets/water.tres"
-const GLACIER_TILESET: String = "res://Resources/TileSets/glacier_tileset.tres"
-
-const INCLUDES: String = "res://Resources/shaders/includes.gdshaderinc"
+const WATER_TILESET: String = "res://Resources/TileSets/Water.tres"
+const GLACIER_TILESET: String = "res://Resources/TileSets/GlacierTileset.tres"
 
 const FFT_SHADER: String = "res://Resources/shaders/audio/fft.gdshader"
 const IOI_SHADER: String = "res://Resources/shaders/audio/ioi.gdshader"
