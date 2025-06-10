@@ -9,7 +9,8 @@ var j_press_time: float = -1.0
 var f_release_time: float = -1.0
 var j_release_time: float = -1.0
 
-var wav_stream: AudioStreamWAV = preload(ResourcePaths.SNUFFY)
+var wav_stream: AudioStreamWAV = preload(ResourcePaths.SHADERTOY_MUSIC_EXPERIMENT_WAV)
+#var wav_stream: AudioStreamWAV = preload(ResourcePaths.SNUFFY)
 
 
 func _ready() -> void:

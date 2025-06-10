@@ -1,9 +1,9 @@
-[gd_resource type="Resource" script_class="RhythmData" load_steps=2 format=3 uid="uid://bvqyxoh4un1jd"]
+[gd_resource type="Resource" script_class="RhythmData" load_steps=2 format=3]
 
-[ext_resource type="Script" uid="uid://c287karljnvcy" path="res://Scripts/Audio/RhythmData.gd" id="1_bu3ax"]
+[ext_resource type="Script" path="res://Scripts/Audio/RhythmData.gd" id="1_bu3ax"]
 
 [resource]
 script = ExtResource("1_bu3ax")
 bpm = 100.912
-uki = PackedFloat32Array()
-shizumi = PackedFloat32Array()
+uki = PackedFloat32Array(1.23507, 1.4184, 2.1863, 2.35297, 2.65297, 2.76964, 3.96964, 4.15297, 4.31964, 4.41964, 4.51964, 4.6363, 4.75297, 4.86964, 5.2863, 5.3363, 5.51964, 5.61964, 5.7863, 5.86964, 5.96964, 6.05297, 9.1363, 9.25297, 9.36964, 9.46964, 9.56964, 9.71964, 11.892, 12.0086, 12.0753, 12.1753, 12.2419, 12.3753, 12.4086, 12.5419, 13.7252, 14.0752)
+shizumi = PackedFloat32Array(0.985069, 1.1684, 1.45174, 1.53507, 1.6863, 1.80297, 1.9363, 2.06964, 2.3863, 2.51964, 4.9863, 5.15297, 8.0863, 8.20297, 8.26964, 8.36964, 8.4863, 8.60297, 8.66964, 8.7863, 8.86964, 8.9863, 9.81964, 10.053, 12.6086, 12.7253, 12.9752, 13.0752, 13.1419, 13.2419, 13.3086, 13.4419, 13.4752, 13.7752)

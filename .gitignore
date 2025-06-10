@@ -17,6 +17,7 @@ build/
 *.mp3
 *.ogg
 *.wav
+!godot/Resources/audio/shadertoy_music_experiment.wav
 *.flac
 *.aac
 *.m4a
