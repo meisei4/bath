@@ -1,7 +1,5 @@
-//this is a verbose study of cotterrzz max drecker reproduction https://www.shadertoy.com/view/33SSDm
 shader_type canvas_item;
-//render_mode blend_disabled;
-#include "res://Resources/Shaders/Color/supersampling.gdshaderinc"
+#include "res://Resources/shaders/color/supersampling.gdshaderinc"
 
 uniform vec2 iResolution;
 uniform sampler2D iChannel0: filter_nearest_mipmap, repeat_enable;
@@ -287,23 +285,19 @@ vec4 jitter_supersample(vec2 frag_coord, vec2 grid_dimensions) {
 //#define SUPERSAMPLE(frag_coord, grid_dimensions) uniform_supersample(frag_coord, grid_dimensions)
 
 void fragment() {
-//void mainImage(out vec4 frag_color, in vec2 frag_coord) {
     vec2 frag_coord     = vec2(UV.x * iResolution.x,
                                UV.y * iResolution.y);
     vec2 uv             = frag_coord / iResolution.y;
-    //vec2 uv           = frag_coord / iResolution.y;
     vec2 grid_dimensions = compute_grid_dimensions();
     vec4 src_color = sample_uv_in_grid_space(uv, grid_dimensions);
     if (src_color.a > 0.0) {
         //src_color.a = 1.0; // HARDCODE STRAIGHT ALPHA BLEND TO NOT OCCUR (i.e. destination.rgb * 0.0)
         src_color.a = 1.0;
         COLOR = src_color;
-        //frag_color = src_color;
     } else {
         src_color = SUPERSAMPLE(frag_coord, grid_dimensions);
         src_color.a = 1.0;
         COLOR = src_color;
-        //frag_color = src_color;
     }
 }
 

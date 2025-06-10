@@ -1,17 +1,16 @@
 shader_type canvas_item;
 
-// includes
-#include "res://Resources/Shaders/Water/constants.gdshaderinc"
-#include "res://Resources/Shaders/IceSheets/projections.gdshaderinc"
 
-// uniforms
+#include "res://Resources/shaders/water/constants.gdshaderinc"
+#include "res://Resources/shaders/ice_sheets/projections.gdshaderinc"
+
+
 uniform vec2 iResolution;
-uniform sampler2D iChannel0: repeat_enable; // noise
-uniform sampler2D iChannel1: repeat_enable; // background
-uniform sampler2D iChannel2: repeat_enable; // caustics
-uniform sampler2D iChannel3;                // ripple heightmap
+uniform sampler2D iChannel0: repeat_enable;
+uniform sampler2D iChannel1: repeat_enable;
+uniform sampler2D iChannel2: repeat_enable;
+uniform sampler2D iChannel3;
 
-// debug toggles
 //#define PIXELATE_UV
 #define SHOW_NOISE_DISP_MAP_1
 #define SHOW_NOISE_DISP_MAP_2
@@ -116,7 +115,6 @@ float compute_effective_opacity(
     return a;
 }
 
-//––– fragment –––
 void fragment() {
     vec2 uv0 = FRAGCOORD.xy / iResolution;
 
@@ -132,7 +130,6 @@ void fragment() {
     vec2 pr = projectTopLayerForParallax(norm, noiseScale);
     vec2 uv = denormalizeCoord(pr);
 
-    // sample layers exactly as before
     vec4 noise1 = vec4(0), noise2 = vec4(0);
     vec4 caust1 = vec4(0), caust2 = vec4(0);
     vec4 bg     = vec4(0);

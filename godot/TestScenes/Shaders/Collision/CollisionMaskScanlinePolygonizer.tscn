@@ -1,7 +1,0 @@
-[gd_scene load_steps=2 format=3 uid="uid://gq7jcetwo3s8"]
-
-[ext_resource type="Script" uid="uid://347aj0u23ldk" path="res://Shaders/Collision/CollisionMaskScanlinePolygonizer.gd" id="1_2u8la"]
-
-[node name="CollisionMaskScanlinePolygonizer" type="Node2D"]
-script = ExtResource("1_2u8la")
-metadata/_custom_type_script = "uid://347aj0u23ldk"

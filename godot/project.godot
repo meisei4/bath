@@ -20,19 +20,18 @@ driver/enable_input=true
 
 [autoload]
 
-SceneManager="*res://Autoloads/SceneManager.gd"
-ResolutionManager="*res://Autoloads/ResolutionManager.gd"
-AudioEffectManager="*res://Autoloads/AudioEffectManager.gd"
-AudioPoolManager="*res://Autoloads/AudioPoolManager.gd"
-AudioBus="*res://Audio/AudioBus.gd"
-MusicDimensionsManager="*res://Autoloads/MusicDimensionsManager.gd"
-ComponentsManager="*res://Autoloads/CharacterComponentsManager.gd"
-MechanicManager="*res://Autoloads/MechanicManager.gd"
-ComputeShaderSignalManager="res://Autoloads/ComputeShaderSignalManager.gd"
-FragmentShaderSignalManager="*res://Autoloads/FragmentShaderSignalManager.gd"
-SpacetimeManager="*res://Autoloads/SpacetimeManager.gd"
-InterpolationUtil="*res://Mechanics/InterpolationUtil.gd"
-RustUtilSingleton="*res://Autoloads/RustUtilSingleton.gd"
+SceneManager="*res://Scripts/Autoloads/SceneManager.gd"
+ResourcePaths="*res://Scripts/Autoloads/ResourcePaths.gd"
+ResolutionManager="*res://Scripts/Autoloads/ResolutionManager.gd"
+AudioEffectManager="*res://Scripts/Autoloads/AudioEffectManager.gd"
+AudioPoolManager="*res://Scripts/Autoloads/AudioPoolManager.gd"
+AudioBus="*res://Scripts/Audio/AudioBus.gd"
+MusicDimensionsManager="*res://Scripts/Autoloads/MusicDimensionsManager.gd"
+MechanicManager="*res://Scripts/Autoloads/MechanicManager.gd"
+FragmentShaderSignalManager="*res://Scripts/Autoloads/FragmentShaderSignalManager.gd"
+SpacetimeManager="*res://Scripts/Autoloads/SpacetimeManager.gd"
+InterpolationUtil="*res://Scripts/Mechanics/InterpolationUtil.gd"
+RustUtilSingleton="*res://Scripts/Autoloads/RustUtilSingleton.gd"
 
 [debug]
 

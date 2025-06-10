@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://25atfl8q8pmu"]
+
+[ext_resource type="Script" uid="uid://ct4yydnky7uat" path="res://Scripts/Shaders/Audio/FFTVisualizer.gd" id="1_3pwv5"]
+
+[node name="FftVisualizer" type="Node2D" groups=["display_experimental"]]
+script = ExtResource("1_3pwv5")

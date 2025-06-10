@@ -1,8 +1,0 @@
-[gd_scene load_steps=2 format=3 uid="uid://db8iqll0whhv"]
-
-[ext_resource type="Script" uid="uid://d1clwhhp785ir" path="res://TestScenes/Audio/MusicTest.gd" id="1_svr7p"]
-
-[node name="MusicTest" type="Control"]
-layout_mode = 3
-anchors_preset = 0
-script = ExtResource("1_svr7p")

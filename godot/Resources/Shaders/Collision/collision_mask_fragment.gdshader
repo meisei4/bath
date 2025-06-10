@@ -1,8 +1,8 @@
 shader_type canvas_item;
 render_mode blend_disabled;
 
-#include "res://Resources/Shaders/IceSheets/noise.gdshaderinc"
-#include "res://Resources/Shaders/IceSheets/projections.gdshaderinc"
+#include "res://Resources/shaders/ice_sheets/noise.gdshaderinc"
+#include "res://Resources/shaders/ice_sheets/projections.gdshaderinc"
 
 uniform vec2  iResolution;
 uniform float iTime;
@@ -16,6 +16,6 @@ void fragment() {
     );
     float localNoiseScale;
     vec2  projectedTop = projectTopLayerForParallax(normCoord, localNoiseScale);
-    bool  solidTop     = isSolidAtCoord(projectedTop, localNoiseScale, iTime, 0);
+    bool  solidTop     = isSolidAtCoord(projectedTop, localNoiseScale, iTime);
     COLOR = vec4(solidTop ? 1.0 : 0.0, 0.0, 0.0, 0.0);
 }

@@ -1,7 +1,7 @@
 shader_type canvas_item;
 render_mode blend_disabled; // TODO you have to do this if you want to send feedback vals in the alpha channel idiot
 
-#include "res://Resources/Shaders/Water/constants.gdshaderinc"
+#include "res://Resources/shaders/water/constants.gdshaderinc"
 
 uniform vec2 iResolution;
 uniform sampler2D iChannel0: hint_screen_texture;
@@ -10,8 +10,8 @@ uniform sampler2D iChannel0: hint_screen_texture;
 //TODO: !!!!If you expect more tiles than you can comfortably pass as a uniform array, you would switch to passing them via a small texture instead.
 uniform vec2 iceberg_positions[MAX_ICEBERGS];
 uniform vec2 iceberg_velocities[MAX_ICEBERGS];
-uniform vec2 iceberg_tile_positions[1024];  //TODO: 1024 this should be just how many INTACT glacier tiles there are at the start of the sim
-uniform int cluster_offsets[128];  // pairs: [start_index, end_index, ...]
+uniform vec2 iceberg_tile_positions[1024];
+uniform int cluster_offsets[128];
 uniform float tile_size;
 
 //IDEAL ADJUSTABLE PARAMETERS:
@@ -87,7 +87,6 @@ float compute_silhouette_mask_wavefront(vec2 uv, int cluster_index, vec2 cluster
 }
 
 void fragment(){
-//void mainImage(out vec4 frag_color, in vec2 frag_coord) {
     vec2 uv = FRAGCOORD.xy / iResolution.xy;
     float adjusted_sample_step = EFFECTIVE_SAMPLE_STEP * (iResolution.x / iResolution.y);
     vec2 neighbor_offset_x = vec2(EFFECTIVE_SAMPLE_STEP, 0.0);
@@ -114,5 +113,4 @@ void fragment(){
     }
     new_height += -0.070 * total_advection;
     COLOR = vec4(new_height, prev_heights.r, 0.0, 1.0);
-    //frag_color = vec4(new_height, prev_heights.r, 0.0, 1.0);
 }
