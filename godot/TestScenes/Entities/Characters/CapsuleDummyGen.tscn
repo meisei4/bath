@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://insp21c72exa"]
 
-[ext_resource type="Script" uid="uid://c2y04dh8fyevs" path="res://TestScenes/Entities/Characters/CapsuleDummyGen.gd" id="1_4qyhc"]
+[ext_resource type="Script" uid="uid://y4y7p3ggmee5" path="res://TestScenes/Entities/Characters/CapsuleDummyGen.gd" id="1_4qyhc"]
 
 [node name="CapsuleDummyGen" type="Node"]
 script = ExtResource("1_4qyhc")
