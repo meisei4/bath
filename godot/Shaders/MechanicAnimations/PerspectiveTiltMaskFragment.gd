@@ -4,9 +4,7 @@ class_name PerspectiveTiltMaskFragment
 const MAXIMUM_SPRITE_COUNT: int = 12
 
 var BufferAShaderNode: ColorRect
-var BufferAShader: Shader = preload(
-    "res://Resources/Shaders/MechanicAnimations/perspective_tilt_mask.gdshader"
-)
+var BufferAShader: Shader = preload(ResourcePaths.PERSPECTIVE_TILT_MASK_SHADER)
 var BufferAShaderMaterial: ShaderMaterial
 var BufferA: SubViewport
 var MainImage: TextureRect

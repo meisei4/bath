@@ -10,7 +10,7 @@ var vertical_position: float
 
 
 func _ready() -> void:
-    mechanic_shader = preload("res://Resources/Shaders/MechanicAnimations/jump_trig.gdshader")
+    mechanic_shader = preload(ResourcePaths.JUMP_TRIG_SHADER)
     if PARAMETERS == null:
         PARAMETERS = JumpData.new()
     vertical_position = 0.0

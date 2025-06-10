@@ -2,17 +2,17 @@ extends Node2D
 class_name IceSheets
 
 var BufferAShaderNode: ColorRect
-var BufferAShader: Shader = preload("res://Resources/Shaders/IceSheets/ice_sheets.gdshader")
+var BufferAShader: Shader = preload(ResourcePaths.ICE_SHEETS_SHADER)
 var BufferAShaderMaterial: ShaderMaterial
 var BufferA: SubViewport
 
 var ScanlineShaderNode: ColorRect
-var ScanlineShader: Shader = preload("res://Resources/Shaders/Collision/scanline.gdshader")
+var ScanlineShader: Shader = preload(ResourcePaths.SCANLINE_SHADER)
 var ScanlineShaderMaterial: ShaderMaterial
 var Scanline: SubViewport
 
 var MainImage: TextureRect
-var AlphaOverrideShader: Shader = preload("res://Resources/Shaders/free_alpha_channel.gdshader")
+var AlphaOverrideShader: Shader = preload(ResourcePaths.FREE_ALPHA_CHANNEL)
 var MainImageMaterial: ShaderMaterial
 
 var iResolution: Vector2

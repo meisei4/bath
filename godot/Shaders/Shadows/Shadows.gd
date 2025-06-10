@@ -16,7 +16,7 @@ var DitherBackBuffer: BackBufferCopy
 const DITHER_ZONE_BOUNDS_UV_X: float = 0.5
 const DITHER_ZONE_BOUNDS_UV_Y: float = 0.75
 
-var iChannel0: Texture = preload("res://Assets/Textures/bayer.png")
+var iChannel0: Texture = preload(ResourcePaths.BAYER_PNG)
 var iResolution: Vector2
 
 var MainViewport: Viewport

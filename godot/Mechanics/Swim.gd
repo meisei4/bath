@@ -17,7 +17,7 @@ var _debug_clock: float = 0.0
 
 
 func _ready() -> void:
-    mechanic_shader = preload("res://Resources/Shaders/MechanicAnimations/swim.gdshader")
+    mechanic_shader = preload(ResourcePaths.SWIM_SHADER)
     current_depth_position = LEVEL_DEPTH
     _set_phase(DivePhase.LEVEL)
 

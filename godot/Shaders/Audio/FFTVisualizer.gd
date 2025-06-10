@@ -2,7 +2,7 @@ extends Node2D
 class_name FFTVisualizer
 
 var BufferAShaderNode: ColorRect
-var BufferAShader: Shader = preload("res://Resources/Shaders/Audio/fft.gdshader")
+var BufferAShader: Shader = preload(ResourcePaths.FFT_SHADER)
 var BufferAShaderMaterial: ShaderMaterial
 var BufferA: SubViewport
 var MainImage: TextureRect

@@ -2,7 +2,7 @@ extends Node2D
 class_name MechanicsTest
 
 var capsule_dummy: CapsuleDummy
-var capsule_scene: PackedScene = preload("res://TestScenes/Entities/Characters/CapsuleDummy.tscn")
+var capsule_scene: PackedScene = preload(ResourcePaths.CAPSULE_DUMMY)
 
 
 func _ready() -> void:

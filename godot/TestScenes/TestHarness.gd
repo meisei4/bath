@@ -13,9 +13,7 @@ func _ready() -> void:
 
 
 func add_collision_mask_fragment_scene() -> void:
-    var collision_fragment_scene: PackedScene = preload(
-        "res://TestScenes/Shaders/Collision/CollisionMaskFragment.tscn"
-    )
+    var collision_fragment_scene: PackedScene = preload(ResourcePaths.COLLISION_MASK_FRAGMENT)
     var collision_mask_fragment: CollisionMaskFragment = (
         collision_fragment_scene.instantiate() as CollisionMaskFragment
     )
@@ -24,7 +22,7 @@ func add_collision_mask_fragment_scene() -> void:
 
 func add_collision_mask_isp_scene() -> void:
     var collision_mask_isp_scene: PackedScene = preload(
-        "res://TestScenes/Shaders/Collision/CollisionMaskScanlinePolygonizer.tscn"
+        ResourcePaths.COLLISION_MASK_SCANLINE_POLYGONIZER
     )
     var collision_mask_isp: CollisionMaskScanlinePolygonizer = (
         collision_mask_isp_scene.instantiate() as CollisionMaskScanlinePolygonizer
@@ -33,9 +31,7 @@ func add_collision_mask_isp_scene() -> void:
 
 
 func add_collision_mask_rusty_scene() -> void:
-    var collision_mask_rusty_scene: PackedScene = preload(
-        "res://TestScenes/Shaders/Collision/RustyCollisionMask.tscn"
-    )
+    var collision_mask_rusty_scene: PackedScene = preload(ResourcePaths.RUSTY_COLLISION_MASK)
     var collision_mask_rusty: RustyCollisionMask = (
         collision_mask_rusty_scene.instantiate() as RustyCollisionMask
     )
@@ -43,14 +39,14 @@ func add_collision_mask_rusty_scene() -> void:
 
 
 func add_ice_sheets_scene() -> void:
-    var ice_sheets_scene: PackedScene = preload("res://TestScenes/Shaders/IceSheets/IceSheets.tscn")
+    var ice_sheets_scene: PackedScene = preload(ResourcePaths.ICE_SHEETS_SCENE)
     var ice_sheets: IceSheets = ice_sheets_scene.instantiate() as IceSheets
     add_child(ice_sheets)
 
 
 func add_perspective_tilt_mask_fragment_scene() -> void:
     var perspective_tilt_fragment_scene: PackedScene = preload(
-        "res://TestScenes/Shaders/MechanicAnimations/PerspectiveTiltMaskFragment.tscn"
+        ResourcePaths.PERSPECTIVE_TILT_MASK_FRAGMENT
     )
     var perspective_tilt_mask_fragment: PerspectiveTiltMaskFragment = (
         perspective_tilt_fragment_scene.instantiate() as PerspectiveTiltMaskFragment
@@ -59,12 +55,12 @@ func add_perspective_tilt_mask_fragment_scene() -> void:
 
 
 func add_shadows_test_scene() -> void:
-    var shadows_scene: PackedScene = preload("res://TestScenes/Shaders/Shadows/Shadows.tscn")
+    var shadows_scene: PackedScene = preload(ResourcePaths.SHADOWS_SCENE)
     var shadows_test: Shadows = shadows_scene.instantiate() as Shadows
     add_child(shadows_test)
 
 
 func add_jump_mechanic_test_scene() -> void:
-    var mechanics_scene: PackedScene = preload("res://TestScenes/Mechanics/MechanicsTest.tscn")
+    var mechanics_scene: PackedScene = preload(ResourcePaths.MECHANICS_TEST)
     var mechanics_test: MechanicsTest = mechanics_scene.instantiate() as MechanicsTest
     add_child(mechanics_test)

@@ -1,11 +1,11 @@
 extends AudioStreamPlayer2D
 class_name AudioZone
 
-@export var max_effect_distance: float = 300.0
-@export var effects_enabled: bool = true
-@export var effect_min_value: float = 0.0
-@export var effect_max_value: float = 1.0
-@export var audio_bus: AudioBus.BUS = AudioBus.BUS.MUSIC
+var max_effect_distance: float = 300.0
+var effects_enabled: bool = true
+var effect_min_value: float = 0.0
+var effect_max_value: float = 1.0
+var audio_bus: AudioBus.BUS = AudioBus.BUS.MUSIC
 
 var viewer: Node2D = null
 

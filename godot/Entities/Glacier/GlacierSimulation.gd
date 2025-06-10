@@ -1,7 +1,7 @@
 extends Node2D
 class_name GlacierSimulation
 
-const GLACIER_MAP_SCENE: PackedScene = preload("res://Resources/TileMaps/GlacierMap.tscn")
+const GLACIER_MAP_SCENE: PackedScene = preload(ResourcePaths.GLACIER_MAP)
 
 var glacier_map: TileMapLayer
 var glacier_data: GlacierData = GlacierData.new()

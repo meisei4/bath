@@ -1,19 +1,18 @@
 extends Node
 #class_name ResourcePaths
 
-# --- SCENES ---
 const MAIN: String = "res://Main.tscn"
 const WATER_BODY: String = "res://Resources/TileMaps/WaterBody.tscn"
 const GLACIER_MAP: String = "res://Resources/TileMaps/GlacierMap.tscn"
 
-# TestScenes
 const SPRITE_CONTOUR_POLYGON_GEN: String = "res://TestScenes/SkeletonTests/SpriteContourPolygonGen.tscn"
+const SPRITE_CONTOUR_POLYGON: String = "res://TestScenes/SkeletonTests/SpriteContourPolygon.tscn"
+
 const SKELETON_TEST: String = "res://TestScenes/SkeletonTests/SkeletonTest.tscn"
 const TEST_HARNESS: String = "res://TestScenes/TestHarness.tscn"
 const TEST_OLD: String = "res://TestScenes/TestOld.tscn"
 const MECHANICS_TEST: String = "res://TestScenes/Mechanics/MechanicsTest.tscn"
 
-# Audio Test Scenes
 const RHYTHM_DIMENSION: String = "res://TestScenes/Audio/RhythmDimension.tscn"
 const AUDIO_ZONE: String = "res://TestScenes/Audio/AudioZoning/AudioZone.tscn"
 const AUDIO_ZONE_GEN: String = "res://TestScenes/Audio/AudioZoning/AudioZoneGen.tscn"
@@ -22,7 +21,6 @@ const PITCH_DIMENSION: String = "res://TestScenes/Audio/PitchDimension.tscn"
 const METRONOME_GEN: String = "res://TestScenes/Audio/MetronomeGen.tscn"
 const MUSIC_TEST: String = "res://TestScenes/Audio/MusicTest.tscn"
 
-# Shader Test Scenes
 const GHOST_SHAPE: String = "res://TestScenes/Shaders/Shape/GhostShape.tscn"
 const SHADOWS_SCENE: String = "res://TestScenes/Shaders/Shadows/Shadows.tscn"
 const WATER_SCENE: String = "res://TestScenes/Shaders/Water/Water.tscn"
@@ -39,14 +37,12 @@ const COLLISION_MASK_SCANLINE_POLYGONIZER: String = "res://TestScenes/Shaders/Co
 const RUSTY_COLLISION_MASK: String = "res://TestScenes/Shaders/Collision/RustyCollisionMask.tscn"
 const COLLISION_MASK_FRAGMENT: String = "res://TestScenes/Shaders/Collision/CollisionMaskFragment.tscn"
 
-# Entity Test Scenes
 const GLACIER_SIMULATION: String = "res://TestScenes/Entities/Glacier/GlacierSimulation.tscn"
 const GLACIER_GEN_SCENE: String = "res://TestScenes/Entities/Glacier/GlacierGen.tscn"
 const CAPSULE_DUMMY: String = "res://TestScenes/Entities/Characters/CapsuleDummy.tscn"
 const CAPSULE_DUMMY_GEN: String = "res://TestScenes/Entities/Characters/CapsuleDummyGen.tscn"
+const CAPSULE_DUMMY_SCRIPT: String = "res://Entities/Characters/CapsuleDummy.gd"
 
-
-# --- AUDIO ---
 const FINGERBIB: String = "res://Resources/Audio/Fingerbib.mid"
 const TWOAM_MIDI: String = "res://Resources/Audio/2am.mid"
 
@@ -60,48 +56,48 @@ const SNUFFY_SYNTH_ISOLATED_WAV: String = "res://Resources/Audio/snuffy_synth_is
 const SNUFFY_SYNTH_ISOLATED_GATED_WAV: String = "res://Resources/Audio/snuffy_synth_isolated_gated.wav"
 const DSDNM_SF2: String = "res://Resources/Audio/dsdnm.sf2"
 
-# Cached Audio
 const CACHED_OGG: String = "res://Resources/Audio/Cache/cached_ogg.ogg"
 const CACHED_WAV: String = "res://Resources/Audio/Cache/cached_wav.wav"
 const CACHED_RHYTHM_DATA: String = "res://Resources/Audio/Cache/rhythm_data.tres"
 
+const DOLPHIN2_PNG: String = "res://Assets/Sprites/Dolphin2.png"
+const IKIIKIIRUKA_PNG: String = "res://Assets/Sprites/Ikiikiiruka.png"
+const BONE_PATTERN_PNG: String = "res://Assets/Sprites/bone_pattern.png"
+const CAPSULE_PNG: String = "res://Assets/Sprites/capsule.png"
+const IRUKA_PNG: String = "res://Assets/Sprites/iruka.png"
+const BAYER_PNG: String = "res://Assets/Textures/bayer.png"
+const GRAY_NOISE_SMALL_PNG: String = "res://Assets/Textures/gray_noise_small.png"
+const ICEBERGS_JPG: String = "res://Assets/Textures/icebergs.jpg"
+const MOON_WATER_PNG: String = "res://Assets/Textures/moon_water.png"
+const PEBBLES_PNG: String = "res://Assets/Textures/pebbles.png"
+const ROCKS_JPG: String = "res://Assets/Textures/rocks.jpg"
+const WATER_PNG: String = "res://Assets/Tiles/water.png"
 
-# --- FONTS ---
 const IOSEVKA_REGULAR_TTC: String = "res://Resources/Fonts/Iosevka-Regular.ttc"
 const IOSEVKA_BOLD_TTC: String = "res://Resources/Fonts/Iosevka-Bold.ttc"
 const JETBRAINS_MONO_REGULAR_TTF: String = "res://Resources/Fonts/JetBrainsMono-Regular.ttf"
 const JETBRAINS_MONO_BOLD_TTF: String = "res://Resources/Fonts/JetBrainsMono-Bold.ttf"
 
-
-# --- CHARACTER COMPONENTS ---
 const CHARACTER_COMPONENTS_DEFAULT: String = "res://Resources/CharacterComponents/default.tres"
 
-
-# --- TILESETS ---
 const WATER_TILESET: String = "res://Resources/TileSets/water.tres"
 const GLACIER_TILESET: String = "res://Resources/TileSets/glacier_tileset.tres"
 
-
-# --- SHADERS ---
 const GHOST: String = "res://Resources/Shaders/Shape/ghost.gdshader"
 const FREE_ALPHA_CHANNEL: String = "res://Resources/Shaders/free_alpha_channel.gdshader"
 const VIRTUAL_GRID_SNAPPING: String = "res://Resources/Shaders/virtual_grid_snapping.gdshader"
 const SIMPLE_FEEDBACK_BUFFER: String = "res://Resources/Shaders/simple_feedback_buffer.gdshader"
 
-# Color shaders
 const SUPERSAMPLING: String = "res://Resources/Shaders/Color/supersampling.gdshaderinc"
 const DREKKER_EFFECT: String = "res://Resources/Shaders/Color/drekker_effect.gdshader"
 
-# Particle shaders
 const SNOW_PARTICLE_SHADER: String = "res://Resources/Shaders/Particles/snow_particle_shader.gdshader"
 
-# Water shaders
 const WATER_SHADER: String = "res://Resources/Shaders/Water/water.gdshader"
 const WATER_PROJECTED_SHADER: String = "res://Resources/Shaders/Water/water_projected.gdshader"
 const FINITE_APPROX_RIPPLE: String = "res://Resources/Shaders/Water/finite_approx_ripple.gdshader"
 const CONSTANTS_INCLUDE: String = "res://Resources/Shaders/Water/constants.gdshaderinc"
 
-# Audio shaders
 const FFT_SHADER: String = "res://Resources/Shaders/Audio/fft.gdshader"
 const IOI_SHADER: String = "res://Resources/Shaders/Audio/ioi.gdshader"
 const WAVEFORM_SHADER: String = "res://Resources/Shaders/Audio/waveform.gdshader"
@@ -112,18 +108,15 @@ const OPTIMIZED_ENVELOPE_BUFFER_B: String = "res://Resources/Shaders/Audio/Sound
 const SOUND_ENVELOPE_UTILS: String = "res://Resources/Shaders/Audio/SoundEnvelopeWIP/utils.gdshaderinc"
 const MUSIC_BALL: String = "res://Resources/Shaders/Audio/music_ball.gdshader"
 
-# IceSheets shaders
 const ICE_SHEETS_SHADER: String = "res://Resources/Shaders/IceSheets/ice_sheets.gdshader"
 const NOISE_INCLUDE: String = "res://Resources/Shaders/IceSheets/noise.gdshaderinc"
 const PROJECTIONS_INCLUDE: String = "res://Resources/Shaders/IceSheets/projections.gdshaderinc"
 const COLOR_INCLUDE: String = "res://Resources/Shaders/IceSheets/color.gdshaderinc"
 
-# Mechanic animation shaders
 const SWIM_SHADER: String = "res://Resources/Shaders/MechanicAnimations/swim.gdshader"
 const JUMP_TRIG_SHADER: String = "res://Resources/Shaders/MechanicAnimations/jump_trig.gdshader"
 const PERSPECTIVE_TILT_MASK_SHADER: String = "res://Resources/Shaders/MechanicAnimations/perspective_tilt_mask.gdshader"
 const ALL_SPRITE_MASK_SHADER: String = "res://Resources/Shaders/MechanicAnimations/all_sprite_mask.gdshader"
 
-# Collision shaders
 const SCANLINE_SHADER: String = "res://Resources/Shaders/Collision/scanline.gdshader"
 const COLLISION_MASK_FRAGMENT_SHADER: String = "res://Resources/Shaders/Collision/collision_mask_fragment.gdshader"

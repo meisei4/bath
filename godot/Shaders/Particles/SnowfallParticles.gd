@@ -37,7 +37,7 @@ func _initialize_particle_material() -> void:
     self.color_ramp.add_point(0.999, Color(Color.WHITE, 0.0))  # THIS IS CRAZY, 1.0 is NOT ALLOWED HERE!!! (for the shader's COLOR alpha to serve as lifetime)
     self.color_ramp.set_interpolation_mode(Gradient.GRADIENT_INTERPOLATE_LINEAR)
 
-    var shader: Shader = preload("res://Resources/Shaders/Particles/snow_particle_shader.gdshader")
+    var shader: Shader = preload(ResourcePaths.SNOW_PARTICLE_SHADER)
     var shader_material: ShaderMaterial = ShaderMaterial.new()
     shader_material.shader = shader
     shader_material.set_shader_parameter("scale_start", SNOW_SCALE_START)

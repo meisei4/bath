@@ -2,14 +2,14 @@ extends Node2D
 class_name GhostShape
 
 var BufferAShaderNode: ColorRect
-#var BufferAShader: Shader = preload("res://Resources/Shaders/Shape/ghost.gdshader")
-var BufferAShader: Shader = preload("res://Resources/Shaders/Audio/music_ball.gdshader")
+#var BufferAShader: Shader = preload(ResourcePaths.GHOST)
+var BufferAShader: Shader = preload(ResourcePaths.MUSIC_BALL)
 var BufferAShaderMaterial: ShaderMaterial
 var BufferA: SubViewport
 var MainImage: TextureRect
 
 var iResolution: Vector2
-var iChannel0: Texture = preload("res://Assets/Textures/bayer.png")
+var iChannel0: Texture = preload(ResourcePaths.BAYER_PNG)
 var iChannel1: Texture
 var iChannel2: Texture
 

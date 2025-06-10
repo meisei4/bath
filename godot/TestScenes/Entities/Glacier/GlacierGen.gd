@@ -19,7 +19,7 @@ func initialize_glacier_surface() -> void:
 
     var glacier_scene: PackedScene = PackedScene.new()
     glacier_scene.pack(glacier_surface)
-    ResourceSaver.save(glacier_scene, "res://Resources/TileMaps/GlacierMap.tscn")
+    ResourceSaver.save(glacier_scene, ResourcePaths.GLACIER_MAP)
 
 
 func fill_initial_states() -> void:
@@ -77,5 +77,5 @@ func create_and_save_glacier_tile_set() -> TileSet:
     glacier_tileset.add_source(atlas_source)
     glacier_tileset.set_source_id(0, GlacierConstants.SOURCE_ID)
 
-    ResourceSaver.save(glacier_tileset, "res://Resources/TileSets/glacier_tileset.tres")
+    ResourceSaver.save(glacier_tileset, ResourcePaths.GLACIER_TILESET)
     return glacier_tileset

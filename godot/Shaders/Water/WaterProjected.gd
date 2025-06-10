@@ -2,11 +2,11 @@ extends Node2D
 class_name WaterProjected
 
 var RippleShaderNode: ColorRect
-var RippleShader: Shader = preload("res://Resources/Shaders/Water/finite_approx_ripple.gdshader")
+var RippleShader: Shader = preload(ResourcePaths.FINITE_APPROX_RIPPLE)
 var RippleShaderMaterial: ShaderMaterial
 
 var WaterShaderNode: ColorRect
-var WaterShader: Shader = preload("res://Resources/Shaders/Water/water_projected.gdshader")
+var WaterShader: Shader = preload(ResourcePaths.WATER_PROJECTED_SHADER)
 var WaterShaderMaterial: ShaderMaterial
 
 var BufferA: SubViewport
@@ -15,9 +15,9 @@ var MainImage: TextureRect
 
 var iResolution: Vector2
 
-var iChannel0: Texture = preload("res://Assets/Textures/gray_noise_small.png")
-var iChannel1: Texture = preload("res://Assets/Textures/moon_water.png")
-var iChannel2: Texture = preload("res://Assets/Textures/pebbles.png")
+var iChannel0: Texture = preload(ResourcePaths.GRAY_NOISE_SMALL_PNG)
+var iChannel1: Texture = preload(ResourcePaths.MOON_WATER_PNG)
+var iChannel2: Texture = preload(ResourcePaths.PEBBLES_PNG)
 var iChannel3: Texture
 
 

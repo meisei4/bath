@@ -49,7 +49,9 @@ func setup_wav() -> void:
             RustUtilSingleton
             . rust_util
             . render_midi_to_sound_bytes_constant_time(
-                int(MusicDimensionsManager.SAMPLE_RATE), ResourcePaths.FINGERBIB_MIDI, ResourcePaths.SF2
+                int(MusicDimensionsManager.SAMPLE_RATE),
+                ResourcePaths.FINGERBIB_MIDI,
+                ResourcePaths.SF2
             )
         )
         var file_access: FileAccess = FileAccess.open(ResourcePaths.CACHED_WAV, FileAccess.WRITE)
