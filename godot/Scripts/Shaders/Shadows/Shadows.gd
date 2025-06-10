@@ -2,14 +2,14 @@
 extends Node2D
 class_name Shadows
 
-var UmbralShader: Shader = preload("res://Resources/Shaders/Shadows/umbral_zone.gdshader")
+var UmbralShader: Shader = preload(ResourcePaths.UMBRAL_SHADER)
 var UmbralShaderNode: ColorRect
 var UmbralShaderMaterial: ShaderMaterial
 var UmbralBackBuffer: BackBufferCopy
 const UMBRAL_ZONE_BOUNDS_UV_X: float = 0.5
 const UMBRAL_ZONE_BOUNDS_UV_Y: float = 1.0
 
-var DitherShader: Shader = preload("res://Resources/Shaders/Shadows/dither_zone.gdshader")
+var DitherShader: Shader = preload(ResourcePaths.DITHER_SHADER)
 var DitherShaderNode: ColorRect
 var DitherShaderMaterial: ShaderMaterial
 var DitherBackBuffer: BackBufferCopy

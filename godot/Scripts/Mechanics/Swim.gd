@@ -5,7 +5,7 @@ enum DivePhase { LEVEL, ASCENDING, DIVING }  #TODO: i dont want to add an APEX_F
 var current_phase: DivePhase
 
 const LEVEL_DEPTH: float = 0.0
-const MAX_DIVE_DEPTH: float = -1.0  # deepest it ever gets should only ever be 1
+const MAX_DIVE_DEPTH: float = -1.0
 const DEPTH_SPEED: float = 8.0
 
 var current_depth_position: float = LEVEL_DEPTH
@@ -57,7 +57,6 @@ func process_visual_illusion(_frame_delta: float) -> void:
     var depth_normal: float = InterpolationUtil.depth_normal(current_depth_position, MAX_DIVE_DEPTH)
     sprite_node.material.set_shader_parameter("depth_normal", depth_normal)
     _update_sprite_scale(sprite_node, depth_normal, _frame_delta)
-    #ComputeShaderSignalManager.visual_illusion_updated.emit(
     FragmentShaderSignalManager.visual_illusion_updated.emit(
         sprite_texture_index,
         sprite_node.global_position,

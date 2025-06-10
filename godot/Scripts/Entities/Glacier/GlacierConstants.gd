@@ -1,7 +1,6 @@
 extends Node
 class_name GlacierConstants
 
-#TODO: fix all of this to work with the singleton Resolution, too lazy to right now...
 const TILE_SIZE_1D: int = 4
 const SUBDIVISION_FACTOR: int = 4
 const IMAGE_TEXTURE_SIZE: Vector2i = Vector2i(TILE_SIZE_1D, TILE_SIZE_1D)

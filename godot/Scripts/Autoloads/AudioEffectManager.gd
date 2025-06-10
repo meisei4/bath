@@ -1,5 +1,4 @@
 extends Node
-#TODO: autoloads cant be class named in file
 #class_name AudioEffectManager
 
 const DEFAULT_PITCH_SHIFT: Dictionary[String, float] = {
@@ -26,13 +25,10 @@ const DEFAULT_REVERB: Dictionary[String, float] = {
 }
 
 
-#TODO: i dont understand what the fuck the at_position is, but look at how to make AudioEffectSpectrumAnalyzerInstance
-# AudioEffectSpectrumAnalyzerInstance what is it!!!!!???
-#AudioEffectSpectrumAnalyzerInstance HWAT>>>>????? EHHH??????
 func add_effect(bus: AudioBus.BUS, effect: AudioEffect) -> void:
     var bus_idx: int = AudioBus.get_bus_index(bus)
     var bus_effect_count: int = AudioServer.get_bus_effect_count(bus_idx)
-    AudioServer.add_bus_effect(bus_idx, effect, bus_effect_count)  # index by 0
+    AudioServer.add_bus_effect(bus_idx, effect, bus_effect_count)
     print("Added ", effect.get_class(), " effect to bus: ", bus)
 
 

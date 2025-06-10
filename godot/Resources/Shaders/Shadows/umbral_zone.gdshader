@@ -1,8 +1,6 @@
 shader_type canvas_item;
 
-//In OpenGL/Compatibility AND Vulkan/Forward+ mode, this iChannel0 screen sampling works fine
-//TODO: I am going to add BackBufferCopy to anticipate double screen sampling shaders though!!!
-uniform sampler2D iChannel0 : hint_screen_texture, filter_nearest; //TODO: FIGURE OUT FILTERING
+uniform sampler2D iChannel0 : hint_screen_texture, filter_nearest;
 
 //TODO: hard coded MainViewport.get_texture() sampling results in the classic vulkan error only in Forward+/non compatibility mode (OpenGl has no such error
 //draw_list_bind_uniform_set: Attempted to use the same texture in framebuffer attachment and a uniform (set: 1, binding: 1), this is not allowed.
@@ -14,7 +12,7 @@ uniform sampler2D iChannel0 : hint_screen_texture, filter_nearest; //TODO: FIGUR
 // source: https://github.com/godotengine/godot/issues/17234
 //uniform sampler2D iChannel0: filter_nearest; //filter hint ust to remind me that later if background texture is pixel perfect or mip mapped...
 
-uniform sampler2D iChannel1 : filter_nearest;   // tilt mask generated in compute shader
+uniform sampler2D iChannel1 : filter_nearest;
 
 uniform vec2 iResolution;
 uniform vec2 umbral_zone_bounds;

@@ -89,13 +89,12 @@ vec3 hsv_to_rgb(vec3 c) {
     return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
 }
 
-
 vec4 light_radial_fade_hsv(vec2 grid_coords, vec2 center, float radius, float feather) {
     float distance_from_center = length(grid_coords - center);
     float fade_start = radius - feather;
     float alpha = 1.0 - smoothstep(fade_start, radius, distance_from_center);
     vec3 hsv = hsv_buffer[0];
-    hsv.z *= 5.0; // <-- Boost brightness here
+    hsv.z *= 5.0; // Boost brightness
     vec3 rgb = hsv_to_rgb(hsv);
     return vec4(rgb * clamp(alpha, 0.0, 1.0), 1.0);
 }
@@ -166,7 +165,6 @@ float pulse_radius(float time) {
 
 vec2 jerk_uki_shizumi(vec2 grid_coords, float time) {
     float jerk = 0.0;
-    // handle F‐onsets (up)
     for (int i = 0; i < MAX_CUSTOM_ONSETS; i++) {
         if (i >= f_onset_count) break;
         float f_press   = f_onsets[i].x;
@@ -214,7 +212,7 @@ vec4 fft_spectrum(vec2 frag_coord){
         float amplitude = texture(iChannel1, vec2(sample_x, FFT_ROW)).r;
         if (uv_full.y < amplitude) {
             vec3 hsv_fft = hsv_to_rgb(hsv_buffer[1]);
-            hsv_fft.z *= 3.0; // <-- Boost brightness here
+            hsv_fft.z *= 3.0;
             fft_color = vec4(hsv_fft, 1.0);
         }
     }
@@ -240,7 +238,6 @@ vec4 ghost(vec2 frag_coord, float time) {
     );
 
     vec4 src_color    = lightball;
-    //set up umbral mask to be drawn on top of transformed light ball
     vec2 umbral_mask_phase = vec2(0.0);
     umbral_mask_phase     += add_umbral_mask_phase(time);
     vec2 umbral_mask_pos   = umbral_mask_position(UMBRAL_MASK_PHASE_COEFFICIENT_X, UMBRAL_MASK_PHASE_COEFFICIENT_Y, umbral_mask_phase);

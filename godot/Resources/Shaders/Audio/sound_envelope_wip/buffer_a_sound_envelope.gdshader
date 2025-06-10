@@ -1,11 +1,11 @@
 shader_type canvas_item;
 render_mode blend_disabled;
 
-#include "res://Resources/Shaders/Audio/SoundEnvelopeWIP/utils.gdshaderinc"
+#include "res://Resources/shaders/audio/sound_envelope_wip/utils.gdshaderinc"
 
 uniform vec2 iResolution;
 uniform sampler2D iChannel0: hint_screen_texture;
-uniform sampler2D iChannel1; //audio texture
+uniform sampler2D iChannel1; 
 uniform float cpu_next_envelope[DOWNSCALED_TARGET_NUMBER_OF_WAVEFORM_SEGMENTS];
 
 #define WAVEFORM_SAMPLE_COUNT 512 //TODO: derive this from the actual ShaderToyAudioTexture constants??? it doesnt even need to 512?
@@ -54,41 +54,28 @@ float propagate_envelope_injection_snapshot_upwards(vec2 uv, float y_shift) {
     return envelope_fragment.r;
 }
 
-//void mainImage(out vec4 frag_color, in vec2 frag_coord) {
 void fragment() {
-    //vec2 uv = frag_coord.xy / iResolution.xy;
     vec2 uv = FRAGCOORD.xy / iResolution.xy;
     float uv_height_per_envelope_snapshot = 1.0 / float(NUMBER_OF_HISTORICAL_ENVELOPE_SNAPSHOTS);
-    // when screen pass is in the upper section of the uv, target all envelope snapshots above the initial (front most) envelope
     if (uv.y < 1.0 - uv_height_per_envelope_snapshot) {
         float envelope_fragment = propagate_envelope_injection_snapshot_upwards(uv, PROPAGATION_RATE_FRAME * uv_height_per_envelope_snapshot);
-        //frag_color = vec4(envelope_fragment, UNUSED_FEEDBACK_CHANNEL, UNUSED_FEEDBACK_CHANNEL, UNUSED_FEEDBACK_CHANNEL);
         COLOR = vec4(envelope_fragment, UNUSED_FEEDBACK_CHANNEL, UNUSED_FEEDBACK_CHANNEL, UNUSED_FEEDBACK_CHANNEL);
-    } else { // target the bottom most envelope
+    } else { 
         float current_envelope = texture(iChannel0, uv).r;
-        //float normalized_time_since_last_injection = mod(iTime, INJECTION_INTERVAL) / INJECTION_INTERVAL; //0 = injection cycle just started, 1 = waveform injection window opens and cycle restarts
-        //float normalized_time_since_last_injection = mod(TIME, INJECTION_INTERVAL) / INJECTION_INTERVAL; //0 = injection cycle just started, 1 = waveform injection window opens and cycle restarts
         float normalized_time_since_last_injection = fract(TIME / INJECTION_INTERVAL); //0 = injection cycle just started, 1 = waveform injection window opens and cycle restarts
-        //if the time passed since last injection lies WITHIN [0, INJECTION_WINDOW), then inject next waveform data into the envelope
         if (normalized_time_since_last_injection < INJECTION_WINDOW) {
             //TODO: the below formula is used to get the current segment index as as discrete space coordinate from the downscaled segment distribution
             // floor is used to prioritize mantissa casting to int to avoid potential out of bounds segment index
             //at segment_index = DOWNSCALED_TARGET_NUMBER_OF_WAVEFORM_SEGMENTS exactly (because the last segment index is actually DOWNSCALED_TARGET_NUMBER_OF_WAVEFORM_SEGMENTS_F - 1
             int segment_index_in_discrete_space = int(floor(uv.x * DOWNSCALED_TARGET_NUMBER_OF_WAVEFORM_SEGMENTS_F));
             float next_envelope = sample_audio_texture_waveform_data(segment_index_in_discrete_space);
-            //float next_envelope = cpu_next_envelope[segment_index_in_discrete_space];
-
-            //float injection_blend_intensity_coefficient = mod(iTime, INJECTION_BLEND_CYCLE_REFRESH_RATE_IN_SECONDS) / INJECTION_BLEND_CYCLE_REFRESH_RATE_IN_SECONDS;
-            //float injection_blend_intensity_coefficient = mod(TIME, INJECTION_BLEND_CYCLE_REFRESH_RATE_IN_SECONDS) / INJECTION_BLEND_CYCLE_REFRESH_RATE_IN_SECONDS;
             float injection_blend_intensity_coefficient = 1.0;
             float t = normalized_time_since_last_injection / INJECTION_WINDOW;
-
             float smooth_injection = 0.5 * (1.0 - cos(6.28318 * t));
             float effective_injection_blend = smooth_injection * injection_blend_intensity_coefficient * TARGET_BLEND_INTENSITY_BETWEEN_ENVELOPE_INJECTION_SNAPSHOTS;
             float blended_envelope = mix(current_envelope, next_envelope, effective_injection_blend);
            COLOR = vec4(blended_envelope, UNUSED_FEEDBACK_CHANNEL, UNUSED_FEEDBACK_CHANNEL, UNUSED_FEEDBACK_CHANNEL);
         } else {
-            //frag_color = vec4(current_envelope, UNUSED_FEEDBACK_CHANNEL, UNUSED_FEEDBACK_CHANNEL, UNUSED_FEEDBACK_CHANNEL);
             COLOR = vec4(current_envelope, UNUSED_FEEDBACK_CHANNEL, UNUSED_FEEDBACK_CHANNEL, UNUSED_FEEDBACK_CHANNEL);
         }
     }

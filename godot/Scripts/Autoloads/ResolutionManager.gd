@@ -42,7 +42,7 @@ var DEFAULT_WINDOW_OVERRIDE_HEIGHT: int = ProjectSettings.get_setting(
 
 func _ready() -> void:
     cfg = ConfigFile.new()
-    var err: int = cfg.load(CFG_PATH)
+    cfg.load(CFG_PATH)
     resolution.x = DEFAULT_VIEWPORT_WIDTH
     resolution.y = DEFAULT_VIEWPORT_HEIGHT
     _apply_resolution()
@@ -94,19 +94,18 @@ func get_resolution() -> Vector2:
 
 func get_window_override_size() -> Vector2:
     return Vector2(
-        int(
+        (
             cfg.get_value(
                 resolution_section(),
                 "window/size/window_width_override",
                 DEFAULT_WINDOW_OVERRIDE_WIDTH
             )
+            as float
         ),
-        int(
-            cfg.get_value(
-                resolution_section(),
-                "window/size/window_height_override",
-                DEFAULT_WINDOW_OVERRIDE_HEIGHT
-            )
+        cfg.get_value(
+            resolution_section(),
+            "window/size/window_height_override",
+            DEFAULT_WINDOW_OVERRIDE_HEIGHT
         )
     )
 

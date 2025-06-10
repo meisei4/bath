@@ -14,7 +14,6 @@ var iChannel0: Texture = preload(ResourcePaths.ICEBERGS_JPG)
 
 
 func _ready() -> void:
-    #self.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST  #TODO: whoa whoa whoa what?
     iResolution = ResolutionManager.resolution
     BufferA = ShaderToyUtil.create_buffer_viewport(iResolution)
     BufferAShaderMaterial = ShaderMaterial.new()

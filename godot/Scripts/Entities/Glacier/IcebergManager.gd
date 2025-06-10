@@ -7,9 +7,9 @@ signal iceberg_cluster_merged(cluster_id_a: int, cluster_id_b: int)
 signal iceberg_cluster_moved(cluster_id: int, iceberg_cluster: Array[Vector2i])
 signal force_fracture_glacier_cell(cell: Vector2i)
 
-var clusters: Dictionary[int, Array] = {}  # cluster_id -> list of cells
+var clusters: Dictionary[int, Array] = {}
 
-var iceberg_cell_to_cluster_id: Dictionary[Vector2i, int] = {} # Key: iceberg cell_coord, value: cluster id,
+var iceberg_cell_to_cluster_id: Dictionary[Vector2i, int] = {}
 var current_iceberg_cluster_id: int = 0
 
 #TODO: introduce this to make everything actually easy to understand instead of just low level crazy coordinate clusters in an array

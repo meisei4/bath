@@ -4,8 +4,6 @@ class_name ShaderToyUtil
 
 static func create_buffer_viewport(size: Vector2) -> SubViewport:
     var subviewport: SubViewport = SubViewport.new()
-    #subviewport.size_2d_override = size
-    #subviewport.size_2d_override_stretch = true
     subviewport.size = size
     subviewport.disable_3d = true
     subviewport.use_hdr_2d = true

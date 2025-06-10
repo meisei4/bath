@@ -123,7 +123,7 @@ func _update_bpm(current_playback_time: float) -> void:
     var onset_count: int = onsets.size()
     onsets.append(current_playback_time)
     if onset_count < MIN_ONSETS_FOR_LOCK:
-        return  # still warming up
+        return
     while onset_count > 0 and current_playback_time - onsets[0] > IOI_SET_SAMPLE_SIZE:
         onsets.remove_at(0)
 

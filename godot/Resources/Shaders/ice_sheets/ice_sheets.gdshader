@@ -9,11 +9,11 @@
 shader_type canvas_item;
 render_mode blend_disabled;
 
-#include "res://Resources/Shaders/IceSheets/noise.gdshaderinc"
-#include "res://Resources/Shaders/IceSheets/projections.gdshaderinc"
-#include "res://Resources/Shaders/IceSheets/color.gdshaderinc"
+#include "res://Resources/shaders/ice_sheets/noise.gdshaderinc"
+#include "res://Resources/shaders/ice_sheets/projections.gdshaderinc"
+#include "res://Resources/shaders/ice_sheets/color.gdshaderinc"
 uniform vec2 iResolution;
-uniform sampler2D iChannel0: filter_nearest; // ← this will become our water background
+uniform sampler2D iChannel0: filter_nearest;
 
 uniform float iTime;
 
@@ -32,7 +32,6 @@ int depthMarch(vec2 normalizedCoord, float strideLength, float firstStepOffset){
         vec2 nextStep = normalizedCoord + vec2(0.0, firstStep / GLOBAL_COORD_SCALAR) * strideLength;
         float localNoiseScale;
         vec2 projectedCoord = projectLayer(nextStep, localNoiseScale);
-       //if(isSolidAtCoord(projectedCoord, localNoiseScale, TIME)) {
         if(isSolidAtCoord(projectedCoord, localNoiseScale, iTime)) {
             break;
         }

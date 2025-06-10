@@ -9,7 +9,6 @@ uniform sampler2D iChannel0: repeat_disable, filter_nearest;
 #define BLACK vec4(0.0, 0.0, 0.0, 1.0)
 #define FFT_ROW 0.0
 
-//void mainImage(out vec4 frag_color, in vec2 frag_coord) {
 void fragment() {
     vec2 frag_coord = FRAGCOORD.xy;
     vec2 uv = frag_coord.xy / iResolution.xy;
@@ -26,6 +25,5 @@ void fragment() {
             color = WHITE;
         }
     }
-    //frag_color = color;
     COLOR = color;
 }

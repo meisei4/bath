@@ -46,7 +46,7 @@ func _ready() -> void:
     MainImage = TextureRect.new()
     MainImage.texture = BufferB.get_texture()
     MainImage.flip_v = true
-    waveform_texture = WaveformTexture.new()  #TODO: this has to target a specific audio bus internally, figure out a better way
+    waveform_texture = WaveformTexture.new()
 
     BufferA.add_child(BufferAShaderNode)
     add_child(BufferA)

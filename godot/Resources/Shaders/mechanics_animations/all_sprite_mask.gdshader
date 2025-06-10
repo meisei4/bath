@@ -1,9 +1,8 @@
 shader_type canvas_item;
-#include "res://Resources/Shaders/MechanicAnimations/perspective_tilt.gdshaderinc"
+#include "res://Resources/shaders/mechanics_animations/perspective_tilt.gdshaderinc"
 
 const int MAXIMUM_SPRITE_COUNT = 16;
 
-//TODO
 uniform sampler2D _sprite_textures[MAXIMUM_SPRITE_COUNT] : filter_nearest;
 uniform vec2    sprite_texture_sizes[MAXIMUM_SPRITE_COUNT];
 uniform vec2    sprite_scales[MAXIMUM_SPRITE_COUNT];

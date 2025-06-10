@@ -29,7 +29,7 @@ func _ready() -> void:
     music_pool = AudioPool.new()
     music_pool.pool_size = MUSIC_POOL_SIZE
     music_pool.bus = AudioBus.BUS.MUSIC
-    music_pool.loop_on_end = true  # automatically loop if you want continuous music
+    music_pool.loop_on_end = true
     add_child(music_pool)
 
     input_pool = AudioPool.new()

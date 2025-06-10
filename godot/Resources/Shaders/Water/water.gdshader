@@ -1,15 +1,15 @@
 shader_type canvas_item;
 
-#include "res://Resources/Shaders/Water/constants.gdshaderinc"
-#include "res://Resources/Shaders/IceSheets/projections.gdshaderinc"
+#include "res://Resources/shaders/water/constants.gdshaderinc"
+#include "res://Resources/shaders/ice_sheets/projections.gdshaderinc"
 uniform vec2 iResolution;
 
-uniform sampler2D iChannel0: repeat_enable;//, filter_nearest; //"file://assets/textures/gray_noise_small.png"  // noise displacement map (red channel)
-uniform sampler2D iChannel1: repeat_enable;//, filter_nearest; //"file://assets/textures/rocks.jpg"             // background texture (full-color)
-uniform sampler2D iChannel2: repeat_enable;//, filter_nearest; //"file://assets/textures/pebbles.png"           // caustics displacement map (red channel)
-uniform sampler2D iChannel3; // this will be the viewport texture/buffer that holds the ripple feedback heightmap
+uniform sampler2D iChannel0: repeat_enable;
+uniform sampler2D iChannel1: repeat_enable;
+uniform sampler2D iChannel2: repeat_enable;
+uniform sampler2D iChannel3;
 
-// debug macros
+
 //#define PIXELATE_UV
 #define SHOW_NOISE_DISP_MAP_1
 #define SHOW_NOISE_DISP_MAP_2
@@ -24,7 +24,6 @@ vec2 pixelate_uv(vec2 uv) {
 
 vec2 scroll_displacement_map(vec2 uv, vec2 velocity, vec2 positional_offset) {
     return uv + TIME * velocity + positional_offset;
-    //return uv + iTime * velocity + positional_offset;
 }
 
 vec4 sample_disp_map(
@@ -35,12 +34,11 @@ vec4 sample_disp_map(
     float intensity_factor
 ) {
     vec2 offset_uv = scroll_displacement_map(uv, velocity, positional_offset);
-    float noise_value = texture(tex, offset_uv).r; // Single-channel (red)
-    float scaled_noise = noise_value * intensity_factor;   // Apply intensity/darkening factor to dim the displacement map (otherwise colors get blown out)
+    float noise_value = texture(tex, offset_uv).r;
+    float scaled_noise = noise_value * intensity_factor;
     return vec4(scaled_noise, scaled_noise, scaled_noise, 1.0);
 }
 
-//BASIC DISPLACEMENT MAP EXAMPLE INTEGRATION WITHOUT SCROLLING
 vec4 sample_background_with_disp_map(
     sampler2D tex,
     vec2 uv,
@@ -71,28 +69,23 @@ float compute_effective_opacity(
     vec4 caustics_disp_map_1,
     vec4 caustics_disp_map_2
 ) {
-    //pull out the r channels only (everything is grayscaled) for these intensity summations
     float noise_disp_maps_grayscale_intensity_sum = noise_disp_map_1.r + noise_disp_map_2.r;
     float all_disp_maps_grayscale_intensity_sum = noise_disp_map_1.r + noise_disp_map_2.r + caustics_disp_map_1.r + caustics_disp_map_2.r;
 
-    float alpha = BLURRY_ALPHA; // trough
+    float alpha = BLURRY_ALPHA;
 
     if (noise_disp_maps_grayscale_intensity_sum > NOISE_DISP_INDUCED_INTENSITY_THRESHOLD) {
-         alpha = NORMAL_ALPHA; // incline towards a peak
+         alpha = NORMAL_ALPHA;
     }
     if (all_disp_maps_grayscale_intensity_sum > ALL_DISP_MAP_INDUCED_INTENSITY_THRESHOLD) {
-         alpha = FULL_ALPHA; // peak
+         alpha = FULL_ALPHA;
     }
    return alpha;
 }
 
 #define PARALLAX_ZOOM 16.0
 void fragment(){
-//void mainImage(out vec4 frag_color, in vec2 frag_coord) {
     vec2 uv = vec2(FRAGCOORD.x, iResolution.y - FRAGCOORD.y) / iResolution.xy;
-    //vec2 uv = FRAGCOORD.xy / iResolution.xy;
-    //vec2 uv = frag_coord / iResolution.xy;
-
     vec4 noise_disp_map_1 = vec4(0.0);
     vec4 noise_disp_map_2 = vec4(0.0);
     vec4 caustics_disp_map_1 = vec4(0.0);
@@ -158,6 +151,5 @@ void fragment(){
         caustics_disp_map_2
     );
 
-    //frag_color = (noise_disp_map_1 + noise_disp_map_2) * alpha + background;
     COLOR = (noise_disp_map_1 + noise_disp_map_2) * alpha + background;
 }

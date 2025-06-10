@@ -1,11 +1,11 @@
 shader_type canvas_item;
 render_mode blend_disabled;
 
-#include "res://Resources/Shaders/Audio/SoundEnvelopeWIP/utils.gdshaderinc"
+#include "res://Resources/shaders/audio/sound_envelope_wip/utils.gdshaderinc"
 
 uniform vec2 iResolution;
 uniform int iFrame;
-uniform sampler2D iChannel0; //the envelope buffer
+uniform sampler2D iChannel0;
 uniform sampler2D iChannel1: hint_screen_texture;
 
 #define LINE_RENDER_WIDTH 0.90
@@ -35,10 +35,8 @@ vec4 propagate_envelope_injection_snapshot_isometrically(vec2 uv, vec2 uv_shift)
     return envelope_fragment;
 }
 
-//void mainImage(out vec4 frag_color, in vec2 frag_coord) {
 void fragment(){
     vec2 uv = FRAGCOORD.xy / iResolution.xy;
-    //vec2 uv = frag_coord.xy / iResolution.xy;
     vec2 uv_shift = compute_isometric_uv_shift(iResolution.xy);
 
     float should_propagate = step(0.5, 1.0 - step(0.001, mod(float(iFrame), float(FRAMES_PER_PROPAGATION))));
@@ -75,5 +73,4 @@ void fragment(){
         current_snapshot_index = 0.0;
     }
     COLOR = vec4(current_amplitude, current_amplitude, current_amplitude, current_snapshot_index);
-    //frag_color = vec4(current_amplitude, current_amplitude, current_amplitude, current_snapshot_index);
 }

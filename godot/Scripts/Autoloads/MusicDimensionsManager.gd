@@ -5,13 +5,13 @@ signal onset_detected(current_playback_time: float)
 
 const PERCUSSIVE_FREQUENCY_LOWER_BOUND_HZ: float = 20.0
 const PERCUSSIVE_FREQUENCY_UPPER_BOUND_HZ: float = 150.0
-const FLUX_HISTORY_BUFFER_MAXIMUM_SIZE: int = 43  # ≈ 0.7 s @60 fps
-const FLUX_THRESHOLD_RATIO: float = 1.5  # detect peaks >1.5× local average
-const MIN_ONSET_INTERVAL: float = 0.25  # ignore faster repeats
-const ONSETS_PER_MINUTE_HISTORY_BUFFER_MAXIMUM_SIZE: int = 8  # average over previous 8 intervals
+const FLUX_HISTORY_BUFFER_MAXIMUM_SIZE: int = 43
+const FLUX_THRESHOLD_RATIO: float = 1.5
+const MIN_ONSET_INTERVAL: float = 0.25
+const ONSETS_PER_MINUTE_HISTORY_BUFFER_MAXIMUM_SIZE: int = 8
 const SECONDS_PER_MINUTE: float = 60.0
 
-var SAMPLE_RATE: float = AudioServer.get_mix_rate()  # query real mix rate
+var SAMPLE_RATE: float = AudioServer.get_mix_rate()
 const MDN_MIN_AUDIO_DECIBEL: float = -100.0  #match WebAudio defaults
 const MDN_MAX_AUDIO_DECIBEL: float = -30.0  #match WebAudio defaults
 const MDN_SMOOTHING: float = 0.8
@@ -28,7 +28,7 @@ var onset_event_counter: int = 0
 var song_time: float = 0.0
 
 #var audio_stream: AudioStream = preload(ResourcePaths.SHADERTOY_MUSIC_TRACK_EXPERIMENT_WAV)
-#var audio_stream: AudioStream = preload(ResourcePaths.HELLION_WAV)
+#var audio_stream: AudioStream = preload(ResourcePaths.HELLION)
 #var audio_stream: AudioStream = preload(ResourcePaths.SNUFFY)
 #var input_stream: AudioStreamMicrophone = AudioStreamMicrophone.new()
 
@@ -82,7 +82,6 @@ func compute_flux() -> float:
     return flux
 
 
-#this is a ring buffer!!!
 func update_flux_novelty_curve(flux: float) -> void:
     flux_novelty_curve.append(flux)
     if flux_novelty_curve.size() > FLUX_HISTORY_BUFFER_MAXIMUM_SIZE:
@@ -134,7 +133,6 @@ static func get_current_playback_time(
     return 0.0
 
 
-#AUXILIARIES!!!
 func compute_smooth_energy_for_frequency_range(
     from_hz: float, to_hz: float, _previous_smooth_energy: float
 ) -> float:

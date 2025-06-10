@@ -49,7 +49,6 @@ static func multi_source_hydrofracture(
         if glacier_data.IS_INTACT(current_pos):
             fracture_callback.callv([glacier_data, current_pos])
             if depth < max_depth:
-                # Instead of BFS from one cell, keep going for all of them
                 gather_cell_candidates_for_potential_fracturing(
                     glacier_data, current_pos, depth, fracture_prob, queue
                 )

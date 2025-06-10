@@ -20,7 +20,7 @@ func _ready() -> void:
 
 
 func _on_frame_post_draw() -> void:
-    #TODO: figure out how to prevent this call every fucking frame jesus: probably not possible
+    #TODO: figure out how to prevent this call every frame: probably not possible
     var img: Image = FragmentShaderSignalManager.ice_sheets.BufferA.get_texture().get_image()
     img.flip_y()
     img.convert(Image.FORMAT_RGBA8)  # Fast conversion to RGBA8?? seems dangerous
@@ -162,7 +162,7 @@ func _update_concave_polygons(collision_polygons: Array[PackedVector2Array]) -> 
         debug_dots.pop_back().queue_free()
 
     var d: int = 0
-    for c in new_polygon_cache.values():
+    for c: Vector2 in new_polygon_cache.values():
         debug_dots[d].position = c - debug_dots[d].size * 0.5
         d += 1
 

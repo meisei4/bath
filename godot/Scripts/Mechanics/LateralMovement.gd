@@ -1,7 +1,6 @@
 extends Mechanic
 class_name LateralMovement
 
-#TODO: this whole mechanic has a lot to learn from the Jump refactoring
 const MAX_SPEED: float = 300.0
 const ACCELERATION: float = 400.0
 const DECELERATION: float = 600.0
@@ -12,8 +11,6 @@ var stretch_timer: float = 0.0
 
 
 func _ready() -> void:
-    #apply_mechanic_animation_shader("res://Resources/Shaders/MechanicAnimations/mechanic_animations.gdshader")
-    #TODO: these signals and the mechanics manager direct calls to process input are hurting my head, I think things are being ran twice per frame?
     MechanicManager.left_lateral_movement.connect(_on_move_left_triggered)
     MechanicManager.right_lateral_movement.connect(_on_move_right_triggered)
 

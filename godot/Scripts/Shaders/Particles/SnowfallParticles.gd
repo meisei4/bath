@@ -8,7 +8,6 @@ const SNOW_SCALE_END: float = 1.0
 
 
 func _ready() -> void:
-    #position = get_viewport().size / 2.0
     _initialize_particle_material()
     emitting = true
     one_shot = false
@@ -26,7 +25,7 @@ func _initialize_particle_material() -> void:
     self.scale_amount_max = 1.0
 
     #TODO: figure out what is a better convention this set param on the enums, or using the properties
-    set_param_min(CPUParticles2D.PARAM_RADIAL_ACCEL, -1.0)  # gravitational to self.position
+    set_param_min(CPUParticles2D.PARAM_RADIAL_ACCEL, -1.0)
     set_param_max(CPUParticles2D.PARAM_RADIAL_ACCEL, -9.8)
 
     self.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE

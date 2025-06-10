@@ -1,15 +1,13 @@
 extends Node
 #class_name SpacetimeContext
 
-#sound
-
 const METERS_PER_WORLD_UNIT: float = 1.0
 const PIXELS_PER_REAL_METER: float = 16.0
 const PIXELS_PER_WORLD_UNIT: float = METERS_PER_WORLD_UNIT * PIXELS_PER_REAL_METER
 const TIME_SCALE: float = 0.5
 const UNIVERSAL_TIME_OFFSET: float = 0.0
-const EARTH_GRAVITY: float = 9.81  # m/s^2 in real world
-const ARCADEYNESS_FACTOR: float = 2.55  # exaggeration factor
+const EARTH_GRAVITY: float = 9.81
+const ARCADEYNESS_FACTOR: float = 2.55
 const GRAVITY: float = EARTH_GRAVITY * ARCADEYNESS_FACTOR
 const UNIVERSAL_DRAG_COEFFICIENT: float = 0.0
 const FLUID_DENSITY: float = 0.0

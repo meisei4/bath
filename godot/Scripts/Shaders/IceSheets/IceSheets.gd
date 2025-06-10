@@ -38,7 +38,7 @@ func _ready() -> void:
     Scanline.use_hdr_2d = false
     ScanlineShaderMaterial = ShaderMaterial.new()
     ScanlineShaderNode = ColorRect.new()
-    ScanlineShaderNode.size = Vector2(iResolution.x, 2.0)  # THIS IS WHERE THE CROP OCCURS
+    ScanlineShaderNode.size = Vector2(iResolution.x, 2.0)
     ScanlineShaderMaterial.shader = ScanlineShader
     ScanlineShaderNode.material = ScanlineShaderMaterial
     ScanlineShaderMaterial.set_shader_parameter("iResolution", iResolution)

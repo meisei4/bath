@@ -1,5 +1,5 @@
 shader_type canvas_item;
-#include "res://Resources/Shaders/MechanicAnimations/perspective_tilt.gdshaderinc"
+#include "res://Resources/shaders/mechanics_animations/perspective_tilt.gdshaderinc"
 uniform vec2 iResolution;
 uniform sampler2D iChannel0: filter_nearest;
 uniform float altitude_normal;

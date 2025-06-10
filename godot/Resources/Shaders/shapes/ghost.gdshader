@@ -2,7 +2,6 @@ shader_type canvas_item;
 render_mode blend_disabled;
 
 uniform vec2   iResolution;
-//uniform float  iTime;
 uniform sampler2D iChannel0: filter_nearest_mipmap, repeat_enable;
 
 #define HALF 0.5
@@ -101,14 +100,11 @@ vec4 add_dither(vec4 src_color, vec2 frag_coord) {
     return applied_dither;
 }
 
-//void mainImage(out vec4 frag_color, in vec2 frag_coord) {
 void fragment() {
-    //float time        = iTime;
     float time        = TIME;
     vec2 frag_coord   = FRAGCOORD.xy;
     vec2 uv           = frag_coord / vec2(iResolution.y);
 
-    //prepare base grid cell warping and drifting
     vec2 grid_coords  = uv_to_grid_space(uv, time);
     vec2 grid_phase   = vec2(0.0);
     grid_phase       += spatial_phase(grid_coords);
@@ -116,18 +112,14 @@ void fragment() {
     grid_coords      += add_phase(grid_phase);
     grid_coords      += warp_and_drift_cell(grid_coords, time);
 
-    //set up light ball inside target grid cell
     vec4 lightball    = light_radial_fade(grid_coords, UMBRAL_MASK_CENTER, UMBRAL_MASK_OUTER_RADIUS, UMBRAL_MASK_FADE_BAND);
     vec4 src_color    = lightball;
-    //set up umbral mask to be drawn on top of transformed light ball
     vec2 umbral_mask_phase = vec2(0.0);
     umbral_mask_phase     += add_umbral_mask_phase(time);
     vec2 umbral_mask_pos   = umbral_mask_position(UMBRAL_MASK_PHASE_COEFFICIENT_X, UMBRAL_MASK_PHASE_COEFFICIENT_Y, umbral_mask_phase);
 
     src_color         = add_umbral_mask(src_color, grid_coords, umbral_mask_pos);
     src_color         = add_dither(src_color, frag_coord);
-    //frag_color.a      = 1.0;
     COLOR.a      = 1.0;
-    //frag_color        = src_color;
     COLOR = src_color;
 }

@@ -62,5 +62,5 @@ func add_shadows_test_scene() -> void:
 
 func add_jump_mechanic_test_scene() -> void:
     var mechanics_scene: PackedScene = preload(ResourcePaths.MECHANICS_TEST)
-    var mechanics_test: MechanicsTest = mechanics_scene.instantiate() as MechanicsTest
+    var mechanics_test: Mechanics = mechanics_scene.instantiate() as Mechanics
     add_child(mechanics_test)

@@ -1,5 +1,4 @@
 extends Node
-#TODO: autoloads cant be class named in file
 #class_name AudioBus
 
 enum BUS { MASTER = 0, SFX = 1, MUSIC = 2, INPUT = 3 }

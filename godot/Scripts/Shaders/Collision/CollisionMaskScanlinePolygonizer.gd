@@ -165,7 +165,7 @@ func _update_polygons_with_alpha_buckets(alpha_buckets: PackedVector2Array) -> v
                     shape_node.disabled = false
                     var nx_left: float = (2.0 * bucket_x_start - iResolution.x) / iResolution.y
                     var nx_right: float = (2.0 * bucket_x_end - iResolution.x) / iResolution.y
-                    var fragY_spawn: float = 0 + shape_node.position.y  # = shape_node.position.y (which is zero at creation)
+                    var fragY_spawn: float = 0 + shape_node.position.y
                     var orig_normY: float = (2.0 * fragY_spawn - iResolution.y) / iResolution.y
                     var world_left: float = (
                         nx_left * (PARALLAX_PROJECTION_ASYMPTOTIC_DEPTH_SCALAR - orig_normY)
@@ -208,7 +208,7 @@ func _correct_polygon_horizontal(i: int) -> void:
         var normY_shader: float = (2.0 * fragY - iResolution.y) / iResolution.y
         var denom_shader: float = PARALLAX_PROJECTION_ASYMPTOTIC_DEPTH_SCALAR - normY_shader
         var scale_shader: float = 1.0 / denom_shader
-        var worldX: float = orig_nxs[j]  # (stored earlier when this vertex was spawned)
+        var worldX: float = orig_nxs[j]
         var projX: float = worldX * scale_shader
         var scrX: float = projX * (iResolution.y * 0.5) + (iResolution.x * 0.5)
         segments.set(j, Vector2(scrX, local_pt.y))

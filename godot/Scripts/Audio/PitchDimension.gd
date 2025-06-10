@@ -50,8 +50,8 @@ func setup_wav() -> void:
             . rust_util
             . render_midi_to_sound_bytes_constant_time(
                 int(MusicDimensionsManager.SAMPLE_RATE),
-                ResourcePaths.FINGERBIB_MIDI,
-                ResourcePaths.SF2
+                ResourcePaths.FINGERBIB,
+                ResourcePaths.DSDNM_SF2
             )
         )
         var file_access: FileAccess = FileAccess.open(ResourcePaths.CACHED_WAV, FileAccess.WRITE)
@@ -70,10 +70,9 @@ func _process(delta: float) -> void:
     var buffered_notes: Array[int] = active_notes.slice(0, min(active_notes.size(), max_notes))
     for note: int in buffered_notes:
         var color: Dictionary = midi_note_to_color_dict(note, active_notes.size())
-        var hsv: Vector3 = Vector3(color["pitch_radians"], color["saturation"], color["value"])  # Treating hue as radians
+        var hsv: Vector3 = Vector3(color["pitch_radians"], color["saturation"], color["value"])
         hsv_buffer.append(hsv)
 
-    # Pad remaining slots with zeroed hsv
     while hsv_buffer.size() < max_notes:
         hsv_buffer.append(Vector3(0, 0, 0))
 
@@ -158,7 +157,7 @@ func print_color_note_dict(data: Dictionary) -> void:
 
 
 func _debug_polyphony_buffer() -> void:
-    clear_console()  # optional ANSI clear
+    clear_console()
     print("=== polyphony buffer (last %d changes) ===" % MAX_NOTE_HISTORY)
     for entry: String in _note_log_history:
         print(entry)

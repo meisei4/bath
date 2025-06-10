@@ -1,17 +1,17 @@
-[gd_scene load_steps=4 format=3 uid="uid://bouuwx15ejow1"]
+[gd_scene load_steps=4 format=3 uid="uid://c38vs2j8m6vt3"]
 
-[ext_resource type="Script" uid="uid://cfndhqfjgfs1a" path="res://Entities/Characters/CapsuleDummy.gd" id="1_a2kt7"]
-[ext_resource type="Texture2D" uid="uid://ckgqwg6yky1er" path="res://Assets/Sprites/capsule.png" id="2_iykol"]
+[ext_resource type="Script" uid="uid://cfndhqfjgfs1a" path="res://Scripts/Entities/Characters/CapsuleDummy.gd" id="1_cy3er"]
+[ext_resource type="Texture2D" uid="uid://ckgqwg6yky1er" path="res://Resources/sprites/capsule.png" id="2_itn4d"]
 
-[sub_resource type="ConvexPolygonShape2D" id="ConvexPolygonShape2D_n4eky"]
+[sub_resource type="ConvexPolygonShape2D" id="ConvexPolygonShape2D_mujhx"]
 points = PackedVector2Array(-7.5, -7.5, -5.5, -9.5, -1.5, -11.5, 1.5, -11.5, 5.5, -9.5, 7.5, -7.5, 7.5, 7.5, 5.5, 9.5, 1.5, 11.5, -1.5, 11.5, -5.5, 9.5, -7.5, 7.5, -7.5, -7.5)
 
 [node name="CharacterBody2D" type="CharacterBody2D"]
-script = ExtResource("1_a2kt7")
+script = ExtResource("1_cy3er")
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
 texture_filter = 1
-texture = ExtResource("2_iykol")
+texture = ExtResource("2_itn4d")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
-shape = SubResource("ConvexPolygonShape2D_n4eky")
+shape = SubResource("ConvexPolygonShape2D_mujhx")

@@ -1,11 +1,11 @@
 shader_type canvas_item;
 render_mode blend_disabled;
 
-#include "res://Resources/Shaders/Audio/SoundEnvelopeWIP/utils.gdshaderinc"
+#include "res://Resources/shaders/audio/sound_envelope_wip/utils.gdshaderinc"
 
 uniform vec2 iResolution;
 uniform sampler2D iChannel0: hint_screen_texture;
-uniform sampler2D iChannel1; //audio texture
+uniform sampler2D iChannel1;
 
 #define WAVEFORM_SAMPLE_COUNT 512 //TODO: derive this from the actual ShaderToyAudioTexture constants??? it doesnt even need to 512?
 #define WAVEFORM_SAMPLE_COUNT_F float(WAVEFORM_SAMPLE_COUNT)
@@ -39,10 +39,8 @@ float sample_audio_texture_waveform_data(int segment_index) {
 }
 
 
-//void mainImage(out vec4 frag_color, in vec2 frag_coord) {
 void fragment(){
     float u = FRAGCOORD.x / iResolution.x;
-    // Force vertical coordinate to 0.0 (for instance, the first row). BUFFER A IS NOW 1D!!
     float v = 0.0;
     vec2 uv = vec2(u, v);
     float current_envelope = texture(iChannel0, uv).r;

@@ -1,5 +1,5 @@
 extends Node2D
-class_name MechanicsTest
+class_name Mechanics
 
 var capsule_dummy: CapsuleDummy
 var capsule_scene: PackedScene = preload(ResourcePaths.CAPSULE_DUMMY)

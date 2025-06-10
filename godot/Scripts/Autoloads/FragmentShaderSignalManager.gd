@@ -53,10 +53,6 @@ func _configure_character_body_fragment(_character_body: CapsuleDummy) -> void:
                 break
 
 
-func register_collision_mask_fragment(_collision_mask_fragment: CollisionMaskFragment) -> void:
-    self.collision_mask_fragment = _collision_mask_fragment
-
-
 func register_ice_sheets_fragment(_ice_sheets: IceSheets) -> void:
     self.ice_sheets = _ice_sheets
 

@@ -1,5 +1,5 @@
 shader_type canvas_item;
-#include "res://Resources/Shaders/MechanicAnimations/perspective_tilt.gdshaderinc"
+#include "res://Resources/shaders/mechanics_animations/perspective_tilt.gdshaderinc"
 uniform vec2 iResolution;
 uniform sampler2D iChannel0: filter_nearest;
 uniform float depth_normal;
@@ -8,10 +8,7 @@ const float max_tilt_angle = MAXIMUM_TILT_ANGLE_ACHIEVED_AT_IMMEDIATE_ASCENSION_
 
 
 void fragment() {
-//void mainImage(out vec4 frag_color, in vec2 frag_coord) {
     vec2 uv = UV;
-    //vec2 uv = FRAGCOORD.xy / iResolution.xy;
-    //vec2 uv = frag_coord.xy / iResolution.xy;
     if (depth_normal <= 0.0) {
         COLOR = texture(iChannel0, uv);
     } else {
@@ -27,6 +24,5 @@ void fragment() {
         );
         DISCARD_PIXELS_OUTSIDE_OF_ALTERED_UV_BOUNDS_FRAG(altered_uv, TEXTURE_PIXEL_SIZE)
         COLOR = texture(iChannel0, altered_uv);
-        //frag_color =  texture(iChannel0, warped_uv);
     }
 }
