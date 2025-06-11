@@ -8,6 +8,7 @@ build/
 
 godot/Resources/audio/Cache/
 *.wav
+!godot/Resources/audio/metronome_click.wav
 *.mid
 !godot/Resources/audio/fingerbib.mid
 *.ogg

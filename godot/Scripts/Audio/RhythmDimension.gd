@@ -1,8 +1,8 @@
 extends Node
 class_name RhythmDimension
 
-var metronome_click: AudioStream  # = preload(ResourcePaths.METRONOME_CLICK)
-var rhythm_data: RhythmData  # = preload(ResourcePaths.CACHED_RHYTHM_DATA)
+var metronome_click: AudioStream
+var rhythm_data: RhythmData
 var bpm: float
 var f_onsets_flat_buffer: PackedVector2Array = PackedVector2Array()
 var j_onsets_flat_buffer: PackedVector2Array = PackedVector2Array()
@@ -11,7 +11,6 @@ var j_onset_count: int = 0
 
 var time_of_next_click: float = 0.0
 var ogg_stream: AudioStreamOggVorbis = preload(ResourcePaths.SHADERTOY_MUSIC_EXPERIMENT_OGG)
-#var wav_stream: AudioStreamWAV = preload(ResourcePaths.SNUFFY)
 
 
 func _ready() -> void:
@@ -21,7 +20,6 @@ func _ready() -> void:
         rhythm_data = RhythmData.new()
 
     if rhythm_data.bpm <= 0.0:
-        #bpm = RustUtilSingleton.rust_util.detect_bpm_wav(ResourcePaths.SHADERTOY_MUSIC_EXPERIMENT_WAV)
         bpm = RustUtilSingleton.rust_util.detect_bpm_ogg(
             ResourcePaths.SHADERTOY_MUSIC_EXPERIMENT_OGG
         )
