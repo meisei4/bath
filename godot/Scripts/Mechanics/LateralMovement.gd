@@ -1,16 +1,19 @@
 extends Mechanic
 class_name LateralMovement
 
-const MAX_SPEED: float = 300.0
-const ACCELERATION: float = 400.0
-const DECELERATION: float = 600.0
+const MAX_SPEED: float = 60.0
+const ACCELERATION: float = 4000.0
+const DECELERATION: float = 2000.0
 
 var movement_input: int = 0
 var current_velocity: float = 0.0
 var stretch_timer: float = 0.0
 
+var delta_pixels: float = 0.0
+
 
 func _ready() -> void:
+    type = Mechanic.TYPE.LATERAL_MOVEMENT
     MechanicsManager.left_lateral_movement.connect(_on_move_left_triggered)
     MechanicsManager.right_lateral_movement.connect(_on_move_right_triggered)
 
@@ -57,5 +60,4 @@ func _apply_cosmic_friction(time: float) -> void:
 
 func _move_character(time: float) -> void:
     var delta_world_units: float = current_velocity * time
-    var delta_pixels: float = SpacetimeManager.to_physical_space(delta_world_units)
-    character_body.position.x += delta_pixels
+    delta_pixels = SpacetimeManager.to_physical_space(delta_world_units)

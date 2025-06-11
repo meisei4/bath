@@ -23,6 +23,8 @@ var iChannel1: Texture
 var iFrame: int = 0
 var iTime: float = 0.0
 
+var ogg_stream: AudioStreamOggVorbis = preload(ResourcePaths.SHADERTOY_MUSIC_EXPERIMENT_OGG)
+
 
 func _ready() -> void:
     iResolution = ResolutionManager.resolution
@@ -54,6 +56,7 @@ func _ready() -> void:
     add_child(BufferB)
     add_child(MainImage)
     add_child(waveform_texture)
+    AudioPoolManager.play_music(ogg_stream)
 
 
 #TODO: its very important to control frame rate with these audio shaders

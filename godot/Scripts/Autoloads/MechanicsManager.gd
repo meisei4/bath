@@ -5,7 +5,7 @@ signal left_lateral_movement
 signal right_lateral_movement
 signal jump_override
 signal character_body_registered(character_body: CharacterBody2D)
-signal active_mechanic_changed(mechanic: Mechanic)
+signal active_mechanic_changed(character_body: CharacterBody2D, next_mechanic: Mechanic)
 
 enum State { SWIM, SWIM_ASCEND, JUMP }
 
@@ -33,9 +33,9 @@ func register_character_body(_character_body: CharacterBody2D) -> void:
 func register_controller(body: CapsuleDummy) -> void:
     controller = Controller.new()
     controller.character = body
-    for mechanic_type: Mechanic.TYPE in controller.character.mechanics.keys():
-        var mechanic: Mechanic = controller.character.mechanics[mechanic_type]
-        var is_passive_mechanic: bool = mechanic_type == Mechanic.TYPE.LATERAL_MOVEMENT
+    for type: Mechanic.TYPE in controller.character.mechanics.keys():
+        var mechanic: Mechanic = controller.character.mechanics[type]
+        var is_passive_mechanic: bool = type == Mechanic.TYPE.LATERAL_MOVEMENT
         mechanic.set_process(is_passive_mechanic)
         mechanic.set_physics_process(is_passive_mechanic)
 
@@ -45,10 +45,10 @@ func register_controller(body: CapsuleDummy) -> void:
 
 func _process(delta: float) -> void:
     _handle_input()
-    _run_mechanic(controller.character.mechanics[Mechanic.TYPE.LATERAL_MOVEMENT], delta)
+    controller.character.mechanics[Mechanic.TYPE.LATERAL_MOVEMENT].emit_mechanic_data(delta)
     match controller.state:
         State.SWIM:
-            _run_mechanic(controller.character.mechanics[Mechanic.TYPE.SWIM], delta)
+            controller.character.mechanics[Mechanic.TYPE.SWIM].emit_mechanic_data(delta)
         State.SWIM_ASCEND:
             _swim_ascend(delta)
         State.JUMP:
@@ -68,21 +68,15 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _activate_mechanic(next_mechanic: Mechanic) -> void:
-    for mechanic_type: Mechanic.TYPE in controller.character.mechanics.keys():
-        var mechanic: Mechanic = controller.character.mechanics[mechanic_type]
-        if mechanic_type == Mechanic.TYPE.LATERAL_MOVEMENT:  #TODO: bad design
+    for type: Mechanic.TYPE in controller.character.mechanics.keys():
+        var mechanic: Mechanic = controller.character.mechanics[type]
+        if type == Mechanic.TYPE.LATERAL_MOVEMENT:  #TODO: bad design
             continue
         var on: bool = mechanic == next_mechanic
         mechanic.set_process(on)
         mechanic.set_physics_process(on)
 
-    active_mechanic_changed.emit(next_mechanic)
-
-
-func _run_mechanic(mechanic: Mechanic, delta: float) -> void:
-    mechanic.process_input(delta)
-    mechanic.process_collision_shape(delta)
-    mechanic.emit_mechanic_data(delta)
+    active_mechanic_changed.emit(controller.character, next_mechanic)
 
 
 func _switch_state(next_state: State) -> void:
@@ -102,7 +96,7 @@ func _on_jump_override() -> void:  #TODO: bad naming
 
 func _jump(delta: float) -> void:  #TODO: bad naming
     var jump: Jump = controller.character.mechanics[Mechanic.TYPE.JUMP] as Jump
-    _run_mechanic(jump, delta)
+    jump.emit_mechanic_data(delta)
     if jump._is_grounded():
         _switch_state(State.SWIM)
 
@@ -113,6 +107,6 @@ func _swim_ascend(delta: float) -> void:
         swim.target_depth_position = Swim.LEVEL_DEPTH
         swim._set_phase(Swim.DivePhase.ASCENDING)
 
-    _run_mechanic(swim, delta)
+    swim.emit_mechanic_data(delta)
     if swim.current_depth_position >= Swim.LEVEL_DEPTH:
         _switch_state(State.JUMP)

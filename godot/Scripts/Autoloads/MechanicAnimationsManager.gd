@@ -38,15 +38,16 @@ func process_jump_animation(
     sprite_node.position.y = roundi(-vertical_offset_pixels)
     #_update_sprite_scale_continious(sprite_node, altitude_normal)
     _update_sprite_scale_discrete(sprite_node, altitude_normal)
-    sprite_node.material.set_shader_parameter("iChannel0", sprite_node.texture)
-    sprite_node.material.set_shader_parameter("iResolution", sprite_node.texture.get_size())
-    sprite_node.material.set_shader_parameter("ascending", ascending)
+    var sprite_shader_material: ShaderMaterial = sprite_node.material
+    sprite_shader_material.set_shader_parameter("iChannel0", sprite_node.texture)
+    sprite_shader_material.set_shader_parameter("iResolution", sprite_node.texture.get_size())
+    sprite_shader_material.set_shader_parameter("ascending", ascending)
     var sprite_height: float = sprite_node.texture.get_size().y
     #TODO: quantize the altitude normal is super important to study for later as it controls exactly how many
     # unique warped sprite frames can exist in the animation
     #TODO: the biggest thing left is quantizing such that we can control a hand-drawn looking pixel perfect tilt animation
     altitude_normal = roundf(altitude_normal * sprite_height) / (sprite_height)  #* 2.0)
-    sprite_node.material.set_shader_parameter("altitude_normal", altitude_normal)
+    sprite_shader_material.set_shader_parameter("altitude_normal", altitude_normal)
     perspective_tilt_mask_fragment.set_sprite_data(
         sprite_node.texture,
         character_index,
@@ -119,9 +120,10 @@ func process_swim_animation(
     var sprite_node: Sprite2D = character_body.get_node("Sprite2D")
     var vertical_offset_pixels: float = SpacetimeManager.to_physical_space(current_depth_position)
     sprite_node.position.y = -vertical_offset_pixels
-    sprite_node.material.set_shader_parameter("iChannel0", sprite_node.texture)
-    sprite_node.material.set_shader_parameter("ascending", ascending)
-    sprite_node.material.set_shader_parameter("depth_normal", depth_normal)
+    var sprite_shader_material: ShaderMaterial = sprite_node.material
+    sprite_shader_material.set_shader_parameter("iChannel0", sprite_node.texture)
+    sprite_shader_material.set_shader_parameter("ascending", ascending)
+    sprite_shader_material.set_shader_parameter("depth_normal", depth_normal)
     _update_sprite_scale(sprite_node, depth_normal, frame_delta)
     perspective_tilt_mask_fragment.set_sprite_data(
         sprite_node.texture,
@@ -160,19 +162,19 @@ func _on_character_body_registered(_character_body: CharacterBody2D) -> void:
     var sprite_node: Sprite2D = _character_body.get_node("Sprite2D") as Sprite2D
     var sprite_texture: Texture2D = sprite_node.texture
     var index: int = perspective_tilt_mask_fragment.register_sprite_texture(sprite_texture)
-    for mechanic_type: Mechanic.TYPE in _character_body.mechanics.keys():
-        match mechanic_type:
+    for type: Mechanic.TYPE in _character_body.mechanics.keys():
+        match type:
             Mechanic.TYPE.JUMP:
-                _character_body.mechanics[mechanic_type].sprite_texture_index = index
+                _character_body.mechanics[type].sprite_texture_index = index
                 break
 
 
-func _on_active_mechanic_changed(mechanic: Mechanic) -> void:
-    var shader: Shader = MECHANICS_ANIMATIONS[mechanic.mechanic_type]
+func _on_active_mechanic_changed(character_body: CharacterBody2D, next_mechanic: Mechanic) -> void:
+    var shader: Shader = MECHANICS_ANIMATIONS[next_mechanic.type]
     if shader == null or shader == active_shader:
         return
 
-    var sprite: Sprite2D = mechanic.character_body.get_node("Sprite2D") as Sprite2D
+    var sprite: Sprite2D = character_body.get_node("Sprite2D") as Sprite2D
     if sprite:
         if sprite.material:
             sprite.material.shader = shader

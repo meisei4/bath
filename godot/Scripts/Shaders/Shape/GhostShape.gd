@@ -32,7 +32,7 @@ func _ready() -> void:
     BufferAShaderMaterial.set_shader_parameter("iChannel0", iChannel0)
     fft_texture = FFTTexture.new()
     #ioi_texture = IOITexture.new()
-    #pitch_dimension = PitchDimension.new()
+    pitch_dimension = PitchDimension.new()
     rhythm_dimension = RhythmDimension.new()
 
     MainImage = TextureRect.new()
@@ -43,7 +43,7 @@ func _ready() -> void:
     add_child(MainImage)
     add_child(fft_texture)
     #add_child(ioi_texture)
-    #add_child(pitch_dimension)
+    add_child(pitch_dimension)
     add_child(rhythm_dimension)
     BufferAShaderMaterial.set_shader_parameter("bpm", rhythm_dimension.bpm)
     var f_onsets: PackedVector2Array = rhythm_dimension.f_onsets_flat_buffer
@@ -60,8 +60,8 @@ func _process(delta: float) -> void:
     BufferAShaderMaterial.set_shader_parameter("iChannel1", iChannel1)
     #iChannel2 = ioi_texture.audio_texture
     #BufferAShaderMaterial.set_shader_parameter("iChannel2", iChannel2)
-    #var hsv_buffer: PackedVector3Array = pitch_dimension.hsv_buffer
-    var fft_hsv_dummy: Vector3 = Vector3(0, 0, 1)
-    var light_ball_hsv_dummy: Vector3 = Vector3(0, 0, 1)
-    var hsv_buffer: PackedVector3Array = PackedVector3Array([light_ball_hsv_dummy, fft_hsv_dummy])
+    var hsv_buffer: PackedVector3Array = pitch_dimension.hsv_buffer
+    #var fft_hsv_dummy: Vector3 = Vector3(0, 0, 1)
+    #var light_ball_hsv_dummy: Vector3 = Vector3(0, 0, 1)
+    #var hsv_buffer: PackedVector3Array = PackedVector3Array([light_ball_hsv_dummy, fft_hsv_dummy])
     BufferAShaderMaterial.set_shader_parameter("hsv_buffer", hsv_buffer)

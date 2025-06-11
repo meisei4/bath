@@ -10,7 +10,7 @@ var BufferA: SubViewport
 var MainImage: TextureRect
 var iResolution: Vector2
 
-#TODO: YOU ARE DOING OPTIMISM SHIT, STOP!
+#TODO: YOU ARE DOING OPTIMISM STOP!
 #you only have one sprite to test why would you try to account for more????!!!
 # also it wont work in opengl anywyas because too many samplers in the shader:
 

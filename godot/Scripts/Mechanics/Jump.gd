@@ -4,17 +4,17 @@ class_name Jump
 @export var PARAMETERS: JumpData
 
 enum JumpPhase { GROUNDED, ASCENDING, DESCENDING }  #TODO: i dont want to add an APEX_FLOAT phase but maybe...
-var current_phase: JumpPhase
-var vertical_speed: float
-var vertical_position: float
+var current_phase: JumpPhase = JumpPhase.GROUNDED
+var vertical_speed: float = 0.0
+var vertical_position: float = 0.0
+
+var forward_movement_pixel_units: float = 0.0
 
 
 func _ready() -> void:
+    type = Mechanic.TYPE.JUMP
     if PARAMETERS == null:
         PARAMETERS = JumpData.new()
-    vertical_position = 0.0
-    vertical_speed = 0.0
-    _set_phase(JumpPhase.GROUNDED)
 
 
 func process_input(frame_delta: float) -> void:
@@ -44,10 +44,7 @@ func _update_altitude(time_scaled_delta: float) -> void:
 
 func _apply_forward_movement(time_scaled_delta: float) -> void:
     var forward_movement_world_units: float = PARAMETERS.FORWARD_SPEED * time_scaled_delta
-    var forward_movement_pixel_units: float = SpacetimeManager.to_physical_space(
-        forward_movement_world_units
-    )
-    character_body.position.y = character_body.position.y - forward_movement_pixel_units
+    forward_movement_pixel_units = SpacetimeManager.to_physical_space(forward_movement_world_units)
 
 
 func emit_mechanic_data(_frame_delta: float) -> void:
@@ -79,14 +76,6 @@ func _compute_altitude_normal_in_jump_parabola(
     else:
         var altitude_normal: float = _vertical_position / max_altitude
         return clamp(altitude_normal, 0.0, 1.0)
-
-
-func process_collision_shape(_delta: float) -> void:
-    var collision_shape: CollisionShape2D = super.get_collision_shape()
-    if _is_grounded():
-        collision_shape.disabled = false  #TODO: lmao double negatives
-    else:
-        collision_shape.disabled = true
 
 
 func _on_jump() -> void:
@@ -122,6 +111,7 @@ func _should_land() -> bool:
 func _handle_landing() -> void:
     vertical_position = 0.0
     vertical_speed = 0.0
+    forward_movement_pixel_units = 0.0
     _set_phase(JumpPhase.GROUNDED)
 
 
