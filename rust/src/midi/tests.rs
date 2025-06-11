@@ -19,7 +19,7 @@ use crate::midi::util::{
     process_midi_events_with_timing,
 };
 
-const SOUND_FONT_FILE_PATH: &str = "../godot/Resources/audio/dsdnm.sf2";
+const SOUND_FONT_FILE_PATH: &str = "../godot/Resources/audio/dsdnmoy.sf2";
 const MIDI_FILE_PATH: &str = "../godot/Resources/audio/fingerbib.mid";
 
 pub fn run_playback() -> Result<(), Box<dyn Error>> {

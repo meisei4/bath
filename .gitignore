@@ -6,8 +6,7 @@ build/
 /rust/Cargo.lock
 /rust/target/
 
-
-/godot/Resources/audio/Cache/
+godot/Resources/audio/Cache/
 *.wav
 *.mid
 !godot/Resources/audio/fingerbib.mid

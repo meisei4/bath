@@ -138,22 +138,6 @@ func midi_note_to_name(note: int) -> String:
     return "%s%d" % [_name, octave]
 
 
-func print_color_note_dict(data: Dictionary) -> void:
-    print(
-        (
-            " %s (MIDI %d, %.2f Hz) → hue: %.3f rad, sat: %.2f, val: %.2f"
-            % [
-                data["name"],
-                data["note"],
-                data["freq"],
-                data["pitch_radians"],
-                data["saturation"],
-                data["value"]
-            ]
-        )
-    )
-
-
 func _debug_polyphony_buffer() -> void:
     clear_console()
     print("=== polyphony buffer (last %d changes) ===" % MAX_NOTE_HISTORY)
