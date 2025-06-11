@@ -1,89 +1,20 @@
-# Godot 4+ specific ignores
 .godot/
+*.import
 addons/
-python_bath/assets
-
-#build
 build/
 
-# Godot cache files
-.import/
-*.import
-
-# Godot temporary files
-*.tmp
-
-# Ignore game asset files for now
-*.mp3
-*.ogg
-*.wav
-!godot/Resources/audio/shadertoy_music_experiment.wav
-*.flac
-*.aac
-*.m4a
-*.mid
-*.mod
-*.it
-*.s3m
-*.xm
-*.sf2
-
-# Documentation folder
-/docs/
-
-# IDE specific ignores
-# VS Code
-.vscode/
-*.code-workspace
-
-# JetBrains IDEs (e.g., IntelliJ, Rider, PhpStorm, WebStorm)
-.idea/
-*.iml
-
-# macOS
-.DS_Store
-.AppleDouble
-.LSOverride
-
-# Windows
-Thumbs.db
-Desktop.ini
-
-# Linux
-.*.swp
-.*.swo
-
-# Backup files
-*.bak
-*.orig
-
-# Log files
-*.log
-
-# Python virtual environments (if used)
-venv/
-__pycache__/
-*.pyc
-
-# -------------------------------------------------------------------
-# Rust build artifacts (in your `rust/` subfolder)
-# -------------------------------------------------------------------
-
-# Ignore all Cargo build outputs (debug, release, incremental, docs, etc.)
+/rust/Cargo.lock
 /rust/target/
 
-# Optional: if you don't want to check in the lockfile, uncomment:
-/rust/Cargo.lock
 
-# Miscellaneous Rust‐generated files
-**/*.rlib
-**/*.rmeta
-**/CACHEDIR.TAG
+/godot/Resources/audio/Cache/
+*.wav
+*.mid
+!godot/Resources/audio/fingerbib.mid
+*.ogg
+!godot/Resources/audio/shadertoy_music_experiment_min_bitrate.ogg
+*.sf2
+!godot/Resources/audio/dsdnmoy.sf2
 
-# -------------------------------------------------------------------
-# Existing project-specific exceptions
-# -------------------------------------------------------------------
-
-python_bath/audio/output/track_metadata.json
-python_bath/audio/output/trim_metadata.json
-
+.idea/
+.DS_Store

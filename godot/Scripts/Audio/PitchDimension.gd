@@ -14,7 +14,7 @@ const MAX_NOTE_HISTORY: int = 6
 var _last_active_notes: Array[int] = []
 var _note_log_history: Array[String] = []
 
-var wav_stream: AudioStreamWAV  # = preload(ResourcePaths.CACHED_WAV)
+var wav_stream: AudioStreamWAV
 
 
 func _ready() -> void:
@@ -51,15 +51,13 @@ func setup_wav() -> void:
             . render_midi_to_sound_bytes_constant_time(
                 int(MusicDimensionsManager.SAMPLE_RATE),
                 ResourcePaths.FINGERBIB,
-                ResourcePaths.DSDNM_SF2
+                ResourcePaths.DSDNMOY_SF2
             )
         )
         var file_access: FileAccess = FileAccess.open(ResourcePaths.CACHED_WAV, FileAccess.WRITE)
         file_access.store_buffer(sound_bytes)
         file_access.close()
         wav_stream = AudioStreamWAV.load_from_buffer(sound_bytes)
-
-    AudioPoolManager.play_music(wav_stream)
 
 
 func _process(delta: float) -> void:

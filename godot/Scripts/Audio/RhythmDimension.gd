@@ -10,7 +10,7 @@ var f_onset_count: int = 0
 var j_onset_count: int = 0
 
 var time_of_next_click: float = 0.0
-var wav_stream: AudioStreamWAV = preload(ResourcePaths.SHADERTOY_MUSIC_EXPERIMENT_WAV)
+var ogg_stream: AudioStreamOggVorbis = preload(ResourcePaths.SHADERTOY_MUSIC_EXPERIMENT_OGG)
 #var wav_stream: AudioStreamWAV = preload(ResourcePaths.SNUFFY)
 
 
@@ -21,7 +21,8 @@ func _ready() -> void:
         rhythm_data = RhythmData.new()
 
     if rhythm_data.bpm <= 0.0:
-        bpm = RustUtilSingleton.rust_util.detect_bpm(ResourcePaths.SHADERTOY_MUSIC_EXPERIMENT_WAV)
+        #bpm = RustUtilSingleton.rust_util.detect_bpm(ResourcePaths.SHADERTOY_MUSIC_EXPERIMENT_WAV)
+        #bpm = RustUtilSingleton.rust_util.detect_bpm(ResourcePaths.SHADERTOY_MUSIC_EXPERIMENT_OGG)
         #bpm = RustUtilSingleton.rust_util.detect_bpm(ResourcePaths.SNUFFY)
         print("Offline BPM detection → ", bpm)
         rhythm_data.bpm = bpm
@@ -31,7 +32,7 @@ func _ready() -> void:
         print("Using cached BPM → ", bpm)
 
     load_custom_onsets()
-    AudioPoolManager.play_music(wav_stream)
+    AudioPoolManager.play_music(ogg_stream)
 
 
 func load_custom_onsets() -> void:
@@ -49,6 +50,10 @@ func load_custom_onsets() -> void:
         var j_release: float = shizumi[i + 1]
         j_onsets_flat_buffer.append(Vector2(j_press, j_release))
     j_onset_count = j_onsets_flat_buffer.size()
+
+
+func _process(delta: float) -> void:
+    debug_custom_onsets_ASCII(delta)
 
 
 func debug_custom_onsets_metronome_sfx(delta: float) -> void:

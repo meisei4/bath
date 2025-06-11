@@ -60,8 +60,6 @@ func _process(delta: float) -> void:
     BufferAShaderMaterial.set_shader_parameter("iChannel1", iChannel1)
     #iChannel2 = ioi_texture.audio_texture
     #BufferAShaderMaterial.set_shader_parameter("iChannel2", iChannel2)
-    #rhythm_dimension.debug_custom_onsets_metronome_sfx(delta)
-    rhythm_dimension.debug_custom_onsets_ASCII(delta)
     #var hsv_buffer: PackedVector3Array = pitch_dimension.hsv_buffer
     var fft_hsv_dummy: Vector3 = Vector3(0, 0, 1)
     var light_ball_hsv_dummy: Vector3 = Vector3(0, 0, 1)
