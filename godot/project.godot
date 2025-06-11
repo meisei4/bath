@@ -23,15 +23,16 @@ driver/enable_input=true
 SceneManager="*res://Scripts/Autoloads/SceneManager.gd"
 ResourcePaths="*res://Scripts/Autoloads/ResourcePaths.gd"
 ResolutionManager="*res://Scripts/Autoloads/ResolutionManager.gd"
+RustUtilSingleton="*res://Scripts/Autoloads/RustUtilSingleton.gd"
 AudioEffectManager="*res://Scripts/Autoloads/AudioEffectManager.gd"
 AudioPoolManager="*res://Scripts/Autoloads/AudioPoolManager.gd"
 AudioBus="*res://Scripts/Audio/AudioBus.gd"
+SpacetimeManager="*res://Scripts/Autoloads/SpacetimeManager.gd"
+CollisionMaskTargetsManager="*res://Scripts/Autoloads/CollisionMaskTargetsManager.gd"
 MusicDimensionsManager="*res://Scripts/Autoloads/MusicDimensionsManager.gd"
 MechanicManager="*res://Scripts/Autoloads/MechanicManager.gd"
 FragmentShaderSignalManager="*res://Scripts/Autoloads/FragmentShaderSignalManager.gd"
-SpacetimeManager="*res://Scripts/Autoloads/SpacetimeManager.gd"
 InterpolationUtil="*res://Scripts/Mechanics/InterpolationUtil.gd"
-RustUtilSingleton="*res://Scripts/Autoloads/RustUtilSingleton.gd"
 
 [debug]
 

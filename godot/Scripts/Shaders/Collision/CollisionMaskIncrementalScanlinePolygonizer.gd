@@ -1,5 +1,5 @@
 extends Node2D
-class_name RustyCollisionMask
+class_name CollisionMaskIncrementalScanlinePolygonizer
 
 const MAX_POLYGONS: int = 24
 
@@ -17,15 +17,24 @@ var previous_quantized_vertical_pixel_coord: int = 0
 
 func _ready() -> void:
     iResolution = ResolutionManager.resolution
-    _init_isp_texture()
     _init_concave_collision_polygon_pool()
     _init_polygon_state_arrays()
-    RenderingServer.frame_post_draw.connect(_on_frame_post_draw)
+    CollisionMaskTargetsManager.ice_sheets_entered_scene.connect(_on_ice_sheets_entered)
+    if CollisionMaskTargetsManager.ice_sheets:
+        _on_ice_sheets_entered(CollisionMaskTargetsManager.ice_sheets)
 
 
-func _init_isp_texture() -> void:
+func _on_ice_sheets_entered(ice_sheets: IceSheets) -> void:
+    if isp_texture:
+        return
+
     isp_texture = ISPTexture.new()
+    isp_texture.TargetFrameBuffer = ice_sheets.BufferA
     add_child(isp_texture)
+    #TODO: in order to allow for the ISPTexture to have its own every frame update cycle
+    # so that we dont need to call
+    # isp_texture.update_scanline_alpha_bucket_bit_masks() everytime here, figure out event order with this thing
+    RenderingServer.frame_post_draw.connect(_on_frame_post_draw)
 
 
 func _init_polygon_state_arrays() -> void:
@@ -47,11 +56,8 @@ func _init_concave_collision_polygon_pool() -> void:
 
 
 func _on_frame_post_draw() -> void:
-    var iTime: float = FragmentShaderSignalManager.ice_sheets.iTime
-    var scanline_image: Image = (
-        FragmentShaderSignalManager.ice_sheets.Scanline.get_texture().get_image()
-    )
-    isp_texture.update_scanline_alpha_bucket_bit_masks_from_image(scanline_image)
+    var iTime: float = CollisionMaskTargetsManager.iTime
+    isp_texture.update_scanline_alpha_bucket_bit_masks()
     var scanline_alpha_buckets_top_row: PackedVector2Array
     scanline_alpha_buckets_top_row = isp_texture.fill_scanline_alpha_buckets_top_row()
     var result: Dictionary = (

@@ -55,14 +55,14 @@ func _ready() -> void:
 func set_sprite_data(
     sprite_texture: Texture2D,
     sprite_index: int,
-    center_px: Vector2,
+    sprite_position: Vector2,
     sprite_scale: Vector2,
     altitude_normal: float,
     ascending: bool
 ) -> void:
     if sprite_index < 0 or sprite_index >= MAXIMUM_SPRITE_COUNT:
         return
-    sprite_position_data[sprite_index] = Vector2(center_px.x, center_px.y)
+    sprite_position_data[sprite_index] = Vector2(sprite_position.x, sprite_position.y)
     altitude_normal_data[sprite_index] = altitude_normal
     ascending_data[sprite_index] = 1 if ascending else 0
     _sprite_textures[sprite_index] = sprite_texture

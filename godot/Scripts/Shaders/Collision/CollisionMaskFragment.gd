@@ -4,6 +4,8 @@ class_name CollisionMaskFragment
 
 var iResolution: Vector2
 
+var target_buffer: SubViewport
+
 const MAX_COLLISION_SHAPES: int = 8
 var collision_mask_concave_polygons_pool: Array[CollisionShape2D] = []
 var collision_mask_bodies: Array[StaticBody2D] = []
@@ -16,15 +18,23 @@ const TILE_SIZE_PIXELS: int = 4
 func _ready() -> void:
     iResolution = ResolutionManager.resolution
     _init_concave_collision_polygon_pool()
+    CollisionMaskTargetsManager.ice_sheets_entered_scene.connect(_on_ice_sheets_entered)
+    if CollisionMaskTargetsManager.ice_sheets:
+        _on_ice_sheets_entered(CollisionMaskTargetsManager.ice_sheets)
+
+
+func _on_ice_sheets_entered(ice_sheets: IceSheets) -> void:
+    if target_buffer:
+        return
+    target_buffer = CollisionMaskTargetsManager.ice_sheets.BufferA
     RenderingServer.frame_post_draw.connect(_on_frame_post_draw)
 
 
 func _on_frame_post_draw() -> void:
-    #TODO: figure out how to prevent this call every frame: probably not possible
-    var img: Image = FragmentShaderSignalManager.ice_sheets.BufferA.get_texture().get_image()
-    img.flip_y()
-    img.convert(Image.FORMAT_RGBA8)  # Fast conversion to RGBA8?? seems dangerous
-    var raw_rgba: PackedByteArray = img.get_data()
+    var buffer_image: Image = target_buffer.get_texture().get_image()
+    buffer_image.flip_y()
+    buffer_image.convert(Image.FORMAT_RGBA8)  # Fast conversion to RGBA8?? seems dangerous
+    var raw_rgba: PackedByteArray = buffer_image.get_data()
     var w: int = int(iResolution.x)
     var h: int = int(iResolution.y)
     var mask_data: PackedByteArray

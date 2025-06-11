@@ -3,10 +3,9 @@ class_name TestHarness
 
 
 func _ready() -> void:
+    add_collision_mask_isp_scene()
     add_ice_sheets_scene()
-    #add_collision_mask_fragment_scene()
-    #add_collision_mask_isp_scene()
-    add_collision_mask_rusty_scene()
+    add_collision_mask_fragment_scene()
     add_perspective_tilt_mask_fragment_scene()
     add_shadows_test_scene()
     add_jump_mechanic_test_scene()
@@ -21,21 +20,11 @@ func add_collision_mask_fragment_scene() -> void:
 
 
 func add_collision_mask_isp_scene() -> void:
-    var collision_mask_isp_scene: PackedScene = preload(
-        ResourcePaths.COLLISION_MASK_SCANLINE_POLYGONIZER
-    )
-    var collision_mask_isp: CollisionMaskScanlinePolygonizer = (
-        collision_mask_isp_scene.instantiate() as CollisionMaskScanlinePolygonizer
+    var collision_mask_isp_scene: PackedScene = preload(ResourcePaths.RUSTY_COLLISION_MASK)
+    var collision_mask_isp: CollisionMaskIncrementalScanlinePolygonizer = (
+        collision_mask_isp_scene.instantiate() as CollisionMaskIncrementalScanlinePolygonizer
     )
     add_child(collision_mask_isp)
-
-
-func add_collision_mask_rusty_scene() -> void:
-    var collision_mask_rusty_scene: PackedScene = preload(ResourcePaths.RUSTY_COLLISION_MASK)
-    var collision_mask_rusty: RustyCollisionMask = (
-        collision_mask_rusty_scene.instantiate() as RustyCollisionMask
-    )
-    add_child(collision_mask_rusty)
 
 
 func add_ice_sheets_scene() -> void:

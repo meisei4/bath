@@ -30,7 +30,7 @@ const IOI_VISUALIZER: String = "res://Scenes/Shaders/Audio/IOIVisualizer.tscn"
 
 const COLLISION_MASK_FRAGMENT: String = "res://Scenes/Shaders/Collision/CollisionMaskFragment.tscn"
 const COLLISION_MASK_SCANLINE_POLYGONIZER: String = "res://Scenes/Shaders/Collision/CollisionMaskScanlinePolygonizer.tscn"
-const RUSTY_COLLISION_MASK: String = "res://Scenes/Shaders/Collision/RustyCollisionMask.tscn"
+const RUSTY_COLLISION_MASK: String = "res://Scenes/Shaders/Collision/CollisionMaskIncrementalScanlinePolygonizer.tscn"
 
 const ICE_SHEETS_SCENE: String = "res://Scenes/Shaders/IceSheets/IceSheets.tscn"
 const PERSPECTIVE_TILT_MASK_FRAGMENT: String = "res://Scenes/Shaders/MechanicsAnimations/PerspectiveTiltMaskFragment.tscn"

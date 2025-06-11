@@ -1,7 +1,0 @@
-[gd_scene load_steps=2 format=3 uid="uid://c51gra26e7iwq"]
-
-[ext_resource type="Script" uid="uid://wrfd3vtuokdj" path="res://Scripts/Shaders/Collision/RustyCollisionMask.gd" id="1_rwihs"]
-
-[node name="RustyCollisionMask" type="Node2D"]
-script = ExtResource("1_rwihs")
-metadata/_custom_type_script = "uid://wrfd3vtuokdj"

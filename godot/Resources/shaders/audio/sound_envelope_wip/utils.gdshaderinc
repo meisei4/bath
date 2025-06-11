@@ -49,5 +49,3 @@ float distance_to_line(vec2 pixel_coordinate, vec2 line_start, vec2 line_end) {
     vec2 closest_point = line_start + clamped_projection_factor * line_vector;
     return distance(pixel_coordinate, closest_point);
 }
-
-
