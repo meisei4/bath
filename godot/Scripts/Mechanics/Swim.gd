@@ -54,10 +54,10 @@ func process_visual_illusion(_frame_delta: float) -> void:
     sprite_node.position.y = -vertical_offset_pixels
     sprite_node.material.set_shader_parameter("iChannel0", sprite_node.texture)
     sprite_node.material.set_shader_parameter("ascending", is_ascending())
-    var depth_normal: float = InterpolationUtil.depth_normal(current_depth_position, MAX_DIVE_DEPTH)
+    var depth_normal: float = clampf(-current_depth_position / abs(MAX_DIVE_DEPTH), 0.0, 1.0)
     sprite_node.material.set_shader_parameter("depth_normal", depth_normal)
     _update_sprite_scale(sprite_node, depth_normal, _frame_delta)
-    FragmentShaderSignalManager.visual_illusion_updated.emit(
+    MechanicsManager.visual_illusion_updated.emit(
         sprite_texture_index,
         sprite_node.global_position,
         (sprite_node.texture.get_size() * 0.5) * sprite_node.scale,

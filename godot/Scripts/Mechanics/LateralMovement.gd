@@ -11,8 +11,8 @@ var stretch_timer: float = 0.0
 
 
 func _ready() -> void:
-    MechanicManager.left_lateral_movement.connect(_on_move_left_triggered)
-    MechanicManager.right_lateral_movement.connect(_on_move_right_triggered)
+    MechanicsManager.left_lateral_movement.connect(_on_move_left_triggered)
+    MechanicsManager.right_lateral_movement.connect(_on_move_right_triggered)
 
 
 func _on_move_left_triggered() -> void:

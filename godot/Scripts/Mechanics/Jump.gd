@@ -71,7 +71,7 @@ func process_visual_illusion(_frame_delta: float) -> void:
     #TODO: the biggest thing left is quantizing such that we can control a hand-drawn looking pixel perfect tilt animation
     altitude_normal = roundf(altitude_normal * sprite_height) / (sprite_height)  #* 2.0)
     sprite_node.material.set_shader_parameter("altitude_normal", altitude_normal)
-    FragmentShaderSignalManager.visual_illusion_updated.emit(
+    MechanicsManager.visual_illusion_updated.emit(
         sprite_texture_index,
         sprite_node.global_position,
         sprite_node.scale,
