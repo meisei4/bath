@@ -49,7 +49,7 @@ func _ready() -> void:
     MainImage = TextureRect.new()
     MainImage.texture = BufferA.get_texture()
     add_child(MainImage)
-    MechanicsManager.register_perspective_tilt_mask_fragment(self)
+    MechanicAnimationsManager.register_perspective_tilt_mask_fragment(self)
 
 
 func set_sprite_data(

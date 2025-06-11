@@ -32,7 +32,7 @@ func process_input(delta: float) -> void:
     movement_input = 0
 
 
-func process_visual_illusion(_delta: float) -> void:
+func emit_mechanic_data(_frame_delta: float) -> void:
     pass
 
 

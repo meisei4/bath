@@ -17,7 +17,6 @@ var _debug_clock: float = 0.0
 
 
 func _ready() -> void:
-    mechanic_shader = preload(ResourcePaths.SWIM_SHADER)
     current_depth_position = LEVEL_DEPTH
     _set_phase(DivePhase.LEVEL)
 
@@ -48,29 +47,11 @@ func _update_depth(delta: float) -> void:
     _set_phase(DivePhase.ASCENDING if target_depth_position == LEVEL_DEPTH else DivePhase.DIVING)
 
 
-func process_visual_illusion(_frame_delta: float) -> void:
-    var sprite_node: Sprite2D = get_sprite()
-    var vertical_offset_pixels: float = SpacetimeManager.to_physical_space(current_depth_position)
-    sprite_node.position.y = -vertical_offset_pixels
-    sprite_node.material.set_shader_parameter("iChannel0", sprite_node.texture)
-    sprite_node.material.set_shader_parameter("ascending", is_ascending())
+func emit_mechanic_data(_frame_delta: float) -> void:
     var depth_normal: float = clampf(-current_depth_position / abs(MAX_DIVE_DEPTH), 0.0, 1.0)
-    sprite_node.material.set_shader_parameter("depth_normal", depth_normal)
-    _update_sprite_scale(sprite_node, depth_normal, _frame_delta)
-    MechanicsManager.visual_illusion_updated.emit(
-        sprite_texture_index,
-        sprite_node.global_position,
-        (sprite_node.texture.get_size() * 0.5) * sprite_node.scale,
-        depth_normal,
-        1.0 if is_ascending() else 0.0
+    MechanicAnimationsManager.swim.emit(
+        sprite_texture_index, current_depth_position, depth_normal, is_ascending(), _frame_delta
     )
-
-
-func _update_sprite_scale(sprite: Sprite2D, depth_normal: float, _frame_delta: float) -> void:
-    var scale_min: float = 0.5
-    var scale_max: float = 1.0
-    var smooth_depth: float = smoothstep(0.0, 1.0, depth_normal)
-    sprite.scale = Vector2.ONE * lerp(scale_max, scale_min, smooth_depth)
 
 
 func is_diving() -> bool:

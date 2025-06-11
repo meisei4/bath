@@ -12,12 +12,14 @@ func _ready() -> void:
     mechanics.set(Mechanic.TYPE.LATERAL_MOVEMENT, lateral_movement)
 
     var jump: Jump = Jump.new()
+    jump.mechanic_type = Mechanic.TYPE.JUMP
     jump.character_body = self
     add_child(jump)
     mechanics.set(Mechanic.TYPE.JUMP, jump)
 
     var swim: Swim = Swim.new()
     swim.character_body = self
+    swim.mechanic_type = Mechanic.TYPE.SWIM
     add_child(swim)
     mechanics.set(Mechanic.TYPE.SWIM, swim)
 

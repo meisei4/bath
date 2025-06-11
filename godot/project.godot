@@ -30,6 +30,7 @@ AudioBus="*res://Scripts/Audio/AudioBus.gd"
 SpacetimeManager="*res://Scripts/Autoloads/SpacetimeManager.gd"
 CollisionMaskTargetsManager="*res://Scripts/Autoloads/CollisionMaskTargetsManager.gd"
 MechanicsManager="*res://Scripts/Autoloads/MechanicsManager.gd"
+MechanicAnimationsManager="*res://Scripts/Autoloads/MechanicAnimationsManager.gd"
 MusicDimensionsManager="*res://Scripts/Autoloads/MusicDimensionsManager.gd"
 
 [debug]
