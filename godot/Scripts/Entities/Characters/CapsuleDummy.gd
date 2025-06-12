@@ -1,45 +1,34 @@
 extends CharacterBody2D
 class_name CapsuleDummy
 
-var mechanics: Array[Mechanic]
-
 var collision_shape: CollisionShape2D
+
+@export var mechanic_scenes: Array[PackedScene] = [
+    preload(ResourcePaths.LATERAL_MOVEMENT_MECHANIC),
+    preload(ResourcePaths.JUMP_MECHANIC),
+    preload(ResourcePaths.SWIM_MECHANIC),
+]
+
+var mechanic_controller: MechanicController
 
 
 func _ready() -> void:
-    var lateral_movement: LateralMovement = LateralMovement.new()
-    add_child(lateral_movement)
-
-    var jump: Jump = Jump.new()
-    add_child(jump)
-
-    var swim: Swim = Swim.new()
-    add_child(swim)
-
-    if !collision_shape:
-        for child: Node in self.get_children():
-            if child is CollisionShape2D:
-                collision_shape = child
-                break
-    if !mechanics:
-        for child: Node in self.get_children():
-            if child is Mechanic:
-                mechanics.append(child)
-
-    MechanicManager.register_character_body(self)
+    mechanic_controller = MechanicController.new()
+    mechanic_controller.mechanic_scenes = mechanic_scenes
+    add_child(mechanic_controller)
+    add_child(AnimationController.new())
+    for child_node: Node in get_children():
+        if child_node is CollisionShape2D:
+            collision_shape = child_node
+            break
 
 
 func _physics_process(delta: float) -> void:
-    for mechanic: Mechanic in mechanics:
+    mechanic_controller.handle_input()
+    for mechanic: Mechanic in mechanic_controller.mechanics:
         mechanic.update_position_delta_pixels(delta)
         mechanic.update_collision(collision_shape)
         self.position += mechanic.delta_pixels
         mechanic.emit_mechanic_data(delta)
 
     move_and_slide()
-
-#TODO: are you serious, learn wtf physics process actually does, it can cause sprite draws vs compute shaderdraws single frame lag...
-#func _process(delta: float) -> void:
-#for mechanic: Mechanic in mechanics:
-#mechanic.process_input(delta)
-#mechanic.process_visual_illusion(delta)

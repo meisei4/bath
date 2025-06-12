@@ -12,7 +12,8 @@ var vertical_position: float = 0.0
 
 
 func _ready() -> void:
-    MechanicManager.state_changed.connect(_on_state_changed)
+    super._ready()
+    #MechanicManager.state_changed.connect(_on_state_changed)
     type = Mechanic.TYPE.JUMP
     if PARAMETERS == null:
         PARAMETERS = JumpData.new()

@@ -23,7 +23,7 @@ var controller: Controller
 
 func _ready() -> void:
     set_process(false)
-    jump_override.connect(_on_jump_override)
+    #jump_override.connect(_on_jump_override)
 
 
 func register_character_body(_character_body: CharacterBody2D) -> void:
@@ -48,20 +48,19 @@ func register_controller(body: CapsuleDummy) -> void:
     set_process(true)
 
 
-func _process(delta: float) -> void:
-    _handle_input()
+#func _process(delta: float) -> void:
+#_handle_input()
+#
+#
+#func _handle_input() -> void:
+#if Input.is_action_pressed("left"):
+#left_lateral_movement.emit()
+#if Input.is_action_pressed("right"):
+#right_lateral_movement.emit()
 
-
-func _handle_input() -> void:
-    if Input.is_action_pressed("left"):
-        left_lateral_movement.emit()
-    if Input.is_action_pressed("right"):
-        right_lateral_movement.emit()
-
-
-func _unhandled_input(event: InputEvent) -> void:
-    if event is InputEventKey and event.pressed and event.keycode == Key.KEY_SPACE:
-        jump_override.emit()
+#func _unhandled_input(event: InputEvent) -> void:
+#if event is InputEventKey and event.pressed and event.keycode == Key.KEY_SPACE:
+#jump_override.emit()
 
 
 func _on_state_completed(done_state: STATE) -> void:

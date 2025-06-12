@@ -13,8 +13,8 @@ var perspective_tilt_mask_fragment: PerspectiveTiltMaskFragment
 
 
 func _ready() -> void:
-    MechanicManager.character_body_registered.connect(_on_character_body_registered)
-    MechanicManager.state_changed.connect(_on_state_changed)
+    #MechanicManager.character_body_registered.connect(_on_character_body_registered)
+    #MechanicManager.state_changed.connect(_on_state_changed)
     set_process(false)
 
 

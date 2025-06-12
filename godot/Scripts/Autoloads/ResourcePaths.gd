@@ -23,6 +23,10 @@ const CAPSULE_DUMMY_GEN: String = "res://Scenes/Entities/Characters/CapsuleDummy
 const CAPSULE_DUMMY_SCRIPT: String = "res://Scripts/Entities/Characters/CapsuleDummy.gd"
 const CAPSULE_DUMMY: String = "res://Scenes/Entities/Characters/CapsuleDummy.tscn"
 
+const LATERAL_MOVEMENT_MECHANIC: String = "res://Scenes/Mechanics/LateralMovement.tscn"
+const JUMP_MECHANIC: String = "res://Scenes/Mechanics/Jump.tscn"
+const SWIM_MECHANIC: String = "res://Scenes/Mechanics/Swim.tscn"
+
 const WAVEFORM_VISUALIZER: String = "res://Scenes/Shaders/Audio/WaveformVisualizer.tscn"
 const FFT_VISUALIZER: String = "res://Scenes/Shaders/Audio/FFTVisualizer.tscn"
 const SOUND_ENVELOPE_SCENE: String = "res://Scenes/Shaders/Audio/SoundEnvelope.tscn"

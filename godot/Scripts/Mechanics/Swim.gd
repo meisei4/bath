@@ -23,7 +23,8 @@ var in_queued_ascend: bool = false
 
 
 func _ready() -> void:
-    MechanicManager.state_changed.connect(_on_state_changed)
+    super._ready()
+    #MechanicManager.state_changed.connect(_on_state_changed)
     type = Mechanic.TYPE.SWIM
 
 
