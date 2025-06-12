@@ -19,12 +19,27 @@ var debug_autoswim: bool = false
 const _DEBUG_PERIOD: float = 1.0
 var _debug_clock: float = 0.0
 
+var in_queued_ascend: bool = false
+
 
 func _ready() -> void:
+    MechanicManager.state_changed.connect(_on_state_changed)
     type = Mechanic.TYPE.SWIM
 
 
+func _on_state_changed(state: MechanicManager.STATE) -> void:
+    var active: bool = handles_state(state)
+    set_process(active)
+    set_physics_process(active)
+    in_queued_ascend = (state == MechanicManager.STATE.SWIM_ASCEND)
+    if state == MechanicManager.STATE.SWIM_ASCEND:
+        target_depth_position = LEVEL_DEPTH
+        _set_phase(DivePhase.ASCENDING)
+
+
 func _process(delta: float) -> void:
+    if in_queued_ascend:
+        return
     if !debug_autoswim:
         return
     _debug_clock += delta
@@ -43,10 +58,16 @@ func update_position_delta_pixels(delta: float) -> void:
 func _update_depth(delta: float) -> void:
     var step: float = DEPTH_SPEED * delta
     current_depth_position = move_toward(current_depth_position, target_depth_position, step)
+
     const THRESHOLD: float = 0.001
     if abs(current_depth_position - LEVEL_DEPTH) < THRESHOLD:
+        if in_queued_ascend:
+            in_queued_ascend = false
+            state_completed.emit(MechanicManager.STATE.SWIM_ASCEND)
+
         _set_phase(DivePhase.LEVEL)
         return
+
     _set_phase(DivePhase.ASCENDING if target_depth_position == LEVEL_DEPTH else DivePhase.DIVING)
 
 
@@ -73,4 +94,4 @@ func _set_phase(new_phase: DivePhase) -> void:
 
 
 func handles_state(state: MechanicManager.STATE) -> bool:
-    return state == MechanicManager.State.SWIM or state == MechanicManager.State.SWIM_ASCEND
+    return state == MechanicManager.STATE.SWIM or state == MechanicManager.STATE.SWIM_ASCEND

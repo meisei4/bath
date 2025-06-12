@@ -34,6 +34,7 @@ func _physics_process(delta: float) -> void:
         mechanic.update_position_delta_pixels(delta)
         mechanic.update_collision(collision_shape)
         self.position += mechanic.delta_pixels
+        mechanic.emit_mechanic_data(delta)
 
     move_and_slide()
 

@@ -14,7 +14,7 @@ var perspective_tilt_mask_fragment: PerspectiveTiltMaskFragment
 
 func _ready() -> void:
     MechanicManager.character_body_registered.connect(_on_character_body_registered)
-    MechanicManager.active_mechanic_changed.connect(_on_active_mechanic_changed)
+    MechanicManager.state_changed.connect(_on_state_changed)
     set_process(false)
 
 
@@ -79,7 +79,7 @@ func _on_character_body_registered(_character_body: CharacterBody2D) -> void:
                 break
 
 
-func _on_active_mechanic_changed(character_body: CharacterBody2D, next_mechanic: Mechanic) -> void:
+func update_animation(character_body: CharacterBody2D, next_mechanic: Mechanic) -> void:
     var shader: Shader = ANIMATIONS[next_mechanic.type]
     var sprite: Sprite2D = character_body.get_node("Sprite2D") as Sprite2D
     if sprite:
@@ -87,3 +87,11 @@ func _on_active_mechanic_changed(character_body: CharacterBody2D, next_mechanic:
             sprite.material.shader = shader
         else:
             sprite.material = ShaderMaterial.new()
+
+
+func _on_state_changed(state: MechanicManager.STATE) -> void:
+    var character_body: CharacterBody2D = MechanicManager.controller.character
+    for mechanic: Mechanic in character_body.mechanics:
+        if mechanic.handles_state(state):
+            update_animation(character_body, mechanic)
+            break

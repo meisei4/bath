@@ -12,9 +12,19 @@ var vertical_position: float = 0.0
 
 
 func _ready() -> void:
+    MechanicManager.state_changed.connect(_on_state_changed)
     type = Mechanic.TYPE.JUMP
     if PARAMETERS == null:
         PARAMETERS = JumpData.new()
+
+
+func _on_state_changed(state: MechanicManager.STATE) -> void:
+    var active: bool = handles_state(state)  # same test as base class
+    set_process(active)
+    set_physics_process(active)
+
+    if active and state == MechanicManager.STATE.JUMP:
+        _jump()
 
 
 func update_position_delta_pixels(frame_delta: float) -> void:
@@ -78,7 +88,7 @@ func _compute_altitude_normal_in_jump_parabola(
         return clamp(altitude_normal, 0.0, 1.0)
 
 
-func _on_jump() -> void:
+func _jump() -> void:
     if !is_airborne():
         vertical_speed = PARAMETERS.INITIAL_JUMP_VELOCITY
         _set_phase(JumpPhase.ASCENDING)
@@ -113,6 +123,7 @@ func _handle_landing() -> void:
     vertical_speed = 0.0
     delta_pixels = Vector2(0.0, 0.0)
     _set_phase(JumpPhase.GROUNDED)
+    state_completed.emit(MechanicManager.STATE.JUMP)
 
 
 func _set_phase(new_phase: JumpPhase) -> void:
