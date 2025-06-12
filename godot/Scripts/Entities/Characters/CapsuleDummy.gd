@@ -23,6 +23,7 @@ func _ready() -> void:
             break
 
 
+#TODO: this is insane because none of the mechanics run on their own, idk what to do
 func _physics_process(delta: float) -> void:
     mechanic_controller.handle_input()
     for mechanic: Mechanic in mechanic_controller.mechanics:

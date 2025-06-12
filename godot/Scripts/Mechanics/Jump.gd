@@ -12,19 +12,14 @@ var vertical_position: float = 0.0
 
 
 func _ready() -> void:
-    super._ready()
-    #MechanicManager.state_changed.connect(_on_state_changed)
+    super._ready()  #TODO: ugh
     type = Mechanic.TYPE.JUMP
     if PARAMETERS == null:
         PARAMETERS = JumpData.new()
 
 
-func _on_state_changed(state: MechanicManager.STATE) -> void:
-    var active: bool = handles_state(state)  # same test as base class
-    set_process(active)
-    set_physics_process(active)
-
-    if active and state == MechanicManager.STATE.JUMP:
+func _on_state_changed(state: MechanicController.STATE) -> void:
+    if handles_state(state):
         _jump()
 
 
@@ -58,14 +53,6 @@ func _apply_forward_movement(time_scaled_delta: float) -> void:
     delta_pixels = Vector2(
         0.0, -1.0 * SpacetimeManager.to_physical_space(forward_movement_world_units)
     )
-
-
-func emit_mechanic_data(_frame_delta: float) -> void:
-    var max_altitude: float = _max_altitude()
-    var altitude_normal: float = _compute_altitude_normal_in_jump_parabola(
-        vertical_position, max_altitude
-    )
-    animate_jump.emit(vertical_position, altitude_normal, is_ascending())
 
 
 func _max_altitude() -> float:
@@ -124,7 +111,7 @@ func _handle_landing() -> void:
     vertical_speed = 0.0
     delta_pixels = Vector2(0.0, 0.0)
     _set_phase(JumpPhase.GROUNDED)
-    state_completed.emit(MechanicManager.STATE.JUMP)
+    state_completed.emit(MechanicController.STATE.JUMP)
 
 
 func _set_phase(new_phase: JumpPhase) -> void:
@@ -140,6 +127,14 @@ func _get_effective_gravity() -> float:
     )
 
 
+func emit_mechanic_data(_frame_delta: float) -> void:
+    var max_altitude: float = _max_altitude()
+    var altitude_normal: float = _compute_altitude_normal_in_jump_parabola(
+        vertical_position, max_altitude
+    )
+    animate_jump.emit(vertical_position, altitude_normal, is_ascending())
+
+
 func update_collision(collision_shape: CollisionShape2D) -> void:
     if _is_grounded():
         collision_shape.disabled = false  #TODO: lmao double negatives
@@ -147,5 +142,5 @@ func update_collision(collision_shape: CollisionShape2D) -> void:
         collision_shape.disabled = true
 
 
-func handles_state(state: MechanicManager.STATE) -> bool:
-    return state == MechanicManager.STATE.JUMP
+func handles_state(state: MechanicController.STATE) -> bool:
+    return state == MechanicController.STATE.JUMP

@@ -5,7 +5,7 @@ signal animate_swim(
     current_depth_position: float, depth_normal: float, ascending: bool, frame_delta: float
 )
 
-enum DivePhase { LEVEL, ASCENDING, DIVING }  #TODO: i dont want to add an APEX_FLOAT phase but maybe...
+enum DivePhase { LEVEL, ASCENDING, DIVING }
 var current_phase: DivePhase = DivePhase.LEVEL
 
 const LEVEL_DEPTH: float = 0.0
@@ -15,7 +15,7 @@ const DEPTH_SPEED: float = 8.0
 var current_depth_position: float = LEVEL_DEPTH
 var target_depth_position: float = LEVEL_DEPTH
 
-var debug_autoswim: bool = false
+var debug_autoswim: bool = true
 const _DEBUG_PERIOD: float = 1.0
 var _debug_clock: float = 0.0
 
@@ -24,21 +24,17 @@ var in_queued_ascend: bool = false
 
 func _ready() -> void:
     super._ready()
-    #MechanicManager.state_changed.connect(_on_state_changed)
     type = Mechanic.TYPE.SWIM
 
 
-func _on_state_changed(state: MechanicManager.STATE) -> void:
-    var active: bool = handles_state(state)
-    set_process(active)
-    set_physics_process(active)
-    in_queued_ascend = (state == MechanicManager.STATE.SWIM_ASCEND)
-    if state == MechanicManager.STATE.SWIM_ASCEND:
+func _on_state_changed(state: MechanicController.STATE) -> void:
+    in_queued_ascend = (state == MechanicController.STATE.SWIM_ASCEND)
+    if in_queued_ascend:
         target_depth_position = LEVEL_DEPTH
         _set_phase(DivePhase.ASCENDING)
 
 
-func _process(delta: float) -> void:
+func update_position_delta_pixels(delta: float) -> void:
     if in_queued_ascend:
         return
     if !debug_autoswim:
@@ -50,8 +46,6 @@ func _process(delta: float) -> void:
             MAX_DIVE_DEPTH if target_depth_position == LEVEL_DEPTH else LEVEL_DEPTH
         )
 
-
-func update_position_delta_pixels(delta: float) -> void:
     var time_scaled_delta: float = SpacetimeManager.apply_time_scale(delta)
     _update_depth(time_scaled_delta)
 
@@ -64,7 +58,7 @@ func _update_depth(delta: float) -> void:
     if abs(current_depth_position - LEVEL_DEPTH) < THRESHOLD:
         if in_queued_ascend:
             in_queued_ascend = false
-            state_completed.emit(MechanicManager.STATE.SWIM_ASCEND)
+            state_completed.emit(MechanicController.STATE.SWIM_ASCEND)
 
         _set_phase(DivePhase.LEVEL)
         return
@@ -94,5 +88,5 @@ func _set_phase(new_phase: DivePhase) -> void:
         current_phase = new_phase
 
 
-func handles_state(state: MechanicManager.STATE) -> bool:
-    return state == MechanicManager.STATE.SWIM or state == MechanicManager.STATE.SWIM_ASCEND
+func handles_state(state: MechanicController.STATE) -> bool:
+    return state == MechanicController.STATE.SWIM or state == MechanicController.STATE.SWIM_ASCEND

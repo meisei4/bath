@@ -9,7 +9,6 @@ var ANIMATIONS: Dictionary[Mechanic.TYPE, Shader] = {
 var controller_host: CharacterBody2D
 var mechanic_controller: MechanicController
 var sprite_node: Sprite2D
-var _current_mechanic_type: Mechanic.TYPE
 
 
 func _ready() -> void:
@@ -40,18 +39,18 @@ func _connect_mechanic_animation_signals(mechanics: Array[Mechanic]) -> void:
                 jump_mechanic.animate_jump.connect(
                     jump_animation.process_animation.bind(controller_host)
                 )
+                break  #TODO: this is insane
             Mechanic.TYPE.SWIM:
                 var swim_animation: SwimAnimation = SwimAnimation.new()
                 var swim_mechanic: Swim = mechanic as Swim
                 swim_mechanic.animate_swim.connect(
                     swim_animation.process_animation.bind(controller_host)
                 )
+                break  #TODO: this is insane
 
 
 func update_animation(next_mechanic: Mechanic) -> void:
     var shader: Shader = ANIMATIONS[next_mechanic.type]
-    if !shader:
-        return
     if sprite_node:
         if sprite_node.material:
             sprite_node.material.shader = shader
@@ -59,7 +58,7 @@ func update_animation(next_mechanic: Mechanic) -> void:
             sprite_node.material = ShaderMaterial.new()
 
 
-func _on_state_changed(state: MechanicManager.STATE) -> void:
+func _on_state_changed(state: MechanicController.STATE) -> void:
     for mechanic: Mechanic in mechanic_controller.mechanics:
         if mechanic.handles_state(state):
             update_animation(mechanic)

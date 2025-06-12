@@ -1,8 +1,6 @@
 extends Node
 class_name SwimAnimation
 
-var animation_shader = preload(ResourcePaths.SWIM_SHADER)
-
 
 func process_animation(
     current_depth_position: float,

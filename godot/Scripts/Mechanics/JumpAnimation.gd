@@ -1,8 +1,6 @@
 extends Node
 class_name JumpAnimation
 
-var animation_shader = preload(ResourcePaths.JUMP_TRIG_SHADER)
-
 
 func process_animation(
     vertical_position: float,
@@ -25,6 +23,7 @@ func process_animation(
     #TODO: the biggest thing left is quantizing such that we can control a hand-drawn looking pixel perfect tilt animation
     altitude_normal = roundf(altitude_normal * sprite_height) / (sprite_height)  #* 2.0)
     sprite_shader_material.set_shader_parameter("altitude_normal", altitude_normal)
+
     AnimationManager.update_perspective_tilt_mask(
         sprite_node.texture,
         character_body,
