@@ -1,14 +1,14 @@
 extends Mechanic
 class_name Jump
 
+signal animate_jump(vertical_position: float, altitude_normal: float, ascending: bool)
+
 @export var PARAMETERS: JumpData
 
-enum JumpPhase { GROUNDED, ASCENDING, DESCENDING }  #TODO: i dont want to add an APEX_FLOAT phase but maybe...
+enum JumpPhase { GROUNDED, ASCENDING, DESCENDING }
 var current_phase: JumpPhase = JumpPhase.GROUNDED
 var vertical_speed: float = 0.0
 var vertical_position: float = 0.0
-
-var forward_movement_pixel_units: float = 0.0
 
 
 func _ready() -> void:
@@ -17,7 +17,7 @@ func _ready() -> void:
         PARAMETERS = JumpData.new()
 
 
-func process_input(frame_delta: float) -> void:
+func update_position_delta_pixels(frame_delta: float) -> void:
     var time_scaled_delta: float = SpacetimeManager.apply_time_scale(frame_delta)
     _apply_gravity_and_drag(time_scaled_delta)
     _update_altitude(time_scaled_delta)
@@ -44,7 +44,9 @@ func _update_altitude(time_scaled_delta: float) -> void:
 
 func _apply_forward_movement(time_scaled_delta: float) -> void:
     var forward_movement_world_units: float = PARAMETERS.FORWARD_SPEED * time_scaled_delta
-    forward_movement_pixel_units = SpacetimeManager.to_physical_space(forward_movement_world_units)
+    delta_pixels = Vector2(
+        0.0, -1.0 * SpacetimeManager.to_physical_space(forward_movement_world_units)
+    )
 
 
 func emit_mechanic_data(_frame_delta: float) -> void:
@@ -52,9 +54,7 @@ func emit_mechanic_data(_frame_delta: float) -> void:
     var altitude_normal: float = _compute_altitude_normal_in_jump_parabola(
         vertical_position, max_altitude
     )
-    MechanicAnimationsManager.jump.emit(
-        sprite_texture_index, vertical_position, altitude_normal, is_ascending()
-    )
+    animate_jump.emit(vertical_position, altitude_normal, is_ascending())
 
 
 func _max_altitude() -> float:
@@ -111,7 +111,7 @@ func _should_land() -> bool:
 func _handle_landing() -> void:
     vertical_position = 0.0
     vertical_speed = 0.0
-    forward_movement_pixel_units = 0.0
+    delta_pixels = Vector2(0.0, 0.0)
     _set_phase(JumpPhase.GROUNDED)
 
 
@@ -126,3 +126,14 @@ func _get_effective_gravity() -> float:
         if PARAMETERS.OVERRIDE_GRAVITY > 0.0
         else SpacetimeManager.GRAVITY
     )
+
+
+func update_collision(collision_shape: CollisionShape2D) -> void:
+    if _is_grounded():
+        collision_shape.disabled = false  #TODO: lmao double negatives
+    else:
+        collision_shape.disabled = true
+
+
+func handles_state(state: MechanicManager.STATE) -> bool:
+    return state == MechanicManager.STATE.JUMP

@@ -16,4 +16,4 @@ func _ready() -> void:
     var sprite_node: Sprite2D = capsule_dummy.get_node("Sprite2D") as Sprite2D
     var sprite_size: Vector2 = sprite_node.texture.get_size()
     capsule_dummy.position = Vector2(viewport_size.x * 0.5, viewport_size.y - sprite_size.y * 0.5)
-    MechanicsManager.register_controller(capsule_dummy)
+    MechanicManager.register_controller(capsule_dummy)

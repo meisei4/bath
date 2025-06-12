@@ -1,6 +1,10 @@
 extends Mechanic
 class_name Swim
 
+signal animate_swim(
+    current_depth_position: float, depth_normal: float, ascending: bool, frame_delta: float
+)
+
 enum DivePhase { LEVEL, ASCENDING, DIVING }  #TODO: i dont want to add an APEX_FLOAT phase but maybe...
 var current_phase: DivePhase = DivePhase.LEVEL
 
@@ -31,7 +35,7 @@ func _process(delta: float) -> void:
         )
 
 
-func process_input(delta: float) -> void:
+func update_position_delta_pixels(delta: float) -> void:
     var time_scaled_delta: float = SpacetimeManager.apply_time_scale(delta)
     _update_depth(time_scaled_delta)
 
@@ -48,9 +52,7 @@ func _update_depth(delta: float) -> void:
 
 func emit_mechanic_data(_frame_delta: float) -> void:
     var depth_normal: float = clampf(-current_depth_position / absf(MAX_DIVE_DEPTH), 0.0, 1.0)
-    MechanicAnimationsManager.swim.emit(
-        sprite_texture_index, current_depth_position, depth_normal, is_ascending(), _frame_delta
-    )
+    animate_swim.emit(current_depth_position, depth_normal, is_ascending(), _frame_delta)
 
 
 func is_diving() -> bool:
@@ -68,3 +70,7 @@ func is_level() -> bool:
 func _set_phase(new_phase: DivePhase) -> void:
     if current_phase != new_phase:
         current_phase = new_phase
+
+
+func handles_state(state: MechanicManager.STATE) -> bool:
+    return state == MechanicManager.State.SWIM or state == MechanicManager.State.SWIM_ASCEND

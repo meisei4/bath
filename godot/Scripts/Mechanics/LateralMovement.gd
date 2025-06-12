@@ -9,13 +9,11 @@ var movement_input: int = 0
 var current_velocity: float = 0.0
 var stretch_timer: float = 0.0
 
-var delta_pixels: float = 0.0
-
 
 func _ready() -> void:
     type = Mechanic.TYPE.LATERAL_MOVEMENT
-    MechanicsManager.left_lateral_movement.connect(_on_move_left_triggered)
-    MechanicsManager.right_lateral_movement.connect(_on_move_right_triggered)
+    MechanicManager.left_lateral_movement.connect(_on_move_left_triggered)
+    MechanicManager.right_lateral_movement.connect(_on_move_right_triggered)
 
 
 func _on_move_left_triggered() -> void:
@@ -26,7 +24,7 @@ func _on_move_right_triggered() -> void:
     movement_input = 1
 
 
-func process_input(delta: float) -> void:
+func update_position_delta_pixels(delta: float) -> void:
     var time: float = SpacetimeManager.apply_time_scale(delta)
     current_velocity = SpacetimeManager.apply_universal_drag(current_velocity, time)
     _apply_movement_input(time)
@@ -60,4 +58,4 @@ func _apply_cosmic_friction(time: float) -> void:
 
 func _move_character(time: float) -> void:
     var delta_world_units: float = current_velocity * time
-    delta_pixels = SpacetimeManager.to_physical_space(delta_world_units)
+    delta_pixels = Vector2(SpacetimeManager.to_physical_space(delta_world_units), 0.0)

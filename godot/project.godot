@@ -29,8 +29,8 @@ AudioPoolManager="*res://Scripts/Autoloads/AudioPoolManager.gd"
 AudioBus="*res://Scripts/Audio/AudioBus.gd"
 SpacetimeManager="*res://Scripts/Autoloads/SpacetimeManager.gd"
 CollisionMaskTargetsManager="*res://Scripts/Autoloads/CollisionMaskTargetsManager.gd"
-MechanicsManager="*res://Scripts/Autoloads/MechanicsManager.gd"
-MechanicAnimationsManager="*res://Scripts/Autoloads/MechanicAnimationsManager.gd"
+MechanicManager="*res://Scripts/Autoloads/MechanicManager.gd"
+AnimationManager="*res://Scripts/Autoloads/AnimationManager.gd"
 MusicDimensionsManager="*res://Scripts/Autoloads/MusicDimensionsManager.gd"
 
 [debug]
