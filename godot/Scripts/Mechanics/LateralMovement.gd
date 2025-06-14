@@ -10,7 +10,7 @@ var stretch_timer: float = 0.0
 
 
 func _ready() -> void:
-    super._ready()
+    mechanic_controller = get_parent()
     type = Mechanic.TYPE.LATERAL_MOVEMENT
     mechanic_controller.left_lateral_movement.connect(_on_move_left_triggered)
     mechanic_controller.right_lateral_movement.connect(_on_move_right_triggered)

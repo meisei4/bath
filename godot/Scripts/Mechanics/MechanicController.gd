@@ -43,6 +43,21 @@ func _on_jump_override() -> void:
         _switch_state(MechanicController.STATE.SWIM_ASCEND)
 
 
+func _switch_state(next_state: MechanicController.STATE) -> void:
+    if current_state == next_state:
+        return
+    current_state = next_state
+    state_changed.emit(next_state)
+
+
+func _init_mechanics() -> void:
+    for mechanic_scene: PackedScene in mechanic_scenes:
+        var mechanic: Node = mechanic_scene.instantiate()
+        add_child(mechanic)
+        mechanics.append(mechanic)
+        mechanic.state_completed.connect(_on_state_completed)
+
+
 func _on_state_completed(completed_state: MechanicController.STATE) -> void:
     if completed_state != current_state:
         return
@@ -52,17 +67,3 @@ func _on_state_completed(completed_state: MechanicController.STATE) -> void:
         _switch_state(next)
     elif current_state == MechanicController.STATE.JUMP:
         _switch_state(MechanicController.STATE.SWIM)
-
-
-func _switch_state(next_state: MechanicController.STATE) -> void:
-    if current_state == next_state:
-        return
-    current_state = next_state
-    state_changed.emit(next_state)
-
-func _init_mechanics() -> void:
-    for mechanic_scene: PackedScene in mechanic_scenes:
-        var mechanic: Mechanic = mechanic_scene.instantiate()
-        add_child(mechanic)
-        mechanics.append(mechanic)
-        mechanic.state_completed.connect(_on_state_completed)

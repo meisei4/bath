@@ -14,7 +14,9 @@ var animation: JumpAnimation
 
 
 func _ready() -> void:
-    super._ready()  #TODO: ugh
+    mechanic_controller = get_parent()
+    if mechanic_controller is MechanicController:
+        mechanic_controller.state_changed.connect(_on_state_changed)
     type = Mechanic.TYPE.JUMP
     if !PARAMETERS:
         PARAMETERS = JumpData.new()

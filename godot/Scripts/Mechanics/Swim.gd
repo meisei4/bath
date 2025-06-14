@@ -25,7 +25,9 @@ var animation: SwimAnimation
 
 
 func _ready() -> void:
-    super._ready()
+    mechanic_controller = get_parent()
+    if mechanic_controller is MechanicController:
+        mechanic_controller.state_changed.connect(_on_state_changed)
     type = Mechanic.TYPE.SWIM
     animation = SwimAnimation.new()
     set_physics_process(false)
@@ -99,6 +101,13 @@ func _is_level() -> bool:
 func _set_phase(new_phase: DivePhase) -> void:
     if current_phase != new_phase:
         current_phase = new_phase
+
+
+func update_collision() -> void:
+    if _is_level():
+        mechanic_controller.controller_host.collision_shape.disabled = false  #TODO: lmao double negatives
+    else:
+        mechanic_controller.controller_host.collision_shape.disabled = true
 
 
 func handles_state(state: MechanicController.STATE) -> bool:
