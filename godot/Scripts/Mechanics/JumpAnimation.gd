@@ -1,6 +1,8 @@
 extends Node
 class_name JumpAnimation
 
+var shader: Shader = preload(ResourcePaths.JUMP_TRIG_SHADER)
+
 
 func process_animation(
     vertical_position: float,
@@ -9,11 +11,15 @@ func process_animation(
     character_body: CharacterBody2D,
 ) -> void:
     var sprite_node: Sprite2D = character_body.get_node("Sprite2D")
+    if sprite_node.material == null:
+        sprite_node.material = ShaderMaterial.new()
+    if sprite_node.material.shader != shader:
+        sprite_node.material.shader = shader
+    var sprite_shader_material: ShaderMaterial = sprite_node.material
     var vertical_offset_pixels: float = SpacetimeManager.to_physical_space(vertical_position)
     sprite_node.position.y = roundi(-vertical_offset_pixels)
     #_update_sprite_scale_continious(sprite_node, altitude_normal)
     _update_sprite_scale_discrete(sprite_node, altitude_normal)
-    var sprite_shader_material: ShaderMaterial = sprite_node.material
     sprite_shader_material.set_shader_parameter("iChannel0", sprite_node.texture)
     sprite_shader_material.set_shader_parameter("iResolution", sprite_node.texture.get_size())
     sprite_shader_material.set_shader_parameter("ascending", ascending)

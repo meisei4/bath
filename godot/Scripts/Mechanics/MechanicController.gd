@@ -24,7 +24,11 @@ func _ready() -> void:
     state_changed.emit(current_state)
 
 
-func handle_input() -> void:
+func _physics_process(_delta: float) -> void:
+    _handle_input()
+
+
+func _handle_input() -> void:
     if Input.is_action_pressed("left"):
         left_lateral_movement.emit()
     if Input.is_action_pressed("right"):
@@ -55,12 +59,6 @@ func _switch_state(next_state: MechanicController.STATE) -> void:
         return
     current_state = next_state
     state_changed.emit(next_state)
-
-    if queued_state != MechanicController.STATE.NOTHING and queued_state != current_state:
-        var pending_state: MechanicController.STATE = queued_state
-        queued_state = MechanicController.STATE.NOTHING
-        _switch_state(pending_state)
-
 
 func _init_mechanics() -> void:
     for mechanic_scene: PackedScene in mechanic_scenes:
