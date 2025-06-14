@@ -1,5 +1,9 @@
-extends Mechanic
-class_name LateralMovement
+extends Node
+class_name Strafe
+
+signal state_completed(completed_state: MechanicController.STATE)
+
+var mechanic_controller: MechanicController
 
 const MAX_SPEED: float = 60.0
 const ACCELERATION: float = 4000.0
@@ -10,8 +14,10 @@ var stretch_timer: float = 0.0
 
 
 func _ready() -> void:
-    mechanic_controller = get_parent()
-    type = Mechanic.TYPE.LATERAL_MOVEMENT
+    if !mechanic_controller:
+        print("no mechanic controller, bad")
+        return
+
     mechanic_controller.left_lateral_movement.connect(_on_move_left_triggered)
     mechanic_controller.right_lateral_movement.connect(_on_move_right_triggered)
     set_physics_process(true)  # passive mechanic

@@ -1,9 +1,15 @@
-extends Mechanic
+extends Node
 class_name Jump
 
-signal animate_jump(vertical_position: float, altitude_normal: float, ascending: bool)
+signal animate_jump(
+    vertical_position: float, altitude_normal: float, ascending: bool, sprite: Sprite2D
+)
 
-@export var PARAMETERS: JumpData
+signal state_completed(completed_state: MechanicController.STATE)
+
+var mechanic_controller: MechanicController
+
+var jump_data: JumpData
 
 enum JumpPhase { GROUNDED, ASCENDING, DESCENDING }
 var current_phase: JumpPhase = JumpPhase.GROUNDED
@@ -14,27 +20,27 @@ var animation: JumpAnimation
 
 
 func _ready() -> void:
-    mechanic_controller = get_parent()
-    if mechanic_controller is MechanicController:
-        mechanic_controller.state_changed.connect(_on_state_changed)
-    type = Mechanic.TYPE.JUMP
-    if !PARAMETERS:
-        PARAMETERS = JumpData.new()
-    animation = JumpAnimation.new()
+    if !mechanic_controller:
+        print("no mechanic controller, bad")
+        return
 
+    mechanic_controller.state_changed.connect(_on_state_changed)
+    animation = JumpAnimation.new()
+    if !jump_data:
+        jump_data = JumpData.new()
     set_physics_process(false)
 
 
 func _on_state_changed(state: MechanicController.STATE) -> void:
     if handles_state(state):
         set_physics_process(true)
-        animate_jump.connect(animation.process_animation.bind(mechanic_controller.controller_host))
+        animate_jump.connect(animation.process_animation)
         _jump()
 
 
 func _jump() -> void:
     if !_is_airborne():
-        vertical_velocity = PARAMETERS.INITIAL_JUMP_VELOCITY
+        vertical_velocity = jump_data.INITIAL_JUMP_VELOCITY
         _set_phase(JumpPhase.ASCENDING)
 
 
@@ -44,13 +50,13 @@ func _physics_process(delta: float) -> void:
     _update_altitude(time_scaled_delta)
     if _should_land():
         _handle_landing()
-    if _is_airborne() and PARAMETERS.FORWARD_SPEED != 0.0:
+    if _is_airborne() and jump_data.FORWARD_SPEED != 0.0:
         var scale: float = time_scaled_delta / delta
         mechanic_controller.controller_host.velocity.y = -SpacetimeManager.to_physical_space(
-            PARAMETERS.FORWARD_SPEED * scale
+            jump_data.FORWARD_SPEED * scale
         )
-    update_collision()
-    emit_mechanic_data(delta)
+    _update_collision()
+    _emit_animation_data(delta)
 
 
 func _apply_gravity_and_drag(time_scaled_delta: float) -> void:
@@ -70,10 +76,20 @@ func _update_altitude(time_scaled_delta: float) -> void:
         _set_phase(JumpPhase.DESCENDING)
 
 
+func _handle_landing() -> void:
+    set_physics_process(false)
+    vertical_position = 0.0
+    vertical_velocity = 0.0
+    mechanic_controller.controller_host.velocity.y = 0.0
+    _set_phase(JumpPhase.GROUNDED)
+    animate_jump.disconnect(animation.process_animation)
+    state_completed.emit(MechanicController.STATE.JUMP)
+
+
 func _max_altitude() -> float:
     if _get_effective_gravity() > 0.0:
         var squared_initial_velocity: float = (
-            PARAMETERS.INITIAL_JUMP_VELOCITY * PARAMETERS.INITIAL_JUMP_VELOCITY
+            jump_data.INITIAL_JUMP_VELOCITY * jump_data.INITIAL_JUMP_VELOCITY
         )
         var denominator: float = 2.0 * _get_effective_gravity()
         return squared_initial_velocity / denominator
@@ -89,6 +105,17 @@ func _compute_altitude_normal_in_jump_parabola(
     else:
         var altitude_normal: float = _vertical_position / max_altitude
         return clamp(altitude_normal, 0.0, 1.0)
+
+
+func _set_phase(new_phase: JumpPhase) -> void:
+    if current_phase != new_phase:
+        current_phase = new_phase
+
+
+func _get_effective_gravity() -> float:
+    return (
+        jump_data.OVERRIDE_GRAVITY if jump_data.OVERRIDE_GRAVITY > 0.0 else SpacetimeManager.GRAVITY
+    )
 
 
 func _is_grounded() -> bool:
@@ -111,42 +138,32 @@ func _should_land() -> bool:
     return _is_descending() and vertical_position <= 0.0
 
 
-func _handle_landing() -> void:
-    set_physics_process(false)
-    vertical_position = 0.0
-    vertical_velocity = 0.0
-    mechanic_controller.controller_host.velocity.y = 0.0
-    _set_phase(JumpPhase.GROUNDED)
-    animate_jump.disconnect(animation.process_animation)
-    state_completed.emit(MechanicController.STATE.JUMP)
-
-
-func _set_phase(new_phase: JumpPhase) -> void:
-    if current_phase != new_phase:
-        current_phase = new_phase
-
-
-func _get_effective_gravity() -> float:
-    return (
-        PARAMETERS.OVERRIDE_GRAVITY
-        if PARAMETERS.OVERRIDE_GRAVITY > 0.0
-        else SpacetimeManager.GRAVITY
-    )
-
-
-func emit_mechanic_data(_frame_delta: float) -> void:
-    var max_altitude: float = _max_altitude()
-    var altitude_normal: float = _compute_altitude_normal_in_jump_parabola(
-        vertical_position, max_altitude
-    )
-    animate_jump.emit(vertical_position, altitude_normal, _is_ascending())
-
-
-func update_collision() -> void:
+func _update_collision() -> void:
     if _is_grounded():
         mechanic_controller.controller_host.collision_shape.disabled = false  #TODO: lmao double negatives
     else:
         mechanic_controller.controller_host.collision_shape.disabled = true
+
+
+func _emit_animation_data(_frame_delta: float) -> void:
+    var max_altitude: float = _max_altitude()
+    var altitude_normal: float = _compute_altitude_normal_in_jump_parabola(
+        vertical_position, max_altitude
+    )
+    animate_jump.emit(
+        vertical_position,
+        altitude_normal,
+        _is_ascending(),
+        mechanic_controller.controller_host.sprite
+    )
+    AnimationManager.update_perspective_tilt_mask(
+        mechanic_controller.controller_host.sprite.texture,
+        mechanic_controller.controller_host,
+        mechanic_controller.controller_host.sprite.global_position,
+        mechanic_controller.controller_host.sprite.scale,
+        altitude_normal,
+        _is_ascending()
+    )
 
 
 func handles_state(state: MechanicController.STATE) -> bool:

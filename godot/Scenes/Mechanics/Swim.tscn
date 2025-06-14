@@ -1,7 +1,0 @@
-[gd_scene load_steps=2 format=3 uid="uid://cnwhg70ds3hxw"]
-
-[ext_resource type="Script" uid="uid://bd4d02py7c1y5" path="res://Scripts/Mechanics/Swim.gd" id="1_eck6f"]
-
-[node name="Swim" type="Node"]
-script = ExtResource("1_eck6f")
-metadata/_custom_type_script = "uid://bd4d02py7c1y5"

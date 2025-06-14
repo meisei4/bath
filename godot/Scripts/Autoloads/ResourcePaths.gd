@@ -23,9 +23,9 @@ const CAPSULE_DUMMY_GEN: String = "res://Scenes/Entities/Characters/CapsuleDummy
 const CAPSULE_DUMMY_SCRIPT: String = "res://Scripts/Entities/Characters/CapsuleDummy.gd"
 const CAPSULE_DUMMY: String = "res://Scenes/Entities/Characters/CapsuleDummy.tscn"
 
-const LATERAL_MOVEMENT_MECHANIC: String = "res://Scenes/Mechanics/LateralMovement.tscn"
+const STRAFE_MECHANIC: String = "res://Scenes/Mechanics/Strafe.tscn"
 const JUMP_MECHANIC: String = "res://Scenes/Mechanics/Jump.tscn"
-const SWIM_MECHANIC: String = "res://Scenes/Mechanics/Swim.tscn"
+const DIVE_MECHANIC: String = "res://Scenes/Mechanics/Dive.tscn"
 
 const WAVEFORM_VISUALIZER: String = "res://Scenes/Shaders/Audio/WaveformVisualizer.tscn"
 const FFT_VISUALIZER: String = "res://Scenes/Shaders/Audio/FFTVisualizer.tscn"
@@ -100,10 +100,10 @@ const NOISE_INCLUDE: String = "res://Resources/shaders/ice_sheets/noise.gdshader
 const PROJECTIONS_INCLUDE: String = "res://Resources/shaders/ice_sheets/projections.gdshaderinc"
 const COLOR_INCLUDE: String = "res://Resources/shaders/ice_sheets/color.gdshaderinc"
 
-const SWIM_SHADER: String = "res://Resources/shaders/mechanics_animations/swim.gdshader"
-const JUMP_TRIG_SHADER: String = "res://Resources/shaders/mechanics_animations/jump_trig.gdshader"
-const PERSPECTIVE_TILT_MASK_SHADER: String = "res://Resources/shaders/mechanics_animations/perspective_tilt_mask.gdshader"
-const ALL_SPRITE_MASK_SHADER: String = "res://Resources/shaders/mechanics_animations/all_sprite_mask.gdshader"
+const DIVE_SHADER: String = "res://Resources/shaders/mechanics/dive.gdshader"
+const JUMP_TRIG_SHADER: String = "res://Resources/shaders/mechanics/jump_trig.gdshader"
+const PERSPECTIVE_TILT_MASK_SHADER: String = "res://Resources/shaders/mechanics/perspective_tilt_mask.gdshader"
+const ALL_SPRITE_MASK_SHADER: String = "res://Resources/shaders/mechanics/all_sprite_mask.gdshader"
 
 const SNOW_PARTICLE_SHADER: String = "res://Resources/shaders/particles/snow_particle_shader.gdshader"
 const UMBRAL_SHADER: String = "res://Resources/shaders/shadows/umbral_zone.gdshader"

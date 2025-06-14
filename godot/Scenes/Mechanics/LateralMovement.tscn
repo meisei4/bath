@@ -1,7 +1,0 @@
-[gd_scene load_steps=2 format=3 uid="uid://4qo6i3xydgwe"]
-
-[ext_resource type="Script" uid="uid://dsps8nekbea1s" path="res://Scripts/Mechanics/LateralMovement.gd" id="1_7d8oc"]
-
-[node name="LateralMovement" type="Node"]
-script = ExtResource("1_7d8oc")
-metadata/_custom_type_script = "uid://dsps8nekbea1s"

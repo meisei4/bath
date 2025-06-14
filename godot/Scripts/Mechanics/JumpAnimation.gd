@@ -8,36 +8,26 @@ func process_animation(
     vertical_position: float,
     altitude_normal: float,
     ascending: bool,
-    character_body: CharacterBody2D,
+    sprite: Sprite2D,
 ) -> void:
-    var sprite_node: Sprite2D = character_body.get_node("Sprite2D")
-    if sprite_node.material == null:
-        sprite_node.material = ShaderMaterial.new()
-    if sprite_node.material.shader != shader:
-        sprite_node.material.shader = shader
-    var sprite_shader_material: ShaderMaterial = sprite_node.material
+    if sprite.material == null:
+        sprite.material = ShaderMaterial.new()
+    if sprite.material.shader != shader:
+        sprite.material.shader = shader
+    var sprite_shader_material: ShaderMaterial = sprite.material
     var vertical_offset_pixels: float = SpacetimeManager.to_physical_space(vertical_position)
-    sprite_node.position.y = roundi(-vertical_offset_pixels)
-    #_update_sprite_scale_continious(sprite_node, altitude_normal)
-    _update_sprite_scale_discrete(sprite_node, altitude_normal)
-    sprite_shader_material.set_shader_parameter("iChannel0", sprite_node.texture)
-    sprite_shader_material.set_shader_parameter("iResolution", sprite_node.texture.get_size())
+    sprite.position.y = roundi(-vertical_offset_pixels)
+    #_update_sprite_scale_continious(sprite, altitude_normal)
+    _update_sprite_scale_discrete(sprite, altitude_normal)
+    sprite_shader_material.set_shader_parameter("iChannel0", sprite.texture)
+    sprite_shader_material.set_shader_parameter("iResolution", sprite.texture.get_size())
     sprite_shader_material.set_shader_parameter("ascending", ascending)
-    var sprite_height: float = sprite_node.texture.get_size().y
+    var sprite_height: float = sprite.texture.get_size().y
     #TODO: quantize the altitude normal is super important to study for later as it controls exactly how many
     # unique warped sprite frames can exist in the animation
     #TODO: the biggest thing left is quantizing such that we can control a hand-drawn looking pixel perfect tilt animation
     altitude_normal = roundf(altitude_normal * sprite_height) / (sprite_height)  #* 2.0)
     sprite_shader_material.set_shader_parameter("altitude_normal", altitude_normal)
-
-    AnimationManager.update_perspective_tilt_mask(
-        sprite_node.texture,
-        character_body,
-        sprite_node.global_position,
-        sprite_node.scale,
-        altitude_normal,
-        ascending
-    )
 
 
 var SPRITE_SCALE_AT_MIN_ALTITUDE: float = 1.0
@@ -56,9 +46,9 @@ func _eased_phase(_altitude_normal: float) -> float:
     return pow(_altitude_normal, EASE_EXP)
 
 
-func _update_sprite_scale_discrete(sprite_node: Sprite2D, _altitude_normal: float) -> void:
-    var base_width_i: int = int(sprite_node.texture.get_size().x)
-    var base_height_i: int = int(sprite_node.texture.get_size().y)
+func _update_sprite_scale_discrete(sprite: Sprite2D, _altitude_normal: float) -> void:
+    var base_width_i: int = int(sprite.texture.get_size().x)
+    var base_height_i: int = int(sprite.texture.get_size().y)
     var scale_minimum_f: float = SPRITE_SCALE_AT_MIN_ALTITUDE
     var scale_maximum_f: float = SPRITE_SCALE_AT_MAX_ALTITUDE
     var eased_altitude_normal: float = _eased_phase(_altitude_normal)
@@ -85,4 +75,4 @@ func _update_sprite_scale_discrete(sprite_node: Sprite2D, _altitude_normal: floa
     var steps_i: int = greatest_common_divisor_uniform
     var quantized_steps_i: int = roundi(interpolated_scale_f * steps_i)
     var scale_multiplier_f: float = quantized_steps_i / float(steps_i)
-    sprite_node.scale = Vector2.ONE * scale_multiplier_f
+    sprite.scale = Vector2.ONE * scale_multiplier_f

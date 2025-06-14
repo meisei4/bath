@@ -1,5 +1,5 @@
 shader_type canvas_item;
-#include "res://Resources/shaders/mechanics_animations/perspective_tilt.gdshaderinc"
+#include "res://Resources/shaders/mechanics/perspective_tilt.gdshaderinc"
 
 const int MAXIMUM_SPRITE_COUNT = 16;
 

@@ -4,31 +4,37 @@ class_name MechanicController
 signal left_lateral_movement
 signal right_lateral_movement
 signal jump_override
+
+enum STATE { DIVE, DIVE_ASCEND, JUMP, IDLE }
 signal state_changed(new_state: MechanicController.STATE)
+var current_state: MechanicController.STATE = MechanicController.STATE.DIVE
+var queued_state: MechanicController.STATE = MechanicController.STATE.IDLE
 
-enum STATE { SWIM, SWIM_ASCEND, JUMP, NOTHING }
-
-var mechanic_scenes: Array[PackedScene]
-
-var current_state: MechanicController.STATE = MechanicController.STATE.SWIM
-var queued_state: MechanicController.STATE = MechanicController.STATE.NOTHING
+var mechanic_scenes: Array[PackedScene] = [
+    preload(ResourcePaths.STRAFE_MECHANIC),
+    preload(ResourcePaths.JUMP_MECHANIC),
+    preload(ResourcePaths.DIVE_MECHANIC),
+]
 
 var controller_host: CharacterBody2D
-var mechanics: Array[Mechanic]
 
 
 func _ready() -> void:
-    controller_host = get_parent() as CapsuleDummy
-    _init_mechanics()
+    if !controller_host:
+        print("no controller host, bad")
+        return
+
+    for mechanic_scene: PackedScene in mechanic_scenes:
+        var mechanic: Node = mechanic_scene.instantiate()
+        mechanic.mechanic_controller = self
+        add_child(mechanic)
+        mechanic.state_completed.connect(_on_state_completed)
+
     jump_override.connect(_on_jump_override)
     state_changed.emit(current_state)
 
 
 func _physics_process(_delta: float) -> void:
-    _handle_input()
-
-
-func _handle_input() -> void:
     if Input.is_action_pressed("left"):
         left_lateral_movement.emit()
     if Input.is_action_pressed("right"):
@@ -38,32 +44,24 @@ func _handle_input() -> void:
 
 
 func _on_jump_override() -> void:
-    if current_state == MechanicController.STATE.SWIM:
+    if current_state == MechanicController.STATE.DIVE:
         queued_state = MechanicController.STATE.JUMP
-        _switch_state(MechanicController.STATE.SWIM_ASCEND)
+        _update_state(MechanicController.STATE.DIVE_ASCEND)
 
 
-func _switch_state(next_state: MechanicController.STATE) -> void:
-    if current_state == next_state:
-        return
-    current_state = next_state
-    state_changed.emit(next_state)
-
-
-func _init_mechanics() -> void:
-    for mechanic_scene: PackedScene in mechanic_scenes:
-        var mechanic: Node = mechanic_scene.instantiate()
-        add_child(mechanic)
-        mechanics.append(mechanic)
-        mechanic.state_completed.connect(_on_state_completed)
+func _update_state(next_state: MechanicController.STATE) -> void:
+    if current_state != next_state:
+        current_state = next_state
+        state_changed.emit(next_state)
 
 
 func _on_state_completed(completed_state: MechanicController.STATE) -> void:
     if completed_state != current_state:
+        print("you are completing some non-current state, thats bad")
         return
-    if queued_state != MechanicController.STATE.NOTHING and queued_state != current_state:
+    if queued_state != MechanicController.STATE.IDLE and queued_state != current_state:
         var next: MechanicController.STATE = queued_state
-        queued_state = MechanicController.STATE.NOTHING
-        _switch_state(next)
+        queued_state = MechanicController.STATE.IDLE
+        _update_state(next)
     elif current_state == MechanicController.STATE.JUMP:
-        _switch_state(MechanicController.STATE.SWIM)
+        _update_state(MechanicController.STATE.DIVE)
