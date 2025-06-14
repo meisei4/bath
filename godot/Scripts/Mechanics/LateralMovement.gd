@@ -24,7 +24,6 @@ func _physics_process(delta: float) -> void:
     )
     _apply_movement_input(time)
     _apply_cosmic_friction(time)
-    mechanic_controller.controller_host.velocity.x = mechanic_controller.controller_host.velocity.x
     movement_input = 0
 
 
