@@ -1,7 +1,7 @@
 extends Node
 class_name SwimAnimation
 
-var animation_shader = preload(ResourcePaths.SWIM_SHADER)
+var shader: Shader = preload(ResourcePaths.SWIM_SHADER)
 
 
 func process_animation(
@@ -12,9 +12,13 @@ func process_animation(
     character_body: CharacterBody2D
 ) -> void:
     var sprite_node: Sprite2D = character_body.get_node("Sprite2D")
+    if sprite_node.material == null:
+        sprite_node.material = ShaderMaterial.new()
+    if sprite_node.material.shader != self.shader:
+        sprite_node.material.shader = self.shader
+    var sprite_shader_material: ShaderMaterial = sprite_node.material
     var vertical_offset_pixels: float = SpacetimeManager.to_physical_space(current_depth_position)
     sprite_node.position.y = -vertical_offset_pixels
-    var sprite_shader_material: ShaderMaterial = sprite_node.material
     sprite_shader_material.set_shader_parameter("iChannel0", sprite_node.texture)
     sprite_shader_material.set_shader_parameter("ascending", ascending)
     sprite_shader_material.set_shader_parameter("depth_normal", depth_normal)
