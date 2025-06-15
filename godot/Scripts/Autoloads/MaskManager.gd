@@ -1,9 +1,8 @@
 extends Node
-#class_name AnimationManager
+#class_name MaskManager
 
 var umbral_shadow: ShaderMaterial
 var perspective_tilt_mask_fragment: PerspectiveTiltMaskFragment
-var character_body_to_mask_index: Dictionary[CharacterBody2D, int]
 var sprite_to_mask_index: Dictionary[Sprite2D, int]
 
 
@@ -19,32 +18,7 @@ func update_perspective_tilt_mask(
     if !perspective_tilt_mask_fragment:
         return
     perspective_tilt_mask_fragment.set_sprite_data(
-        sprite.texture,
-        sprite_to_mask_index[sprite],
-        sprite.global_position,
-        sprite.scale,
-        altitude_normal,
-        1.0 if ascending else 0.0
-    )
-
-
-func update_perspective_tilt_mask1(
-    sprite_texture: Texture2D,
-    character_body: CharacterBody2D,
-    sprite_position: Vector2,
-    sprite_scale: Vector2,
-    altitude_normal: float,
-    ascending: bool
-) -> void:
-    if !perspective_tilt_mask_fragment:
-        return
-    perspective_tilt_mask_fragment.set_sprite_data(
-        sprite_texture,
-        character_body_to_mask_index[character_body],
-        sprite_position,
-        sprite_scale,
-        altitude_normal,
-        1.0 if ascending else 0.0
+        sprite, sprite_to_mask_index[sprite], altitude_normal, 1.0 if ascending else 0.0
     )
 
 

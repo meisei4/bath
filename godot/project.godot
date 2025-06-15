@@ -29,7 +29,7 @@ AudioPoolManager="*res://Scripts/Autoloads/AudioPoolManager.gd"
 AudioBus="*res://Scripts/Audio/AudioBus.gd"
 SpacetimeManager="*res://Scripts/Autoloads/SpacetimeManager.gd"
 CollisionMaskTargetsManager="*res://Scripts/Autoloads/CollisionMaskTargetsManager.gd"
-AnimationManager="*res://Scripts/Autoloads/AnimationManager.gd"
+MaskManager="*res://Scripts/Autoloads/MaskManager.gd"
 MusicDimensionsManager="*res://Scripts/Autoloads/MusicDimensionsManager.gd"
 
 [debug]

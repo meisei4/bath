@@ -7,7 +7,7 @@ signal state_completed(completed_state: MechanicController.STATE)
 
 var jump_data: JumpData
 var mechanic_animation_data: MechanicAnimationData
-var velocity: Vector2
+var mut_ref_velocity: MutRefVelocity
 var current_vertical_velocity: float
 var current_altitude_position: float
 
@@ -39,7 +39,7 @@ func _physics_process(delta: float) -> void:
     var time_scaled_delta: float = SpacetimeManager.apply_time_scale(delta)
     _apply_gravity(time_scaled_delta)
     _update_altitude(time_scaled_delta)
-    velocity.y = -jump_data.FORWARD_VELOCITY
+    mut_ref_velocity.val.y = -jump_data.FORWARD_VELOCITY
     _emit_animation_data()
     if current_phase == JumpPhase.DESCENDING and current_altitude_position <= 0.0:
         _handle_landing()
@@ -62,7 +62,7 @@ func _handle_landing() -> void:
     set_physics_process(false)
     current_altitude_position = 0.0
     current_vertical_velocity = 0.0
-    velocity.y = 0.0
+    mut_ref_velocity.val.y = 0.0
     _set_phase(JumpPhase.GROUNDED)
     state_completed.emit(MechanicController.STATE.JUMP)
 

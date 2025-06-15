@@ -49,28 +49,23 @@ func _ready() -> void:
     MainImage = TextureRect.new()
     MainImage.texture = BufferA.get_texture()
     add_child(MainImage)
-    AnimationManager.register_perspective_tilt_mask_fragment(self)
+    MaskManager.register_perspective_tilt_mask_fragment(self)
 
 
 func set_sprite_data(
-    sprite_texture: Texture2D,
-    sprite_index: int,
-    sprite_position: Vector2,
-    sprite_scale: Vector2,
-    altitude_normal: float,
-    ascending: bool
+    sprite: Sprite2D, sprite_index: int, altitude_normal: float, ascending: bool
 ) -> void:
     if sprite_index < 0 or sprite_index >= MAXIMUM_SPRITE_COUNT:
         return
-    sprite_position_data[sprite_index] = Vector2(sprite_position.x, sprite_position.y)
+    sprite_position_data[sprite_index] = sprite.global_position
     altitude_normal_data[sprite_index] = altitude_normal
     ascending_data[sprite_index] = 1 if ascending else 0
-    _sprite_textures[sprite_index] = sprite_texture
+    _sprite_textures[sprite_index] = sprite.texture
     BufferAShaderMaterial.set_shader_parameter("iChannel0", _sprite_textures[0])
     BufferAShaderMaterial.set_shader_parameter(
         "sprite_texture_size", _sprite_textures[0].get_size()
     )
-    BufferAShaderMaterial.set_shader_parameter("sprite_scale", sprite_scale)
+    BufferAShaderMaterial.set_shader_parameter("sprite_scale", sprite.scale)
     BufferAShaderMaterial.set_shader_parameter("sprite_position", sprite_position_data[0])
     BufferAShaderMaterial.set_shader_parameter("altitude_normal", altitude_normal_data[0])
     BufferAShaderMaterial.set_shader_parameter("ascending", ascending_data[0])

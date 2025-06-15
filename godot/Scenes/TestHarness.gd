@@ -7,7 +7,7 @@ func _ready() -> void:
     add_ice_sheets_scene()
     #add_collision_mask_fragment_scene()
     add_perspective_tilt_mask_fragment_scene()
-    add_shadows_test_scene()
+    add_shadow_mask_scene()
     add_jump_mechanic_test_scene()
 
 
@@ -43,10 +43,10 @@ func add_perspective_tilt_mask_fragment_scene() -> void:
     add_child(perspective_tilt_mask_fragment)
 
 
-func add_shadows_test_scene() -> void:
-    var shadows_scene: PackedScene = preload(ResourcePaths.SHADOWS_SCENE)
-    var shadows_test: Shadows = shadows_scene.instantiate() as Shadows
-    add_child(shadows_test)
+func add_shadow_mask_scene() -> void:
+    var shadow_mask_scene: PackedScene = preload(ResourcePaths.SHADOW_MASK_SCENE)
+    var shadow_mask: ShadowMask = shadow_mask_scene.instantiate() as ShadowMask
+    add_child(shadow_mask)
 
 
 func add_jump_mechanic_test_scene() -> void:

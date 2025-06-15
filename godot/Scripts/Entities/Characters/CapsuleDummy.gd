@@ -7,6 +7,8 @@ class_name CapsuleDummy
 @onready var sprite: Sprite2D = $Sprite2D
 #var sprite: Sprite2D
 
+var mut_ref_velocity: MutRefVelocity
+
 var mechanic_controller: MechanicController
 
 var collision_controller: CollisionController
@@ -22,9 +24,9 @@ func _ready() -> void:
         if child_node is Sprite2D:
             sprite = child_node
             break
-
+    mut_ref_velocity = MutRefVelocity.new()
     mechanic_controller = MechanicController.new()
-    mechanic_controller.velocity = self.velocity  #TODO: this does nothing
+    mechanic_controller.mut_ref_velocity = self.mut_ref_velocity
     add_child(mechanic_controller)
 
     var animation_controller: AnimationController = AnimationController.new()
@@ -36,17 +38,18 @@ func _ready() -> void:
     collision_controller.mechanics = mechanic_controller.get_children()
     add_child(collision_controller)
 
-    if AnimationManager.perspective_tilt_mask_fragment:
-        if !AnimationManager.sprite_to_mask_index.has(self.sprite):
+    if MaskManager.perspective_tilt_mask_fragment:
+        if !MaskManager.sprite_to_mask_index.has(self.sprite):
             var mask_index: int = (
-                AnimationManager
-                . perspective_tilt_mask_fragment
-                . register_sprite_texture(sprite.texture)
+                MaskManager.perspective_tilt_mask_fragment.register_sprite_texture(sprite.texture)
             )
-            AnimationManager.sprite_to_mask_index[self.sprite] = mask_index
+            MaskManager.sprite_to_mask_index[self.sprite] = mask_index
 
 
 func _physics_process(delta: float) -> void:
-    self.velocity = mechanic_controller.velocity
+    self.velocity = mut_ref_velocity.val
     self.collision_shape.disabled = collision_controller.collision_shape_disabled()
     move_and_slide()
+    # NOTE: this next line is neccessary to let all the Mechanics know the
+    # state of the velocity after move_and_slide() phsyics
+    mut_ref_velocity.val = self.velocity

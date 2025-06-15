@@ -7,7 +7,7 @@ signal state_completed(completed_state: MechanicController.STATE)
 
 var dive_data: DiveData
 var mechanic_animation_data: MechanicAnimationData
-var velocity: Vector2
+var mut_ref_velocity: MutRefVelocity
 var in_queued_ascend: bool
 var current_depth_position: float
 var target_depth_position: float
@@ -82,7 +82,6 @@ func _emit_animation_data(_frame_delta: float) -> void:
     mechanic_animation_data.current_vertical_position = current_depth_position
     mechanic_animation_data.vertical_normal = _compute_depth_normal()
     mechanic_animation_data.ascending = current_phase == DivePhase.ASCENDING
-    mechanic_animation_data.frame_delta = _frame_delta
     animate_mechanic.emit(mechanic_animation_data)
 
 
