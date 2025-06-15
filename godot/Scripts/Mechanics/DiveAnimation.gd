@@ -2,6 +2,21 @@ extends Node
 class_name DiveAnimation
 
 var shader: Shader = preload(ResourcePaths.DIVE_SHADER)
+var sprite: Sprite2D
+
+
+func _ready() -> void:
+    if !sprite:
+        print("no sprite, bad")
+
+
+func process_animation_data(mechanic_animation_data: MechanicAnimationData) -> void:
+    var current_depth_position: float = mechanic_animation_data.current_vertical_position
+    var depth_normal: float = mechanic_animation_data.vertical_normal
+    var ascending: bool = mechanic_animation_data.ascending
+    var frame_delta: float = mechanic_animation_data.frame_delta
+    process_animation(current_depth_position, depth_normal, ascending, frame_delta, sprite)
+    AnimationManager.update_perspective_tilt_mask(sprite, depth_normal, ascending)
 
 
 func process_animation(

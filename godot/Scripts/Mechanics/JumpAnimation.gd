@@ -2,20 +2,33 @@ extends Node
 class_name JumpAnimation
 
 var shader: Shader = preload(ResourcePaths.JUMP_TRIG_SHADER)
+var sprite: Sprite2D
+
+
+func _ready() -> void:
+    if !sprite:
+        print("no sprite, bad")
+
+
+func process_animation_data(mechanic_animation_data: MechanicAnimationData) -> void:
+    var current_altitude_position: float = mechanic_animation_data.current_vertical_position
+    var altitude_normal: float = mechanic_animation_data.vertical_normal
+    var ascending: bool = mechanic_animation_data.ascending
+    process_animation(current_altitude_position, altitude_normal, ascending, sprite)
+    AnimationManager.update_perspective_tilt_mask(sprite, altitude_normal, ascending)
 
 
 func process_animation(
-    vertical_position: float,
-    altitude_normal: float,
-    ascending: bool,
-    sprite: Sprite2D,
+    current_altitude_position: float, altitude_normal: float, ascending: bool, sprite: Sprite2D
 ) -> void:
     if sprite.material == null:
         sprite.material = ShaderMaterial.new()
     if sprite.material.shader != shader:
         sprite.material.shader = shader
     var sprite_shader_material: ShaderMaterial = sprite.material
-    var vertical_offset_pixels: float = SpacetimeManager.to_physical_space(vertical_position)
+    var vertical_offset_pixels: float = SpacetimeManager.to_physical_space(
+        current_altitude_position
+    )
     sprite.position.y = roundi(-vertical_offset_pixels)
     #_update_sprite_scale_continious(sprite, altitude_normal)
     _update_sprite_scale_discrete(sprite, altitude_normal)

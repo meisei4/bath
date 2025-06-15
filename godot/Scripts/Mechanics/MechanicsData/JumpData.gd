@@ -5,11 +5,13 @@ class_name JumpData
 # If 0, uses SpacetimeContext.GRAVITY
 # Units: px/s
 
+@export var INITIAL_VERTICAL_POSITION: float = 0.0
+
 @export var INITIAL_JUMP_VELOCITY: float = 12.0
 # Controls jump height: higher velocity -> higher apex
 # Units: px/s
 
-@export var FORWARD_SPEED: float = 4.0
+@export var FORWARD_VELOCITY: float = 12.0
 # Horizontal movement while airborne
 # Units: world units/s
 

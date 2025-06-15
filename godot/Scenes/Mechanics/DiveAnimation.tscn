@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3 uid="uid://k8pliaeilcyn"]
+
+[ext_resource type="Script" uid="uid://smggmxyj3q3g" path="res://Scripts/Mechanics/DiveAnimation.gd" id="1_ampdj"]
+
+[node name="DiveAnimation" type="Node"]
+script = ExtResource("1_ampdj")
+metadata/_custom_type_script = "uid://smggmxyj3q3g"
