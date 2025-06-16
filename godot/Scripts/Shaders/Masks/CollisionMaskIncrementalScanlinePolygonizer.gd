@@ -19,9 +19,9 @@ func _ready() -> void:
     iResolution = ResolutionManager.resolution
     _init_concave_collision_polygon_pool()
     _init_polygon_state_arrays()
-    CollisionMaskTargetsManager.ice_sheets_entered_scene.connect(_on_ice_sheets_entered)
-    if CollisionMaskTargetsManager.ice_sheets:
-        _on_ice_sheets_entered(CollisionMaskTargetsManager.ice_sheets)
+    MaskManager.ice_sheets_entered_scene.connect(_on_ice_sheets_entered)
+    if MaskManager.ice_sheets:
+        _on_ice_sheets_entered(MaskManager.ice_sheets)
 
 
 func _on_ice_sheets_entered(ice_sheets: IceSheets) -> void:
@@ -56,7 +56,7 @@ func _init_concave_collision_polygon_pool() -> void:
 
 
 func _on_frame_post_draw() -> void:
-    var iTime: float = CollisionMaskTargetsManager.iTime
+    var iTime: float = MaskManager.iTime
     isp_texture.update_scanline_alpha_bucket_bit_masks()
     var scanline_alpha_buckets_top_row: PackedVector2Array
     scanline_alpha_buckets_top_row = isp_texture.fill_scanline_alpha_buckets_top_row()

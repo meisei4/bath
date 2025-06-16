@@ -10,8 +10,8 @@ var f_onset_count: int = 0
 var j_onset_count: int = 0
 
 var time_of_next_click: float = 0.0
-#var ogg_stream: AudioStreamOggVorbis = preload(ResourcePaths.SHADERTOY_MUSIC_EXPERIMENT_OGG)
-var ogg_stream: AudioStreamWAV = preload(ResourcePaths.CACHED_WAV)
+var ogg_stream: AudioStreamOggVorbis = preload(ResourcePaths.SHADERTOY_MUSIC_EXPERIMENT_OGG)
+#var ogg_stream: AudioStreamWAV = preload(ResourcePaths.CACHED_WAV)
 
 
 func _ready() -> void:
@@ -21,10 +21,10 @@ func _ready() -> void:
         rhythm_data = RhythmData.new()
 
     if rhythm_data.bpm <= 0.0:
-        #bpm = RustUtilSingleton.rust_util.detect_bpm_ogg(
-        #   ResourcePaths.SHADERTOY_MUSIC_EXPERIMENT_OGG
-        #)
-        bpm = RustUtilSingleton.rust_util.detect_bpm_wav(ResourcePaths.CACHED_WAV)
+        bpm = RustUtilSingleton.rust_util.detect_bpm_ogg(
+            ResourcePaths.SHADERTOY_MUSIC_EXPERIMENT_OGG
+        )
+        #bpm = RustUtilSingleton.rust_util.detect_bpm_wav(ResourcePaths.CACHED_WAV)
         print("Offline BPM detection → ", bpm)
         rhythm_data.bpm = bpm
         ResourceSaver.save(rhythm_data, ResourcePaths.CACHED_RHYTHM_DATA)

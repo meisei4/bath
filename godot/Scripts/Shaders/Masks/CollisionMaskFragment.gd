@@ -18,15 +18,15 @@ const TILE_SIZE_PIXELS: int = 4
 func _ready() -> void:
     iResolution = ResolutionManager.resolution
     _init_concave_collision_polygon_pool()
-    CollisionMaskTargetsManager.ice_sheets_entered_scene.connect(_on_ice_sheets_entered)
-    if CollisionMaskTargetsManager.ice_sheets:
-        _on_ice_sheets_entered(CollisionMaskTargetsManager.ice_sheets)
+    MaskManager.ice_sheets_entered_scene.connect(_on_ice_sheets_entered)
+    if MaskManager.ice_sheets:
+        _on_ice_sheets_entered(MaskManager.ice_sheets)
 
 
 func _on_ice_sheets_entered(ice_sheets: IceSheets) -> void:
     if target_buffer:
         return
-    target_buffer = CollisionMaskTargetsManager.ice_sheets.BufferA
+    target_buffer = MaskManager.ice_sheets.BufferA
     RenderingServer.frame_post_draw.connect(_on_frame_post_draw)
 
 

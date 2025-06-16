@@ -38,9 +38,9 @@ func _ready() -> void:
     BufferA.add_child(BufferAShaderNode)
     add_child(BufferA)
     add_child(MainImage)
-    CollisionMaskTargetsManager.register_ice_sheets(self)
+    MaskManager.register_ice_sheets(self)
 
 
 func _process(delta: float) -> void:
-    CollisionMaskTargetsManager.iTime += delta
-    BufferAShaderMaterial.set_shader_parameter("iTime", CollisionMaskTargetsManager.iTime)
+    MaskManager.iTime += delta
+    BufferAShaderMaterial.set_shader_parameter("iTime", MaskManager.iTime)
