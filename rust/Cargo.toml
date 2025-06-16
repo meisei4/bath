@@ -27,3 +27,7 @@ aubio-rs = { version = "0.2.0", default-features = false, features = ["bindgen"]
 beat-detector = "0.1"
 lewton = "0.10.2"
 
+[dev-dependencies]
+raylib = "5.5.1"
+
+
