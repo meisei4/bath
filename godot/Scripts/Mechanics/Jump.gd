@@ -29,9 +29,11 @@ func on_state_changed(state: MechanicController.STATE) -> void:
 
 
 func _jump() -> void:
-    current_altitude_position = jump_data.INITIAL_VERTICAL_POSITION
-    current_vertical_velocity = jump_data.INITIAL_JUMP_VELOCITY
-    _set_phase(JumpPhase.ASCENDING)
+    if current_phase == JumpPhase.GROUNDED:
+        current_altitude_position = jump_data.INITIAL_VERTICAL_POSITION
+        current_vertical_velocity = jump_data.INITIAL_JUMP_VELOCITY
+        _set_phase(JumpPhase.ASCENDING)
+    
 
 
 func _physics_process(delta: float) -> void:

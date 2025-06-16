@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3 uid="uid://dps3fqf220tok"]
+
+[ext_resource type="Script" uid="uid://bhb8q2ecxgnlp" path="res://Scripts/Mechanics/FlipAnimation.gd" id="1_4laia"]
+
+[node name="FlipAnimation" type="Node"]
+script = ExtResource("1_4laia")
+metadata/_custom_type_script = "uid://bhb8q2ecxgnlp"

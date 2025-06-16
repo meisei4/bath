@@ -70,6 +70,12 @@ func set_sprite_data(
     BufferAShaderMaterial.set_shader_parameter("altitude_normal", altitude_normal_data[0])
     BufferAShaderMaterial.set_shader_parameter("ascending", ascending_data[0])
 
+func set_sprite_rotation(
+    sprite: Sprite2D, sprite_index: int
+) -> void:
+    if sprite_index < 0 or sprite_index >= MAXIMUM_SPRITE_COUNT:
+        return
+    pass 
 
 func get_perspective_tilt_mask_texture_fragment() -> Texture:
     return BufferA.get_texture()

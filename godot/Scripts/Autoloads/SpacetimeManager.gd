@@ -4,7 +4,7 @@ extends Node
 const METERS_PER_WORLD_UNIT: float = 1.0
 const PIXELS_PER_REAL_METER: float = 16.0
 const PIXELS_PER_WORLD_UNIT: float = METERS_PER_WORLD_UNIT * PIXELS_PER_REAL_METER
-const TIME_SCALE: float = 0.5
+const TIME_SCALE: float = 0.25
 const UNIVERSAL_TIME_OFFSET: float = 0.0
 const EARTH_GRAVITY: float = 9.81
 const ARCADEYNESS_FACTOR: float = 2.55

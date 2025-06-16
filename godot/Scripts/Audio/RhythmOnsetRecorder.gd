@@ -9,8 +9,8 @@ var j_press_time: float = -1.0
 var f_release_time: float = -1.0
 var j_release_time: float = -1.0
 
-var ogg_stream: AudioStreamOggVorbis = preload(ResourcePaths.SHADERTOY_MUSIC_EXPERIMENT_OGG)
-
+#var ogg_stream: AudioStreamOggVorbis = preload(ResourcePaths.SHADERTOY_MUSIC_EXPERIMENT_OGG)
+var ogg_stream: AudioStreamWAV = preload(ResourcePaths.CACHED_WAV)
 
 func _ready() -> void:
     key_f_presses.clear()
