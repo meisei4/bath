@@ -26,11 +26,11 @@ const CAPSULE_DUMMY: String = "res://Scenes/Entities/Characters/CapsuleDummy.tsc
 const STRAFE_MECHANIC: String = "res://Scenes/Mechanics/Strafe.tscn"
 const JUMP_MECHANIC: String = "res://Scenes/Mechanics/Jump.tscn"
 const DIVE_MECHANIC: String = "res://Scenes/Mechanics/Dive.tscn"
-const FLIP_MECHANIC: String = "res://Scenes/Mechanics/Flip.tscn"
+const SPIN_MECHANIC: String = "res://Scenes/Mechanics/Spin.tscn"
 
 const JUMP_ANIMATION: String = "res://Scenes/Mechanics/JumpAnimation.tscn"
 const DIVE_ANIMATION: String = "res://Scenes/Mechanics/DiveAnimation.tscn"
-const FLIP_ANIMATION: String = "res://Scenes/Mechanics/FlipAnimation.tscn"
+const SPIN_ANIMATION: String = "res://Scenes/Mechanics/SpinAnimation.tscn"
 
 const WAVEFORM_VISUALIZER: String = "res://Scenes/Shaders/Audio/WaveformVisualizer.tscn"
 const FFT_VISUALIZER: String = "res://Scenes/Shaders/Audio/FFTVisualizer.tscn"

@@ -5,13 +5,13 @@ var sprite: Sprite2D
 var animation_scenes: Array[PackedScene] = [
     preload(ResourcePaths.JUMP_ANIMATION),
     preload(ResourcePaths.DIVE_ANIMATION),
-    preload(ResourcePaths.FLIP_ANIMATION),
+    preload(ResourcePaths.SPIN_ANIMATION),
 ]
 
 var mechanics: Array[Node]
 var jump: Jump
 var dive: Dive
-var flip: Flip
+var spin: Spin
 
 
 func _ready() -> void:
@@ -20,8 +20,8 @@ func _ready() -> void:
             jump = mechanic
         if mechanic is Dive:
             dive = mechanic
-        if mechanic is Flip:
-            flip = mechanic
+        if mechanic is Spin:
+            spin = mechanic
 
     for animation_scene: PackedScene in animation_scenes:
         var animation: Node = animation_scene.instantiate()
@@ -30,7 +30,7 @@ func _ready() -> void:
             jump.animate_mechanic.connect(animation.process_animation_data)
         if animation is DiveAnimation:
             dive.animate_mechanic.connect(animation.process_animation_data)
-        if animation is FlipAnimation:
-            flip.animate_mechanic.connect(animation.process_animation_data)
+        if animation is SpinAnimation:
+            spin.animate_mechanic.connect(animation.process_animation_data)
 
         add_child(animation)

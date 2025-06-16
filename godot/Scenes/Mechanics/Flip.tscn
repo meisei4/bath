@@ -1,7 +1,0 @@
-[gd_scene load_steps=2 format=3 uid="uid://b0oeclmic0ehh"]
-
-[ext_resource type="Script" uid="uid://b8vsayp2tnykh" path="res://Scripts/Mechanics/Flip.gd" id="1_yci1y"]
-
-[node name="Flip" type="Node"]
-script = ExtResource("1_yci1y")
-metadata/_custom_type_script = "uid://b8vsayp2tnykh"

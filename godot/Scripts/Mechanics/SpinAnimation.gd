@@ -1,5 +1,5 @@
 extends Node
-class_name FlipAnimation
+class_name SpinAnimation
 
 var sprite: Sprite2D
 
@@ -8,8 +8,6 @@ func _ready() -> void:
     if !sprite:
         print("no sprite, bad")
         return
-   #if sprite.material == null:
-        #sprite.material = ShaderMaterial.new()
 
 
 func process_animation_data(mechanic_animation_data: MechanicAnimationData) -> void:
@@ -18,5 +16,5 @@ func process_animation_data(mechanic_animation_data: MechanicAnimationData) -> v
     MaskManager.update_perspective_tilt_mask_sprite_rotation(sprite)
 
 
-func _update_sprite_rotation(sprite: Sprite2D, flip_normal: float) -> void:
-    sprite.rotation = flip_normal * TAU
+func _update_sprite_rotation(sprite: Sprite2D, spin_normal: float) -> void:
+    sprite.rotation = spin_normal * TAU

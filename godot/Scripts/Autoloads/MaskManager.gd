@@ -21,14 +21,14 @@ func update_perspective_tilt_mask(
         sprite, sprite_to_mask_index[sprite], altitude_normal, 1.0 if ascending else 0.0
     )
 
+
 func update_perspective_tilt_mask_sprite_rotation(
     sprite: Sprite2D,
 ) -> void:
     if !perspective_tilt_mask_fragment:
         return
-    perspective_tilt_mask_fragment.set_sprite_rotation(
-        sprite, sprite_to_mask_index[sprite]
-    )
+    perspective_tilt_mask_fragment.set_sprite_rotation(sprite, sprite_to_mask_index[sprite])
+
 
 func register_umbral_shadow(_umbral_shadow: ShaderMaterial) -> void:
     self.umbral_shadow = _umbral_shadow

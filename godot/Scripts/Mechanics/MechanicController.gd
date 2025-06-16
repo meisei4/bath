@@ -1,7 +1,7 @@
 extends Node
 class_name MechanicController
 
-enum STATE { DIVE, DIVE_ASCEND, JUMP, IDLE, FLIP }
+enum STATE { DIVE, DIVE_ASCEND, JUMP, IDLE, SPIN }
 signal state_changed(new_state: MechanicController.STATE)
 var current_state: MechanicController.STATE = MechanicController.STATE.DIVE
 var queued_state: MechanicController.STATE = MechanicController.STATE.IDLE
@@ -10,7 +10,7 @@ var mechanic_scenes: Array[PackedScene] = [
     preload(ResourcePaths.STRAFE_MECHANIC),
     preload(ResourcePaths.JUMP_MECHANIC),
     preload(ResourcePaths.DIVE_MECHANIC),
-    preload(ResourcePaths.FLIP_MECHANIC),
+    preload(ResourcePaths.SPIN_MECHANIC),
 ]
 
 var mut_ref_velocity: MutRefVelocity
@@ -34,8 +34,8 @@ func _physics_process(_delta: float) -> void:
             _update_state(MechanicController.STATE.DIVE_ASCEND)
     if Input.is_action_pressed("F"):
         if current_state == MechanicController.STATE.JUMP:
-            #queued_state = MechanicController.STATE.FLIP
-            _update_state(MechanicController.STATE.FLIP)
+            #queued_state = MechanicController.STATE.SPIN
+            _update_state(MechanicController.STATE.SPIN)
 
 
 func _update_state(next_state: MechanicController.STATE) -> void:
@@ -55,5 +55,5 @@ func _on_state_completed(completed_state: MechanicController.STATE) -> void:
         _update_state(next_state)
     elif current_state == MechanicController.STATE.JUMP:
         _update_state(MechanicController.STATE.DIVE)
-    if current_state == MechanicController.STATE.FLIP:
+    if current_state == MechanicController.STATE.SPIN:
         _update_state(MechanicController.STATE.JUMP)
