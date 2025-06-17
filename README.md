@@ -114,3 +114,15 @@ Before committing, run (in the `bath/godot` directory):
 ```bash
 gdformat --use-spaces=4 .
 ```
+
+
+Raylib:
+```bash
+nix shell nixpkgs#raylib nixpkgs#pkg-config nixpkgs#cmake \
+  --command bash -lc '
+    export RAYLIB_SYS_USE_PKG_CONFIG=1
+    export PKG_CONFIG_PATH="$(nix eval --raw nixpkgs#raylib)/lib/pkgconfig:$PKG_CONFIG_PATH"
+    cargo clean
+    cargo run --example raylib_tests
+'
+```
