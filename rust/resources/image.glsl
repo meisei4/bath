@@ -7,6 +7,6 @@ out vec4 finalColor;
 uniform sampler2D iChannel0;
 
 void main() {
-    vec2 uv       = fragTexCoord;
-    finalColor    = texture(iChannel0, uv);
+    vec2 uv = fragTexCoord;
+    finalColor = texture(iChannel0, uv);
 }

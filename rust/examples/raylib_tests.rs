@@ -9,156 +9,123 @@ use std::fs::read_to_string;
 use std::mem::swap;
 use std::time::Instant;
 
-const APPLE_DPI: u32 = 2;
-const WINDOW_WIDTH_IN_PIXELS: i32 = (850 / APPLE_DPI) as i32;
-const WINDOW_HEIGHT_IN_PIXELS: i32 = (480 / APPLE_DPI) as i32;
+const ORIGIN: Vector2 = Vector2::zero();
+// const ORIGIN_X: i32 = 0;
+// const ORIGIN_Y: i32 = 0;
+const APPLE_DPI: i32 = 2;
+const WINDOW_WIDTH: i32 = 850;
+const WINDOW_HEIGHT: i32 = 480;
 
 fn main() {
     let (mut raylib_handle, raylib_thread) = init()
-        .size(WINDOW_WIDTH_IN_PIXELS, WINDOW_HEIGHT_IN_PIXELS)
+        .size(WINDOW_WIDTH / APPLE_DPI, WINDOW_HEIGHT / APPLE_DPI)
         .title("raylib-rs hello world feedback buffer test")
         .build();
     raylib_handle.set_target_fps(60);
+    let screen_width = raylib_handle.get_screen_width();
+    let screen_width_u32 = screen_width as u32;
+    let screen_height = raylib_handle.get_screen_height();
+    let screen_height_u32 = screen_height as u32;
 
-    let render_w = raylib_handle.get_render_width();
-    let render_h = raylib_handle.get_render_height();
-    println!(
-        "screen size:  {}x{}",
-        raylib_handle.get_screen_width(),
-        raylib_handle.get_screen_height()
+    let dpi = raylib_handle.get_window_scale_dpi();
+    let render_width = raylib_handle.get_render_width();
+    let render_height = raylib_handle.get_render_height();
+    println!("screen: {}x{}", screen_width, screen_height);
+    println!("render:{}x{}", render_width, render_height);
+    println!("dpi: {:?}", dpi);
+
+    let project_root_dir = env!("CARGO_MANIFEST_DIR");
+    let feedback_buffer_src_code =
+        read_to_string(format!("{project_root_dir}/resources/buffer_a.glsl")).unwrap();
+    let image_src_code =
+        read_to_string(format!("{project_root_dir}/resources/image.glsl")).unwrap();
+
+    let mut feedback_buffer_shader = raylib_handle.load_shader_from_memory(
+        &raylib_thread,
+        None,
+        Some(&feedback_buffer_src_code),
     );
-    println!("render size:  {}x{}", render_w, render_h);
-    println!("DPI scale:    {:?}", raylib_handle.get_window_scale_dpi());
+    let mut image_shader =
+        raylib_handle.load_shader_from_memory(&raylib_thread, None, Some(&image_src_code));
 
-    let manifest_dir = env!("CARGO_MANIFEST_DIR");
-    let buffer_a_src = read_to_string(format!("{manifest_dir}/resources/buffer_a.glsl")).unwrap();
-    let image_src = read_to_string(format!("{manifest_dir}/resources/image.glsl")).unwrap();
+    let i_time_location = feedback_buffer_shader.get_shader_location("iTime");
+    let buffer_i_channel0_location = feedback_buffer_shader.get_shader_location("iChannel0");
+    let image_i_channel0_location = image_shader.get_shader_location("iChannel0");
 
-    let mut buffer_a =
-        raylib_handle.load_shader_from_memory(&raylib_thread, None, Some(&buffer_a_src));
-    let mut image = raylib_handle.load_shader_from_memory(&raylib_thread, None, Some(&image_src));
+    feedback_buffer_shader.set_shader_value(buffer_i_channel0_location, 0);
+    image_shader.set_shader_value(image_i_channel0_location, 0);
+    //TODO: next fix is to get these textures to be RGBA16 like hdr in godot/shadertoy or whatever
+    let mut buffer_a_texture = raylib_handle
+        .load_render_texture(&raylib_thread, screen_width_u32, screen_height_u32)
+        .expect("couldnt create RenderTexture2D for buffer_a_texture");
+    let mut buffer_b_texture = raylib_handle
+        .load_render_texture(&raylib_thread, screen_width_u32, screen_height_u32)
+        .expect("couldnt create RenderTexture2D for buffer_b_texture");
 
-    let i_time = buffer_a.get_shader_location("iTime");
-    let i_channel0_buf = buffer_a.get_shader_location("iChannel0");
-    let i_channel0_img = image.get_shader_location("iChannel0");
-
-    buffer_a.set_shader_value(i_channel0_buf, 0); // sampler = texture unit 0
-    image.set_shader_value(i_channel0_img, 0);
-    let mut feedback_texture_a = raylib_handle
-        .load_render_texture(
-            &raylib_thread,
-            render_w as u32 / APPLE_DPI,
-            render_h as u32 / APPLE_DPI,
-        )
-        .expect("cannot create RT A");
-    let mut feedback_texture_b = raylib_handle
-        .load_render_texture(
-            &raylib_thread,
-            render_w as u32 / APPLE_DPI,
-            render_h as u32 / APPLE_DPI,
-        )
-        .expect("cannot create RT B");
-
-    let mut feedback_texture_source: &mut RenderTexture2D = &mut feedback_texture_a;
-    let mut feedback_texture_target: &mut RenderTexture2D = &mut feedback_texture_b;
+    let mut buffer_a_texture_copy = &mut buffer_a_texture;
+    let mut buffer_b_texture_copy = &mut buffer_b_texture;
 
     let application_start_time = Instant::now();
 
     while !raylib_handle.window_should_close() {
         let elapsed_seconds = application_start_time.elapsed().as_secs_f32();
-
-        buffer_pass(
+        feedback_buffer_shader.set_shader_value(i_time_location, elapsed_seconds);
+        feedback_buffer_pass(
             &mut raylib_handle,
             &raylib_thread,
-            feedback_texture_target,
-            feedback_texture_source,
-            elapsed_seconds,
-            &mut buffer_a,
-            i_time,
+            &mut feedback_buffer_shader,
+            buffer_b_texture_copy,
+            buffer_a_texture_copy,
         );
 
-        swap(&mut feedback_texture_source, &mut feedback_texture_target);
+        swap(&mut buffer_a_texture_copy, &mut buffer_b_texture_copy);
 
         image_pass(
             &mut raylib_handle,
             &raylib_thread,
-            feedback_texture_source,
-            &mut image,
+            &mut image_shader,
+            buffer_a_texture_copy,
         );
     }
 }
 
-fn buffer_pass(
+fn feedback_buffer_pass(
     raylib_handle: &mut RaylibHandle,
     raylib_thread: &RaylibThread,
-    feedback_texture_target: &mut RenderTexture2D,
-    feedback_texture_source: &RenderTexture2D,
-    elapsed_seconds: f32,
-    buffer_a: &mut Shader,
-    i_time: i32,
+    feedback_buffer_shader: &mut Shader,
+    buffer_b_texture: &mut RenderTexture2D,
+    buffer_a_texture: &RenderTexture2D,
 ) {
-    let src_w = feedback_texture_source.texture.width as f32; // / APPLE_DPI as f32;
-    let src_h = feedback_texture_source.texture.height as f32;
-    let dst_w = feedback_texture_target.texture.width as f32;
-    let dst_h = feedback_texture_target.texture.height as f32;
-
-    buffer_a.set_shader_value(i_time, elapsed_seconds);
-
-    let mut texture_mode = raylib_handle.begin_texture_mode(raylib_thread, feedback_texture_target);
-    texture_mode.clear_background(Color::BLACK);
-    let mut shader_mode = texture_mode.begin_shader_mode(buffer_a);
-
-    let src_rect = Rectangle {
+    let mut texture_mode = raylib_handle.begin_texture_mode(raylib_thread, buffer_b_texture);
+    let mut shader_mode = texture_mode.begin_shader_mode(feedback_buffer_shader);
+    //TODO: raylib has to flip even at the buffer stage? ugh, am i dumb??
+    // uncomment the next line, and then comment out the flipping to see behavior
+    //shader_mode.draw_texture(&buffer_a_texture, ORIGIN_X, ORIGIN_Y, Color::WHITE);
+    let flipped_rectangle = Rectangle {
         x: 0.0,
         y: 0.0,
-        width: src_w,
-        height: -src_h,
+        width: buffer_a_texture.texture.width as f32,
+        height: -1.0 * buffer_a_texture.texture.height as f32,
     };
-    let dst_rect = Rectangle {
-        x: 0.0,
-        y: 0.0,
-        width: dst_w,
-        height: dst_h,
-    };
-    shader_mode.draw_texture_pro(
-        feedback_texture_source,
-        src_rect,
-        dst_rect,
-        Vector2::zero(),
-        0.0,
-        Color::WHITE,
-    );
+    shader_mode.draw_texture_rec(&buffer_a_texture, flipped_rectangle, ORIGIN, Color::WHITE);
 }
 
 fn image_pass(
     raylib_handle: &mut RaylibHandle,
     raylib_thread: &RaylibThread,
-    screen_source_texture: &RenderTexture2D,
     image_shader: &mut Shader,
+    buffer_a_texture: &RenderTexture2D,
 ) {
-    let w = screen_source_texture.texture.width;
-    let h = screen_source_texture.texture.height;
     let mut draw_handle = raylib_handle.begin_drawing(raylib_thread);
     let mut shader_mode = draw_handle.begin_shader_mode(image_shader);
-
-    let src_rect = Rectangle {
+    // TODO: classic raster stage y flip because shadertoy, same thing in godot
+    //  uncomment the next line, and then comment out the flipping to see behavior
+    //shader_mode.draw_texture(&buffer_a_texture, ORIGIN_X, ORIGIN_Y, Color::WHITE);
+    let flipped_rectangle = Rectangle {
         x: 0.0,
         y: 0.0,
-        width: w as f32,
-        height: -(h as f32),
+        width: buffer_a_texture.texture.width as f32,
+        height: -1.0 * buffer_a_texture.texture.height as f32,
     };
-    let dst_rect = Rectangle {
-        x: 0.0,
-        y: 0.0,
-        width: w as f32,
-        height: h as f32,
-    };
-    shader_mode.draw_texture_pro(
-        screen_source_texture,
-        src_rect,
-        dst_rect,
-        Vector2::zero(),
-        0.0,
-        Color::WHITE,
-    );
+    shader_mode.draw_texture_rec(&buffer_a_texture, flipped_rectangle, ORIGIN, Color::WHITE);
 }
