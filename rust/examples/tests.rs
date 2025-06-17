@@ -5,7 +5,7 @@ use bath::midi::tests::run_playback;
 // cargo build --lib --release
 // cargo build --lib
 // cargo build --release
-// cargo build 
+// cargo build
 
 // fluidsynth -a coreaudio -m coremidi ../godot/Resources/audio/dsdnmoy.sf2
 // cargo run --example tests --features tests-only
