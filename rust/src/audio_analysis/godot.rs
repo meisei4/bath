@@ -1,33 +1,33 @@
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), not(target_os = "linux")))]
 use aubio_rs::{OnsetMode::SpecFlux, Smpl, Tempo};
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), not(target_os = "linux")))]
 use godot::global::godot_print;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), not(target_os = "linux")))]
 use hound::WavReader;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), not(target_os = "linux")))]
 use std::io::Cursor;
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), not(target_os = "linux")))]
 const BUF_SIZE: usize = 1024;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), not(target_os = "linux")))]
 const HOP_SIZE: usize = 512;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), not(target_os = "linux")))]
 const I16_TO_SMPL: Smpl = 1.0 / (i16::MAX as Smpl);
 
-#[cfg(target_arch = "wasm32")]
+#[cfg(any(target_arch = "wasm32", target_os = "linux"))]
 pub fn detect_bpm_aubio_wav(_pcm_bytes: &[u8]) -> f32 {
     0.0
 }
-#[cfg(target_arch = "wasm32")]
+#[cfg(any(target_arch = "wasm32", target_os = "linux"))]
 pub fn detect_bpm_aubio_ogg(_pcm_bytes: &[u8]) -> f32 {
     0.0
 }
-#[cfg(target_arch = "wasm32")]
+#[cfg(any(target_arch = "wasm32", target_os = "linux"))]
 pub fn detect_bpm_from_beat_detector(_pcm_bytes: &[u8]) -> f32 {
     0.0
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), not(target_os = "linux")))]
 pub fn detect_bpm_aubio_wav(pcm_bytes: &[u8]) -> f32 {
     let mut reader = match WavReader::new(Cursor::new(pcm_bytes)) {
         Ok(r) => r,
@@ -63,11 +63,11 @@ pub fn detect_bpm_aubio_wav(pcm_bytes: &[u8]) -> f32 {
     bpm
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), not(target_os = "linux")))]
 const REFERENCE_SAMPLE_RATE: f32 = 44_100.0;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), not(target_os = "linux")))]
 use lewton::inside_ogg::OggStreamReader;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), not(target_os = "linux")))]
 pub fn detect_bpm_aubio_ogg(ogg_bytes: &[u8]) -> f32 {
     let mut ogg = match OggStreamReader::new(Cursor::new(ogg_bytes)) {
         Ok(r) => r,
@@ -123,7 +123,7 @@ pub fn detect_bpm_aubio_ogg(ogg_bytes: &[u8]) -> f32 {
     bpm
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), not(target_os = "linux")))]
 pub fn detect_bpm_from_beat_detector(pcm_bytes: &[u8]) -> f32 {
     let mut reader = match WavReader::new(Cursor::new(pcm_bytes)) {
         Ok(r) => r,
