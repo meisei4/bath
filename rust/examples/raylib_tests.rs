@@ -42,9 +42,9 @@ fn main() {
 
     let project_root_dir = env!("CARGO_MANIFEST_DIR");
     let feedback_buffer_src_code =
-        read_to_string(format!("{project_root_dir}/resources/buffer_a.glsl")).unwrap();
+        read_to_string(format!("{project_root_dir}/resources/glsl/buffer_a.glsl")).unwrap();
     let image_src_code =
-        read_to_string(format!("{project_root_dir}/resources/image.glsl")).unwrap();
+        read_to_string(format!("{project_root_dir}/resources/glsl/image.glsl")).unwrap();
 
     let mut feedback_buffer_shader = raylib_handle.load_shader_from_memory(
         &raylib_thread,
@@ -63,8 +63,6 @@ fn main() {
 
     let mut buffer_a_texture = create_rgba16_render_texture(screen_width, screen_height);
     let mut buffer_b_texture = create_rgba16_render_texture(screen_width, screen_height);
-    let mut buffer_a_texture_copy = &mut buffer_a_texture;
-    let mut buffer_b_texture_copy = &mut buffer_b_texture;
 
     let application_start_time = Instant::now();
 
@@ -75,15 +73,15 @@ fn main() {
             &mut raylib_handle,
             &raylib_thread,
             &mut feedback_buffer_shader,
-            buffer_b_texture_copy,
-            buffer_a_texture_copy,
+            &mut buffer_b_texture,
+            &mut buffer_a_texture,
         );
-        swap(&mut buffer_a_texture_copy, &mut buffer_b_texture_copy);
+        swap(&mut buffer_a_texture, &mut buffer_b_texture);
         image_pass(
             &mut raylib_handle,
             &raylib_thread,
             &mut image_shader,
-            buffer_a_texture_copy,
+            &mut buffer_a_texture,
         );
     }
 }

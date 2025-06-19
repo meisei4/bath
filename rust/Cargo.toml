@@ -23,8 +23,6 @@ terminal_size = { version = "0.4.2", optional = true }
 tests-only = ["midir", "rdev", "terminal_size"]
 
 [target.'cfg(not(any(target_arch = "wasm32", target_os = "linux")))'.dependencies]
-#[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-#aubio-rs = { version = "0.2.0", default-features = false, features = ["bindgen"] }
 aubio-rs  = "0.2.0"
 lewton = "0.10.2"
 
