@@ -1,23 +1,26 @@
 use raylib::color::Color;
 use raylib::drawing::{RaylibDraw, RaylibShaderModeExt, RaylibTextureModeExt};
 use raylib::ffi::{
-    rlFramebufferAttach, rlLoadFramebuffer,
-    rlLoadTexture, rlLoadTextureDepth, Texture2D,
+    rlClearColor, rlClearScreenBuffers, rlDisableColorBlend, rlDisableFramebuffer,
+    rlEnableFramebuffer, rlFramebufferAttach, rlFramebufferComplete, rlLoadFramebuffer,
+    rlLoadTexture, rlLoadTextureDepth, Texture2D, TraceLog,
 };
 use raylib::math::{Rectangle, Vector2};
 use raylib::shaders::{RaylibShader, Shader};
 use raylib::texture::RenderTexture2D;
 use raylib::{init, RaylibHandle, RaylibThread};
+use std::ffi::c_char;
 
-use raylib::ffi::rlFramebufferAttachTextureType::RL_ATTACHMENT_TEXTURE2D;
+use raylib::consts::TraceLogLevel::{LOG_INFO, LOG_WARNING};
+use raylib::ffi::rlFramebufferAttachTextureType::{
+    RL_ATTACHMENT_RENDERBUFFER, RL_ATTACHMENT_TEXTURE2D,
+};
 use raylib::ffi::rlFramebufferAttachType::{RL_ATTACHMENT_COLOR_CHANNEL0, RL_ATTACHMENT_DEPTH};
 use std::fs::read_to_string;
 use std::mem::swap;
 use std::time::Instant;
 
 const ORIGIN: Vector2 = Vector2::zero();
-// const ORIGIN_X: i32 = 0;
-// const ORIGIN_Y: i32 = 0;
 const APPLE_DPI: i32 = 2;
 const WINDOW_WIDTH: i32 = 850;
 const WINDOW_HEIGHT: i32 = 480;
@@ -29,10 +32,7 @@ fn main() {
         .build();
     raylib_handle.set_target_fps(60);
     let screen_width = raylib_handle.get_screen_width();
-    let screen_width_u32 = screen_width as u32;
     let screen_height = raylib_handle.get_screen_height();
-    let screen_height_u32 = screen_height as u32;
-
     let dpi = raylib_handle.get_window_scale_dpi();
     let render_width = raylib_handle.get_render_width();
     let render_height = raylib_handle.get_render_height();
@@ -60,17 +60,9 @@ fn main() {
 
     feedback_buffer_shader.set_shader_value(buffer_i_channel0_location, 0);
     image_shader.set_shader_value(image_i_channel0_location, 0);
-    //TODO: next fix is to get these textures to be RGBA16 like hdr in godot/shadertoy or whatever
-    // let mut buffer_a_texture = raylib_handle
-    //     .load_render_texture(&raylib_thread, screen_width_u32, screen_height_u32)
-    //     .expect("couldnt create RenderTexture2D for buffer_a_texture");
-    // let mut buffer_b_texture = raylib_handle
-    //     .load_render_texture(&raylib_thread, screen_width_u32, screen_height_u32)
-    //     .expect("couldnt create RenderTexture2D for buffer_b_texture");
-    //TODO: the above code is RGBA8 and the below code is testing how to get half float
-    let mut buffer_a_texture = unsafe { create_rgba16_render_texture(screen_width, screen_height) };
-    let mut buffer_b_texture = unsafe { create_rgba16_render_texture(screen_width, screen_height) };
 
+    let mut buffer_a_texture = create_rgba16_render_texture(screen_width, screen_height);
+    let mut buffer_b_texture = create_rgba16_render_texture(screen_width, screen_height);
     let mut buffer_a_texture_copy = &mut buffer_a_texture;
     let mut buffer_b_texture_copy = &mut buffer_b_texture;
 
@@ -86,9 +78,7 @@ fn main() {
             buffer_b_texture_copy,
             buffer_a_texture_copy,
         );
-
         swap(&mut buffer_a_texture_copy, &mut buffer_b_texture_copy);
-
         image_pass(
             &mut raylib_handle,
             &raylib_thread,
@@ -98,49 +88,77 @@ fn main() {
     }
 }
 
-//TODO: this doesnt seem to work, its definitely not getting half float RGBA
-unsafe fn create_rgba16_render_texture(width: i32, height: i32) -> RenderTexture2D {
-    let fbo_id = rlLoadFramebuffer();
-    let texture_id = rlLoadTexture(
-        std::ptr::null(),
-        width,
-        height,
-        raylib::ffi::PixelFormat::PIXELFORMAT_UNCOMPRESSED_R32G32B32A32 as i32,
-        1,
-    );
-    rlFramebufferAttach(
-        fbo_id,
-        texture_id,
-        RL_ATTACHMENT_COLOR_CHANNEL0 as i32,
-        RL_ATTACHMENT_TEXTURE2D as i32,
-        0,
-    );
-    let depth_texture_id = rlLoadTextureDepth(width, height, false);
-    rlFramebufferAttach(
-        fbo_id,
-        depth_texture_id,
-        RL_ATTACHMENT_DEPTH as i32,
-        RL_ATTACHMENT_TEXTURE2D as i32,
-        0,
-    );
-    let render_texture_raw = raylib::ffi::RenderTexture2D {
-        id: fbo_id,
-        texture: Texture2D {
-            id: texture_id,
+fn create_rgba16_render_texture(width: i32, height: i32) -> RenderTexture2D {
+    // raylib code: https://github.com/raysan5/raylib/blob/4bc8d3761c48f4dcf56f126640da8f3567dc516b/src/rtextures.c#L4246
+    let render_texture = unsafe {
+        let fbo_id = rlLoadFramebuffer();
+        rlEnableFramebuffer(fbo_id);
+        let texture_id = rlLoadTexture(
+            std::ptr::null(),
             width,
             height,
-            mipmaps: 1,
-            format: raylib::ffi::PixelFormat::PIXELFORMAT_UNCOMPRESSED_R32G32B32A32 as i32,
-        },
-        depth: Texture2D {
-            id: depth_texture_id,
-            width,
-            height,
-            mipmaps: 0,
-            format: raylib::ffi::PixelFormat::PIXELFORMAT_UNCOMPRESSED_R8G8B8A8 as i32,
-        },
+            raylib::ffi::PixelFormat::PIXELFORMAT_UNCOMPRESSED_R16G16B16A16 as i32,
+            1,
+        );
+        // TODO: lmao try setting useRenderBuffer to false and see what happens
+        // let depth_texture_id = rlLoadTextureDepth(width, height, false);
+        let depth_texture_id = rlLoadTextureDepth(width, height, true);
+        let raw_render_texture = raylib::ffi::RenderTexture2D {
+            id: fbo_id,
+            texture: Texture2D {
+                id: texture_id,
+                width,
+                height,
+                mipmaps: 1,
+                format: raylib::ffi::PixelFormat::PIXELFORMAT_UNCOMPRESSED_R16G16B16A16 as i32,
+            },
+            depth: Texture2D {
+                id: depth_texture_id,
+                width,
+                height,
+                mipmaps: 1,
+                format: 19i32,
+            },
+        };
+        //TODO: just good practice before attaching to FBOs
+        rlClearColor(0, 0, 0, 0);
+        rlClearScreenBuffers();
+        rlFramebufferAttach(
+            fbo_id,
+            texture_id,
+            RL_ATTACHMENT_COLOR_CHANNEL0 as i32,
+            RL_ATTACHMENT_TEXTURE2D as i32,
+            0,
+        );
+        rlFramebufferAttach(
+            fbo_id,
+            depth_texture_id,
+            RL_ATTACHMENT_DEPTH as i32,
+            RL_ATTACHMENT_RENDERBUFFER as i32,
+            0,
+        );
+        if rlFramebufferComplete(fbo_id) {
+            TraceLog(
+                LOG_INFO as i32,
+                b"FBO: [ID %i] Framebuffer object created successfully\0"
+                    .as_ptr()
+                    .cast::<c_char>(),
+                fbo_id,
+            );
+        } else {
+            TraceLog(
+                LOG_WARNING as i32,
+                b"FBO: [ID %i] Framebuffer object is not complete\0"
+                    .as_ptr()
+                    .cast::<c_char>(),
+                fbo_id,
+            );
+        }
+        rlDisableColorBlend();
+        rlDisableFramebuffer();
+        RenderTexture2D::from_raw(raw_render_texture)
     };
-    RenderTexture2D::from_raw(render_texture_raw)
+    render_texture //TODO: I like this because it reminds me how returns work
 }
 
 fn feedback_buffer_pass(
