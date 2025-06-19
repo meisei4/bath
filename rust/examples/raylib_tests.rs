@@ -1,10 +1,16 @@
 use raylib::color::Color;
 use raylib::drawing::{RaylibDraw, RaylibShaderModeExt, RaylibTextureModeExt};
+use raylib::ffi::{
+    rlFramebufferAttach, rlLoadFramebuffer,
+    rlLoadTexture, rlLoadTextureDepth, Texture2D,
+};
 use raylib::math::{Rectangle, Vector2};
 use raylib::shaders::{RaylibShader, Shader};
 use raylib::texture::RenderTexture2D;
 use raylib::{init, RaylibHandle, RaylibThread};
 
+use raylib::ffi::rlFramebufferAttachTextureType::RL_ATTACHMENT_TEXTURE2D;
+use raylib::ffi::rlFramebufferAttachType::{RL_ATTACHMENT_COLOR_CHANNEL0, RL_ATTACHMENT_DEPTH};
 use std::fs::read_to_string;
 use std::mem::swap;
 use std::time::Instant;
@@ -55,12 +61,15 @@ fn main() {
     feedback_buffer_shader.set_shader_value(buffer_i_channel0_location, 0);
     image_shader.set_shader_value(image_i_channel0_location, 0);
     //TODO: next fix is to get these textures to be RGBA16 like hdr in godot/shadertoy or whatever
-    let mut buffer_a_texture = raylib_handle
-        .load_render_texture(&raylib_thread, screen_width_u32, screen_height_u32)
-        .expect("couldnt create RenderTexture2D for buffer_a_texture");
-    let mut buffer_b_texture = raylib_handle
-        .load_render_texture(&raylib_thread, screen_width_u32, screen_height_u32)
-        .expect("couldnt create RenderTexture2D for buffer_b_texture");
+    // let mut buffer_a_texture = raylib_handle
+    //     .load_render_texture(&raylib_thread, screen_width_u32, screen_height_u32)
+    //     .expect("couldnt create RenderTexture2D for buffer_a_texture");
+    // let mut buffer_b_texture = raylib_handle
+    //     .load_render_texture(&raylib_thread, screen_width_u32, screen_height_u32)
+    //     .expect("couldnt create RenderTexture2D for buffer_b_texture");
+    //TODO: the above code is RGBA8 and the below code is testing how to get half float
+    let mut buffer_a_texture = unsafe { create_rgba16_render_texture(screen_width, screen_height) };
+    let mut buffer_b_texture = unsafe { create_rgba16_render_texture(screen_width, screen_height) };
 
     let mut buffer_a_texture_copy = &mut buffer_a_texture;
     let mut buffer_b_texture_copy = &mut buffer_b_texture;
@@ -87,6 +96,51 @@ fn main() {
             buffer_a_texture_copy,
         );
     }
+}
+
+//TODO: this doesnt seem to work, its definitely not getting half float RGBA
+unsafe fn create_rgba16_render_texture(width: i32, height: i32) -> RenderTexture2D {
+    let fbo_id = rlLoadFramebuffer();
+    let texture_id = rlLoadTexture(
+        std::ptr::null(),
+        width,
+        height,
+        raylib::ffi::PixelFormat::PIXELFORMAT_UNCOMPRESSED_R32G32B32A32 as i32,
+        1,
+    );
+    rlFramebufferAttach(
+        fbo_id,
+        texture_id,
+        RL_ATTACHMENT_COLOR_CHANNEL0 as i32,
+        RL_ATTACHMENT_TEXTURE2D as i32,
+        0,
+    );
+    let depth_texture_id = rlLoadTextureDepth(width, height, false);
+    rlFramebufferAttach(
+        fbo_id,
+        depth_texture_id,
+        RL_ATTACHMENT_DEPTH as i32,
+        RL_ATTACHMENT_TEXTURE2D as i32,
+        0,
+    );
+    let render_texture_raw = raylib::ffi::RenderTexture2D {
+        id: fbo_id,
+        texture: Texture2D {
+            id: texture_id,
+            width,
+            height,
+            mipmaps: 1,
+            format: raylib::ffi::PixelFormat::PIXELFORMAT_UNCOMPRESSED_R32G32B32A32 as i32,
+        },
+        depth: Texture2D {
+            id: depth_texture_id,
+            width,
+            height,
+            mipmaps: 0,
+            format: raylib::ffi::PixelFormat::PIXELFORMAT_UNCOMPRESSED_R8G8B8A8 as i32,
+        },
+    };
+    RenderTexture2D::from_raw(render_texture_raw)
 }
 
 fn feedback_buffer_pass(
