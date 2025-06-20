@@ -131,7 +131,13 @@ fn inner_parse_note_on_off<T>(
                     key,
                     vel,
                 } => {
-                    handle_note_fn(ch, key.as_int(), vel.as_int(), time_value, &current_instrument_for_channel);
+                    handle_note_fn(
+                        ch,
+                        key.as_int(),
+                        vel.as_int(),
+                        time_value,
+                        &current_instrument_for_channel,
+                    );
                 },
                 MidiMessage::NoteOff {
                     key, ..
@@ -167,7 +173,10 @@ pub fn parse_midi_events_into_note_on_off_event_buffer_ticks_from_bytes(
                     midi_note: note,
                     instrument_id,
                 };
-                final_buffer.entry(midi_note).or_default().push((onset_tick, tick_value));
+                final_buffer
+                    .entry(midi_note)
+                    .or_default()
+                    .push((onset_tick, tick_value));
             }
         },
     );

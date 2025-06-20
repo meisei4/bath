@@ -69,7 +69,12 @@ fn main() {
             &mut buffer_a_texture,
         );
         swap(&mut buffer_a_texture, &mut buffer_b_texture);
-        image_pass(&mut raylib_handle, &raylib_thread, &mut image_shader, &mut buffer_a_texture);
+        image_pass(
+            &mut raylib_handle,
+            &raylib_thread,
+            &mut image_shader,
+            &mut buffer_a_texture,
+        );
     }
 }
 
@@ -108,18 +113,34 @@ fn create_rgba16_render_texture(width: i32, height: i32) -> RenderTexture2D {
         //TODO: just good practice before attaching to FBOs
         rlClearColor(0, 0, 0, 0);
         rlClearScreenBuffers();
-        rlFramebufferAttach(fbo_id, texture_id, RL_ATTACHMENT_COLOR_CHANNEL0 as i32, RL_ATTACHMENT_TEXTURE2D as i32, 0);
-        rlFramebufferAttach(fbo_id, depth_texture_id, RL_ATTACHMENT_DEPTH as i32, RL_ATTACHMENT_RENDERBUFFER as i32, 0);
+        rlFramebufferAttach(
+            fbo_id,
+            texture_id,
+            RL_ATTACHMENT_COLOR_CHANNEL0 as i32,
+            RL_ATTACHMENT_TEXTURE2D as i32,
+            0,
+        );
+        rlFramebufferAttach(
+            fbo_id,
+            depth_texture_id,
+            RL_ATTACHMENT_DEPTH as i32,
+            RL_ATTACHMENT_RENDERBUFFER as i32,
+            0,
+        );
         if rlFramebufferComplete(fbo_id) {
             TraceLog(
                 LOG_INFO as i32,
-                b"FBO: [ID %i] Framebuffer object created successfully\0".as_ptr().cast::<c_char>(),
+                b"FBO: [ID %i] Framebuffer object created successfully\0"
+                    .as_ptr()
+                    .cast::<c_char>(),
                 fbo_id,
             );
         } else {
             TraceLog(
                 LOG_WARNING as i32,
-                b"FBO: [ID %i] Framebuffer object is not complete\0".as_ptr().cast::<c_char>(),
+                b"FBO: [ID %i] Framebuffer object is not complete\0"
+                    .as_ptr()
+                    .cast::<c_char>(),
                 fbo_id,
             );
         }

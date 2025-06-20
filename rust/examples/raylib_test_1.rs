@@ -24,8 +24,10 @@ const WINDOW_WIDTH: i32 = 850;
 const WINDOW_HEIGHT: i32 = 480;
 
 fn main() {
-    let (mut rl, thread) =
-        init().size(WINDOW_WIDTH / APPLE_DPI, WINDOW_HEIGHT / APPLE_DPI).title("drekker effect").build();
+    let (mut rl, thread) = init()
+        .size(WINDOW_WIDTH / APPLE_DPI, WINDOW_HEIGHT / APPLE_DPI)
+        .title("drekker effect")
+        .build();
     rl.set_target_fps(60);
     let screen_w = rl.get_screen_width();
     let screen_h = rl.get_screen_height();
@@ -41,10 +43,26 @@ fn main() {
     let image_texture = unsafe {
         let image_raw = LoadImage(image_path.as_ptr());
         let mut image_texture_raw = LoadTextureFromImage(image_raw);
-        rlTextureParameters(image_texture_raw.id, RL_TEXTURE_WRAP_S as i32, RL_TEXTURE_WRAP_REPEAT as i32);
-        rlTextureParameters(image_texture_raw.id, RL_TEXTURE_WRAP_T as i32, RL_TEXTURE_WRAP_REPEAT as i32);
-        rlTextureParameters(image_texture_raw.id, RL_TEXTURE_MIN_FILTER as i32, RL_TEXTURE_FILTER_MIP_NEAREST as i32);
-        rlTextureParameters(image_texture_raw.id, RL_TEXTURE_MAG_FILTER as i32, RL_TEXTURE_FILTER_MIP_NEAREST as i32);
+        rlTextureParameters(
+            image_texture_raw.id,
+            RL_TEXTURE_WRAP_S as i32,
+            RL_TEXTURE_WRAP_REPEAT as i32,
+        );
+        rlTextureParameters(
+            image_texture_raw.id,
+            RL_TEXTURE_WRAP_T as i32,
+            RL_TEXTURE_WRAP_REPEAT as i32,
+        );
+        rlTextureParameters(
+            image_texture_raw.id,
+            RL_TEXTURE_MIN_FILTER as i32,
+            RL_TEXTURE_FILTER_MIP_NEAREST as i32,
+        );
+        rlTextureParameters(
+            image_texture_raw.id,
+            RL_TEXTURE_MAG_FILTER as i32,
+            RL_TEXTURE_FILTER_MIP_NEAREST as i32,
+        );
         UnloadImage(image_raw);
         Texture2D::from_raw(image_texture_raw)
     };
@@ -121,18 +139,34 @@ fn create_rgba16_render_texture(width: i32, height: i32) -> RenderTexture2D {
         };
         rlClearColor(0, 0, 0, 0);
         rlClearScreenBuffers();
-        rlFramebufferAttach(fbo_id, texture_id, RL_ATTACHMENT_COLOR_CHANNEL0 as i32, RL_ATTACHMENT_TEXTURE2D as i32, 0);
-        rlFramebufferAttach(fbo_id, depth_texture_id, RL_ATTACHMENT_DEPTH as i32, RL_ATTACHMENT_RENDERBUFFER as i32, 0);
+        rlFramebufferAttach(
+            fbo_id,
+            texture_id,
+            RL_ATTACHMENT_COLOR_CHANNEL0 as i32,
+            RL_ATTACHMENT_TEXTURE2D as i32,
+            0,
+        );
+        rlFramebufferAttach(
+            fbo_id,
+            depth_texture_id,
+            RL_ATTACHMENT_DEPTH as i32,
+            RL_ATTACHMENT_RENDERBUFFER as i32,
+            0,
+        );
         if rlFramebufferComplete(fbo_id) {
             TraceLog(
                 LOG_INFO as i32,
-                b"FBO: [ID %i] Framebuffer object created successfully\0".as_ptr().cast::<c_char>(),
+                b"FBO: [ID %i] Framebuffer object created successfully\0"
+                    .as_ptr()
+                    .cast::<c_char>(),
                 fbo_id,
             );
         } else {
             TraceLog(
                 LOG_WARNING as i32,
-                b"FBO: [ID %i] Framebuffer object is not complete\0".as_ptr().cast::<c_char>(),
+                b"FBO: [ID %i] Framebuffer object is not complete\0"
+                    .as_ptr()
+                    .cast::<c_char>(),
                 fbo_id,
             );
         }
