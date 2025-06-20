@@ -1,0 +1,24 @@
+# cargo fmt
+max_width = 120                   # Wrap lines at 120 characters (like ColumnLimit)
+hard_tabs = false                 # Use spaces instead of tab characters
+tab_spaces = 4                    # 4 spaces per indent
+
+#cargo +nightly fmt
+indent_style = "Block"            # Indent wrapped lines consistently (matches ContinuationIndentWidth)
+brace_style = "SameLineWhere"     # Place `{` on the same line as function or block
+control_brace_style = "AlwaysSameLine"  # Same-line brace for control structures like if/while/for
+fn_single_line = false            # Don't collapse small functions into a single line
+
+# rustfmt-only (no clang-format equivalent):
+where_single_line = false         # Force multiline formatting for where-clauses
+match_block_trailing_comma = true # Include trailing commas in match blocks for cleaner diffs
+struct_lit_single_line = false    # Force multi-line struct literals when fields span lines
+imports_granularity = "Preserve"  # Don't regroup or split imports
+group_imports = "Preserve"        # Keep grouped imports as written
+normalize_comments = false        # Don't reflow or format comment blocks
+use_field_init_shorthand = false  # Always use full `field: field` form, never shorthand
+force_explicit_abi = true         # Require extern declarations to explicitly state `"C"`
+
+# clang-format features rustfmt does not support:
+# AlignConsecutiveAssignments: true       # Not supported in rustfmt
+# AlignConsecutiveDeclarations: true      # Not supported in rustfmt

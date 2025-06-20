@@ -84,9 +84,7 @@ fn scanline_bucket_overlaps_polygon(
     bucket_start <= polygon_top_right_vertex && bucket_end >= polygon_top_left_vertex
 }
 
-pub fn shift_polygon_vertices_down_by_vertical_scroll_1_pixel(
-    collision_polygons: &mut Array<PackedVector2Array>,
-) {
+pub fn shift_polygon_vertices_down_by_vertical_scroll_1_pixel(collision_polygons: &mut Array<PackedVector2Array>) {
     for i in 0..MAX_POLYGONS {
         let mut collision_polygon_vertices = collision_polygons.get(i).unwrap();
         let slice: &mut [Vector2] = collision_polygon_vertices.as_mut_slice();
@@ -124,8 +122,8 @@ pub fn apply_vertical_projection(
         for vert_idx in 0..slice.len() {
             let vertex = slice[vert_idx];
 
-            let projected_y = project_vertex_y(vertex.y, i_resolution, i_time)
-                - project_vertex_y(0.0, i_resolution, i_time);
+            let projected_y =
+                project_vertex_y(vertex.y, i_resolution, i_time) - project_vertex_y(0.0, i_resolution, i_time);
             slice[vert_idx] = Vector2::new(vertex.x, projected_y);
         }
         projected_polygons.set(i, &screen_space_polygon);
@@ -201,8 +199,7 @@ pub fn apply_horizontal_projection(
             let projection_factor = PARALLAX_PROJECTION / (PARALLAX_PROJECTION - normalized_y);
             let normalized_x = (2.0 * vertex.x - i_resolution.x) / i_resolution.y;
             let projected_normalized_x = normalized_x * projection_factor;
-            let projected_screen_x =
-                (projected_normalized_x * i_resolution.y + i_resolution.x) * 0.5;
+            let projected_screen_x = (projected_normalized_x * i_resolution.y + i_resolution.x) * 0.5;
             projected_poly.push(Vector2::new(projected_screen_x, vertex.y));
         }
         projected_polygons.push(&projected_poly);

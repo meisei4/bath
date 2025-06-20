@@ -84,7 +84,10 @@ pub fn process_midi_events_with_timing(
         if let TrackEventKind::Meta(MetaMessage::Tempo(us)) = &event {
             us_per_qn = us.as_int() as u64;
         }
-        let channel = if let TrackEventKind::Midi { channel, .. } = event {
+        let channel = if let TrackEventKind::Midi {
+            channel, ..
+        } = event
+        {
             Some(channel.as_int())
         } else {
             None
@@ -98,8 +101,7 @@ fn inner_parse_note_on_off<T>(
     mut time_fn: impl FnMut(u64, &TrackEventKind<'_>) -> T,
     mut handle_note_fn: impl FnMut(u8, u8, u8, T, &[u8; 16]),
 ) {
-    let smf =
-        Smf::parse(midi_bytes).unwrap_or_else(|e| panic!("Failed to parse SMF from bytes: {}", e));
+    let smf = Smf::parse(midi_bytes).unwrap_or_else(|e| panic!("Failed to parse SMF from bytes: {}", e));
 
     let mut current_instrument_for_channel = [0u8; 16];
     let mut events: Vec<(u64, TrackEventKind<'static>)> = Vec::new();
@@ -113,13 +115,22 @@ fn inner_parse_note_on_off<T>(
     events.sort_unstable_by_key(|(tick, _)| *tick);
     for (tick, kind) in events {
         let time_value = time_fn(tick, &kind);
-        if let TrackEventKind::Midi { channel, message } = kind {
+        if let TrackEventKind::Midi {
+            channel,
+            message,
+        } = kind
+        {
             let ch = channel.as_int();
             match message {
-                MidiMessage::ProgramChange { program } => {
+                MidiMessage::ProgramChange {
+                    program,
+                } => {
                     current_instrument_for_channel[ch as usize] = program.as_int();
-                }
-                MidiMessage::NoteOn { key, vel } => {
+                },
+                MidiMessage::NoteOn {
+                    key,
+                    vel,
+                } => {
                     handle_note_fn(
                         ch,
                         key.as_int(),
@@ -127,17 +138,13 @@ fn inner_parse_note_on_off<T>(
                         time_value,
                         &current_instrument_for_channel,
                     );
-                }
-                MidiMessage::NoteOff { key, .. } => {
-                    handle_note_fn(
-                        ch,
-                        key.as_int(),
-                        0,
-                        time_value,
-                        &current_instrument_for_channel,
-                    );
-                }
-                _ => {}
+                },
+                MidiMessage::NoteOff {
+                    key, ..
+                } => {
+                    handle_note_fn(ch, key.as_int(), 0, time_value, &current_instrument_for_channel);
+                },
+                _ => {},
             }
         }
     }
@@ -195,8 +202,7 @@ pub fn parse_midi_events_into_note_on_off_event_buffer_seconds_from_bytes(
             let mut elapsed_secs = 0f64;
             move |tick, kind| {
                 let delta_ticks = tick - last_tick;
-                let delta_secs =
-                    (delta_ticks as f64 / tpq as f64) * (current_us_per_qn as f64 / 1_000_000.0);
+                let delta_secs = (delta_ticks as f64 / tpq as f64) * (current_us_per_qn as f64 / 1_000_000.0);
                 elapsed_secs += delta_secs;
                 last_tick = tick;
                 if let TrackEventKind::Meta(MetaMessage::Tempo(us)) = kind {
@@ -215,10 +221,7 @@ pub fn parse_midi_events_into_note_on_off_event_buffer_seconds_from_bytes(
                     midi_note: note,
                     instrument_id,
                 };
-                final_buffer
-                    .entry(midi_note)
-                    .or_default()
-                    .push((onset_sec, time_value));
+                final_buffer.entry(midi_note).or_default().push((onset_sec, time_value));
             }
         },
     );
@@ -226,10 +229,7 @@ pub fn parse_midi_events_into_note_on_off_event_buffer_seconds_from_bytes(
     final_buffer
 }
 
-pub fn debug_midi_note_onset_buffer(
-    buffer: &HashMap<MidiNote, Vec<(u64, u64)>>,
-    ticks_per_quarter: u64,
-) {
+pub fn debug_midi_note_onset_buffer(buffer: &HashMap<MidiNote, Vec<(u64, u64)>>, ticks_per_quarter: u64) {
     if buffer.is_empty() {
         println!("-- no note events to display --");
         return;
@@ -252,9 +252,7 @@ pub fn debug_midi_note_onset_buffer(
     println!();
 
     fn note_name(n: u8) -> String {
-        let names = [
-            "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
-        ];
+        let names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
         let octave = n / 12;
         format!("{}{}", names[(n % 12) as usize], octave)
     }
@@ -274,11 +272,7 @@ pub fn debug_midi_note_onset_buffer(
 
     for (top, bottom_opt) in pairs {
         let label = if let Some(bottom) = &bottom_opt {
-            format!(
-                "{}/{}",
-                note_name(top.midi_note),
-                note_name(bottom.midi_note)
-            )
+            format!("{}/{}", note_name(top.midi_note), note_name(bottom.midi_note))
         } else {
             note_name(top.midi_note)
         };

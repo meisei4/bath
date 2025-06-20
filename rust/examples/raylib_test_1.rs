@@ -1,16 +1,13 @@
 use raylib::callbacks::TraceLogLevel::{LOG_INFO, LOG_WARNING};
 use raylib::color::Color;
 use raylib::drawing::{RaylibDraw, RaylibShaderModeExt, RaylibTextureModeExt};
-use raylib::ffi::rlFramebufferAttachTextureType::{
-    RL_ATTACHMENT_RENDERBUFFER, RL_ATTACHMENT_TEXTURE2D,
-};
+use raylib::ffi::rlFramebufferAttachTextureType::{RL_ATTACHMENT_RENDERBUFFER, RL_ATTACHMENT_TEXTURE2D};
 use raylib::ffi::rlFramebufferAttachType::{RL_ATTACHMENT_COLOR_CHANNEL0, RL_ATTACHMENT_DEPTH};
 use raylib::ffi::{
-    rlClearColor, rlClearScreenBuffers, rlDisableColorBlend, rlDisableFramebuffer,
-    rlEnableFramebuffer, rlFramebufferAttach, rlFramebufferComplete, rlLoadFramebuffer,
-    rlLoadTexture, rlLoadTextureDepth, rlTextureParameters, LoadImage, LoadTextureFromImage,
-    TraceLog, UnloadImage, RL_TEXTURE_FILTER_MIP_NEAREST, RL_TEXTURE_MAG_FILTER,
-    RL_TEXTURE_MIN_FILTER, RL_TEXTURE_WRAP_REPEAT, RL_TEXTURE_WRAP_S, RL_TEXTURE_WRAP_T,
+    rlClearColor, rlClearScreenBuffers, rlDisableColorBlend, rlDisableFramebuffer, rlEnableFramebuffer,
+    rlFramebufferAttach, rlFramebufferComplete, rlLoadFramebuffer, rlLoadTexture, rlLoadTextureDepth,
+    rlTextureParameters, LoadImage, LoadTextureFromImage, TraceLog, UnloadImage, RL_TEXTURE_FILTER_MIP_NEAREST,
+    RL_TEXTURE_MAG_FILTER, RL_TEXTURE_MIN_FILTER, RL_TEXTURE_WRAP_REPEAT, RL_TEXTURE_WRAP_S, RL_TEXTURE_WRAP_T,
 };
 use raylib::init;
 use raylib::math::{Rectangle, Vector2};
@@ -42,11 +39,7 @@ fn main() {
     let i_channel_1_loc = shader.get_shader_location("iChannel1");
     shader.set_shader_value(i_channel_1_loc, 0);
     shader.set_shader_value(i_res_loc, [screen_w as f32, screen_h as f32]);
-    let image_path = CString::new(format!(
-        "{}/../godot/Resources/textures/icebergs.jpg",
-        project_root
-    ))
-    .unwrap();
+    let image_path = CString::new(format!("{}/../godot/Resources/textures/icebergs.jpg", project_root)).unwrap();
     let image_texture = unsafe {
         let image_raw = LoadImage(image_path.as_ptr());
         let mut image_texture_raw = LoadTextureFromImage(image_raw);
@@ -178,11 +171,7 @@ fn load_shader_with_includes(path: impl AsRef<Path>) -> String {
     for line in src.lines() {
         let trimmed = line.trim_start();
         if let Some(rest) = trimmed.strip_prefix("#include") {
-            if let Some(name) = rest
-                .trim()
-                .strip_prefix('"')
-                .and_then(|s| s.strip_suffix('"'))
-            {
+            if let Some(name) = rest.trim().strip_prefix('"').and_then(|s| s.strip_suffix('"')) {
                 let incl = parent.join(name);
                 out.push_str(&load_shader_with_includes(incl));
                 continue;

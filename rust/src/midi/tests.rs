@@ -15,8 +15,7 @@ use terminal_size::{terminal_size, Width};
 
 use crate::midi::util::{
     parse_midi_events_into_note_on_off_event_buffer_seconds_from_bytes,
-    parse_midi_events_into_note_on_off_event_buffer_ticks_from_bytes, prepare_events,
-    process_midi_events_with_timing,
+    parse_midi_events_into_note_on_off_event_buffer_ticks_from_bytes, prepare_events, process_midi_events_with_timing,
 };
 
 const SOUND_FONT_FILE_PATH: &str = "../godot/Resources/audio/dsdnmoy.sf2";
@@ -71,11 +70,7 @@ pub fn connect_to_first_midi_port() -> (MidiOutput, MidiOutputPort) {
     exit(1);
 }
 
-pub fn handle_key_event(
-    event: Event,
-    connection: &mut MidiOutputConnection,
-    active_keys: &mut HashSet<Key>,
-) {
+pub fn handle_key_event(event: Event, connection: &mut MidiOutputConnection, active_keys: &mut HashSet<Key>) {
     match event.event_type {
         EventType::KeyPress(Key::Escape) => exit(0),
         EventType::KeyPress(key) => {
@@ -84,24 +79,21 @@ pub fn handle_key_event(
                     let _ = connection.send(&[0x90, note, 100]);
                 }
             }
-        }
+        },
         EventType::KeyRelease(key) => {
             if let Some(note) = map_key_to_midi_note(key) {
                 if active_keys.remove(&key) {
                     let _ = connection.send(&[0x80, note, 0]);
                 }
             }
-        }
-        _ => {}
+        },
+        _ => {},
     }
     render(active_keys);
 }
 
 fn map_key_to_midi_note(key: Key) -> Option<u8> {
-    key_bindings()
-        .into_iter()
-        .find(|b| b.key == key)
-        .map(|b| b.midi_note)
+    key_bindings().into_iter().find(|b| b.key == key).map(|b| b.midi_note)
 }
 
 pub struct KeyBinding {
@@ -216,11 +208,7 @@ pub fn render(active_keys: &HashSet<Key>) {
     buffer.push_str("   ");
     for (i, label) in ['W', 'E', 'T', 'Y', 'U'].iter().enumerate() {
         let pressed = active_keys.contains(&key_for_label(*label));
-        let ch = if pressed {
-            BLACK_KEY_PRESSED
-        } else {
-            BLACK_KEY_CHAR
-        };
+        let ch = if pressed { BLACK_KEY_PRESSED } else { BLACK_KEY_CHAR };
         buffer.push_str(ch);
         buffer.push_str("  ");
         if i == 1 {
@@ -253,11 +241,7 @@ pub fn render(active_keys: &HashSet<Key>) {
     for label in ['A', 'S', 'D', 'F', 'G', 'H', 'J'] {
         let pressed = active_keys.contains(&key_for_label(label));
         buffer.push_str("│");
-        buffer.push_str(if pressed {
-            WHITE_KEY_PRESSED
-        } else {
-            WHITE_KEY_EMPTY
-        });
+        buffer.push_str(if pressed { WHITE_KEY_PRESSED } else { WHITE_KEY_EMPTY });
         buffer.push_str("│");
     }
     buffer.push('\n');
@@ -294,9 +278,7 @@ fn key_for_label(label: char) -> Key {
 }
 
 fn note_name_no_octave(note_number: u8) -> &'static str {
-    const NAMES: [&str; 12] = [
-        "C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B",
-    ];
+    const NAMES: [&str; 12] = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"];
     NAMES[(note_number % 12) as usize]
 }
 
@@ -321,21 +303,29 @@ pub fn play_midi(midi_path: &str) {
         }
         last_time = event_time;
         if let Some(channel) = ch {
-            if let TrackEventKind::Midi { message, .. } = event {
+            if let TrackEventKind::Midi {
+                message, ..
+            } = event
+            {
                 match message {
-                    MidiMessage::NoteOn { key, vel } => {
+                    MidiMessage::NoteOn {
+                        key,
+                        vel,
+                    } => {
                         let msg = if vel.as_int() > 0 {
                             vec![MIDI_NOTE_ON | channel, key.as_int(), vel.as_int()]
                         } else {
                             vec![MIDI_NOTE_OFF | channel, key.as_int(), 0]
                         };
                         let _ = conn.send(&msg);
-                    }
-                    MidiMessage::NoteOff { key, .. } => {
+                    },
+                    MidiMessage::NoteOff {
+                        key, ..
+                    } => {
                         let msg = vec![MIDI_NOTE_OFF | channel, key.as_int(), 0];
                         let _ = conn.send(&msg);
-                    }
-                    _ => {}
+                    },
+                    _ => {},
                 }
             }
         }
@@ -352,11 +342,7 @@ const L3_LAST: &str = "        │   └── ";
 const L4: &str = "        │   │   ├── ";
 const L4_LAST: &str = "        │   │   └── ";
 
-pub fn print_full_structure(
-    soundfont_file_path: &str,
-    bank: i32,
-    patch: i32,
-) -> Result<(), Box<dyn Error>> {
+pub fn print_full_structure(soundfont_file_path: &str, bank: i32, patch: i32) -> Result<(), Box<dyn Error>> {
     let file = File::open(soundfont_file_path)?;
     let mut reader = BufReader::new(file);
     let soundfont = SoundFont::new(&mut reader)?;
@@ -381,10 +367,7 @@ pub fn print_full_structure(
         if let Some(instrument) = soundfont.get_instruments().get(instrument_index) {
             print_instrument_info(instrument, &soundfont, &mut lines);
         } else {
-            lines.push(format!(
-                "{L2}(Missing instrument at index {})",
-                instrument_index
-            ));
+            lines.push(format!("{L2}(Missing instrument at index {})", instrument_index));
         }
     }
     print_aligned_right(&lines);
@@ -394,19 +377,13 @@ pub fn print_full_structure(
 fn print_preset_info(preset: &Preset, lines: &mut Vec<String>) {
     lines.push(format!("{L0}Preset: \"{}\"", preset.get_name()));
     lines.push(format!("{L1}Bank Number: {}", preset.get_bank_number()));
-    lines.push(format!(
-        "{L1_LAST}Patch Number: {}",
-        preset.get_patch_number()
-    ));
+    lines.push(format!("{L1_LAST}Patch Number: {}", preset.get_patch_number()));
 }
 
 fn print_instrument_info(instrument: &Instrument, soundfont: &SoundFont, lines: &mut Vec<String>) {
     lines.push(format!("{L2}Instrument: \"{}\"", instrument.get_name()));
     let instrument_regions = instrument.get_regions();
-    lines.push(format!(
-        "{L2}Instrument Regions: {} bags",
-        instrument_regions.len()
-    ));
+    lines.push(format!("{L2}Instrument Regions: {} bags", instrument_regions.len()));
     for (i, region) in instrument_regions.iter().enumerate() {
         let is_last = i == instrument_regions.len() - 1;
         let label = if is_last {
@@ -426,10 +403,7 @@ fn print_instrument_region_key_velocity_info(region: &InstrumentRegion, lines: &
     let high = region.get_key_range_end() as u8;
     let low_note = note_to_name(low);
     let high_note = note_to_name(high);
-    lines.push(format!(
-        "{L3}Key Range: {}–{} ({}–{})",
-        low, high, low_note, high_note
-    ));
+    lines.push(format!("{L3}Key Range: {}–{} ({}–{})", low, high, low_note, high_note));
     let vel_low = region.get_velocity_range_start();
     let vel_high = region.get_velocity_range_end();
     lines.push(format!(
@@ -451,10 +425,7 @@ fn print_sample_info(region: &InstrumentRegion, soundfont: &SoundFont, lines: &m
         lines.push(format!("{L4}Original Pitch: {} ({})", pitch, note));
         let pitch_correct = sample.get_pitch_correction();
         lines.push(format!("{L4}Pitch Correction: {} cents", pitch_correct));
-        lines.push(format!(
-            "{L4_LAST}Sample Type: {} (1 = mono)",
-            sample.get_sample_type()
-        ));
+        lines.push(format!("{L4_LAST}Sample Type: {} (1 = mono)", sample.get_sample_type()));
     }
 }
 
@@ -469,20 +440,11 @@ fn print_region_pan_envelope(region: &InstrumentRegion, lines: &mut Vec<String>)
     };
     lines.push(format!("{L3}Pan Position: {} (Stereo balance)", pan_desc));
     let attack = region.get_attack_volume_envelope();
-    lines.push(format!(
-        "{L3}Volume Envelope - Attack Time: {:.3} sec",
-        attack
-    ));
+    lines.push(format!("{L3}Volume Envelope - Attack Time: {:.3} sec", attack));
     let decay = region.get_decay_volume_envelope();
-    lines.push(format!(
-        "{L3}Volume Envelope - Decay Time: {:.3} sec",
-        decay
-    ));
+    lines.push(format!("{L3}Volume Envelope - Decay Time: {:.3} sec", decay));
     let sustain = region.get_sustain_volume_envelope();
-    lines.push(format!(
-        "{L3}Volume Envelope - Sustain Level: {:.1} dB",
-        sustain
-    ));
+    lines.push(format!("{L3}Volume Envelope - Sustain Level: {:.1} dB", sustain));
     let envelope_vol = region.get_release_volume_envelope();
     lines.push(format!(
         "{L3_LAST}Volume Envelope - Release Time: {:.3} sec)",
@@ -494,9 +456,7 @@ fn print_aligned_right(lines: &[String]) {
     let max_width = lines.iter().map(|l| l.len()).max().unwrap_or(0);
     let keyboard_width = key_bindings().len() * 6;
     let gap = 1;
-    let term_width = terminal_size()
-        .map(|(Width(w), _)| w as usize)
-        .unwrap_or(80);
+    let term_width = terminal_size().map(|(Width(w), _)| w as usize).unwrap_or(80);
     let required = keyboard_width + gap + max_width;
     let pad = if required <= term_width {
         keyboard_width + gap
@@ -509,9 +469,7 @@ fn print_aligned_right(lines: &[String]) {
 }
 
 pub fn note_to_name(note_number: u8) -> String {
-    const NAMES: [&str; 12] = [
-        "C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B",
-    ];
+    const NAMES: [&str; 12] = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"];
     let octave = (note_number / 12).saturating_sub(1);
     let name = NAMES[(note_number % 12) as usize];
     format!("{}{}", name, octave)

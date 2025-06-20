@@ -172,12 +172,7 @@ pub fn convert_shader(input: &str, from: Context, to: Context) -> String {
     shader_src
 }
 
-pub fn convert(
-    input_rel: &str,
-    from: Context,
-    to: Context,
-    output_rel: &str,
-) -> std::io::Result<()> {
+pub fn convert(input_rel: &str, from: Context, to: Context, output_rel: &str) -> std::io::Result<()> {
     let base = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let in_path = base.join("resources").join(input_rel);
     let out_path = base.join("test_output").join(output_rel);
@@ -199,34 +194,10 @@ fn main() {
     let mapped = translate_token(src, ShaderToy, Godot);
     println!("{} → {:?}", src, mapped);
     convert("glsl/image.glsl", GLSL, Godot, "gdshader/image.gdshader").expect("conversion failed");
-    convert(
-        "glsl/buffer_a.glsl",
-        GLSL,
-        Godot,
-        "gdshader/buffer_a.gdshader",
-    )
-    .expect("conversion failed");
-    convert(
-        "glsl/image.glsl",
-        GLSL,
-        ShaderToy,
-        "shadertoy/image.shadertoy",
-    )
-    .expect("conversion failed");
-    convert(
-        "glsl/buffer_a.glsl",
-        GLSL,
-        ShaderToy,
-        "shadertoy/buffer_a.shadertoy",
-    )
-    .expect("conversion failed");
-    convert(
-        "gdshader/buffer_a.gdshader",
-        Godot,
-        GLSL,
-        "glsl/buffer_a.glsl",
-    )
-    .expect("conversion failed");
+    convert("glsl/buffer_a.glsl", GLSL, Godot, "gdshader/buffer_a.gdshader").expect("conversion failed");
+    convert("glsl/image.glsl", GLSL, ShaderToy, "shadertoy/image.shadertoy").expect("conversion failed");
+    convert("glsl/buffer_a.glsl", GLSL, ShaderToy, "shadertoy/buffer_a.shadertoy").expect("conversion failed");
+    convert("gdshader/buffer_a.gdshader", Godot, GLSL, "glsl/buffer_a.glsl").expect("conversion failed");
     convert("gdshader/image.gdshader", Godot, GLSL, "glsl/image.glsl").expect("conversion failed");
     if let Err(e) = compare_dirs("resources", "test_output") {
         eprintln!("Failed to diff directories: {}", e);

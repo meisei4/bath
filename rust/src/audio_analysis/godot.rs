@@ -34,12 +34,11 @@ pub fn detect_bpm_aubio_wav(pcm_bytes: &[u8]) -> f32 {
         Err(e) => {
             godot_print!("detect_bpm_aubio: failed to parse PCM bytes: {}", e);
             return 0.0;
-        }
+        },
     };
     let spec = reader.spec();
     let channels = spec.channels as usize;
-    let mut tempo = Tempo::new(SpecFlux, BUF_SIZE, HOP_SIZE, spec.sample_rate)
-        .expect("couldn't create aubio Tempo");
+    let mut tempo = Tempo::new(SpecFlux, BUF_SIZE, HOP_SIZE, spec.sample_rate).expect("couldn't create aubio Tempo");
     let mut in_data = vec![0.0 as Smpl; HOP_SIZE];
     let mut out_data = vec![0.0 as Smpl; HOP_SIZE];
     let mut samples = reader.samples::<i16>();
@@ -74,7 +73,7 @@ pub fn detect_bpm_aubio_ogg(ogg_bytes: &[u8]) -> f32 {
         Err(e) => {
             godot_print!("OGG BPM: failed to parse OGG: {:?}", e);
             return 0.0;
-        }
+        },
     };
     // TODO: This is the WAV -> OGG compression details
     //  ffmpeg -i in.wav -c:a libvorbis -qscale:a 0.1 -ar 12000 -ac 1 -compression_level 10 out.ogg
@@ -98,7 +97,7 @@ pub fn detect_bpm_aubio_ogg(ogg_bytes: &[u8]) -> f32 {
         Err(e) => {
             godot_print!("OGG BPM: Tempo init failed: {}", e);
             return 0.0;
-        }
+        },
     };
     let mut in_data = vec![0.0 as Smpl; ogg_hop_size];
     let mut out_data = vec![0.0 as Smpl; ogg_hop_size];
@@ -114,9 +113,7 @@ pub fn detect_bpm_aubio_ogg(ogg_bytes: &[u8]) -> f32 {
             }
             in_data[i] = (sum as Smpl / channels as Smpl) * I16_TO_SMPL;
         }
-        tempo
-            .do_(in_data.as_slice(), out_data.as_mut_slice())
-            .unwrap();
+        tempo.do_(in_data.as_slice(), out_data.as_mut_slice()).unwrap();
         bpm = tempo.get_bpm();
     }
 
@@ -130,7 +127,7 @@ pub fn detect_bpm_from_beat_detector(pcm_bytes: &[u8]) -> f32 {
         Err(e) => {
             godot_print!("detect_bpm_from_bytes: failed to parse PCM bytes: {}", e);
             return 0.0;
-        }
+        },
     };
     let spec = reader.spec();
     let sample_rate = spec.sample_rate as f32;
@@ -144,7 +141,7 @@ pub fn detect_bpm_from_beat_detector(pcm_bytes: &[u8]) -> f32 {
                 Some(Ok(s)) => sum += s as i32,
                 _ => {
                     break;
-                }
+                },
             }
         }
         if sum == 0 && samples_iter.len() < channels {

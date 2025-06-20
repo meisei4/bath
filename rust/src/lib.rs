@@ -5,25 +5,20 @@ pub mod midi;
 use crate::audio_analysis::godot::{detect_bpm_aubio_ogg, detect_bpm_aubio_wav};
 use crate::collision_mask::isp::{
     apply_horizontal_projection, apply_vertical_projection, compute_quantized_vertical_pixel_coord,
-    shift_polygon_vertices_down_by_vertical_scroll_1_pixel,
-    update_polygons_with_scanline_alpha_buckets,
+    shift_polygon_vertices_down_by_vertical_scroll_1_pixel, update_polygons_with_scanline_alpha_buckets,
 };
 use crate::midi::godot::{
     make_note_on_off_event_dict_seconds, make_note_on_off_event_dict_ticks, write_samples_to_wav,
 };
-use crate::midi::util::{
-    inject_program_change, prepare_events, process_midi_events_with_timing, render_sample_frame,
-};
+use crate::midi::util::{inject_program_change, prepare_events, process_midi_events_with_timing, render_sample_frame};
 use collision_mask::godot::{
-    generate_concave_collision_polygons_pixel_perfect,
-    generate_convex_collision_polygons_pixel_perfect,
+    generate_concave_collision_polygons_pixel_perfect, generate_convex_collision_polygons_pixel_perfect,
 };
 use godot::builtin::{PackedByteArray, PackedVector2Array, Vector2};
 use godot::classes::file_access::ModeFlags;
 use godot::classes::{FileAccess, Node2D};
 use godot::prelude::{
-    gdextension, godot_api, Array, Base, Dictionary, ExtensionLibrary, GString, GodotClass,
-    PackedInt32Array,
+    gdextension, godot_api, Array, Base, Dictionary, ExtensionLibrary, GString, GodotClass, PackedInt32Array,
 };
 use midly::{MidiMessage, Smf, TrackEventKind};
 use rustysynth::{SoundFont, Synthesizer, SynthesizerSettings};
@@ -57,8 +52,7 @@ impl RustUtil {
         previous_quantized_vertical_pixel_coord: i32,
         mut scanline_count_per_polygon: PackedInt32Array,
     ) -> Dictionary {
-        let quantized_vertical_pixel_coord =
-            compute_quantized_vertical_pixel_coord(i_time, i_resolution);
+        let quantized_vertical_pixel_coord = compute_quantized_vertical_pixel_coord(i_time, i_resolution);
         let quantized_vertical_pixel_coords_scrolled_this_frame =
             quantized_vertical_pixel_coord - previous_quantized_vertical_pixel_coord;
         for _ in 0..quantized_vertical_pixel_coords_scrolled_this_frame {
@@ -109,11 +103,8 @@ impl RustUtil {
         let height: usize = image_height_pixels as usize;
         let tile_size: usize = tile_edge_length as usize;
         let mut godot_polygons_array: Array<PackedVector2Array> = Array::new();
-        let concave_polygons: Vec<Vec<Vector2>> = generate_concave_collision_polygons_pixel_perfect(
-            &pixel_data,
-            (width, height),
-            tile_size,
-        );
+        let concave_polygons: Vec<Vec<Vector2>> =
+            generate_concave_collision_polygons_pixel_perfect(&pixel_data, (width, height), tile_size);
         for concave_polygon in concave_polygons {
             let mut packed_polygon: PackedVector2Array = PackedVector2Array::new();
             for point in concave_polygon {
@@ -137,11 +128,8 @@ impl RustUtil {
         let height: usize = image_height_pixels as usize;
         let tile_size: usize = tile_edge_length as usize;
         let mut godot_polygons_array: Array<PackedVector2Array> = Array::new();
-        let convex_polygons: Vec<Vec<Vector2>> = generate_convex_collision_polygons_pixel_perfect(
-            &pixel_data,
-            (width, height),
-            tile_size,
-        );
+        let convex_polygons: Vec<Vec<Vector2>> =
+            generate_convex_collision_polygons_pixel_perfect(&pixel_data, (width, height), tile_size);
 
         for convex_polygon in convex_polygons {
             let mut packed_polygon: PackedVector2Array = PackedVector2Array::new();
@@ -191,8 +179,7 @@ impl RustUtil {
         let sf2_bytes = sf2_file.get_buffer(sf2_file.get_length() as i64).to_vec();
         let mut sf2_cursor = Cursor::new(sf2_bytes);
         let soundfont = Arc::new(SoundFont::new(&mut sf2_cursor).unwrap());
-        let mut synth =
-            Synthesizer::new(&soundfont, &SynthesizerSettings::new(sample_rate)).unwrap();
+        let mut synth = Synthesizer::new(&soundfont, &SynthesizerSettings::new(sample_rate)).unwrap();
         let midi_path = midi_file_path.to_string();
         let file = FileAccess::open(&midi_path, ModeFlags::READ).unwrap();
         let midi_file_bytes = file.get_buffer(file.get_length() as i64).to_vec();
@@ -212,8 +199,13 @@ impl RustUtil {
             }
             if let Some(channel) = ch {
                 match event {
-                    TrackEventKind::Midi { message, .. } => match message {
-                        MidiMessage::NoteOn { key, vel } => {
+                    TrackEventKind::Midi {
+                        message, ..
+                    } => match message {
+                        MidiMessage::NoteOn {
+                            key,
+                            vel,
+                        } => {
                             let note = key.as_int() as i32;
                             let velocity = vel.as_int() as i32;
                             if velocity > 0 {
@@ -223,15 +215,17 @@ impl RustUtil {
                                 synth.note_off(channel as i32, note);
                                 active_notes.remove(&(channel, note));
                             }
-                        }
-                        MidiMessage::NoteOff { key, .. } => {
+                        },
+                        MidiMessage::NoteOff {
+                            key, ..
+                        } => {
                             let note = key.as_int() as i32;
                             synth.note_off(channel as i32, note);
                             active_notes.remove(&(channel, note));
-                        }
-                        _ => {}
+                        },
+                        _ => {},
                     },
-                    _ => {}
+                    _ => {},
                 }
             }
         });

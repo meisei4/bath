@@ -1,7 +1,7 @@
 use crate::midi::util::{
     inject_program_change, parse_midi_events_into_note_on_off_event_buffer_seconds_from_bytes,
-    parse_midi_events_into_note_on_off_event_buffer_ticks_from_bytes, prepare_events,
-    process_midi_events_with_timing, render_sample_frame, write_samples_to_wav_bytes,
+    parse_midi_events_into_note_on_off_event_buffer_ticks_from_bytes, prepare_events, process_midi_events_with_timing,
+    render_sample_frame, write_samples_to_wav_bytes,
 };
 
 use godot::builtin::{Dictionary, PackedByteArray, PackedVector2Array, Vector2, Vector2i};
@@ -19,8 +19,7 @@ pub fn write_samples_to_wav(sample_rate: i32, samples: Vec<(i16, i16)>) -> Packe
 pub fn make_note_on_off_event_dict_ticks(midi_path: &GString) -> Dictionary {
     let gd_file = FileAccess::open(midi_path, ModeFlags::READ).unwrap();
     let midi_bytes = gd_file.get_buffer(gd_file.get_length() as i64).to_vec();
-    let note_map_ticks =
-        parse_midi_events_into_note_on_off_event_buffer_ticks_from_bytes(&midi_bytes);
+    let note_map_ticks = parse_midi_events_into_note_on_off_event_buffer_ticks_from_bytes(&midi_bytes);
     let mut dict = Dictionary::new();
     for (key, segments) in note_map_ticks {
         let dict_key = Vector2i::new(key.midi_note as i32, key.instrument_id as i32);
@@ -36,8 +35,7 @@ pub fn make_note_on_off_event_dict_ticks(midi_path: &GString) -> Dictionary {
 pub fn make_note_on_off_event_dict_seconds(midi_path: &GString) -> Dictionary {
     let gd_file = FileAccess::open(midi_path, ModeFlags::READ).unwrap();
     let midi_bytes = gd_file.get_buffer(gd_file.get_length() as i64).to_vec();
-    let note_map_secs =
-        parse_midi_events_into_note_on_off_event_buffer_seconds_from_bytes(&midi_bytes);
+    let note_map_secs = parse_midi_events_into_note_on_off_event_buffer_seconds_from_bytes(&midi_bytes);
     let mut dict = Dictionary::new();
     for (key, segments) in note_map_secs {
         let dict_key = Vector2i::new(key.midi_note as i32, key.instrument_id as i32);
@@ -77,9 +75,15 @@ pub fn render_midi_to_sound_bytes_constant_time(
             time_cursor += step_secs;
         }
         if let Some(channel) = ch {
-            if let TrackEventKind::Midi { message, .. } = event {
+            if let TrackEventKind::Midi {
+                message, ..
+            } = event
+            {
                 match message {
-                    MidiMessage::NoteOn { key, vel } => {
+                    MidiMessage::NoteOn {
+                        key,
+                        vel,
+                    } => {
                         let note = key.as_int() as i32;
                         let velocity = vel.as_int() as i32;
                         if velocity > 0 {
@@ -89,13 +93,15 @@ pub fn render_midi_to_sound_bytes_constant_time(
                             synth.note_off(channel as i32, note);
                             active_notes.remove(&(channel, note));
                         }
-                    }
-                    MidiMessage::NoteOff { key, .. } => {
+                    },
+                    MidiMessage::NoteOff {
+                        key, ..
+                    } => {
                         let note = key.as_int() as i32;
                         synth.note_off(channel as i32, note);
                         active_notes.remove(&(channel, note));
-                    }
-                    _ => {}
+                    },
+                    _ => {},
                 }
             }
         }

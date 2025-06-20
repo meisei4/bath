@@ -1,0 +1,12 @@
+# clang-format -i $(find . -name "*.glsl")
+BasedOnStyle: WebKit                    # Base style preset (similar to Apple's coding standards)
+IndentWidth: 4                          # Use 4 spaces per indent
+UseTab: Never                           # Never use tabs
+ColumnLimit: 120                        # Wrap lines at 120 characters
+BreakBeforeBraces: Attach               # Place `{` on the same line as the control/function
+ContinuationIndentWidth: 4              # Indent wrapped lines by 4 spaces
+SpacesInParentheses: false              # No space inside parentheses: `f(x)` not `f( x )`
+SpaceAfterCStyleCast: true              # Add space after C-style cast: `(int) x`
+SpaceBeforeParens: ControlStatements    # Add space before parens in `if`, `for`, etc.
+AlignConsecutiveAssignments: true       # Align `=` in consecutive assignments
+AlignConsecutiveDeclarations: true      # Align type/var names across multiple declarations

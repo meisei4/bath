@@ -1,9 +1,9 @@
 use raylib::color::Color;
 use raylib::drawing::{RaylibDraw, RaylibShaderModeExt, RaylibTextureModeExt};
 use raylib::ffi::{
-    rlClearColor, rlClearScreenBuffers, rlDisableColorBlend, rlDisableFramebuffer,
-    rlEnableFramebuffer, rlFramebufferAttach, rlFramebufferComplete, rlLoadFramebuffer,
-    rlLoadTexture, rlLoadTextureDepth, Texture2D, TraceLog,
+    rlClearColor, rlClearScreenBuffers, rlDisableColorBlend, rlDisableFramebuffer, rlEnableFramebuffer,
+    rlFramebufferAttach, rlFramebufferComplete, rlLoadFramebuffer, rlLoadTexture, rlLoadTextureDepth, Texture2D,
+    TraceLog,
 };
 use raylib::math::{Rectangle, Vector2};
 use raylib::shaders::{RaylibShader, Shader};
@@ -12,9 +12,7 @@ use raylib::{init, RaylibHandle, RaylibThread};
 use std::ffi::c_char;
 
 use raylib::consts::TraceLogLevel::{LOG_INFO, LOG_WARNING};
-use raylib::ffi::rlFramebufferAttachTextureType::{
-    RL_ATTACHMENT_RENDERBUFFER, RL_ATTACHMENT_TEXTURE2D,
-};
+use raylib::ffi::rlFramebufferAttachTextureType::{RL_ATTACHMENT_RENDERBUFFER, RL_ATTACHMENT_TEXTURE2D};
 use raylib::ffi::rlFramebufferAttachType::{RL_ATTACHMENT_COLOR_CHANNEL0, RL_ATTACHMENT_DEPTH};
 use std::fs::read_to_string;
 use std::mem::swap;
@@ -41,18 +39,12 @@ fn main() {
     println!("dpi: {:?}", dpi);
 
     let project_root_dir = env!("CARGO_MANIFEST_DIR");
-    let feedback_buffer_src_code =
-        read_to_string(format!("{project_root_dir}/resources/glsl/buffer_a.glsl")).unwrap();
-    let image_src_code =
-        read_to_string(format!("{project_root_dir}/resources/glsl/image.glsl")).unwrap();
+    let feedback_buffer_src_code = read_to_string(format!("{project_root_dir}/resources/glsl/buffer_a.glsl")).unwrap();
+    let image_src_code = read_to_string(format!("{project_root_dir}/resources/glsl/image.glsl")).unwrap();
 
-    let mut feedback_buffer_shader = raylib_handle.load_shader_from_memory(
-        &raylib_thread,
-        None,
-        Some(&feedback_buffer_src_code),
-    );
-    let mut image_shader =
-        raylib_handle.load_shader_from_memory(&raylib_thread, None, Some(&image_src_code));
+    let mut feedback_buffer_shader =
+        raylib_handle.load_shader_from_memory(&raylib_thread, None, Some(&feedback_buffer_src_code));
+    let mut image_shader = raylib_handle.load_shader_from_memory(&raylib_thread, None, Some(&image_src_code));
 
     let i_time_location = feedback_buffer_shader.get_shader_location("iTime");
     let buffer_i_channel0_location = feedback_buffer_shader.get_shader_location("iChannel0");

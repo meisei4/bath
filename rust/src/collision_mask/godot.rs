@@ -10,10 +10,7 @@ pub fn generate_concave_collision_polygons_pixel_perfect(
     for y in 0..h {
         for x in 0..w {
             let idx = y * w + x;
-            if pixel_mask_slice[idx] == 1
-                && !visited[idx]
-                && is_boundary_pixel(pixel_mask_slice, w, h, x, y)
-            {
+            if pixel_mask_slice[idx] == 1 && !visited[idx] && is_boundary_pixel(pixel_mask_slice, w, h, x, y) {
                 let raw = trace_boundary(pixel_mask_slice, w, h, x, y, &mut visited);
                 let simple = filter_colinear(&raw);
                 if simple.len() >= 3 {
@@ -62,14 +59,7 @@ fn is_boundary_pixel(mask: &[u8], w: usize, h: usize, x: usize, y: usize) -> boo
     false
 }
 
-fn trace_boundary(
-    mask: &[u8],
-    w: usize,
-    h: usize,
-    sx: usize,
-    sy: usize,
-    visited: &mut [bool],
-) -> Vec<Vector2> {
+fn trace_boundary(mask: &[u8], w: usize, h: usize, sx: usize, sy: usize, visited: &mut [bool]) -> Vec<Vector2> {
     let mut contour = Vec::new();
     let mut x = sx;
     let mut y = sy;
@@ -115,11 +105,7 @@ pub fn generate_convex_collision_polygons_pixel_perfect(
     (w, h): (usize, usize),
     tile_edge_length: usize,
 ) -> Vec<Vec<Vector2>> {
-    let contours = generate_concave_collision_polygons_pixel_perfect(
-        pixel_mask_slice,
-        (w, h),
-        tile_edge_length,
-    );
+    let contours = generate_concave_collision_polygons_pixel_perfect(pixel_mask_slice, (w, h), tile_edge_length);
     let mut hulls = Vec::with_capacity(contours.len());
     for contour in contours {
         let hull = compute_convex_hull_monotone_chain(&contour);
@@ -185,10 +171,7 @@ fn build_upper_monotone_chain_hull(sorted_points: &[Vector2]) -> Vec<Vector2> {
     upper_chain
 }
 
-fn merge_monotone_chain_hulls(
-    mut lower_chain: Vec<Vector2>,
-    mut upper_chain: Vec<Vector2>,
-) -> Vec<Vector2> {
+fn merge_monotone_chain_hulls(mut lower_chain: Vec<Vector2>, mut upper_chain: Vec<Vector2>) -> Vec<Vector2> {
     lower_chain.pop();
     upper_chain.pop();
     lower_chain.extend(upper_chain);
