@@ -1,8 +1,8 @@
 #version 330
 #include "supersampling.glsl"
 
-uniform vec2      iResolution;
 uniform sampler2D iChannel1;
+uniform vec2      iResolution;
 
 #define LOCAL_CELL_SPACE_VERTICAL_SHIFT_SCALAR 0.0125
 #define HYPERBOLIC_AMPLITUDE 0.008
@@ -102,23 +102,20 @@ vec4 jitter_supersample(vec2 frag_coord, vec2 grid_dimensions) {
 
 #define SUPERSAMPLE(frag_coord, grid_dimensions) jitter_supersample(frag_coord, grid_dimensions)
 
-// TODO: this is the simple pass but it always results in a black screen...
 in vec2  fragTexCoord;
 in vec4  fragColor;
 out vec4 finalColor;
-void     main() { finalColor = texture(iChannel1, fragTexCoord); }
-
-// void main() {
-//    vec2 frag_coord      = vec2(fragTexCoord.x * iResolution.x, fragTexCoord.y * iResolution.y);
-//    vec2 uv              = frag_coord / iResolution.y;
-//    vec2 grid_dimensions = compute_grid_dimensions();
-//    vec4 src_color       = sample_uv_in_grid_space(uv, grid_dimensions);
-//    if (src_color.a > 0.0) {
-//        src_color.a = 1.0;
-//        finalColor  = src_color;
-//    } else {
-//        src_color   = SUPERSAMPLE(frag_coord, grid_dimensions);
-//        src_color.a = 1.0;
-//        finalColor  = src_color;
-//    }
-//}
+void     main() {
+    vec2 frag_coord      = vec2(fragTexCoord.x * iResolution.x, fragTexCoord.y * iResolution.y);
+    vec2 uv              = frag_coord / iResolution.y;
+    vec2 grid_dimensions = compute_grid_dimensions();
+    vec4 src_color       = sample_uv_in_grid_space(uv, grid_dimensions);
+    if (src_color.a > 0.0) {
+        src_color.a = 1.0;
+        finalColor  = src_color;
+    } else {
+        src_color   = SUPERSAMPLE(frag_coord, grid_dimensions);
+        src_color.a = 1.0;
+        finalColor  = src_color;
+    }
+}

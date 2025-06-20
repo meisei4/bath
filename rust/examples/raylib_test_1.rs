@@ -4,16 +4,16 @@ use raylib::drawing::{RaylibDraw, RaylibShaderModeExt, RaylibTextureModeExt};
 use raylib::ffi::rlFramebufferAttachTextureType::{RL_ATTACHMENT_RENDERBUFFER, RL_ATTACHMENT_TEXTURE2D};
 use raylib::ffi::rlFramebufferAttachType::{RL_ATTACHMENT_COLOR_CHANNEL0, RL_ATTACHMENT_DEPTH};
 use raylib::ffi::{
-    rlClearColor, rlClearScreenBuffers, rlDisableFramebuffer, rlEnableFramebuffer, rlFramebufferAttach,
-    rlFramebufferComplete, rlLoadFramebuffer, rlLoadTexture, rlLoadTextureDepth, rlTextureParameters, LoadImage,
-    LoadTextureFromImage, TraceLog, UnloadImage, RL_TEXTURE_FILTER_MIP_NEAREST, RL_TEXTURE_MAG_FILTER,
-    RL_TEXTURE_WRAP_REPEAT, RL_TEXTURE_WRAP_S, RL_TEXTURE_WRAP_T,
+    rlActiveTextureSlot, rlClearColor, rlClearScreenBuffers, rlDisableFramebuffer, rlEnableFramebuffer,
+    rlEnableTexture, rlFramebufferAttach, rlFramebufferComplete, rlLoadFramebuffer, rlLoadTexture, rlLoadTextureDepth,
+    rlTextureParameters, LoadImage, LoadTextureFromImage, TraceLog, UnloadImage, RL_TEXTURE_FILTER_NEAREST,
+    RL_TEXTURE_MAG_FILTER, RL_TEXTURE_MIN_FILTER, RL_TEXTURE_WRAP_REPEAT, RL_TEXTURE_WRAP_S, RL_TEXTURE_WRAP_T,
 };
 use raylib::init;
 use raylib::math::{Rectangle, Vector2};
 use raylib::prelude::RenderTexture2D;
 use raylib::shaders::RaylibShader;
-use raylib::texture::Texture2D;
+use raylib::texture::{RaylibRenderTexture2D, Texture2D};
 use std::ffi::{c_char, CString};
 use std::fs::read_to_string;
 use std::path::Path;
@@ -40,19 +40,19 @@ fn main() {
     println!("screen: {}x{}", screen_width, screen_height);
     println!("render:{}x{}", render_width, render_height);
     println!("dpi: {:?}", dpi);
-    let project_root = env!("CARGO_MANIFEST_DIR");
-    let glsl_dir = format!("{}/resources/glsl", project_root);
+    let project_root_dir = env!("CARGO_MANIFEST_DIR");
+    let glsl_dir = format!("{}/resources/glsl", project_root_dir);
     let drekker_src = load_shader_with_includes(&format!("{}/color/drekker_effect.glsl", glsl_dir));
-    let mut image_shader = raylib_handle.load_shader_from_memory(&raylib_thread, None, Some(&drekker_src));
-    let i_resolution_location = image_shader.get_shader_location("iResolution");
-    let i_channel_1_location = image_shader.get_shader_location("iChannel1");
+    let mut drekker_shader = raylib_handle.load_shader_from_memory(&raylib_thread, None, Some(&drekker_src));
+    let i_resolution_location = drekker_shader.get_shader_location("iResolution");
+    let i_channel_1_location = drekker_shader.get_shader_location("iChannel1");
     println!(
         "iChannel1 loc = {}, iResolution loc = {}",
         i_channel_1_location, i_resolution_location
     );
     let i_resolution = Vector2::new(screen_width as f32, screen_height as f32);
-    image_shader.set_shader_value_v(i_resolution_location, &[i_resolution]);
-    let image_path = CString::new(format!("{}/../godot/Resources/textures/icebergs.jpg", project_root)).unwrap();
+    drekker_shader.set_shader_value_v(i_resolution_location, &[i_resolution]);
+    let image_path = CString::new(format!("{}/../godot/Resources/textures/icebergs.jpg", project_root_dir)).unwrap();
     let image_texture = unsafe {
         let image_raw = LoadImage(image_path.as_ptr());
         let image_texture_raw = LoadTextureFromImage(image_raw);
@@ -69,47 +69,54 @@ fn main() {
         rlTextureParameters(
             image_texture_raw.id,
             RL_TEXTURE_MAG_FILTER as i32,
-            RL_TEXTURE_FILTER_MIP_NEAREST as i32,
+            RL_TEXTURE_FILTER_NEAREST as i32,
         );
-        //turning this on causes the iamge_texture to not show up or its a black screen i have no idea why
-        // rlTextureParameters(
-        //     image_texture_raw.id,
-        //     RL_TEXTURE_MIN_FILTER as i32,
-        //     RL_TEXTURE_FILTER_MIP_NEAREST as i32,
-        // );
+        rlTextureParameters(
+            image_texture_raw.id,
+            RL_TEXTURE_MIN_FILTER as i32,
+            RL_TEXTURE_FILTER_NEAREST as i32,
+        );
         UnloadImage(image_raw);
         Texture2D::from_raw(image_texture_raw)
     };
     let mut buffer_a_texture = create_rgba16_render_texture(render_width, render_height);
+    let flipped_rectangle = Rectangle {
+        x: 0.0,
+        y: 0.0,
+        width: render_width as f32,
+        height: -1.0 * render_height as f32,
+    };
+    {
+        let mut texture_mode = raylib_handle.begin_texture_mode(&raylib_thread, &mut buffer_a_texture);
+        texture_mode.clear_background(Color::BLACK);
+        texture_mode.draw_texture_rec(&image_texture, flipped_rectangle, ORIGIN, Color::WHITE);
+    }
+    drekker_shader.set_shader_value_texture(i_channel_1_location, &buffer_a_texture);
     while !raylib_handle.window_should_close() {
-        let flipped_rectangle_image = Rectangle {
-            x: 0.0,
-            y: 0.0,
-            width: render_width as f32,
-            height: -1.0 * render_height as f32,
-        };
-
-        {
-            let mut texture_mode = raylib_handle.begin_texture_mode(&raylib_thread, &mut buffer_a_texture);
-            texture_mode.clear_background(Color::BLACK);
-            texture_mode.draw_texture_rec(&image_texture, flipped_rectangle_image, ORIGIN, Color::WHITE);
+        let buffer_a_texture_id = buffer_a_texture.texture().id;
+        let texture_slot: i32 = 7; // LUCKY 7!!! arbitrary see: https://github.com/raysan5/raylib/issues/4568
+        unsafe {
+            // NOTE: this is the most safest code to run ever in the entire world, rust i will never trust you ever, you wasted 5 hours of my life
+            rlActiveTextureSlot(texture_slot);
+            rlEnableTexture(buffer_a_texture_id);
         }
+        drekker_shader.set_shader_value(i_channel_1_location, texture_slot);
         let mut draw_handle = raylib_handle.begin_drawing(&raylib_thread);
-        //TODO: this works!!
-        draw_handle.draw_texture(&buffer_a_texture, ORIGIN_X, ORIGIN_Y, Color::WHITE);
-        image_shader.set_shader_value_texture(i_channel_1_location, &buffer_a_texture);
-        let mut shader_mode = draw_handle.begin_shader_mode(&mut image_shader);
-        let flipped_rectangle = Rectangle {
-            x: 0.0,
-            y: 0.0,
-            width: render_width as f32,
-            height: -1.0 * render_height as f32,
-        };
-        //TODO: this doesnt fucking work!!! haha i suck!!
-        shader_mode.draw_texture_rec(&buffer_a_texture, flipped_rectangle, ORIGIN, Color::WHITE);
+        let mut shader_mode = draw_handle.begin_shader_mode(&mut drekker_shader);
+        shader_mode.draw_texture_rec(&buffer_a_texture, flipped_rectangle, Vector2::zero(), Color::WHITE);
+        // TODO: somewhere document the hell you just went through:
+        // let mut draw_handle = raylib_handle.begin_drawing(&raylib_thread);
+        // draw_handle.draw_texture(&buffer_a_texture, ORIGIN_X, ORIGIN_Y, Color::WHITE);
+        // TODO: ^^just the fbo drawn, no shaders, good test^^^
+        // let mut shader_mode = draw_handle.begin_shader_mode(&mut image_shader);
+        // TODO: this is some  issue in low level graphics shit with quad drawing or something i have no idea
+        //  https://github.com/raysan5/raylib/issues/4568
+        // shader_mode.draw_texture_rec(&buffer_a_texture, flipped_rectangle, ORIGIN, Color::WHITE);
+        // drekker_shader.set_shader_value_texture(i_channel_1_location, &buffer_a_texture_clone);
     }
 }
 
+// TODO: copy paste from previous raylib test, next time start moving everything into an organized place
 fn create_rgba16_render_texture(width: i32, height: i32) -> RenderTexture2D {
     let render_texture = unsafe {
         let fbo_id = rlLoadFramebuffer();
