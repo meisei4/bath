@@ -1,8 +1,8 @@
-shader_type canvas_item;
-#include "res://Resources/shaders/color/supersampling.gdshaderinc"
+#version 330
+#include "supersampling.glsl"
 
 uniform vec2 iResolution;
-uniform sampler2D iChannel0: filter_nearest_mipmap, repeat_enable;
+uniform sampler2D iChannel1;//: filter_nearest_mipmap, repeat_enable;
 
 //TODO: this scalar is suppose to shift the cells but it has a phase/period where it just loops in on itself
 // Im am not sure the bounds to make it fully reprpoduce a purely unique shift cycle
@@ -223,8 +223,8 @@ vec4 sample_uv_in_grid_space(vec2 uv, vec2 grid_dimensions) {
     float row_normal    = row_index    / grid_dimensions.y;
     float u = column_normal;
     float v = row_normal + cubic_color_squish_scaled - vertical_row_shift_per_column;
-    vec4 texture_color = textureLod(iChannel0, vec2(u,v), TEXTURE_LOD_BASE_LEVEL);
-    //vec4 texture_color = texture(iChannel0, vec2(u,v));
+    //vec4 texture_color = textureLod(iChannel1, vec2(u,v), TEXTURE_LOD_BASE_LEVEL);
+    vec4 texture_color = texture(iChannel1, vec2(u,v));
 
     ALPHA_CLEAR_TEXELS_OUTSIDE_CELL_BOUNDARIES(texture_color, local_cell_progress_x, local_cell_progress_y);
 
@@ -249,7 +249,7 @@ vec4 sample_uv_in_grid_space(vec2 uv, vec2 grid_dimensions) {
         src_color.b = src_color.b * (1.0 - a) + hyperplot_debug.b * a;
         */
     #endif
-    ALPHA_CLEAR_TEXELS_OUTSIDE_CELL_BOUNDARIES(src_color, local_cell_progress_x, local_cell_progress_y);
+    //ALPHA_CLEAR_TEXELS_OUTSIDE_CELL_BOUNDARIES(src_color, local_cell_progress_x, local_cell_progress_y);
     return src_color;
 }
 
@@ -284,44 +284,21 @@ vec4 jitter_supersample(vec2 frag_coord, vec2 grid_dimensions) {
 #define SUPERSAMPLE(frag_coord, grid_dimensions)   jitter_supersample(frag_coord, grid_dimensions)
 //#define SUPERSAMPLE(frag_coord, grid_dimensions) uniform_supersample(frag_coord, grid_dimensions)
 
-void fragment() {
-    vec2 frag_coord     = vec2(UV.x * iResolution.x,
-                               UV.y * iResolution.y);
+in vec2 fragTexCoord;
+in vec4 fragColor;
+out vec4 finalColor;
+void main() {
+    vec2 frag_coord     = vec2(fragTexCoord.x * iResolution.x,
+    fragTexCoord.y * iResolution.y);
     vec2 uv             = frag_coord / iResolution.y;
     vec2 grid_dimensions = compute_grid_dimensions();
     vec4 src_color = sample_uv_in_grid_space(uv, grid_dimensions);
     if (src_color.a > 0.0) {
-        //src_color.a = 1.0; // HARDCODE STRAIGHT ALPHA BLEND TO NOT OCCUR (i.e. destination.rgb * 0.0)
-        src_color.a = 1.0;
-        COLOR = src_color;
+        src_color.a = 1.0; // HARDCODE STRAIGHT ALPHA BLEND TO NOT OCCUR (i.e. destination.rgb * 0.0)
+        finalColor = src_color;
     } else {
         src_color = SUPERSAMPLE(frag_coord, grid_dimensions);
         src_color.a = 1.0;
-        COLOR = src_color;
+        finalColor = src_color;
     }
 }
-
-// SPACE DENOMINATIONS:
-//1. CANVAS NORMAL UV
-//  - frag_coord ∈ [0…iResolution.xy] (pixels)
-//  - uv = frag_coord / iResolution.y ∈ [0…(iResolution.x/iResolution.y)]×[0…1]
-
-//2. LOCAL CELL NORMAL
-//  - local_cell_progress_x/y ∈ [0…1]
-//  - used by sample_uv_in_grid_space to pick which texel and apply hyperbolic/cubic warps.
-
-//3. SUBPIXEL NORMAL
-//  - store a normalized position ∈ [0…1) in current_*_subpixel_position
-//  - then subtract LOCAL_CELL_SPACE_CENTER_OFFSET (0.5) → [-0.5…+0.5] so that
-
-// IF ALL floating point numbers are integer_part + fraction_part: e.g. 1.5 = 1 + (1/2) = 1 + 0.5
-// then to get the fraction part you just do:
-//float fract(float x) {
-    //int integer_part = floor(x)
-    //float fraction_part = x - integer_part
-    //return fraction_part;
-//}
-
-
-//https://en.wikipedia.org/wiki/Supersampling
-// ^^ check out the techniques!!
