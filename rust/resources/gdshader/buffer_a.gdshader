@@ -8,7 +8,7 @@ const float CIRCLE_OUTER_RADIUS = 0.08;
 const float CIRCLE_INNER_RADIUS = 0.06;
 const vec4 RED = vec4(1.0, 0.0, 0.0, 1.0);
 void fragment() {
-    vec2 uv = UV;
+    vec2 uv = FRAGCOORD.xy / iResolution.xy;
     vec4 prev = texture(iChannel0, uv) * DECAY_FACTOR;
     vec2 center = 0.5 + vec2(cos(iTime), sin(iTime)) * 0.3;
     float mask = smoothstep(CIRCLE_OUTER_RADIUS, CIRCLE_INNER_RADIUS, distance(uv, center));

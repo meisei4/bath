@@ -22,6 +22,13 @@ pub struct Mapping {
 }
 
 impl Mapping {
+    fn get(&self, ctx: Context) -> &'static str {
+        match ctx {
+            ShaderToy => self.shadertoy,
+            Godot => self.godot,
+            GLSL => self.glsl,
+        }
+    }
     pub fn translate(&self, token: &str, from: Context, to: Context) -> Option<&'static str> {
         let src = match from {
             ShaderToy => self.shadertoy,
@@ -58,7 +65,7 @@ pub static MAPPINGS: &[Mapping] = &[
     },
     Mapping {
         shadertoy: "fragCoord / iResolution.xy",
-        godot: "UV",
+        godot: "FRAGCOORD.xy / iResolution.xy",
         glsl: "fragTexCoord",
     },
     Mapping {
@@ -72,13 +79,31 @@ pub static MAPPINGS: &[Mapping] = &[
         godot: "FRAGCOORD",
         glsl: "gl_FragCoord.xy", //???
     },
+    Mapping {
+        shadertoy: "",
+        godot: "uniform vec2 iResolution;",
+        glsl: "uniform vec2 iResolution;",
+    },
+    Mapping {
+        shadertoy: "",
+        godot: "uniform sampler2D iChannel0 : hint_screen_texture;",
+        glsl: "uniform sampler2D iChannel0;",
+    },
+    Mapping {
+        shadertoy: "",
+        godot: "uniform float iTime;",
+        glsl: "uniform float iTime;",
+    },
 ];
+
+// find . -type f \
+// -exec sh -c 'printf "\n== %s ==\n" "$1"; cat "$1"' _ {} \;
 
 fn main() {
     let src = "fragCoord / iResolution.xy";
     let mapped = translate_token(src, ShaderToy, Godot);
     println!("{} → {:?}", src, mapped);
-
+    convert("glsl/image.glsl", GLSL, Godot, "gdshader/image.gdshader").expect("conversion failed");
     convert(
         "glsl/buffer_a.glsl",
         GLSL,
@@ -86,14 +111,6 @@ fn main() {
         "gdshader/buffer_a.gdshader",
     )
     .expect("conversion failed");
-    convert("glsl/image.glsl", GLSL, Godot, "gdshader/image.gdshader").expect("conversion failed");
-    convert(
-        "glsl/buffer_a.glsl",
-        GLSL,
-        ShaderToy,
-        "shadertoy/buffer_a.shadertoy",
-    )
-    .expect("conversion failed");
     convert(
         "glsl/image.glsl",
         GLSL,
@@ -102,19 +119,13 @@ fn main() {
     )
     .expect("conversion failed");
     convert(
-        "shadertoy/buffer_a.shadertoy",
-        ShaderToy,
-        GLSL,
         "glsl/buffer_a.glsl",
-    )
-    .expect("conversion failed");
-    convert(
-        "shadertoy/image.shadertoy",
-        ShaderToy,
         GLSL,
-        "glsl/image.glsl",
+        ShaderToy,
+        "shadertoy/buffer_a.shadertoy",
     )
     .expect("conversion failed");
+
     if let Err(e) = compare_dirs("resources", "test_output") {
         eprintln!("Failed to diff directories: {}", e);
     }
@@ -149,46 +160,39 @@ pub fn translate_token(token: &str, from: Context, to: Context) -> Option<&'stat
     }
     None
 }
-
 pub fn convert_shader(input: &str, from: Context, to: Context) -> String {
-    let mut out = input.to_string();
-    let header_mapping = &MAPPINGS[0];
-    let src_header = match from {
-        ShaderToy => header_mapping.shadertoy,
-        Godot => header_mapping.godot,
-        GLSL => header_mapping.glsl,
-    };
-    let dst_header = match to {
-        ShaderToy => header_mapping.shadertoy,
-        Godot => header_mapping.godot,
-        GLSL => header_mapping.glsl,
-    };
-    if !src_header.is_empty() {
-        out = out.replace(src_header, "");
-    }
-    out = out.trim_start_matches('\n').to_string();
-    if !dst_header.is_empty() {
-        out = format!("{}\n{}", dst_header, out);
-    }
-    for mapping in &MAPPINGS[1..] {
-        let src = match from {
-            ShaderToy => mapping.shadertoy,
-            Godot => mapping.godot,
-            GLSL => mapping.glsl,
-        };
-        let dst = match to {
-            ShaderToy => mapping.shadertoy,
-            Godot => mapping.godot,
-            GLSL => mapping.glsl,
-        };
-        if !src.is_empty() && src != dst {
-            out = out.replace(src, dst);
+    let mut shader_src = input.to_string();
+    let has_nl_eof = shader_src.ends_with('\n');
+    shader_src = shader_src
+        .replace(MAPPINGS[0].get(from), "")
+        .trim_start_matches('\n')
+        .to_string();
+    for m in &MAPPINGS[1..] {
+        let src = m.get(from);
+        let dst = m.get(to);
+        if src != dst {
+            shader_src = if dst.is_empty() {
+                shader_src
+                    .lines()
+                    .filter(|l| !l.contains(src))
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            } else {
+                shader_src.replace(src, dst)
+            }
         }
     }
-    if !out.ends_with('\n') {
-        out.push('\n');
+    let new_hdr = MAPPINGS[0].get(to);
+    if !new_hdr.is_empty() {
+        shader_src = format!("{}\n{}", new_hdr, shader_src.trim_start_matches('\n'));
     }
-    out
+    if has_nl_eof && !shader_src.ends_with('\n') {
+        shader_src.push('\n')
+    }
+    if !has_nl_eof && shader_src.ends_with('\n') {
+        shader_src.pop();
+    }
+    shader_src
 }
 
 pub fn convert(
