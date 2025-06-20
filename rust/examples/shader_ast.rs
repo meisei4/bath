@@ -195,8 +195,14 @@ fn main() {
     println!("{} → {:?}", src, mapped);
     convert("glsl/image.glsl", GLSL, Godot, "gdshader/image.gdshader").expect("conversion failed");
     convert("glsl/buffer_a.glsl", GLSL, Godot, "gdshader/buffer_a.gdshader").expect("conversion failed");
-    convert("glsl/image.glsl", GLSL, ShaderToy, "shadertoy/image.shadertoy").expect("conversion failed");
-    convert("glsl/buffer_a.glsl", GLSL, ShaderToy, "shadertoy/buffer_a.shadertoy").expect("conversion failed");
+    convert("glsl/image.glsl", GLSL, ShaderToy, "shadertoy/image.shadertoy.glsl").expect("conversion failed");
+    convert(
+        "glsl/buffer_a.glsl",
+        GLSL,
+        ShaderToy,
+        "shadertoy/buffer_a.shadertoy.glsl",
+    )
+    .expect("conversion failed");
     convert("gdshader/buffer_a.gdshader", Godot, GLSL, "glsl/buffer_a.glsl").expect("conversion failed");
     convert("gdshader/image.gdshader", Godot, GLSL, "glsl/image.glsl").expect("conversion failed");
     if let Err(e) = compare_dirs("resources", "test_output") {

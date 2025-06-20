@@ -47,12 +47,6 @@ fn main() {
     let mut image_shader = raylib_handle.load_shader_from_memory(&raylib_thread, None, Some(&image_src_code));
 
     let i_time_location = feedback_buffer_shader.get_shader_location("iTime");
-    let buffer_i_channel0_location = feedback_buffer_shader.get_shader_location("iChannel0");
-    let image_i_channel1_location = image_shader.get_shader_location("iChannel1");
-
-    feedback_buffer_shader.set_shader_value(buffer_i_channel0_location, 0);
-    image_shader.set_shader_value(image_i_channel1_location, 0);
-
     let mut buffer_a_texture = create_rgba16_render_texture(screen_width, screen_height);
     let mut buffer_b_texture = create_rgba16_render_texture(screen_width, screen_height);
 

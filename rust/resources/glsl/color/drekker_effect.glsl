@@ -86,20 +86,6 @@ vec4 sample_uv_in_grid_space(vec2 uv, vec2 grid_dimensions) {
     return src_color;
 }
 
-vec4 uniform_supersample(vec2 frag_coord, vec2 grid_dimensions) {
-    vec4 uniform_distribution               = vec4(0.0);
-    int  remaining_subpixels_in_supersample = UNIFORM_SUPERSAMPLE_RESOLUTION_SUBPIXEL_SAMPLES_PER_PIXEL;
-    vec2 current_uniform_subpixel_position  = INITIAL_UNIFORM_STEP;
-    while (remaining_subpixels_in_supersample > 0) {
-        current_uniform_subpixel_position  = UNIFORM_STEP(current_uniform_subpixel_position);
-        vec2 sample_coord                  = frag_coord + current_uniform_subpixel_position;
-        vec2 uv                            = sample_coord / iResolution.y;
-        uniform_distribution               = uniform_distribution + sample_uv_in_grid_space(uv, grid_dimensions);
-        remaining_subpixels_in_supersample = remaining_subpixels_in_supersample - 1;
-    }
-    return uniform_distribution / UNIFORM_SUPERSAMPLE_RESOLUTION_SUBPIXEL_SAMPLES_PER_PIXEL_F;
-}
-
 vec4 jitter_supersample(vec2 frag_coord, vec2 grid_dimensions) {
     vec4 jittered_distribution              = vec4(0.0);
     int  remaining_subpixels_in_supersample = JITTERED_SUPERSAMPLE_RESOLUTION_SUBPIXEL_SAMPLES_PER_PIXEL;
@@ -116,21 +102,23 @@ vec4 jitter_supersample(vec2 frag_coord, vec2 grid_dimensions) {
 
 #define SUPERSAMPLE(frag_coord, grid_dimensions) jitter_supersample(frag_coord, grid_dimensions)
 
+// TODO: this is the simple pass but it always results in a black screen...
 in vec2  fragTexCoord;
 in vec4  fragColor;
 out vec4 finalColor;
+void     main() { finalColor = texture(iChannel1, fragTexCoord); }
 
-void main() {
-    vec2 frag_coord      = vec2(fragTexCoord.x * iResolution.x, fragTexCoord.y * iResolution.y);
-    vec2 uv              = frag_coord / iResolution.y;
-    vec2 grid_dimensions = compute_grid_dimensions();
-    vec4 src_color       = sample_uv_in_grid_space(uv, grid_dimensions);
-    if (src_color.a > 0.0) {
-        src_color.a = 1.0;
-        finalColor  = src_color;
-    } else {
-        src_color   = SUPERSAMPLE(frag_coord, grid_dimensions);
-        src_color.a = 1.0;
-        finalColor  = src_color;
-    }
-}
+// void main() {
+//    vec2 frag_coord      = vec2(fragTexCoord.x * iResolution.x, fragTexCoord.y * iResolution.y);
+//    vec2 uv              = frag_coord / iResolution.y;
+//    vec2 grid_dimensions = compute_grid_dimensions();
+//    vec4 src_color       = sample_uv_in_grid_space(uv, grid_dimensions);
+//    if (src_color.a > 0.0) {
+//        src_color.a = 1.0;
+//        finalColor  = src_color;
+//    } else {
+//        src_color   = SUPERSAMPLE(frag_coord, grid_dimensions);
+//        src_color.a = 1.0;
+//        finalColor  = src_color;
+//    }
+//}
