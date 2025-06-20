@@ -64,17 +64,9 @@ impl RustUtil {
         }
         let mut projected_polygons = apply_horizontal_projection(&collision_polygons, i_resolution);
         shift_polygon_vertices_down_by_vertical_scroll_1_pixel(&mut collision_polygons);
-        apply_vertical_projection(
-            &mut projected_polygons,
-            i_resolution,
-            &scanline_count_per_polygon,
-            i_time,
-        );
+        apply_vertical_projection(&mut projected_polygons, i_resolution, &scanline_count_per_polygon, i_time);
         let mut output_dictionary = Dictionary::new();
-        let _ = output_dictionary.insert(
-            "previous_quantized_vertical_pixel_coord",
-            quantized_vertical_pixel_coord,
-        );
+        let _ = output_dictionary.insert("previous_quantized_vertical_pixel_coord", quantized_vertical_pixel_coord);
 
         let _ = output_dictionary.insert("scanline_count_per_polygon", scanline_count_per_polygon);
         let _ = output_dictionary.insert("collision_polygons", collision_polygons);
@@ -94,11 +86,7 @@ impl RustUtil {
         //  this is really gross to me and i think i could perhaps learn enough to argue for supporting
         //  R8_UINT in godot's RenderDevice.DataFormat <-> ImageFormat mapping in the source code.
         //  see: https://github.com/godotengine/godot/blob/6c9765d87e142e786f0190783f41a0250a835c99/servers/rendering/renderer_rd/storage_rd/texture_storage.cpp#L2281C1-L2664C1
-        let pixel_data: Vec<u8> = raw_pixel_mask
-            .to_vec()
-            .into_iter()
-            .map(|b| if b != 0 { 1 } else { 0 })
-            .collect();
+        let pixel_data: Vec<u8> = raw_pixel_mask.to_vec().into_iter().map(|b| if b != 0 { 1 } else { 0 }).collect();
         let width: usize = image_width_pixels as usize;
         let height: usize = image_height_pixels as usize;
         let tile_size: usize = tile_edge_length as usize;

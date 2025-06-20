@@ -18,6 +18,7 @@ group_imports = "Preserve"        # Keep grouped imports as written
 normalize_comments = false        # Don't reflow or format comment blocks
 use_field_init_shorthand = false  # Always use full `field: field` form, never shorthand
 force_explicit_abi = true         # Require extern declarations to explicitly state `"C"`
+use_small_heuristics = "Max"
 
 # clang-format features rustfmt does not support:
 # AlignConsecutiveAssignments: true       # Not supported in rustfmt

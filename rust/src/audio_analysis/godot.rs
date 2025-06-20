@@ -54,9 +54,7 @@ pub fn detect_bpm_aubio_wav(pcm_bytes: &[u8]) -> f32 {
             }
             in_data[frame] = (sum as Smpl / channels as Smpl) * I16_TO_SMPL;
         }
-        tempo
-            .do_(in_data.as_slice(), out_data.as_mut_slice())
-            .expect("tempo.do_ failed");
+        tempo.do_(in_data.as_slice(), out_data.as_mut_slice()).expect("tempo.do_ failed");
         bpm = tempo.get_bpm();
     }
     bpm

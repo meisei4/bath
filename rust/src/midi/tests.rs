@@ -406,10 +406,7 @@ fn print_instrument_region_key_velocity_info(region: &InstrumentRegion, lines: &
     lines.push(format!("{L3}Key Range: {}–{} ({}–{})", low, high, low_note, high_note));
     let vel_low = region.get_velocity_range_start();
     let vel_high = region.get_velocity_range_end();
-    lines.push(format!(
-        "{L3}Velocity Range: {}–{} (0=soft, 127=hard)",
-        vel_low, vel_high
-    ));
+    lines.push(format!("{L3}Velocity Range: {}–{} (0=soft, 127=hard)", vel_low, vel_high));
 }
 
 fn print_sample_info(region: &InstrumentRegion, soundfont: &SoundFont, lines: &mut Vec<String>) {
@@ -446,10 +443,7 @@ fn print_region_pan_envelope(region: &InstrumentRegion, lines: &mut Vec<String>)
     let sustain = region.get_sustain_volume_envelope();
     lines.push(format!("{L3}Volume Envelope - Sustain Level: {:.1} dB", sustain));
     let envelope_vol = region.get_release_volume_envelope();
-    lines.push(format!(
-        "{L3_LAST}Volume Envelope - Release Time: {:.3} sec)",
-        envelope_vol
-    ));
+    lines.push(format!("{L3_LAST}Volume Envelope - Release Time: {:.3} sec)", envelope_vol));
 }
 
 fn print_aligned_right(lines: &[String]) {
@@ -458,11 +452,7 @@ fn print_aligned_right(lines: &[String]) {
     let gap = 1;
     let term_width = terminal_size().map(|(Width(w), _)| w as usize).unwrap_or(80);
     let required = keyboard_width + gap + max_width;
-    let pad = if required <= term_width {
-        keyboard_width + gap
-    } else {
-        term_width.saturating_sub(max_width)
-    };
+    let pad = if required <= term_width { keyboard_width + gap } else { term_width.saturating_sub(max_width) };
     for line in lines {
         println!("{}{}", " ".repeat(pad), line);
     }

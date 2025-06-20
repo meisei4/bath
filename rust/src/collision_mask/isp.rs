@@ -110,12 +110,7 @@ pub fn apply_vertical_projection(
         let pair_count = vert_count / 2;
         let scanlines = scanline_count_per_polygon.get(i).unwrap_or(0);
         godot_print!("======== POLYGON_ID: {} ========", i);
-        godot_print!(
-            "pairs: {}   scanlines: {}   verts: {}",
-            pair_count,
-            scanlines,
-            vert_count
-        );
+        godot_print!("pairs: {}   scanlines: {}   verts: {}", pair_count, scanlines, vert_count);
         godot_print!("-- BEFORE--");
         print_polygon_vert_pairs(&screen_space_polygon);
         let slice = screen_space_polygon.as_mut_slice();
@@ -164,14 +159,7 @@ fn print_polygon_vert_pairs(polygon: &PackedVector2Array) {
 }
 
 fn print_vert_pair(label: &str, v0: Vector2, v1: Vector2) {
-    godot_print!(
-        "{:<10} [{:>5}, {:>9.5}]   [{:>5}, {:>9.5}]",
-        label,
-        v0.x,
-        v0.y,
-        v1.x,
-        v1.y
-    );
+    godot_print!("{:<10} [{:>5}, {:>9.5}]   [{:>5}, {:>9.5}]", label, v0.x, v0.y, v1.x, v1.y);
 }
 
 fn project_vertex_y(cpu_y: f32, i_resolution: Vector2, i_time: f32) -> f32 {

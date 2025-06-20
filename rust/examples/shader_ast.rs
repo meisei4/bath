@@ -148,11 +148,7 @@ pub fn convert_shader(input: &str, from: Context, to: Context) -> String {
         let dst = m.get(to);
         if src != dst {
             shader_src = if dst.is_empty() {
-                shader_src
-                    .lines()
-                    .filter(|l| !l.contains(src))
-                    .collect::<Vec<_>>()
-                    .join("\n")
+                shader_src.lines().filter(|l| !l.contains(src)).collect::<Vec<_>>().join("\n")
             } else {
                 shader_src.replace(src, dst)
             };
@@ -214,15 +210,9 @@ fn main() {
 //  6. fix all silly colon spacing stuff
 
 pub fn convert_all_godot_shaders() -> std::io::Result<()> {
-    let src_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .unwrap()
-        .join("godot")
-        .join("Resources")
-        .join("shaders");
-    let dst_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("test_output")
-        .join("glsl");
+    let src_root =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).parent().unwrap().join("godot").join("Resources").join("shaders");
+    let dst_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("test_output").join("glsl");
     let mut stack = vec![src_root.clone()];
     while let Some(dir) = stack.pop() {
         for entry in read_dir(&dir)? {

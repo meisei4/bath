@@ -129,11 +129,7 @@ fn compute_convex_hull_monotone_chain(boundary_points_slice: &[Vector2]) -> Vec<
 
 fn sort_points_by_x_then_y(points: &mut [Vector2]) {
     points.sort_by(|point_a, point_b| {
-        point_a
-            .x
-            .partial_cmp(&point_b.x)
-            .unwrap()
-            .then(point_a.y.partial_cmp(&point_b.y).unwrap())
+        point_a.x.partial_cmp(&point_b.x).unwrap().then(point_a.y.partial_cmp(&point_b.y).unwrap())
     });
 }
 
