@@ -10,7 +10,7 @@ use raylib::ffi::{
 use raylib::init;
 use raylib::math::{Rectangle, Vector2};
 use raylib::shaders::RaylibShader;
-use raylib::texture::{RaylibRenderTexture2D, Texture2D};
+use raylib::texture::Texture2D;
 use std::ffi::CString;
 
 fn main() {

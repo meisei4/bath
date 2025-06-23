@@ -1,0 +1,3 @@
+[gd_scene format=3 uid="uid://br1y3ehu0wab2"]
+
+[node name="DrekkerColorRust" type="DrekkerColorRust" groups=["display_experimental"]]
