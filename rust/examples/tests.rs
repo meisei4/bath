@@ -15,3 +15,4 @@ fn main() {
 
 // cargo run --example raylib_test_0 --features tests-only
 // cargo run --example raylib_test_1 --features tests-only
+// cargo run --example raylib_test_2 --features tests-only

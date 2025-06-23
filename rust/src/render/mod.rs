@@ -1,8 +1,10 @@
-mod drekker;
-mod godot_util;
-mod raylib;
-mod renderer;
+pub mod drekker;
+#[cfg(feature = "godot")]
+pub mod godot;
+pub mod godot_util;
+#[cfg(feature = "raylib-render")]
+pub mod raylib;
+pub mod renderer;
 
-mod godot;
 #[cfg(feature = "tests-only")]
 pub mod raylib_util;
