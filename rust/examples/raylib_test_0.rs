@@ -1,19 +1,10 @@
+use bath::raylib_bath::util::create_rgba16_render_texture;
 use raylib::color::Color;
 use raylib::drawing::{RaylibDraw, RaylibShaderModeExt, RaylibTextureModeExt};
-use raylib::ffi::{
-    rlClearColor, rlClearScreenBuffers, rlDisableColorBlend, rlDisableFramebuffer, rlEnableFramebuffer,
-    rlFramebufferAttach, rlFramebufferComplete, rlLoadFramebuffer, rlLoadTexture, rlLoadTextureDepth, Texture2D,
-    TraceLog,
-};
 use raylib::math::{Rectangle, Vector2};
 use raylib::shaders::{RaylibShader, Shader};
 use raylib::texture::RenderTexture2D;
 use raylib::{init, RaylibHandle, RaylibThread};
-use std::ffi::c_char;
-
-use raylib::consts::TraceLogLevel::{LOG_INFO, LOG_WARNING};
-use raylib::ffi::rlFramebufferAttachTextureType::{RL_ATTACHMENT_RENDERBUFFER, RL_ATTACHMENT_TEXTURE2D};
-use raylib::ffi::rlFramebufferAttachType::{RL_ATTACHMENT_COLOR_CHANNEL0, RL_ATTACHMENT_DEPTH};
 use std::fs::read_to_string;
 use std::mem::swap;
 use std::time::Instant;
@@ -26,7 +17,7 @@ const WINDOW_HEIGHT: i32 = 480;
 fn main() {
     let (mut raylib_handle, raylib_thread) = init()
         .size(WINDOW_WIDTH / APPLE_DPI, WINDOW_HEIGHT / APPLE_DPI)
-        .title("raylib-rs hello world feedback buffer test")
+        .title("raylib_bath-rs hello world feedback buffer test")
         .build();
     raylib_handle.set_target_fps(60);
     let screen_width = raylib_handle.get_screen_width();
@@ -72,79 +63,6 @@ fn main() {
     }
 }
 
-fn create_rgba16_render_texture(width: i32, height: i32) -> RenderTexture2D {
-    // raylib code: https://github.com/raysan5/raylib/blob/4bc8d3761c48f4dcf56f126640da8f3567dc516b/src/rtextures.c#L4246
-    let render_texture = unsafe {
-        let fbo_id = rlLoadFramebuffer();
-        rlEnableFramebuffer(fbo_id);
-        let texture_id = rlLoadTexture(
-            std::ptr::null(),
-            width,
-            height,
-            raylib::ffi::PixelFormat::PIXELFORMAT_UNCOMPRESSED_R16G16B16A16 as i32,
-            1,
-        );
-        // TODO: lmao try setting useRenderBuffer to false and see what happens
-        // let depth_texture_id = rlLoadTextureDepth(width, height, false);
-        let depth_texture_id = rlLoadTextureDepth(width, height, true);
-        let raw_render_texture = raylib::ffi::RenderTexture2D {
-            id: fbo_id,
-            texture: Texture2D {
-                id: texture_id,
-                width,
-                height,
-                mipmaps: 1,
-                format: raylib::ffi::PixelFormat::PIXELFORMAT_UNCOMPRESSED_R16G16B16A16 as i32,
-            },
-            depth: Texture2D {
-                id: depth_texture_id,
-                width,
-                height,
-                mipmaps: 1,
-                format: 19i32,
-            },
-        };
-        //TODO: just good practice before attaching to FBOs
-        rlClearColor(0, 0, 0, 0);
-        rlClearScreenBuffers();
-        rlFramebufferAttach(
-            fbo_id,
-            texture_id,
-            RL_ATTACHMENT_COLOR_CHANNEL0 as i32,
-            RL_ATTACHMENT_TEXTURE2D as i32,
-            0,
-        );
-        rlFramebufferAttach(
-            fbo_id,
-            depth_texture_id,
-            RL_ATTACHMENT_DEPTH as i32,
-            RL_ATTACHMENT_RENDERBUFFER as i32,
-            0,
-        );
-        if rlFramebufferComplete(fbo_id) {
-            TraceLog(
-                LOG_INFO as i32,
-                b"FBO: [ID %i] Framebuffer object created successfully\0"
-                    .as_ptr()
-                    .cast::<c_char>(),
-                fbo_id,
-            );
-        } else {
-            TraceLog(
-                LOG_WARNING as i32,
-                b"FBO: [ID %i] Framebuffer object is not complete\0"
-                    .as_ptr()
-                    .cast::<c_char>(),
-                fbo_id,
-            );
-        }
-        rlDisableColorBlend();
-        rlDisableFramebuffer();
-        RenderTexture2D::from_raw(raw_render_texture)
-    };
-    render_texture //TODO: I like this because it reminds me how returns work
-}
-
 fn feedback_buffer_pass(
     raylib_handle: &mut RaylibHandle,
     raylib_thread: &RaylibThread,
@@ -154,7 +72,7 @@ fn feedback_buffer_pass(
 ) {
     let mut texture_mode = raylib_handle.begin_texture_mode(raylib_thread, buffer_b_texture);
     let mut shader_mode = texture_mode.begin_shader_mode(feedback_buffer_shader);
-    //TODO: raylib has to flip even at the buffer stage? ugh, am i dumb??
+    //TODO: raylib_bath has to flip even at the buffer stage? ugh, am i dumb??
     // uncomment the next line, and then comment out the flipping to see behavior
     //shader_mode.draw_texture(&buffer_a_texture, ORIGIN_X, ORIGIN_Y, Color::WHITE);
     let flipped_rectangle = Rectangle {

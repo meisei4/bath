@@ -12,3 +12,6 @@ use bath::midi::tests::run_playback;
 fn main() {
     run_playback().expect("TODO: panic message");
 }
+
+// cargo run --example raylib_test_0 --features tests-only
+// cargo run --example raylib_test_1 --features tests-only

@@ -18,13 +18,14 @@ godot = { version = "0.3.1", features = ["experimental-wasm"] }
 midir = { version = "0.10.1", optional = true }
 rdev = { version = "0.5.3", optional = true }
 terminal_size = { version = "0.4.2", optional = true }
+raylib = { version = "5.5.1", optional = true }
 
 [features]
-tests-only = ["midir", "rdev", "terminal_size"]
+tests-only = ["midir", "rdev", "terminal_size", "raylib"]
 
 [target.'cfg(not(any(target_arch = "wasm32", target_os = "linux")))'.dependencies]
 aubio-rs  = "0.2.0"
 lewton = "0.10.2"
 
-[dev-dependencies]
-raylib = "5.5.1"
+#[dev-dependencies]
+#raylib = "5.5.1"

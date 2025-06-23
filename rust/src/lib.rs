@@ -1,6 +1,7 @@
 pub mod audio_analysis;
 pub mod collision_mask;
 pub mod midi;
+pub mod raylib_bath;
 
 use crate::audio_analysis::godot::{detect_bpm_aubio_ogg, detect_bpm_aubio_wav};
 use crate::collision_mask::isp::{

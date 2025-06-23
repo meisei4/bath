@@ -1,22 +1,15 @@
-use raylib::callbacks::TraceLogLevel::{LOG_INFO, LOG_WARNING};
+use bath::raylib_bath::util::{create_rgba16_render_texture, load_shader_with_includes};
 use raylib::color::Color;
 use raylib::drawing::{RaylibDraw, RaylibShaderModeExt, RaylibTextureModeExt};
-use raylib::ffi::rlFramebufferAttachTextureType::{RL_ATTACHMENT_RENDERBUFFER, RL_ATTACHMENT_TEXTURE2D};
-use raylib::ffi::rlFramebufferAttachType::{RL_ATTACHMENT_COLOR_CHANNEL0, RL_ATTACHMENT_DEPTH};
 use raylib::ffi::{
-    rlActiveTextureSlot, rlClearColor, rlClearScreenBuffers, rlDisableFramebuffer, rlEnableFramebuffer,
-    rlEnableTexture, rlFramebufferAttach, rlFramebufferComplete, rlLoadFramebuffer, rlLoadTexture, rlLoadTextureDepth,
-    rlTextureParameters, LoadImage, LoadTextureFromImage, TraceLog, UnloadImage, RL_TEXTURE_FILTER_NEAREST,
+    rlTextureParameters, LoadImage, LoadTextureFromImage, UnloadImage, RL_TEXTURE_FILTER_NEAREST,
     RL_TEXTURE_MAG_FILTER, RL_TEXTURE_MIN_FILTER, RL_TEXTURE_WRAP_REPEAT, RL_TEXTURE_WRAP_S, RL_TEXTURE_WRAP_T,
 };
 use raylib::init;
 use raylib::math::{Rectangle, Vector2};
-use raylib::prelude::RenderTexture2D;
 use raylib::shaders::RaylibShader;
 use raylib::texture::{RaylibRenderTexture2D, Texture2D};
-use std::ffi::{c_char, CString};
-use std::fs::read_to_string;
-use std::path::Path;
+use std::ffi::CString;
 
 const ORIGIN_X: i32 = 0;
 const ORIGIN_Y: i32 = 0;
@@ -91,16 +84,16 @@ fn main() {
         texture_mode.clear_background(Color::BLACK);
         texture_mode.draw_texture_rec(&image_texture, flipped_rectangle, ORIGIN, Color::WHITE);
     }
-    drekker_shader.set_shader_value_texture(i_channel_1_location, &buffer_a_texture);
+    //drekker_shader.set_shader_value_texture(i_channel_1_location, &buffer_a_texture);
     while !raylib_handle.window_should_close() {
-        let buffer_a_texture_id = buffer_a_texture.texture().id;
-        let texture_slot: i32 = 7; // LUCKY 7!!! arbitrary see: https://github.com/raysan5/raylib/issues/4568
-        unsafe {
-            // NOTE: this is the most safest code to run ever in the entire world, rust i will never trust you ever, you wasted 5 hours of my life
-            rlActiveTextureSlot(texture_slot);
-            rlEnableTexture(buffer_a_texture_id);
-        }
-        drekker_shader.set_shader_value(i_channel_1_location, texture_slot);
+        // let buffer_a_texture_id = buffer_a_texture.texture().id;
+        // let texture_slot: i32 = 7; // LUCKY 7!!! arbitrary see: https://github.com/raysan5/raylib/issues/4568
+        // unsafe {
+        //     // NOTE: this is the most safest code to run ever in the entire world, rust i will never trust you ever, you wasted 5 hours of my life
+        //     rlActiveTextureSlot(texture_slot);
+        //     rlEnableTexture(buffer_a_texture_id);
+        // }
+        //drekker_shader.set_shader_value(i_channel_1_location, texture_slot);
         let mut draw_handle = raylib_handle.begin_drawing(&raylib_thread);
         let mut shader_mode = draw_handle.begin_shader_mode(&mut drekker_shader);
         shader_mode.draw_texture_rec(&buffer_a_texture, flipped_rectangle, Vector2::zero(), Color::WHITE);
@@ -114,94 +107,4 @@ fn main() {
         // shader_mode.draw_texture_rec(&buffer_a_texture, flipped_rectangle, ORIGIN, Color::WHITE);
         // drekker_shader.set_shader_value_texture(i_channel_1_location, &buffer_a_texture_clone);
     }
-}
-
-// TODO: copy paste from previous raylib test, next time start moving everything into an organized place
-fn create_rgba16_render_texture(width: i32, height: i32) -> RenderTexture2D {
-    let render_texture = unsafe {
-        let fbo_id = rlLoadFramebuffer();
-        rlEnableFramebuffer(fbo_id);
-        let texture_id = rlLoadTexture(
-            std::ptr::null(),
-            width,
-            height,
-            raylib::ffi::PixelFormat::PIXELFORMAT_UNCOMPRESSED_R16G16B16A16 as i32,
-            1,
-        );
-        let depth_texture_id = rlLoadTextureDepth(width, height, true);
-        let raw_render_texture = raylib::ffi::RenderTexture2D {
-            id: fbo_id,
-            texture: raylib::ffi::Texture2D {
-                id: texture_id,
-                width,
-                height,
-                mipmaps: 1,
-                format: raylib::ffi::PixelFormat::PIXELFORMAT_UNCOMPRESSED_R16G16B16A16 as i32,
-            },
-            depth: raylib::ffi::Texture2D {
-                id: depth_texture_id,
-                width,
-                height,
-                mipmaps: 1,
-                format: 19i32,
-            },
-        };
-        rlClearColor(0, 0, 0, 0);
-        rlClearScreenBuffers();
-        rlFramebufferAttach(
-            fbo_id,
-            texture_id,
-            RL_ATTACHMENT_COLOR_CHANNEL0 as i32,
-            RL_ATTACHMENT_TEXTURE2D as i32,
-            0,
-        );
-        rlFramebufferAttach(
-            fbo_id,
-            depth_texture_id,
-            RL_ATTACHMENT_DEPTH as i32,
-            RL_ATTACHMENT_RENDERBUFFER as i32,
-            0,
-        );
-        if rlFramebufferComplete(fbo_id) {
-            TraceLog(
-                LOG_INFO as i32,
-                b"FBO: [ID %i] Framebuffer object created successfully\0"
-                    .as_ptr()
-                    .cast::<c_char>(),
-                fbo_id,
-            );
-        } else {
-            TraceLog(
-                LOG_WARNING as i32,
-                b"FBO: [ID %i] Framebuffer object is not complete\0"
-                    .as_ptr()
-                    .cast::<c_char>(),
-                fbo_id,
-            );
-        }
-        //rlDisableColorBlend();
-        rlDisableFramebuffer();
-        RenderTexture2D::from_raw(raw_render_texture)
-    };
-    render_texture
-}
-
-fn load_shader_with_includes(path: impl AsRef<Path>) -> String {
-    let path = path.as_ref().canonicalize().expect("bad shader path");
-    let parent = path.parent().unwrap();
-    let src = read_to_string(&path).unwrap_or_else(|e| panic!("Failed to read {:?}: {}", path, e));
-    let mut out = String::new();
-    for line in src.lines() {
-        let trimmed = line.trim_start();
-        if let Some(rest) = trimmed.strip_prefix("#include") {
-            if let Some(name) = rest.trim().strip_prefix('"').and_then(|s| s.strip_suffix('"')) {
-                let incl = parent.join(name);
-                out.push_str(&load_shader_with_includes(incl));
-                continue;
-            }
-        }
-        out.push_str(line);
-        out.push('\n');
-    }
-    out
 }
