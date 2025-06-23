@@ -1,5 +1,7 @@
 #![cfg(feature = "tests-only")]
 
+use raylib::color::Color;
+use raylib::drawing::{RaylibDraw, RaylibShaderModeExt, RaylibTextureModeExt};
 use raylib::ffi::rlFramebufferAttachTextureType::{RL_ATTACHMENT_RENDERBUFFER, RL_ATTACHMENT_TEXTURE2D};
 use raylib::ffi::rlFramebufferAttachType::{RL_ATTACHMENT_COLOR_CHANNEL0, RL_ATTACHMENT_DEPTH};
 use raylib::ffi::TraceLogLevel::{LOG_INFO, LOG_WARNING};
@@ -8,10 +10,20 @@ use raylib::ffi::{
     rlFramebufferAttach, rlFramebufferComplete, rlLoadFramebuffer, rlLoadTexture, rlLoadTextureDepth, Texture2D,
     TraceLog,
 };
+use raylib::math::{Rectangle, Vector2};
+use raylib::prelude::Shader;
 use raylib::texture::RenderTexture2D;
+use raylib::{RaylibHandle, RaylibThread};
 use std::ffi::c_char;
 use std::fs::read_to_string;
 use std::path::Path;
+
+pub const ORIGIN_X: i32 = 0;
+pub const ORIGIN_Y: i32 = 0;
+pub const ORIGIN: Vector2 = Vector2::zero();
+pub const APPLE_DPI: i32 = 2;
+pub const WINDOW_WIDTH: i32 = 850;
+pub const WINDOW_HEIGHT: i32 = 480;
 
 pub fn create_rgba16_render_texture(width: i32, height: i32) -> RenderTexture2D {
     // raylib_bath code: https://github.com/raysan5/raylib/blob/4bc8d3761c48f4dcf56f126640da8f3567dc516b/src/rtextures.c#L4246
@@ -105,4 +117,45 @@ pub fn load_shader_with_includes(path: impl AsRef<Path>) -> String {
         out.push('\n');
     }
     out
+}
+
+pub fn feedback_buffer_pass(
+    raylib_handle: &mut RaylibHandle,
+    raylib_thread: &RaylibThread,
+    feedback_buffer_shader: &mut Shader,
+    buffer_b_texture: &mut RenderTexture2D,
+    buffer_a_texture: &RenderTexture2D,
+) {
+    let mut texture_mode = raylib_handle.begin_texture_mode(raylib_thread, buffer_b_texture);
+    let mut shader_mode = texture_mode.begin_shader_mode(feedback_buffer_shader);
+    //TODO: raylib_bath has to flip even at the buffer stage? ugh, am i dumb??
+    // uncomment the next line, and then comment out the flipping to see behavior
+    //shader_mode.draw_texture(&buffer_a_texture, ORIGIN_X, ORIGIN_Y, Color::WHITE);
+    let flipped_rectangle = Rectangle {
+        x: 0.0,
+        y: 0.0,
+        width: buffer_a_texture.texture.width as f32,
+        height: -1.0 * buffer_a_texture.texture.height as f32,
+    };
+    shader_mode.draw_texture_rec(&buffer_a_texture, flipped_rectangle, ORIGIN, Color::WHITE);
+}
+
+pub fn image_pass(
+    raylib_handle: &mut RaylibHandle,
+    raylib_thread: &RaylibThread,
+    image_shader: &mut Shader,
+    buffer_a_texture: &RenderTexture2D,
+) {
+    let mut draw_handle = raylib_handle.begin_drawing(raylib_thread);
+    let mut shader_mode = draw_handle.begin_shader_mode(image_shader);
+    // TODO: classic raster stage y flip because shadertoy, same thing in godot
+    //  uncomment the next line, and then comment out the flipping to see behavior
+    //shader_mode.draw_texture(&buffer_a_texture, ORIGIN_X, ORIGIN_Y, Color::WHITE);
+    let flipped_rectangle = Rectangle {
+        x: 0.0,
+        y: 0.0,
+        width: buffer_a_texture.texture.width as f32,
+        height: -1.0 * buffer_a_texture.texture.height as f32,
+    };
+    shader_mode.draw_texture_rec(&buffer_a_texture, flipped_rectangle, ORIGIN, Color::WHITE);
 }
