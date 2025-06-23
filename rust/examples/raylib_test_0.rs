@@ -1,4 +1,4 @@
-use bath::raylib_bath::util::{
+use bath::render::raylib_util::{
     create_rgba16_render_texture, feedback_buffer_pass, image_pass, APPLE_DPI, WINDOW_HEIGHT, WINDOW_WIDTH,
 };
 use raylib::init;

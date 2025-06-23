@@ -1,4 +1,4 @@
-use crate::render::godot::create_buffer_viewport;
+use crate::render::godot_util::create_buffer_viewport;
 use crate::resource_paths::ResourcePaths;
 use godot::builtin::Vector2;
 use godot::classes::{

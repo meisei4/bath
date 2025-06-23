@@ -1,7 +1,6 @@
 pub mod audio_analysis;
 pub mod collision_mask;
 pub mod midi;
-pub mod raylib_bath;
 pub mod render;
 pub mod resource_paths;
 

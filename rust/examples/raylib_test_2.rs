@@ -1,4 +1,4 @@
-use bath::raylib_bath::util::{
+use bath::render::raylib_util::{
     create_rgba16_render_texture, load_shader_with_includes, APPLE_DPI, ORIGIN, WINDOW_HEIGHT, WINDOW_WIDTH,
 };
 use raylib::color::Color;
