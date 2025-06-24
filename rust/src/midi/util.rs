@@ -126,7 +126,7 @@ fn inner_parse_note_on_off<T>(
                     program,
                 } => {
                     current_instrument_for_channel[ch as usize] = program.as_int();
-                },
+                }
                 MidiMessage::NoteOn {
                     key,
                     vel,
@@ -138,13 +138,13 @@ fn inner_parse_note_on_off<T>(
                         time_value,
                         &current_instrument_for_channel,
                     );
-                },
+                }
                 MidiMessage::NoteOff {
                     key, ..
                 } => {
                     handle_note_fn(ch, key.as_int(), 0, time_value, &current_instrument_for_channel);
-                },
-                _ => {},
+                }
+                _ => {}
             }
         }
     }

@@ -37,11 +37,9 @@ impl Renderer for GodotRenderer {
 
     fn tweak_texture_parameters(&mut self, texture: &mut Self::Texture, _repeat: bool, _nearest: bool) {
         todo!()
-        // TODO: This will be a step in the glsl -> gdshader conversion stage":
-        //  append to neccessary uniforms:
-        //  : filter_nearest_mipmap, repeat_enable;
-        //  : hint_screen_texture;
-        //  etc
+        //TODO: Texture for GodotRenderer we some how need to get the CanvasItem
+        // I think we have to use a TextureRect with its filter and repeat somehow
+        // Otherwise use viewport but somehow make the rendertarget filter and repeat (but that breaks from how raylib does it)
     }
 
     fn init_render_target(&mut self, size: RendererVector2, hdr: bool) -> Self::RenderTarget {
@@ -58,22 +56,21 @@ impl Renderer for GodotRenderer {
         shader.set_shader_parameter(name, &texture.to_variant());
     }
 
-    fn draw_texture(&mut self, texture: &Self::Texture, render_target: &mut Self::RenderTarget) {
-        // almost identical to draw_shader_screen but with no shader, and just a texture into the render target
+    fn draw_texture(&mut self, texture: &mut Self::Texture, render_target: &mut Self::RenderTarget) {
         let mut buffer_a_node = TextureRect::new_alloc();
-        buffer_a_node.set_texture(texture);
+        buffer_a_node.set_texture(&*texture);
         let i_resolution = Vector2::new(render_target.get_size().x as real, render_target.get_size().y as real);
         buffer_a_node.set_size(i_resolution);
         render_target.add_child(&buffer_a_node);
         self.base_mut().add_child(&*render_target);
     }
 
-    fn draw_screen(&mut self, render_target: &Self::RenderTarget) -> bool {
+
+    fn draw_screen(&mut self, render_target: &Self::RenderTarget) {
         let mut main_image = TextureRect::new_alloc();
         main_image.set_texture(&render_target.get_texture().unwrap());
         main_image.set_flip_v(true);
         self.base_mut().add_child(&main_image);
-        true
     }
 
     fn draw_shader_screen(&mut self, shader: &mut Self::Shader, render_target: &mut Self::RenderTarget) {
@@ -82,6 +79,7 @@ impl Renderer for GodotRenderer {
         buffer_a_shader_node.set_size(i_resolution);
         buffer_a_shader_node.set_material(&*shader);
         render_target.add_child(&buffer_a_shader_node);
+        self.draw_screen(render_target);
     }
 }
 
@@ -95,15 +93,10 @@ impl INode2D for GodotRenderer {
         let i_resolution = RendererVector2::new(godot_resolution.x, godot_resolution.y);
         let mut buffer_a = self.init_render_target(i_resolution, true);
         let mut shader = self.load_shader(ResourcePaths::DREKKER_EFFECT);
-        let texture = self.load_texture(ResourcePaths::ICEBERGS_JPG);
+        let mut texture = self.load_texture(ResourcePaths::ICEBERGS_JPG);
         self.set_uniform_vec2(&mut shader, "iResolution", i_resolution);
         self.set_uniform_sampler2d(&mut shader, "iChannel0", &texture);
-        //TODO: the Texture2D::new_gd needs something like:
-        // E 0:00:01:722   _gdvirtual__get_width_call: Required virtual method Texture2D::_get_width must be overridden before calling.
-        //     <C++ Source>  scene/resources/texture.h:55 @ _gdvirtual__get_width_call()
-        // Maybe figure out a subclass of Texture2D where those functions are implemented??
-        self.draw_texture(&Texture2D::new_gd(), &mut buffer_a);
+        self.draw_texture(&mut texture, &mut buffer_a);
         self.draw_shader_screen(&mut shader, &mut buffer_a);
-        self.draw_screen(&buffer_a);
     }
 }

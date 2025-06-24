@@ -202,7 +202,7 @@ fn main() {
         ShaderToy,
         "shadertoy/buffer_a.shadertoy.glsl",
     )
-    .expect("conversion failed");
+        .expect("conversion failed");
     convert("gdshader/buffer_a.gdshader", Godot, GLSL, "glsl/buffer_a.glsl").expect("conversion failed");
     convert("gdshader/image.gdshader", Godot, GLSL, "glsl/image.glsl").expect("conversion failed");
     if let Err(e) = compare_dirs("resources", "test_output") {

@@ -93,15 +93,15 @@ pub fn render_midi_to_sound_bytes_constant_time(
                             synth.note_off(channel as i32, note);
                             active_notes.remove(&(channel, note));
                         }
-                    },
+                    }
                     MidiMessage::NoteOff {
                         key, ..
                     } => {
                         let note = key.as_int() as i32;
                         synth.note_off(channel as i32, note);
                         active_notes.remove(&(channel, note));
-                    },
-                    _ => {},
+                    }
+                    _ => {}
                 }
             }
         }

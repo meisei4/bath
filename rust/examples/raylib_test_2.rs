@@ -10,13 +10,14 @@ fn main() {
         render.handle.get_render_height() as f32,
     );
     let mut buffer_a = render.init_render_target(i_resolution, true);
+    let mut texture = render.load_texture(ICEBERGS_JPG);
     let mut shader = render.load_shader(DREKKER_PATH);
-    let texture = render.load_texture(ICEBERGS_JPG);
     render.set_uniform_vec2(&mut shader, "iResolution", i_resolution);
     render.set_uniform_sampler2d(&mut shader, "iChannel0", &texture);
-    render.draw_texture(&texture, &mut buffer_a);
+    //TODO: some how the image is already getting repeated? im so confused
+    //render.tweak_texture_parameters(&mut texture, true, true);
+    render.draw_texture(&mut texture, &mut buffer_a);
     while !render.handle.window_should_close() {
         render.draw_shader_screen(&mut shader, &mut buffer_a);
     }
-    render.draw_screen(&buffer_a);
 }

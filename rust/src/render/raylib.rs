@@ -19,9 +19,9 @@ pub struct RaylibRenderer {
 }
 
 impl Renderer for RaylibRenderer {
-    type Shader = Shader;
-    type Texture = Texture2D;
     type RenderTarget = RenderTexture2D;
+    type Texture = Texture2D;
+    type Shader = Shader;
 
     fn init() -> Self {
         let (mut handle, thread) = init()
@@ -42,11 +42,14 @@ impl Renderer for RaylibRenderer {
             thread,
         }
     }
-
-    fn load_shader(&mut self, path: &str) -> Self::Shader {
-        let source_code = load_shader_with_includes(path);
-        self.handle
-            .load_shader_from_memory(&self.thread, None, Some(&source_code))
+    fn init_render_target(&mut self, size: RendererVector2, hdr: bool) -> Self::RenderTarget {
+        if hdr {
+            create_rgba16_render_texture(size.x as i32, size.y as i32)
+        } else {
+            self.handle
+                .load_render_texture(&self.thread, size.x as u32, size.y as u32)
+                .unwrap()
+        }
     }
 
     fn load_texture(&mut self, path: &str) -> Self::Texture {
@@ -76,14 +79,10 @@ impl Renderer for RaylibRenderer {
         }
     }
 
-    fn init_render_target(&mut self, size: RendererVector2, hdr: bool) -> Self::RenderTarget {
-        if hdr {
-            create_rgba16_render_texture(size.x as i32, size.y as i32)
-        } else {
-            self.handle
-                .load_render_texture(&self.thread, size.x as u32, size.y as u32)
-                .unwrap()
-        }
+    fn load_shader(&mut self, path: &str) -> Self::Shader {
+        let source_code = load_shader_with_includes(path);
+        self.handle
+            .load_shader_from_memory(&self.thread, None, Some(&source_code))
     }
 
     fn set_uniform_vec2(&mut self, shader: &mut Self::Shader, name: &str, value: RendererVector2) {
@@ -98,7 +97,7 @@ impl Renderer for RaylibRenderer {
         //shader.set_shader_value_texture(location, texture);
     }
 
-    fn draw_texture(&mut self, texture: &Self::Texture, render_target: &mut Self::RenderTarget) {
+    fn draw_texture(&mut self, texture: &mut Self::Texture, render_target: &mut Self::RenderTarget) {
         let width = render_target.width() as f32;
         let height = render_target.height() as f32;
         let mut texture_mode = self.handle.begin_texture_mode(&self.thread, render_target);
@@ -106,10 +105,9 @@ impl Renderer for RaylibRenderer {
         texture_mode.draw_texture_rec(texture, flip_framebuffer(width, height), ORIGIN, Color::WHITE);
     }
 
-    fn draw_screen(&mut self, render_target: &Self::RenderTarget) -> bool {
+    fn draw_screen(&mut self, render_target: &Self::RenderTarget) {
         let mut draw_handle = self.handle.begin_drawing(&self.thread);
         draw_handle.draw_texture(render_target, ORIGIN_X, ORIGIN_Y, Color::WHITE);
-        true
     }
 
     fn draw_shader_screen(&mut self, shader: &mut Self::Shader, render_target: &mut Self::RenderTarget) {

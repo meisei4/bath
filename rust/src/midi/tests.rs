@@ -77,15 +77,15 @@ pub fn handle_key_event(event: Event, connection: &mut MidiOutputConnection, act
                     let _ = connection.send(&[0x90, note, 100]);
                 }
             }
-        },
+        }
         EventType::KeyRelease(key) => {
             if let Some(note) = map_key_to_midi_note(key) {
                 if active_keys.remove(&key) {
                     let _ = connection.send(&[0x80, note, 0]);
                 }
             }
-        },
-        _ => {},
+        }
+        _ => {}
     }
     render(active_keys);
 }
@@ -316,14 +316,14 @@ pub fn play_midi(midi_path: &str) {
                             vec![MIDI_NOTE_OFF | channel, key.as_int(), 0]
                         };
                         let _ = conn.send(&msg);
-                    },
+                    }
                     MidiMessage::NoteOff {
                         key, ..
                     } => {
                         let msg = vec![MIDI_NOTE_OFF | channel, key.as_int(), 0];
                         let _ = conn.send(&msg);
-                    },
-                    _ => {},
+                    }
+                    _ => {}
                 }
             }
         }
