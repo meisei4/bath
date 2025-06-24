@@ -3,8 +3,8 @@ use crate::render::renderer::Renderer;
 use crate::render::renderer::RendererVector2;
 use crate::resource_paths::ResourcePaths;
 use godot::builtin::{real, Vector2, Vector2i};
-use godot::classes::{ColorRect, INode2D, Node, Node2D, ResourceLoader, TextureRect};
-use godot::classes::{Shader, ShaderMaterial, SubViewport, Texture};
+use godot::classes::{ColorRect, INode2D, Node, Node2D, ResourceLoader, Texture2D, TextureRect};
+use godot::classes::{Shader, ShaderMaterial, SubViewport};
 use godot::meta::ToGodot;
 use godot::obj::{Base, Gd, NewAlloc, NewGd, WithBaseField};
 use godot::prelude::{godot_api, GodotClass};
@@ -17,7 +17,7 @@ pub struct GodotRenderer {
 
 impl Renderer for GodotRenderer {
     type Shader = Gd<ShaderMaterial>;
-    type Texture = Gd<Texture>;
+    type Texture = Gd<Texture2D>;
     type RenderTarget = Gd<SubViewport>;
 
     fn init() -> Self {
@@ -59,6 +59,12 @@ impl Renderer for GodotRenderer {
     }
 
     fn draw_texture(&mut self, texture: &Self::Texture, render_target: &mut Self::RenderTarget) {
+        // almost identical to draw_shader_screen but with no shader, and just a texture into the render target
+        let mut buffer_a_node = TextureRect::new_alloc();
+        buffer_a_node.set_texture(texture);
+        let i_resolution = Vector2::new(render_target.get_size().x as real, render_target.get_size().y as real);
+        buffer_a_node.set_size(i_resolution);
+        render_target.add_child(&buffer_a_node);
         self.base_mut().add_child(&*render_target);
     }
 
@@ -92,7 +98,11 @@ impl INode2D for GodotRenderer {
         let texture = self.load_texture(ResourcePaths::ICEBERGS_JPG);
         self.set_uniform_vec2(&mut shader, "iResolution", i_resolution);
         self.set_uniform_sampler2d(&mut shader, "iChannel0", &texture);
-        self.draw_texture(&Texture::new_gd(), &mut buffer_a);
+        //TODO: the Texture2D::new_gd needs something like:
+        // E 0:00:01:722   _gdvirtual__get_width_call: Required virtual method Texture2D::_get_width must be overridden before calling.
+        //     <C++ Source>  scene/resources/texture.h:55 @ _gdvirtual__get_width_call()
+        // Maybe figure out a subclass of Texture2D where those functions are implemented??
+        self.draw_texture(&Texture2D::new_gd(), &mut buffer_a);
         self.draw_shader_screen(&mut shader, &mut buffer_a);
         self.draw_screen(&buffer_a);
     }
