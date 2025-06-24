@@ -13,7 +13,6 @@ var mechanic_controller: MechanicController
 
 var collision_controller: CollisionController
 
-
 func _ready() -> void:
     for child_node: Node in get_children():
         if child_node is CollisionShape2D:

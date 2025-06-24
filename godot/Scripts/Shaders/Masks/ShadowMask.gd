@@ -60,6 +60,7 @@ func setup_ubmral_zone() -> void:
     UmbralShaderMaterial = ShaderMaterial.new()
     UmbralShaderMaterial.shader = UmbralShader
     UmbralShaderNode = ColorRect.new()
+    UmbralShaderNode.z_index = -2
     UmbralShaderNode.size = iResolution
     UmbralShaderNode.material = UmbralShaderMaterial
     UmbralShaderMaterial.set_shader_parameter("iResolution", iResolution)

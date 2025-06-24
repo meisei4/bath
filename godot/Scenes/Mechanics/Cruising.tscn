@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3 uid="uid://y63rc7mnc0en"]
+
+[ext_resource type="Script" uid="uid://bp8lx60pyh0gi" path="res://Scripts/Mechanics/Cruising.gd" id="1_brpax"]
+
+[node name="Cruising" type="Node"]
+script = ExtResource("1_brpax")
+metadata/_custom_type_script = "uid://bp8lx60pyh0gi"

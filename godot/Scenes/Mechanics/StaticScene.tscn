@@ -1,0 +1,62 @@
+[gd_scene load_steps=12 format=3 uid="uid://b4h3l6wedxpfl"]
+
+[ext_resource type="Script" uid="uid://cfndhqfjgfs1a" path="res://Scripts/Entities/Characters/CapsuleDummy.gd" id="1_m7fsa"]
+[ext_resource type="Script" uid="uid://6l46yt0uo06t" path="res://Scripts/Mechanics/CollisionController.gd" id="2_y0nan"]
+[ext_resource type="Script" uid="uid://cvjrw27duhoar" path="res://Scripts/Mechanics/MechanicController.gd" id="3_3bdn7"]
+[ext_resource type="Script" uid="uid://dak4nmt80lkir" path="res://Scripts/Mechanics/Jump.gd" id="4_xhbao"]
+[ext_resource type="Script" uid="uid://bp8lx60pyh0gi" path="res://Scripts/Mechanics/Cruising.gd" id="5_kruy1"]
+[ext_resource type="Script" uid="uid://c0jqvqibrmydq" path="res://Scripts/Mechanics/MechanicsData/MechanicAnimationData.gd" id="5_xhbao"]
+[ext_resource type="Script" uid="uid://dt0uu4jt48sjm" path="res://Scripts/Mechanics/AnimationController.gd" id="6_iym67"]
+[ext_resource type="Script" uid="uid://beuhelx1f6m0i" path="res://Scripts/Mechanics/JumpAnimation.gd" id="7_0ex6y"]
+[ext_resource type="Script" uid="uid://cn776p2gauhvr" path="res://Scripts/Mechanics/MechanicsData/CruisingData.gd" id="7_kruy1"]
+
+[sub_resource type="Resource" id="Resource_iym67"]
+script = ExtResource("5_xhbao")
+current_vertical_position = 0.0
+vertical_normal = 0.0
+ascending = false
+metadata/_custom_type_script = "uid://c0jqvqibrmydq"
+
+[sub_resource type="Resource" id="Resource_0ex6y"]
+script = ExtResource("7_kruy1")
+MAX_SPEED = 60.0
+ACCELERATION = 4000.0
+DECELERATION = 2000.0
+metadata/_custom_type_script = "uid://cn776p2gauhvr"
+
+[node name="StaticScene" type="Node2D"]
+
+[node name="CapsuleDummy" type="CharacterBody2D" parent="."]
+script = ExtResource("1_m7fsa")
+metadata/_custom_type_script = "uid://cfndhqfjgfs1a"
+
+[node name="Sprite2D" type="Sprite2D" parent="CapsuleDummy"]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="CapsuleDummy"]
+
+[node name="CollisionController" type="Node" parent="CapsuleDummy"]
+script = ExtResource("2_y0nan")
+metadata/_custom_type_script = "uid://6l46yt0uo06t"
+
+[node name="MechanicController" type="Node" parent="CapsuleDummy"]
+script = ExtResource("3_3bdn7")
+metadata/_custom_type_script = "uid://cvjrw27duhoar"
+
+[node name="Jump" type="Node" parent="CapsuleDummy/MechanicController"]
+script = ExtResource("4_xhbao")
+mechanic_animation_data = SubResource("Resource_iym67")
+metadata/_custom_type_script = "uid://dak4nmt80lkir"
+
+[node name="ForwardBackward" type="Node" parent="CapsuleDummy/MechanicController"]
+script = ExtResource("5_kruy1")
+forwardbackward_data = SubResource("Resource_0ex6y")
+metadata/_custom_type_script = "uid://bp8lx60pyh0gi"
+
+[node name="AnimationController" type="Node" parent="CapsuleDummy"]
+script = ExtResource("6_iym67")
+metadata/_custom_type_script = "uid://dt0uu4jt48sjm"
+
+[node name="JumpAnimation" type="Node" parent="CapsuleDummy/AnimationController" node_paths=PackedStringArray("sprite")]
+script = ExtResource("7_0ex6y")
+sprite = NodePath("../../Sprite2D")
+metadata/_custom_type_script = "uid://beuhelx1f6m0i"

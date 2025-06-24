@@ -24,6 +24,7 @@ const CAPSULE_DUMMY_SCRIPT: String = "res://Scripts/Entities/Characters/CapsuleD
 const CAPSULE_DUMMY: String = "res://Scenes/Entities/Characters/CapsuleDummy.tscn"
 
 const STRAFE_MECHANIC: String = "res://Scenes/Mechanics/Strafe.tscn"
+const CRUISING_MECHANIC: String = "res://Scenes/Mechanics/Cruising.tscn"
 const JUMP_MECHANIC: String = "res://Scenes/Mechanics/Jump.tscn"
 const DIVE_MECHANIC: String = "res://Scenes/Mechanics/Dive.tscn"
 const SPIN_MECHANIC: String = "res://Scenes/Mechanics/Spin.tscn"

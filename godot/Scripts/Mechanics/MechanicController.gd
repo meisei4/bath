@@ -8,6 +8,7 @@ var queued_state: MechanicController.STATE = MechanicController.STATE.IDLE
 
 var mechanic_scenes: Array[PackedScene] = [
     preload(ResourcePaths.STRAFE_MECHANIC),
+    preload(ResourcePaths.CRUISING_MECHANIC),
     preload(ResourcePaths.JUMP_MECHANIC),
     preload(ResourcePaths.DIVE_MECHANIC),
     preload(ResourcePaths.SPIN_MECHANIC),

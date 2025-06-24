@@ -1,8 +1,8 @@
 extends Node
 class_name JumpAnimation
 
-var shader: Shader = preload(ResourcePaths.JUMP_TRIG_SHADER)
-var sprite: Sprite2D
+@export var shader: Shader = preload(ResourcePaths.JUMP_TRIG_SHADER)
+@export var sprite: Sprite2D
 
 
 func _ready() -> void:
@@ -30,8 +30,8 @@ func update_shader_uniforms(
         current_altitude_position
     )
     sprite.position.y = roundi(-vertical_offset_pixels)
-    #_update_sprite_scale_continious(sprite, altitude_normal)
-    _update_sprite_scale_discrete(sprite, altitude_normal)
+    _update_sprite_scale_continious(sprite, altitude_normal)
+    #_update_sprite_scale_discrete(sprite, altitude_normal)
     sprite.material.set_shader_parameter("iChannel0", sprite.texture)
     sprite.material.set_shader_parameter("iResolution", sprite.texture.get_size())
     sprite.material.set_shader_parameter("ascending", ascending)
@@ -44,7 +44,7 @@ func update_shader_uniforms(
 
 
 var SPRITE_SCALE_AT_MIN_ALTITUDE: float = 1.0
-var SPRITE_SCALE_AT_MAX_ALTITUDE: float = 3.0
+var SPRITE_SCALE_AT_MAX_ALTITUDE: float = 2.0
 
 
 func _update_sprite_scale_continious(sprite_node: Sprite2D, _altitude_normal: float) -> void:
