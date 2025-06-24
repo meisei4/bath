@@ -3,6 +3,8 @@ use crate::render::renderer::Renderer;
 use crate::render::renderer::RendererVector2;
 use crate::resource_paths::ResourcePaths;
 use godot::builtin::{real, Vector2, Vector2i};
+use godot::classes::canvas_item::{TextureFilter, TextureRepeat};
+use godot::classes::texture_rect::StretchMode;
 use godot::classes::{ColorRect, INode2D, Node, Node2D, ResourceLoader, Texture2D, TextureRect};
 use godot::classes::{Shader, ShaderMaterial, SubViewport};
 use godot::meta::ToGodot;
@@ -25,9 +27,9 @@ impl Renderer for GodotRenderer {
     }
 
     fn init_render_target(&mut self, size: RendererVector2, hdr: bool) -> Self::RenderTarget {
-        let mut subviewport_buffer = create_buffer_viewport(Vector2i::new(size.x as i32, size.y as i32));
-        subviewport_buffer.set_use_hdr_2d(hdr);
-        subviewport_buffer
+        let mut subviewport = create_buffer_viewport(Vector2i::new(size.x as i32, size.y as i32));
+        subviewport.set_use_hdr_2d(hdr);
+        subviewport
     }
 
     fn load_texture(&mut self, path: &str) -> Self::Texture {
@@ -58,6 +60,9 @@ impl Renderer for GodotRenderer {
 
     fn draw_texture(&mut self, texture: &mut Self::Texture, render_target: &mut Self::RenderTarget) {
         let mut buffer_a_node = TextureRect::new_alloc();
+        buffer_a_node.set_stretch_mode(StretchMode::TILE);
+        buffer_a_node.set_texture_filter(TextureFilter::NEAREST);
+        buffer_a_node.set_texture_repeat(TextureRepeat::ENABLED);
         buffer_a_node.set_texture(&*texture);
         let i_resolution = Vector2::new(render_target.get_size().x as real, render_target.get_size().y as real);
         buffer_a_node.set_size(i_resolution);
@@ -67,6 +72,7 @@ impl Renderer for GodotRenderer {
 
     fn draw_screen(&mut self, render_target: &Self::RenderTarget) {
         let mut main_image = TextureRect::new_alloc();
+        main_image.set_texture_filter(TextureFilter::NEAREST);
         main_image.set_texture(&render_target.get_texture().unwrap());
         main_image.set_flip_v(true);
         self.base_mut().add_child(&main_image);
@@ -76,6 +82,7 @@ impl Renderer for GodotRenderer {
         let mut buffer_a_shader_node = ColorRect::new_alloc();
         let i_resolution = Vector2::new(render_target.get_size().x as real, render_target.get_size().y as real);
         buffer_a_shader_node.set_size(i_resolution);
+        buffer_a_shader_node.set_texture_filter(TextureFilter::NEAREST);
         buffer_a_shader_node.set_material(&*shader);
         render_target.add_child(&buffer_a_shader_node);
         self.draw_screen(render_target);
@@ -96,6 +103,7 @@ impl INode2D for GodotRenderer {
         self.set_uniform_vec2(&mut shader, "iResolution", i_resolution);
         self.set_uniform_sampler2d(&mut shader, "iChannel0", &texture);
         self.draw_texture(&mut texture, &mut buffer_a);
+        //self.draw_screen(&buffer_a);
         self.draw_shader_screen(&mut shader, &mut buffer_a);
     }
 }

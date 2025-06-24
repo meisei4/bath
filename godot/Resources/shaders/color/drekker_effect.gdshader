@@ -223,8 +223,8 @@ vec4 sample_uv_in_grid_space(vec2 uv, vec2 grid_dimensions) {
     float row_normal    = row_index    / grid_dimensions.y;
     float u = column_normal;
     float v = row_normal + cubic_color_squish_scaled - vertical_row_shift_per_column;
-    vec4 texture_color = textureLod(iChannel0, vec2(u,v), TEXTURE_LOD_BASE_LEVEL);
-    //vec4 texture_color = texture(iChannel0, vec2(u,v));
+    //vec4 texture_color = textureLod(iChannel0, vec2(u,v), TEXTURE_LOD_BASE_LEVEL);
+    vec4 texture_color = texture(iChannel0, vec2(u,v));
 
     ALPHA_CLEAR_TEXELS_OUTSIDE_CELL_BOUNDARIES(texture_color, local_cell_progress_x, local_cell_progress_y);
 
