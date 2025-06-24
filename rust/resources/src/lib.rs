@@ -5,8 +5,8 @@ pub mod glsl {
     pub const ICE_SHEETS_PATH: &str = "resources/glsl/ice_sheets/ice_sheets.glsl";
     pub const ICE_FRAG_PATH: &str = "resources/glsl/ice_sheets/ice_frag.glsl";
     pub const ICE_FRAG_2_PATH: &str = "resources/glsl/ice_sheets/ice_frag_2.glsl";
-    pub const ICE_VERT_PATH: &str = "resources/glsl/ice_sheets/ice_vertex.glsl";
-
+    pub const ICE_VERT_PATH: &str = "resources/glsl/ice_sheets/ice_vert.glsl";
+    pub const ICE_VERT_2_PATH: &str = "resources/glsl/ice_sheets/ice_vert_2.glsl";
 
     pub const BUFFER_A_CONTENTS: &str = include_str!("../glsl/buffer_a.glsl");
     pub const IMAGE_CONTENTS: &str = include_str!("../glsl/image.glsl");

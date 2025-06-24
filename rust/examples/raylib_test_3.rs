@@ -1,6 +1,6 @@
 use bath::render::raylib::RaylibRenderer;
 use bath::render::{renderer::Renderer, renderer::RendererVector2};
-use bath_resources::glsl::{ICE_FRAG_2_PATH, ICE_VERT_PATH};
+use bath_resources::glsl::{ICE_FRAG_2_PATH, ICE_VERT_2_PATH};
 use raylib::math::Vector2;
 
 fn main() {
@@ -10,7 +10,7 @@ fn main() {
         render.handle.get_screen_height() as f32,
     );
     let mut buffer = render.init_render_target(screen_size, true);
-    let mut shader = render.load_shader(ICE_FRAG_2_PATH, ICE_VERT_PATH);
+    let mut shader = render.load_shader(ICE_FRAG_2_PATH, ICE_VERT_2_PATH);
     render.set_uniform_vec2(&mut shader, "iResolution", screen_size);
     render.set_uniform_vec2(&mut shader, "uNoiseScrollVel", Vector2::new(0.0, 0.1));
     render.set_uniform_float(&mut shader, "uGlobalCoordScalar", 180.0);

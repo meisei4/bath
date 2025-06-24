@@ -10,17 +10,22 @@ uniform float uUnifStretchCorr;
 uniform float uRotCos;
 uniform float uRotSin;
 uniform float uPerlinSolidTh;
+
 uniform float uWaterColR;
 uniform float uWaterColG;
 uniform float uWaterColB;
 uniform float uWaterDarkenMult;
 uniform float uWaterDepthDiv;
 uniform float uWaterStaticTh;
+
 uniform float uSolidBrightness;
 uniform float uParDepth;
 uniform float uParNearScale;
 uniform float uStrideLen;
+
 in vec2 v_normCoord;
+in vec2 v_noiseCoord;
+
 out vec4 finalColor;
 
 #define M_PI 3.14159265358979323846
@@ -32,6 +37,7 @@ vec2 hash22(vec2 p) {
     return fract((p3.xx + p3.yz) * p3.zy);
 }
 vec2 grad(ivec2 z) { return hash22(vec2(z) * 123.456) * 2.0 - 1.0; }
+
 float perlin_noise_iq(vec2 p) {
     ivec2 i = ivec2(floor(p));
     vec2 f = fract(p), u = smoothstep(0.0, 1.0, f);
@@ -42,15 +48,15 @@ float perlin_noise_iq(vec2 p) {
     return mix(mix(v00, v10, u.x), mix(v01, v11, u.x), u.y);
 }
 
-float sampleNoise(vec2 coord, float localScale, float t) {
-    vec2 s = (coord + t * uNoiseScrollVel) * uGlobalCoordScalar;
-    s = uUnifStretchCorr * vec2(s.x, s.y * uStretchY);
+float sampleNoise(vec2 c, float s, float t) {
+    vec2 q = (c + t * uNoiseScrollVel) * uGlobalCoordScalar;
+    q = uUnifStretchCorr * vec2(q.x, q.y * uStretchY);
     mat2 rot = mat2(vec2(uRotCos, -uRotSin), vec2(uRotSin, uRotCos));
-    s = rot * s;
-    return perlin_noise_iq(s * localScale - uNoiseCoordOffset);
+    q = rot * q;
+    return perlin_noise_iq(q * s - uNoiseCoordOffset);
 }
 
-bool isSolidAtCoord(vec2 coord, float ls, float t) { return sampleNoise(coord, ls, t) < uPerlinSolidTh; }
+bool isSolidAtCoord(vec2 c, float ls, float t) { return sampleNoise(c, ls, t) < uPerlinSolidTh; }
 
 vec3 getTerrainColor(bool solid, int d) {
     if (solid)
@@ -62,7 +68,7 @@ vec3 getTerrainColor(bool solid, int d) {
 vec3 tintAndDarkenWater(vec3 col, bool solid, int d) {
     if (solid)
     return col;
-    return (d > int(uWaterStaticTh)) ? (col * uWaterDarkenMult) : col;
+    return (d > int(uWaterStaticTh)) ? col * uWaterDarkenMult : col;
 }
 
 vec2 projectLayer(vec2 c, out float ls) {
@@ -86,11 +92,14 @@ int depthMarch(vec2 nc, float t) {
 }
 
 void main() {
-    float ls;
-    vec2 topPC = projectLayer(v_normCoord, ls);
-    int d = depthMarch(v_normCoord, iTime);
+    float ls = uParNearScale;
+    vec2 topPC = v_noiseCoord;
+
+    int depth = depthMarch(v_normCoord, iTime);
+
     bool solid = isSolidAtCoord(topPC, ls, iTime);
-    vec3 ter = getTerrainColor(solid, d);
-    vec3 wat = tintAndDarkenWater(ter, solid, d);
-    finalColor = vec4(sqrt(wat), 1.0);
+    vec3 terr = getTerrainColor(solid, depth);
+    vec3 color = tintAndDarkenWater(terr, solid, depth);
+
+    finalColor = vec4(sqrt(color), 1.0);
 }
