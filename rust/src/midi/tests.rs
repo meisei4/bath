@@ -1,8 +1,9 @@
 #![cfg(feature = "tests-only")]
 
+use bath_resources::audio_godot::{MIDI_FILE_PATH, SOUND_FONT_FILE_PATH};
 use midir::{MidiOutput, MidiOutputConnection, MidiOutputPort};
 use midly::{MidiMessage, Smf, TrackEventKind};
-use rdev::{listen, Event, EventType, Key};
+use rdev::{Event, EventType, Key};
 use rustysynth::{Instrument, InstrumentRegion, Preset, SoundFont};
 use std::collections::HashSet;
 use std::error::Error;
@@ -18,20 +19,17 @@ use crate::midi::util::{
     parse_midi_events_into_note_on_off_event_buffer_ticks_from_bytes, prepare_events, process_midi_events_with_timing,
 };
 
-const SOUND_FONT_FILE_PATH: &str = "../godot/Resources/audio/dsdnmoy.sf2";
-const MIDI_FILE_PATH: &str = "../godot/Resources/audio/fingerbib.mid";
-
 pub fn run_playback() -> Result<(), Box<dyn Error>> {
     print_full_structure(SOUND_FONT_FILE_PATH, 0, 0)?;
     // TODO: the below until the next TODO is commented out to play midi file
-    let mut fluidsynth_process = launch_fluidsynth_with_font(SOUND_FONT_FILE_PATH);
-    let (midi_output, midi_port) = connect_to_first_midi_port();
-    let mut midi_connection = midi_output.connect(&midi_port, "rust-midi")?;
-    let mut pressed_keys: HashSet<Key> = HashSet::new();
-    let _ = listen(move |event| {
-        handle_key_event(event, &mut midi_connection, &mut pressed_keys);
-    });
-    let _ = fluidsynth_process.kill();
+    // let mut fluidsynth_process = launch_fluidsynth_with_font(SOUND_FONT_FILE_PATH);
+    // let (midi_output, midi_port) = connect_to_first_midi_port();
+    // let mut midi_connection = midi_output.connect(&midi_port, "rust-midi")?;
+    // let mut pressed_keys: HashSet<Key> = HashSet::new();
+    // let _ = listen(move |event| {
+    //     handle_key_event(event, &mut midi_connection, &mut pressed_keys);
+    // });
+    // let _ = fluidsynth_process.kill();
     //TODO: the above is all^^ for testing midi keyboard user input
     let midi_bytes = fs::read(MIDI_FILE_PATH).unwrap();
     let _ = parse_midi_events_into_note_on_off_event_buffer_ticks_from_bytes(&midi_bytes);

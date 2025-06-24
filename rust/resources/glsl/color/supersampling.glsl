@@ -8,9 +8,9 @@
 
 #define ALPHA_CLEAR_TEXELS_OUTSIDE_CELL_BOUNDARIES(color, x, y)                                                        \
     {                                                                                                                  \
-        if (abs(y) > LOCAL_CELL_SPACE_UPPER_AND_LOWER_BOUNDARY || (x) < LOCAL_CELL_SPACE_BOUNDARY_LEFT                 \
-            || (x) > LOCAL_CELL_SPACE_BOUNDARY_RIGHT) {                                                                \
-            (color).a = 0.0;                                                                                           \
+ if (abs(y) > LOCAL_CELL_SPACE_UPPER_AND_LOWER_BOUNDARY || (x) < LOCAL_CELL_SPACE_BOUNDARY_LEFT                 \
+ || (x) > LOCAL_CELL_SPACE_BOUNDARY_RIGHT) {                                                                \
+            (color).a = 0.0; \
         }                                                                                                              \
     }
 

@@ -14,11 +14,11 @@ pub trait Renderer {
     fn init() -> Self;
     fn load_shader(&mut self, path: &str) -> Self::Shader;
     fn load_texture(&mut self, path: &str) -> Self::Texture;
-    fn set_texture_params(texture: &mut Self::Texture, repeat: bool, nearest: bool);
-    fn create_render_target(&mut self, size: RendererVector2, hdr: bool) -> Self::RenderTarget;
-    fn set_uniform_vec2(shader: &mut Self::Shader, name: &str, vec2: RendererVector2);
-    fn set_uniform_texture(shader: &mut Self::Shader, name: &str, texture: &Self::Texture);
-    fn begin_texture(&mut self, size: RendererVector2, render_target: &mut Self::RenderTarget, texture: &Self::Texture);
-    fn begin_frame(&mut self, render_target: &Self::RenderTarget) -> bool;
-    fn shader_draw(&mut self, size: RendererVector2, shader: &mut Self::Shader, render_target: &mut Self::RenderTarget);
+    fn tweak_texture_parameters(&mut self, texture: &mut Self::Texture, repeat: bool, nearest: bool);
+    fn init_render_target(&mut self, size: RendererVector2, hdr: bool) -> Self::RenderTarget;
+    fn set_uniform_vec2(&mut self, shader: &mut Self::Shader, name: &str, vec2: RendererVector2);
+    fn set_uniform_sampler2d(&mut self, shader: &mut Self::Shader, name: &str, texture: &Self::Texture);
+    fn draw_texture(&mut self, texture: &Self::Texture, render_target: &mut Self::RenderTarget);
+    fn draw_screen(&mut self, render_target: &Self::RenderTarget) -> bool;
+    fn draw_shader_screen(&mut self, shader: &mut Self::Shader, render_target: &mut Self::RenderTarget);
 }

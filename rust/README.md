@@ -1,6 +1,7 @@
 clang-format -i $(find . -name "*.glsl")
 
 lol psycho but:
+
 ```bash
 ann@anns-MBP rust % cargo tree
 bath v0.1.0 (/Users/ann/bath/rust)

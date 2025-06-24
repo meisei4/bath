@@ -131,13 +131,11 @@ pub fn feedback_buffer_pass(
     //TODO: raylib_bath has to flip even at the buffer stage? ugh, am i dumb??
     // uncomment the next line, and then comment out the flipping to see behavior
     //shader_mode.draw_texture(&buffer_a_texture, ORIGIN_X, ORIGIN_Y, Color::WHITE);
-    let flipped_rectangle = Rectangle {
-        x: 0.0,
-        y: 0.0,
-        width: buffer_a_texture.texture.width as f32,
-        height: -1.0 * buffer_a_texture.texture.height as f32,
-    };
-    shader_mode.draw_texture_rec(&buffer_a_texture, flipped_rectangle, ORIGIN, Color::WHITE);
+    let flipped_framebuffer = flip_framebuffer(
+        buffer_a_texture.texture.width as f32,
+        buffer_a_texture.texture.height as f32,
+    );
+    shader_mode.draw_texture_rec(&buffer_a_texture, flipped_framebuffer, ORIGIN, Color::WHITE);
 }
 
 pub fn image_pass(
@@ -151,11 +149,18 @@ pub fn image_pass(
     // TODO: classic raster stage y flip because shadertoy, same thing in godot
     //  uncomment the next line, and then comment out the flipping to see behavior
     //shader_mode.draw_texture(&buffer_a_texture, ORIGIN_X, ORIGIN_Y, Color::WHITE);
-    let flipped_rectangle = Rectangle {
+    let flipped_framebuffer = flip_framebuffer(
+        buffer_a_texture.texture.width as f32,
+        buffer_a_texture.texture.height as f32,
+    );
+    shader_mode.draw_texture_rec(&buffer_a_texture, flipped_framebuffer, ORIGIN, Color::WHITE);
+}
+
+pub fn flip_framebuffer(width: f32, height: f32) -> Rectangle {
+    Rectangle {
         x: 0.0,
         y: 0.0,
-        width: buffer_a_texture.texture.width as f32,
-        height: -1.0 * buffer_a_texture.texture.height as f32,
-    };
-    shader_mode.draw_texture_rec(&buffer_a_texture, flipped_rectangle, ORIGIN, Color::WHITE);
+        width,
+        height: -1.0 * height,
+    }
 }

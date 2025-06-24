@@ -1,6 +1,6 @@
 use crate::render::raylib_util::{
-    create_rgba16_render_texture, load_shader_with_includes, APPLE_DPI, ORIGIN, ORIGIN_X, ORIGIN_Y, WINDOW_HEIGHT,
-    WINDOW_WIDTH,
+    create_rgba16_render_texture, flip_framebuffer, load_shader_with_includes, APPLE_DPI, ORIGIN, ORIGIN_X, ORIGIN_Y,
+    WINDOW_HEIGHT, WINDOW_WIDTH,
 };
 use crate::render::renderer::{Renderer, RendererVector2};
 use raylib::color::Color;
@@ -9,11 +9,10 @@ use raylib::ffi::{
     rlTextureParameters, LoadImage, LoadTextureFromImage, UnloadImage, RL_TEXTURE_FILTER_NEAREST,
     RL_TEXTURE_MAG_FILTER, RL_TEXTURE_MIN_FILTER, RL_TEXTURE_WRAP_REPEAT, RL_TEXTURE_WRAP_S, RL_TEXTURE_WRAP_T,
 };
-use raylib::math::Rectangle;
 use raylib::shaders::{RaylibShader, Shader};
-use raylib::texture::{RenderTexture2D, Texture2D};
+use raylib::texture::{RaylibTexture2D, RenderTexture2D, Texture2D};
 use raylib::{init, RaylibHandle, RaylibThread};
-use std::ffi::CString;
+use std::ffi::{c_char, CString};
 pub struct RaylibRenderer {
     pub handle: RaylibHandle,
     thread: RaylibThread,
@@ -45,24 +44,25 @@ impl Renderer for RaylibRenderer {
     }
 
     fn load_shader(&mut self, path: &str) -> Self::Shader {
-        let source = load_shader_with_includes(path);
-        self.handle.load_shader_from_memory(&self.thread, None, Some(&source))
+        let source_code = load_shader_with_includes(path);
+        self.handle
+            .load_shader_from_memory(&self.thread, None, Some(&source_code))
     }
 
     fn load_texture(&mut self, path: &str) -> Self::Texture {
-        let project_root_dir = env!("CARGO_MANIFEST_DIR");
-        let image_path = CString::new(format!("{}{}", project_root_dir, path)).unwrap();
+        let path_in_c = CString::new(path).unwrap();
         let image_texture = unsafe {
-            let image_raw = LoadImage(image_path.as_ptr());
+            let image_raw = LoadImage(path_in_c.as_ptr() as *const c_char);
             let image_texture_raw = LoadTextureFromImage(image_raw);
             UnloadImage(image_raw);
             Texture2D::from_raw(image_texture_raw)
         };
         image_texture
-        //self.handle.load_texture(&self.thread, path).unwrap()
+        // TODO: watch it
+        // self.handle.load_texture(&self.thread, path).unwrap()
     }
 
-    fn set_texture_params(texture: &mut Self::Texture, repeat: bool, nearest: bool) {
+    fn tweak_texture_parameters(&mut self, texture: &mut Self::Texture, repeat: bool, nearest: bool) {
         unsafe {
             let id = texture.id;
             if repeat {
@@ -76,7 +76,7 @@ impl Renderer for RaylibRenderer {
         }
     }
 
-    fn create_render_target(&mut self, size: RendererVector2, hdr: bool) -> Self::RenderTarget {
+    fn init_render_target(&mut self, size: RendererVector2, hdr: bool) -> Self::RenderTarget {
         if hdr {
             create_rgba16_render_texture(size.x as i32, size.y as i32)
         } else {
@@ -86,56 +86,38 @@ impl Renderer for RaylibRenderer {
         }
     }
 
-    fn set_uniform_vec2(shader: &mut Self::Shader, name: &str, value: RendererVector2) {
+    fn set_uniform_vec2(&mut self, shader: &mut Self::Shader, name: &str, value: RendererVector2) {
         let location = shader.get_shader_location(name);
         println!("{} uniform location = {}", name, location);
         shader.set_shader_value_v(location, &[value]);
     }
 
-    fn set_uniform_texture(shader: &mut Self::Shader, name: &str, _texture: &Self::Texture) {
+    fn set_uniform_sampler2d(&mut self, shader: &mut Self::Shader, name: &str, _texture: &Self::Texture) {
         let location = shader.get_shader_location(name);
         println!("{} uniform location = {}", name, location);
         //shader.set_shader_value_texture(location, texture);
     }
 
-    fn begin_texture(
-        &mut self,
-        size: RendererVector2,
-        render_target: &mut Self::RenderTarget,
-        texture: &Self::Texture,
-    ) {
+    fn draw_texture(&mut self, texture: &Self::Texture, render_target: &mut Self::RenderTarget) {
+        let width = render_target.width() as f32;
+        let height = render_target.height() as f32;
         let mut texture_mode = self.handle.begin_texture_mode(&self.thread, render_target);
         texture_mode.clear_background(Color::BLACK);
-        let flipped_rectangle = Rectangle {
-            x: 0.0,
-            y: 0.0,
-            width: size.x,
-            height: -1.0 * size.y,
-        };
-        texture_mode.draw_texture_rec(texture, flipped_rectangle, ORIGIN, Color::WHITE);
+        texture_mode.draw_texture_rec(texture, flip_framebuffer(width, height), ORIGIN, Color::WHITE);
     }
 
-    fn begin_frame(&mut self, render_target: &Self::RenderTarget) -> bool {
+    fn draw_screen(&mut self, render_target: &Self::RenderTarget) -> bool {
         let mut draw_handle = self.handle.begin_drawing(&self.thread);
         draw_handle.draw_texture(render_target, ORIGIN_X, ORIGIN_Y, Color::WHITE);
         true
     }
 
-    fn shader_draw(
-        &mut self,
-        size: RendererVector2,
-        shader: &mut Self::Shader,
-        render_target: &mut Self::RenderTarget,
-    ) {
+    fn draw_shader_screen(&mut self, shader: &mut Self::Shader, render_target: &mut Self::RenderTarget) {
         let mut draw_handle = self.handle.begin_drawing(&self.thread);
         draw_handle.clear_background(Color::BLACK);
         let mut shader_mode = draw_handle.begin_shader_mode(shader);
-        let flipped_rectangle = Rectangle {
-            x: 0.0,
-            y: 0.0,
-            width: size.x,
-            height: -1.0 * size.y,
-        };
-        shader_mode.draw_texture_rec(render_target, flipped_rectangle, ORIGIN, Color::WHITE);
+        let width = render_target.width() as f32;
+        let height = render_target.height() as f32;
+        shader_mode.draw_texture_rec(render_target, flip_framebuffer(width, height), ORIGIN, Color::WHITE);
     }
 }

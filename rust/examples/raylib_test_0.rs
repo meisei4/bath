@@ -1,6 +1,7 @@
 use bath::render::raylib_util::{
     create_rgba16_render_texture, feedback_buffer_pass, image_pass, APPLE_DPI, WINDOW_HEIGHT, WINDOW_WIDTH,
 };
+use bath_resources::glsl;
 use raylib::init;
 use raylib::shaders::RaylibShader;
 use std::fs::read_to_string;
@@ -22,9 +23,8 @@ fn main() {
     println!("render:{}x{}", render_width, render_height);
     println!("dpi: {:?}", dpi);
 
-    let project_root_dir = env!("CARGO_MANIFEST_DIR");
-    let feedback_buffer_src_code = read_to_string(format!("{project_root_dir}/resources/glsl/buffer_a.glsl")).unwrap();
-    let image_src_code = read_to_string(format!("{project_root_dir}/resources/glsl/image.glsl")).unwrap();
+    let feedback_buffer_src_code = read_to_string(glsl::BUFFER_A_PATH).unwrap();
+    let image_src_code = read_to_string(glsl::IMAGE_PATH).unwrap();
 
     let mut feedback_buffer_shader =
         raylib_handle.load_shader_from_memory(&raylib_thread, None, Some(&feedback_buffer_src_code));
