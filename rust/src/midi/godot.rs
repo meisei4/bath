@@ -75,15 +75,9 @@ pub fn render_midi_to_sound_bytes_constant_time(
             time_cursor += step_secs;
         }
         if let Some(channel) = ch {
-            if let TrackEventKind::Midi {
-                message, ..
-            } = event
-            {
+            if let TrackEventKind::Midi { message, .. } = event {
                 match message {
-                    MidiMessage::NoteOn {
-                        key,
-                        vel,
-                    } => {
+                    MidiMessage::NoteOn { key, vel } => {
                         let note = key.as_int() as i32;
                         let velocity = vel.as_int() as i32;
                         if velocity > 0 {
@@ -94,9 +88,7 @@ pub fn render_midi_to_sound_bytes_constant_time(
                             active_notes.remove(&(channel, note));
                         }
                     },
-                    MidiMessage::NoteOff {
-                        key, ..
-                    } => {
+                    MidiMessage::NoteOff { key, .. } => {
                         let note = key.as_int() as i32;
                         synth.note_off(channel as i32, note);
                         active_notes.remove(&(channel, note));

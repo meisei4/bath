@@ -37,10 +37,7 @@ impl Renderer for RaylibRenderer {
         println!("screen: {}x{}", screen_width, screen_height);
         println!("render:{}x{}", render_width, render_height);
         println!("dpi: {:?}", dpi);
-        Self {
-            handle,
-            thread,
-        }
+        Self { handle, thread }
     }
     fn init_render_target(&mut self, size: RendererVector2, hdr: bool) -> Self::RenderTarget {
         if hdr {
