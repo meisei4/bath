@@ -43,11 +43,15 @@ impl Renderer for GodotRenderer {
         // Otherwise use viewport but somehow make the rendertarget filter and repeat (but that breaks from how raylib does it)
     }
 
-    fn load_shader(&mut self, path: &str) -> Self::Shader {
-        let shader = ResourceLoader::singleton().load(path).unwrap().cast::<Shader>();
+    fn load_shader(&mut self, frag_path: &str, _vert_path: &str) -> Self::Shader {
+        let shader = ResourceLoader::singleton().load(frag_path).unwrap().cast::<Shader>();
         let mut shader_material = ShaderMaterial::new_gd();
         shader_material.set_shader(&shader);
         shader_material
+    }
+
+    fn set_uniform_float(&mut self, shader: &mut Self::Shader, name: &str, value: f32) {
+        shader.set_shader_parameter(name, &value.to_variant());
     }
 
     fn set_uniform_vec2(&mut self, shader: &mut Self::Shader, name: &str, vec2: RendererVector2) {
@@ -98,7 +102,7 @@ impl INode2D for GodotRenderer {
         let godot_resolution = resolution_manager.get("resolution").try_to::<Vector2>().unwrap();
         let i_resolution = RendererVector2::new(godot_resolution.x, godot_resolution.y);
         let mut buffer_a = self.init_render_target(i_resolution, true);
-        let mut shader = self.load_shader(ResourcePaths::DREKKER_EFFECT);
+        let mut shader = self.load_shader(ResourcePaths::DREKKER_EFFECT, "");
         let mut texture = self.load_texture(ResourcePaths::ICEBERGS_JPG);
         self.set_uniform_vec2(&mut shader, "iResolution", i_resolution);
         self.set_uniform_sampler2d(&mut shader, "iChannel0", &texture);

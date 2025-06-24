@@ -77,10 +77,22 @@ impl Renderer for RaylibRenderer {
         }
     }
 
-    fn load_shader(&mut self, path: &str) -> Self::Shader {
-        let source_code = load_shader_with_includes(path);
-        self.handle
-            .load_shader_from_memory(&self.thread, None, Some(&source_code))
+    fn load_shader(&mut self, frag_path: &str, vert_path: &str) -> Self::Shader {
+        let frag_source_code = load_shader_with_includes(frag_path);
+        if !vert_path.is_empty() {
+            let vert_source_code = load_shader_with_includes(vert_path);
+            self.handle
+                .load_shader_from_memory(&self.thread, Some(&vert_source_code), Some(&frag_source_code))
+        } else {
+            self.handle
+                .load_shader_from_memory(&self.thread, None, Some(&frag_source_code))
+        }
+    }
+
+    fn set_uniform_float(&mut self, shader: &mut Self::Shader, name: &str, value: f32) {
+        let location = shader.get_shader_location(name);
+        println!("{} uniform location = {}", name, location);
+        shader.set_shader_value(location, value);
     }
 
     fn set_uniform_vec2(&mut self, shader: &mut Self::Shader, name: &str, value: RendererVector2) {
