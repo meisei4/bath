@@ -22,13 +22,12 @@ terminal_size = { version = "0.4.2", optional = true }
 raylib = { version = "5.5.1", optional = true }
 
 [features]
+# TODO: Im very tired/annoyed by all this feature gating and gaurding and just this whole project..
+#  at somepoint find time to actually organize it all intuitively..
 default = ["godot"]
-tests-only = ["midir", "rdev", "terminal_size", "raylib", "raylib-render"]
-raylib-render = ["raylib"]
+tests-only = ["midir", "rdev", "terminal_size", "raylib"]
 
 [target.'cfg(not(any(target_arch = "wasm32", target_os = "linux")))'.dependencies]
 aubio-rs = "0.2.0"
 lewton = "0.10.2"
 
-#[dev-dependencies]
-#raylib = "5.5.1"

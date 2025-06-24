@@ -53,6 +53,7 @@ impl Renderer for RaylibRenderer {
     }
 
     fn load_texture(&mut self, path: &str) -> Self::Texture {
+        //TODO: I really dont like this, there has got to be a more effective way
         let path_in_c = CString::new(path).unwrap();
         let image_texture = unsafe {
             let image_raw = LoadImage(path_in_c.as_ptr() as *const c_char);

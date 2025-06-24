@@ -2,7 +2,8 @@ pub mod drekker;
 #[cfg(feature = "godot")]
 pub mod godot;
 pub mod godot_util;
-#[cfg(feature = "raylib-render")]
+
+#[cfg(feature = "raylib")]
 pub mod raylib;
 pub mod renderer;
 

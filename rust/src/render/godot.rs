@@ -16,12 +16,29 @@ pub struct GodotRenderer {
 }
 
 impl Renderer for GodotRenderer {
-    type Shader = Gd<ShaderMaterial>;
-    type Texture = Gd<Texture2D>;
     type RenderTarget = Gd<SubViewport>;
+    type Texture = Gd<Texture2D>;
+    type Shader = Gd<ShaderMaterial>;
 
     fn init() -> Self {
         unreachable!("Godot instantiates this node; Renderer::init() is never called")
+    }
+
+    fn init_render_target(&mut self, size: RendererVector2, hdr: bool) -> Self::RenderTarget {
+        let mut subviewport_buffer = create_buffer_viewport(Vector2i::new(size.x as i32, size.y as i32));
+        subviewport_buffer.set_use_hdr_2d(hdr);
+        subviewport_buffer
+    }
+
+    fn load_texture(&mut self, path: &str) -> Self::Texture {
+        ResourceLoader::singleton().load(path).unwrap().cast()
+    }
+
+    fn tweak_texture_parameters(&mut self, _texture: &mut Self::Texture, _repeat: bool, _nearest: bool) {
+        todo!()
+        //TODO: Texture for GodotRenderer we some how need to get the CanvasItem
+        // I think we have to use a TextureRect with its filter and repeat somehow
+        // Otherwise use viewport but somehow make the rendertarget filter and repeat (but that breaks from how raylib does it)
     }
 
     fn load_shader(&mut self, path: &str) -> Self::Shader {
@@ -29,23 +46,6 @@ impl Renderer for GodotRenderer {
         let mut shader_material = ShaderMaterial::new_gd();
         shader_material.set_shader(&shader);
         shader_material
-    }
-
-    fn load_texture(&mut self, path: &str) -> Self::Texture {
-        ResourceLoader::singleton().load(path).unwrap().cast()
-    }
-
-    fn tweak_texture_parameters(&mut self, texture: &mut Self::Texture, _repeat: bool, _nearest: bool) {
-        todo!()
-        //TODO: Texture for GodotRenderer we some how need to get the CanvasItem
-        // I think we have to use a TextureRect with its filter and repeat somehow
-        // Otherwise use viewport but somehow make the rendertarget filter and repeat (but that breaks from how raylib does it)
-    }
-
-    fn init_render_target(&mut self, size: RendererVector2, hdr: bool) -> Self::RenderTarget {
-        let mut subviewport_buffer = create_buffer_viewport(Vector2i::new(size.x as i32, size.y as i32));
-        subviewport_buffer.set_use_hdr_2d(hdr);
-        subviewport_buffer
     }
 
     fn set_uniform_vec2(&mut self, shader: &mut Self::Shader, name: &str, vec2: RendererVector2) {
@@ -64,7 +64,6 @@ impl Renderer for GodotRenderer {
         render_target.add_child(&buffer_a_node);
         self.base_mut().add_child(&*render_target);
     }
-
 
     fn draw_screen(&mut self, render_target: &Self::RenderTarget) {
         let mut main_image = TextureRect::new_alloc();

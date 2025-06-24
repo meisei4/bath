@@ -202,7 +202,7 @@ fn main() {
         ShaderToy,
         "shadertoy/buffer_a.shadertoy.glsl",
     )
-        .expect("conversion failed");
+    .expect("conversion failed");
     convert("gdshader/buffer_a.gdshader", Godot, GLSL, "glsl/buffer_a.glsl").expect("conversion failed");
     convert("gdshader/image.gdshader", Godot, GLSL, "glsl/image.glsl").expect("conversion failed");
     if let Err(e) = compare_dirs("resources", "test_output") {
@@ -213,11 +213,13 @@ fn main() {
 // TODO: lots of work to do here still
 //  1. reserve iChannel0 for screen sampling/backbuffer
 //  2. fix the hint syntax mapping from gdshader to glsl
+//  2.5 ^^ this can potentially be partially solved with using CanvasItems (they have filter and repeat flags)
 //  3. fix the frag_coord vs fragCoord in all gdshaders
 //  3.5 stop using fragCoord to get uv's in gdshaders maybe?
 //  4. fix the frag_color vs fragColor in all gdshaders
 //  5. convert all .gdshaderinc to normal glsl includes
 //  6. fix all silly colon spacing stuff
+// TODO: Move all the file paths and stuff into actual include_str!() macros file content bytes for processing
 
 pub fn convert_all_godot_shaders() -> std::io::Result<()> {
     let src_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))

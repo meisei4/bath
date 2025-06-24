@@ -142,10 +142,10 @@ fn build_lower_monotone_chain_hull(sorted_points: &[Vector2]) -> Vec<Vector2> {
     for &candidate_point in sorted_points {
         while lower_chain.len() >= 2
             && compute_cross_product_z(
-            &lower_chain[lower_chain.len() - 2],
-            &lower_chain[lower_chain.len() - 1],
-            &candidate_point,
-        ) <= 0.0
+                &lower_chain[lower_chain.len() - 2],
+                &lower_chain[lower_chain.len() - 1],
+                &candidate_point,
+            ) <= 0.0
         {
             lower_chain.pop();
         }
@@ -159,10 +159,10 @@ fn build_upper_monotone_chain_hull(sorted_points: &[Vector2]) -> Vec<Vector2> {
     for &candidate_point in sorted_points.iter().rev() {
         while upper_chain.len() >= 2
             && compute_cross_product_z(
-            &upper_chain[upper_chain.len() - 2],
-            &upper_chain[upper_chain.len() - 1],
-            &candidate_point,
-        ) <= 0.0
+                &upper_chain[upper_chain.len() - 2],
+                &upper_chain[upper_chain.len() - 1],
+                &candidate_point,
+            ) <= 0.0
         {
             upper_chain.pop();
         }

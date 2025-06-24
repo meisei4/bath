@@ -1,10 +1,10 @@
-#[cfg(all(feature = "raylib-render", not(feature = "godot")))]
+#[cfg(all(feature = "raylib", not(feature = "godot")))]
 pub use raylib::math::Vector2 as RendererVector2;
 
-#[cfg(all(feature = "godot", not(feature = "raylib-render")))]
+#[cfg(all(feature = "godot", not(feature = "raylib")))]
 pub use godot::builtin::Vector2 as RendererVector2;
 
-#[cfg(all(feature = "raylib-render", feature = "godot"))]
+#[cfg(all(feature = "raylib", feature = "godot"))]
 pub use raylib::math::Vector2 as RendererVector2;
 
 pub trait Renderer {
