@@ -11,7 +11,6 @@ fn main() {
     );
     let mut buffer = render.init_render_target(screen_size, true);
     let mut shader = render.load_shader(ICE_SHEETS_PATH, RAYLIB_DEFAULT_VERT_PATH);
-    //let mut shader = render.load_shader(ICE_FRAG_PATH, ICE_VERT_PATH);
     render.set_uniform_vec2(&mut shader, "iResolution", screen_size);
     while !render.handle.window_should_close() {
         let t = render.handle.get_time() as f32;
