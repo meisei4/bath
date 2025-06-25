@@ -42,28 +42,14 @@ void main() {
     projectionScaleFactor    = 1.0 / (parallaxDepth - vertexNormCoord.y);
     vertexProjectedOrigin    = (fragCoord * 2.0 - iResolution) / iResolution.y * projectionScaleFactor;
     vertexProjectedStep      = vec2(0.0, (1.0 / globalCoordinateScale) * (1.0 / (parallaxDepth - vertexNormCoord.y)));
-    mat2 scaleStretch        = uniformStretchCorrection * mat2(1.0, 0.0, 0.0, stretchScalarY);
-    mat2 rotationMatrix      = mat2(vec2(cos(M_PI_4), -sin(M_PI_4)), vec2(sin(M_PI_4), cos(M_PI_4)));
-    mat2 linearPart          = rotationMatrix * scaleStretch * (globalCoordinateScale * parallaxNearScale);
-    vec2 timePan             = linearPart * (noiseScrollVelocity * iTime);
-    vec2 totalOffset         = timePan - noiseCoordinateOffset * parallaxNearScale;
-    vertexNoiseOrigin        = linearPart * vertexProjectedOrigin + totalOffset;
-    vertexNoiseStep          = linearPart * vertexProjectedStep;
+
+    mat2 scaleStretch   = uniformStretchCorrection * mat2(1.0, 0.0, 0.0, stretchScalarY);
+    mat2 rotationMatrix = mat2(vec2(cos(M_PI_4), -sin(M_PI_4)), vec2(sin(M_PI_4), cos(M_PI_4)));
+    mat2 linearPart     = rotationMatrix * scaleStretch * (globalCoordinateScale * parallaxNearScale);
+    vec2 timePan        = linearPart * (noiseScrollVelocity * iTime);
+    vec2 totalOffset    = timePan - noiseCoordinateOffset * parallaxNearScale;
+    vertexNoiseOrigin   = linearPart * vertexProjectedOrigin + totalOffset;
+    vertexNoiseStep     = linearPart * vertexProjectedStep;
 
     gl_Position = mvp * vec4(vertexPosition, 1.0);
 }
-
-// void main() {
-//     fragTexCoord = vertexTexCoord;
-//     fragColor    = vertexColor;
-//
-//     vec2 fragCoord           = vertexTexCoord * iResolution;
-//     vertexNormCoord          = (fragCoord * 2.0 - iResolution) / iResolution.y;
-//     vertexTopLayerProjection = vertexNormCoord / (parallaxDepth - vertexNormCoord.y);
-//     projectionScaleFactor    = 1.0 / (parallaxDepth - vertexNormCoord.y);
-//     vertexProjectedOrigin    = (fragCoord * 2.0 - iResolution) / iResolution.y * projectionScaleFactor;
-//     vertexProjectedStep      = vec2(0.0, (1.0 / globalCoordinateScale) * (1.0 / (parallaxDepth -
-//     vertexNormCoord.y)));
-//
-//     gl_Position = mvp * vec4(vertexPosition, 1.0);
-// }

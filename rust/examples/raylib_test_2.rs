@@ -12,7 +12,7 @@ fn main() {
     );
     let mut buffer_a = render.init_render_target(i_resolution, true);
     let mut texture = render.load_texture(ICEBERGS_JPG);
-    let mut shader = render.load_shader(DREKKER_PATH, RAYLIB_DEFAULT_VERT_PATH);
+    let mut shader = render.load_shader(RAYLIB_DEFAULT_VERT_PATH, DREKKER_PATH);
     render.set_uniform_vec2(&mut shader, "iResolution", i_resolution);
     render.set_uniform_sampler2d(&mut shader, "iChannel0", &texture);
     //TODO: some how the image is already getting repeated? im so confused

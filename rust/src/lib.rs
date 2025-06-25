@@ -1,6 +1,7 @@
 pub mod audio_analysis;
 pub mod collision_mask;
 pub mod midi;
+mod nodes;
 pub mod render;
 pub mod resource_paths;
 

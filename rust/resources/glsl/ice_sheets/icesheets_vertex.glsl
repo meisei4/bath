@@ -31,7 +31,7 @@ uniform float parallaxNearScale;
 
 const float PI             = 3.141592653589793;
 const mat2  rotationMatrix = mat2(cos(-PI * 0.25), -sin(-PI * 0.25), sin(-PI * 0.25), cos(-PI * 0.25));
-#define M_PI_4 0.785398163397448309616
+const float M_PI_4         = 0.785398163397448309616;
 
 void main() {
     fragTexCoord             = vertexTexCoord;
@@ -43,12 +43,11 @@ void main() {
     vertexProjectedOrigin    = (fragCoord * 2.0 - iResolution) / iResolution.y * projectionScaleFactor;
     vertexProjectedStep      = vec2(0.0, (1.0 / globalCoordinateScale) * (1.0 / (parallaxDepth - vertexNormCoord.y)));
     mat2 scaleStretch        = uniformStretchCorrection * mat2(1.0, 0.0, 0.0, stretchScalarY);
-    // mat2 rotationMatrix      = mat2(vec2(cos(-M_PI_4), -sin(-M_PI_4)), vec2(sin(-M_PI_4), cos(-M_PI_4)));
-    mat2 linearPart   = rotationMatrix * scaleStretch * (globalCoordinateScale * parallaxNearScale);
-    vec2 timePan      = linearPart * (noiseScrollVelocity * iTime);
-    vec2 totalOffset  = timePan - noiseCoordinateOffset * parallaxNearScale;
-    vertexNoiseOrigin = linearPart * vertexProjectedOrigin + totalOffset;
-    vertexNoiseStep   = linearPart * vertexProjectedStep;
+    mat2 linearPart          = rotationMatrix * scaleStretch * (globalCoordinateScale * parallaxNearScale);
+    vec2 timePan             = linearPart * (noiseScrollVelocity * iTime);
+    vec2 totalOffset         = timePan - noiseCoordinateOffset;
+    vertexNoiseOrigin        = linearPart * vertexProjectedOrigin + totalOffset;
+    vertexNoiseStep          = linearPart * vertexProjectedStep;
 
     gl_Position = mvp * vec4(vertexPosition, 1.0);
 }

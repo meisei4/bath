@@ -1,3 +1,0 @@
-[gd_scene format=3 uid="uid://l6hhf0gterk"]
-
-[node name="GodotRenderer" type="GodotRenderer" groups=["display_experimental"]]

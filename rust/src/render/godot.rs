@@ -1,21 +1,19 @@
 use crate::render::godot_util::create_buffer_viewport;
 use crate::render::renderer::Renderer;
 use crate::render::renderer::RendererVector2;
-use crate::resource_paths::ResourcePaths;
 use godot::builtin::{real, Vector2, Vector2i};
 use godot::classes::canvas_item::{TextureFilter, TextureRepeat};
 use godot::classes::texture_rect::StretchMode;
-use godot::classes::{ColorRect, INode2D, Node, Node2D, ResourceLoader, Texture2D, TextureRect};
+use godot::classes::{ColorRect, Node, ResourceLoader, Texture2D, TextureRect};
 use godot::classes::{Shader, ShaderMaterial, SubViewport};
 use godot::meta::ToGodot;
 use godot::obj::{Base, Gd, NewAlloc, NewGd, WithBaseField};
-use godot::prelude::{godot_api, GodotClass};
-use raylib::math::Matrix;
+use godot::prelude::GodotClass;
 
 #[derive(GodotClass)]
-#[class(init, base=Node2D)]
+#[class(init, base=Node)]
 pub struct GodotRenderer {
-    base: Base<Node2D>,
+    base: Base<Node>,
 }
 
 impl Renderer for GodotRenderer {
@@ -44,7 +42,7 @@ impl Renderer for GodotRenderer {
         // Otherwise use viewport but somehow make the rendertarget filter and repeat (but that breaks from how raylib does it)
     }
 
-    fn load_shader(&mut self, frag_path: &str, _vert_path: &str) -> Self::Shader {
+    fn load_shader(&mut self, _vert_path: &str, frag_path: &str) -> Self::Shader {
         let shader = ResourceLoader::singleton().load(frag_path).unwrap().cast::<Shader>();
         let mut shader_material = ShaderMaterial::new_gd();
         shader_material.set_shader(&shader);
@@ -59,7 +57,7 @@ impl Renderer for GodotRenderer {
         shader.set_shader_parameter(name, &Vector2::new(vec2.x, vec2.y).to_variant());
     }
 
-    fn set_uniform_mat2(&mut self, _shader: &mut Self::Shader, _name: &str, _mat2: Matrix) {
+    fn set_uniform_mat2(&mut self, _shader: &mut Self::Shader, _name: &str, _mat2: &[RendererVector2]) {
         todo!()
     }
 
@@ -95,24 +93,5 @@ impl Renderer for GodotRenderer {
         buffer_a_shader_node.set_material(&*shader);
         render_target.add_child(&buffer_a_shader_node);
         self.draw_screen(render_target);
-    }
-}
-
-#[godot_api]
-impl INode2D for GodotRenderer {
-    fn ready(&mut self) {
-        let scene_tree = self.base().get_tree().unwrap();
-        let root_window = scene_tree.get_root().unwrap();
-        let resolution_manager = root_window.get_node_as::<Node>("ResolutionManager");
-        let godot_resolution = resolution_manager.get("resolution").try_to::<Vector2>().unwrap();
-        let i_resolution = RendererVector2::new(godot_resolution.x, godot_resolution.y);
-        let mut buffer_a = self.init_render_target(i_resolution, true);
-        let mut shader = self.load_shader(ResourcePaths::DREKKER_EFFECT, "");
-        let mut texture = self.load_texture(ResourcePaths::ICEBERGS_JPG);
-        self.set_uniform_vec2(&mut shader, "iResolution", i_resolution);
-        self.set_uniform_sampler2d(&mut shader, "iChannel0", &texture);
-        self.draw_texture(&mut texture, &mut buffer_a);
-        //self.draw_screen(&buffer_a);
-        self.draw_shader_screen(&mut shader, &mut buffer_a);
     }
 }

@@ -36,7 +36,7 @@ in vec2 vertexNoiseStep;
 
 out vec4 finalColor;
 
-int marchDepthInNoiseSpace() {
+int marchDepthInProjectedNoiseSpace() {
     vec2 sampleProj = vertexNoiseOrigin;
     for (int depthStep = 0;; depthStep++) {
         if (perlin_noise_iq(sampleProj) < perlinSolidThreshold) {
@@ -50,7 +50,7 @@ void main() {
     vec2 fragCoord            = fragTexCoord * iResolution;
     vec2 normalizedCoordinate = vertexNormCoord;
     vec2 topProjection        = vertexTopLayerProjection;
-    int  depthSteps           = marchDepthInNoiseSpace();
+    int  depthSteps           = marchDepthInProjectedNoiseSpace();
     bool isSolid              = perlin_noise_iq(vertexNoiseOrigin) < perlinSolidThreshold ? true : false;
     vec3 baseColor            = isSolid ? vec3(0.9) : pow(waterColor, vec3(float(depthSteps) / waterDepthDivision));
     if (!isSolid && depthSteps > waterStaticThreshold) {
