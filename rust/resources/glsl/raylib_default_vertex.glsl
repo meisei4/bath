@@ -1,3 +1,4 @@
+// https://github.com/raysan5/raylib/blob/master/examples/shaders/resources/shaders/glsl330/base.vs
 #version 330
 
 in vec3 vertexPosition;
@@ -17,7 +18,6 @@ void main() {
     gl_Position  = mvp * vec4(vertexPosition, 1.0);
 }
 
-// https://github.com/raysan5/raylib/blob/master/examples/shaders/resources/shaders/glsl330/base.vs
 /*
  v3 (  0,384) *-------------* v2 (256,384)
               |            /|

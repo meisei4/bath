@@ -10,6 +10,7 @@ use godot::classes::{Shader, ShaderMaterial, SubViewport};
 use godot::meta::ToGodot;
 use godot::obj::{Base, Gd, NewAlloc, NewGd, WithBaseField};
 use godot::prelude::{godot_api, GodotClass};
+use raylib::math::Matrix;
 
 #[derive(GodotClass)]
 #[class(init, base=Node2D)]
@@ -56,6 +57,10 @@ impl Renderer for GodotRenderer {
 
     fn set_uniform_vec2(&mut self, shader: &mut Self::Shader, name: &str, vec2: RendererVector2) {
         shader.set_shader_parameter(name, &Vector2::new(vec2.x, vec2.y).to_variant());
+    }
+
+    fn set_uniform_mat2(&mut self, _shader: &mut Self::Shader, _name: &str, _mat2: Matrix) {
+        todo!()
     }
 
     fn set_uniform_sampler2d(&mut self, shader: &mut Self::Shader, name: &str, texture: &Self::Texture) {

@@ -301,15 +301,9 @@ pub fn play_midi(midi_path: &str) {
         }
         last_time = event_time;
         if let Some(channel) = ch {
-            if let TrackEventKind::Midi {
-                message, ..
-            } = event
-            {
+            if let TrackEventKind::Midi { message, .. } = event {
                 match message {
-                    MidiMessage::NoteOn {
-                        key,
-                        vel,
-                    } => {
+                    MidiMessage::NoteOn { key, vel } => {
                         let msg = if vel.as_int() > 0 {
                             vec![MIDI_NOTE_ON | channel, key.as_int(), vel.as_int()]
                         } else {
@@ -317,9 +311,7 @@ pub fn play_midi(midi_path: &str) {
                         };
                         let _ = conn.send(&msg);
                     },
-                    MidiMessage::NoteOff {
-                        key, ..
-                    } => {
+                    MidiMessage::NoteOff { key, .. } => {
                         let msg = vec![MIDI_NOTE_OFF | channel, key.as_int(), 0];
                         let _ = conn.send(&msg);
                     },

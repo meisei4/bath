@@ -1,14 +1,12 @@
 pub mod glsl {
-    pub const RAYLIB_DEFAULT_VERT_PATH: &str = "resources/glsl/raylib_default_vert.glsl";
+    pub const RAYLIB_DEFAULT_VERT_PATH: &str = "resources/glsl/raylib_default_vertex.glsl";
     pub const DREKKER_PATH: &str = "resources/glsl/color/drekker_effect.glsl";
     pub const BUFFER_A_PATH: &str = "resources/glsl/buffer_a.glsl";
     pub const IMAGE_PATH: &str = "resources/glsl/image.glsl";
-    pub const ICE_SHEETS_PATH: &str = "resources/glsl/ice_sheets/ice_sheets.glsl";
-    pub const ICE_FRAG_PATH: &str = "resources/glsl/ice_sheets/ice_frag.glsl";
-    pub const ICE_FRAG_2_PATH: &str = "resources/glsl/ice_sheets/ice_frag_2.glsl";
-    pub const ICE_VERT_PATH: &str = "resources/glsl/ice_sheets/ice_vert.glsl";
-    pub const ICE_VERT_2_PATH: &str = "resources/glsl/ice_sheets/ice_vert_2.glsl";
-
+    pub const ICESHEETS_FRAG_DRAFT_PATH: &str = "resources/glsl/ice_sheets/icesheets_fragment_drafting.glsl";
+    pub const ICESHEETS_FRAG_PATH: &str = "resources/glsl/ice_sheets/icesheets_fragment.glsl";
+    pub const ICESHEETS_VERT_DRAFT_PATH: &str = "resources/glsl/ice_sheets/icesheets_vertex_drafting.glsl";
+    pub const ICESHEETS_VERT_PATH: &str = "resources/glsl/ice_sheets/icesheets_vertex.glsl";
     pub const BUFFER_A_CONTENTS: &str = include_str!("../glsl/buffer_a.glsl");
     pub const IMAGE_CONTENTS: &str = include_str!("../glsl/image.glsl");
 }

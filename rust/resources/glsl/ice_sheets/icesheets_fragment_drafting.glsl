@@ -9,22 +9,15 @@ vec2 hash22(vec2 p) {
 vec2 grad(ivec2 z) { return hash22(vec2(z) * 123.456) * 2.0 - 1.0; }
 
 float perlin_noise_iq(vec2 p) {
-    ivec2 i = ivec2(floor(p));
-    vec2  f = fract(p);
-    vec2  u = smoothstep(0.0, 1.0, f);
-
+    ivec2 i   = ivec2(floor(p));
+    vec2  f   = fract(p);
+    vec2  u   = smoothstep(0.0, 1.0, f);
     float v00 = dot(grad(i + ivec2(0, 0)), f - vec2(0.0, 0.0));
     float v10 = dot(grad(i + ivec2(1, 0)), f - vec2(1.0, 0.0));
     float v01 = dot(grad(i + ivec2(0, 1)), f - vec2(0.0, 1.0));
     float v11 = dot(grad(i + ivec2(1, 1)), f - vec2(1.0, 1.0));
-
     return mix(mix(v00, v10, u.x), mix(v01, v11, u.x), u.y);
 }
-
-uniform vec2  iResolution;
-uniform float iTime;
-in vec2       fragTexCoord;
-out vec4      finalColor;
 
 const float PI                       = 3.141592653589793;
 const vec2  noiseScrollVelocity      = vec2(0.0, 0.1);
@@ -33,7 +26,7 @@ const float stretchScalarY           = 2.0;
 const vec2  noiseCoordinateOffset    = vec2(2.0, 0.0);
 const float perlinSolidThreshold     = -0.03;
 const mat2  rotationMatrix           = mat2(cos(-PI * 0.25), -sin(-PI * 0.25), sin(-PI * 0.25), cos(-PI * 0.25));
-const float uniformStretchCorrection = 1.41421356237; // sqrt(2)
+const float uniformStretchCorrection = 1.41421356237;
 
 const vec3  waterColor            = vec3(0.1, 0.7, 0.8);
 const float waterDarkenMultiplier = 0.5;
@@ -43,6 +36,9 @@ const int   waterStaticThreshold  = 12;
 const float parallaxNearScale     = 0.025;
 const float parallaxDepthDistance = 6.0;
 const float strideLength          = 1.0;
+
+uniform vec2  iResolution;
+uniform float iTime;
 
 float samplePerlinNoise(vec2 coordinate) {
     vec2 scrollPosition    = (coordinate + iTime * noiseScrollVelocity) * globalCoordinateScale;
@@ -61,13 +57,49 @@ int marchDepth(vec2 normalizedCoordinate) {
     }
 }
 
+in vec2  fragTexCoord;
+in vec2  vertexNormCoord;
+in vec2  vertexTopLayerProjection;
+in float projectionScaleFactor;
+in vec2  vertexProjectedOrigin;
+in vec2  vertexProjectedStep;
+in vec2  vertexNoiseOrigin;
+in vec2  vertexNoiseStep;
+
+out vec4 finalColor;
+
+int marchDepthInProjectedSpace() {
+    vec2 sampleProj = vertexProjectedOrigin;
+    for (int depthStep = 0;; depthStep++) {
+        if (samplePerlinNoise(sampleProj) < perlinSolidThreshold) {
+            return depthStep;
+        }
+        sampleProj += vertexProjectedStep;
+    }
+}
+
+int marchDepthInNoiseSpace() {
+    vec2 sampleProj = vertexNoiseOrigin;
+    for (int depthStep = 0;; depthStep++) {
+        if (perlin_noise_iq(sampleProj) < perlinSolidThreshold) {
+            return depthStep;
+        }
+        sampleProj += vertexNoiseStep;
+    }
+}
+
 void main() {
-    vec2 screenPosition       = fragTexCoord * iResolution;
-    vec2 normalizedCoordinate = (screenPosition * 2.0 - iResolution) / iResolution.y;
-    vec2 topProjection        = normalizedCoordinate / (parallaxDepthDistance - normalizedCoordinate.y);
-    int  depthSteps           = marchDepth(normalizedCoordinate);
-    bool isSolid              = samplePerlinNoise(topProjection) < perlinSolidThreshold ? true : false;
-    vec3 baseColor            = isSolid ? vec3(0.9) : pow(waterColor, vec3(float(depthSteps) / waterDepthDivision));
+    vec2 fragCoord = fragTexCoord * iResolution;
+    // vec2 normalizedCoordinate = (fragCoord * 2.0 - iResolution) / iResolution.y;
+    // vec2 topProjection        = normalizedCoordinate / (parallaxDepthDistance - normalizedCoordinate.y);
+    vec2 normalizedCoordinate = vertexNormCoord;
+    vec2 topProjection        = vertexTopLayerProjection;
+    // int  depthSteps        = marchDepth(normalizedCoordinate);
+    int  depthSteps = marchDepthInProjectedSpace();
+    bool isSolid    = samplePerlinNoise(topProjection) < perlinSolidThreshold ? true : false;
+    // int  depthSteps = marchDepthInNoiseSpace();
+    // bool isSolid    = perlin_noise_iq(vertexNoiseOrigin) < perlinSolidThreshold ? true : false;
+    vec3 baseColor = isSolid ? vec3(0.9) : pow(waterColor, vec3(float(depthSteps) / waterDepthDivision));
     if (!isSolid && depthSteps > waterStaticThreshold) {
         baseColor *= waterDarkenMultiplier;
     }

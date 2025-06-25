@@ -8,10 +8,12 @@ use raylib::ffi::{
     rlTextureParameters, LoadImage, LoadTextureFromImage, UnloadImage, RL_TEXTURE_FILTER_NEAREST,
     RL_TEXTURE_MAG_FILTER, RL_TEXTURE_MIN_FILTER, RL_TEXTURE_WRAP_REPEAT, RL_TEXTURE_WRAP_S, RL_TEXTURE_WRAP_T,
 };
+use raylib::math::Matrix;
 use raylib::shaders::{RaylibShader, Shader};
 use raylib::texture::{RaylibTexture2D, RenderTexture2D, Texture2D};
 use raylib::{init, RaylibHandle, RaylibThread};
 use std::ffi::{c_char, CString};
+
 pub struct RaylibRenderer {
     pub handle: RaylibHandle,
     thread: RaylibThread,
@@ -36,10 +38,7 @@ impl Renderer for RaylibRenderer {
         println!("screen: {}x{}", screen_width, screen_height);
         println!("render:{}x{}", render_width, render_height);
         println!("dpi: {:?}", dpi);
-        Self {
-            handle,
-            thread,
-        }
+        Self { handle, thread }
     }
     fn init_render_target(&mut self, size: RendererVector2, hdr: bool) -> Self::RenderTarget {
         if hdr {
@@ -96,6 +95,12 @@ impl Renderer for RaylibRenderer {
         let location = shader.get_shader_location(name);
         println!("{} uniform location = {}", name, location);
         shader.set_shader_value_v(location, &[value]);
+    }
+
+    fn set_uniform_mat2(&mut self, shader: &mut Self::Shader, name: &str, mat2: Matrix) {
+        let location = shader.get_shader_location(name);
+        println!("{} uniform location = {}", name, location);
+        shader.set_shader_value_matrix(location, mat2);
     }
 
     fn set_uniform_sampler2d(&mut self, shader: &mut Self::Shader, name: &str, _texture: &Self::Texture) {
