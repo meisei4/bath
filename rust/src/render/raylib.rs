@@ -96,7 +96,7 @@ impl Renderer for RaylibRenderer {
         shader.set_shader_value_v(location, &[value]);
     }
 
-    fn set_uniform_mat2(&mut self, shader: &mut Self::Shader, name: &str, mat2: &[RendererVector2]) {
+    fn set_uniform_mat2(&mut self, shader: &mut Self::Shader, name: &str, _mat2: &[RendererVector2]) {
         let location = shader.get_shader_location(name);
         println!("{} uniform location = {}", name, location);
         //TODO: figure out how to make a Matrix in raylib
