@@ -1,6 +1,6 @@
 use bath::render::raylib_util::{
-    create_rgba16_render_texture, flip_framebuffer, load_shader_with_includes, APPLE_DPI, ORIGIN, WINDOW_HEIGHT,
-    WINDOW_WIDTH,
+    create_rgba16_render_texture, flip_framebuffer, load_shader_with_includes, APPLE_DPI, EXPERIMENTAL_WINDOW_HEIGHT,
+    EXPERIMENTAL_WINDOW_WIDTH, ORIGIN,
 };
 use bath_resources::glsl::DREKKER_PATH;
 use bath_resources::textures::ICEBERGS_JPG;
@@ -18,7 +18,10 @@ use std::ffi::CString;
 
 fn main() {
     let (mut raylib_handle, raylib_thread) = init()
-        .size(WINDOW_WIDTH / APPLE_DPI, WINDOW_HEIGHT / APPLE_DPI)
+        .size(
+            EXPERIMENTAL_WINDOW_WIDTH / APPLE_DPI,
+            EXPERIMENTAL_WINDOW_HEIGHT / APPLE_DPI,
+        )
         .title("drekker effect")
         .build();
     raylib_handle.set_target_fps(60);

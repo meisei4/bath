@@ -1,5 +1,6 @@
 use bath::render::raylib_util::{
-    create_rgba16_render_texture, feedback_buffer_pass, image_pass, APPLE_DPI, WINDOW_HEIGHT, WINDOW_WIDTH,
+    create_rgba16_render_texture, feedback_buffer_pass, image_pass, APPLE_DPI, EXPERIMENTAL_WINDOW_HEIGHT,
+    EXPERIMENTAL_WINDOW_WIDTH,
 };
 use bath_resources::glsl;
 use raylib::init;
@@ -10,7 +11,10 @@ use std::time::Instant;
 
 fn main() {
     let (mut raylib_handle, raylib_thread) = init()
-        .size(WINDOW_WIDTH / APPLE_DPI, WINDOW_HEIGHT / APPLE_DPI)
+        .size(
+            EXPERIMENTAL_WINDOW_WIDTH / APPLE_DPI,
+            EXPERIMENTAL_WINDOW_HEIGHT / APPLE_DPI,
+        )
         .title("raylib_bath-rs hello world feedback buffer test")
         .build();
     raylib_handle.set_target_fps(60);

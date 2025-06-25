@@ -22,7 +22,7 @@ impl Renderer for GodotRenderer {
     type Texture = Gd<Texture2D>;
     type Shader = Gd<ShaderMaterial>;
 
-    fn init() -> Self {
+    fn init(_width: i32, _height: i32) -> Self {
         unreachable!("Godot instantiates this node; Renderer::init() is never called")
     }
 

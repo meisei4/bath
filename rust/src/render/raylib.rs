@@ -1,6 +1,5 @@
 use crate::render::raylib_util::{
     create_rgba16_render_texture, flip_framebuffer, load_shader_with_includes, APPLE_DPI, ORIGIN, ORIGIN_X, ORIGIN_Y,
-    WINDOW_HEIGHT, WINDOW_WIDTH,
 };
 use crate::render::renderer::{Renderer, RendererVector2};
 use raylib::color::Color;
@@ -23,9 +22,9 @@ impl Renderer for RaylibRenderer {
     type Texture = Texture2D;
     type Shader = Shader;
 
-    fn init() -> Self {
+    fn init(width: i32, height: i32) -> Self {
         let (mut handle, thread) = init()
-            .size(WINDOW_WIDTH / APPLE_DPI, WINDOW_HEIGHT / APPLE_DPI)
+            .size(width / APPLE_DPI, height / APPLE_DPI)
             .title("drekker effect")
             .build();
         handle.set_target_fps(60);

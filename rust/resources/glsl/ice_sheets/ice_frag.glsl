@@ -1,12 +1,5 @@
 #version 330
 
-uniform float iTime;
-in vec2 v_normCoord;
-out vec4 finalColor;
-
-#define M_PI 3.14159265358979323846
-#define M_PI_4 0.785398163397448309616
-
 vec2 hash22(vec2 p) {
     vec3 p3 = fract(vec3(p.xyx) * vec3(.1031, .1030, .0973));
     p3 += dot(p3, p3.yzx + 33.33);
@@ -26,14 +19,27 @@ float perlin_noise_iq(vec2 p) {
     return mix(mix(v00, v10, u.x), mix(v01, v11, u.x), u.y);
 }
 
+#define M_PI 3.14159265358979323846
+#define M_PI_4 0.785398163397448309616
+
 #define NOISE_SCROLL_VELOCITY vec2(0.0, 0.1)
 #define GLOBAL_COORD_SCALAR 180.0
 #define STRETCH_SCALAR_Y 2.0
 #define NOISE_COORD_OFFSET vec2(2.0, 0.0)
-#define PERLIN_SOLID_THRESHOLD - 0.03
+#define PERLIN_SOLID_THRESHOLD -0.03
 #define ROT_ANGLE - M_PI_4
 #define ROT mat2(vec2(cos(ROT_ANGLE), - sin(ROT_ANGLE)), vec2(sin(ROT_ANGLE), cos(ROT_ANGLE)))
 #define UNIF_STRETCH_CORR sqrt(2.0)
+
+#define WATER_COLOR vec3(0.1, 0.7, 0.8)
+#define WATER_DARKEN_MULT 0.5
+#define WATER_DEPTH_DIV 9.0
+#define WATER_STATIC_TH 12
+#define SOLID_REGION_BRIGHTNESS 0.9
+
+#define PAR_DEPTH_D 6.0
+#define PAR_NEAR_SCALE 0.025
+#define STRIDE_LEN 1.0
 
 float sampleNoise(vec2 coord, float localScale, float t) {
     vec2 s = (coord + t * NOISE_SCROLL_VELOCITY) * GLOBAL_COORD_SCALAR;
@@ -46,54 +52,52 @@ bool isSolidAtCoord(vec2 coord, float localScale, float t) {
     return sampleNoise(coord, localScale, t) < PERLIN_SOLID_THRESHOLD;
 }
 
-#define WATER_COLOR vec3(0.1, 0.7, 0.8)
-#define WATER_DARKEN_MULT 0.5
-#define WATER_DEPTH_DIV 9.0
-#define WATER_STATIC_TH 12
-#define SOLID_REGION_BRIGHTNESS 0.9
-
-vec3 getTerrainColor(bool solid, int depth) {
-    return solid ? vec3(SOLID_REGION_BRIGHTNESS) : pow(WATER_COLOR, vec3(float(depth) / WATER_DEPTH_DIV));
-}
-
-vec3 tintAndDarkenWater(vec3 col, bool solid, int depth) {
-    if (solid)
-    return col;
-    return (depth > WATER_STATIC_TH) ? (col * WATER_DARKEN_MULT) : col;
-}
-
-#define PAR_DEPTH_D 6.0
-#define PAR_NEAR_SCALE 0.025
-#define STRIDE_LEN 1.0
-
-vec2 projectLayer(vec2 c, out float localScale) {
-    localScale = PAR_NEAR_SCALE;
-    return c / (PAR_DEPTH_D - c.y);
-}
-
-int depthMarch(vec2 nc, float t) {
-    int d = 0;
+int depthMarch(vec2 normCoord, float localScale, float t, vec2 resolution) {
+    float y_px = 0.5 * (normCoord.y + 1.0) * resolution.y;
+    int   d    = 0;                    /* depth in pixel rows */
     while (true) {
-        vec2 stepPos = nc + vec2(0.0, float(d) / GLOBAL_COORD_SCALAR) * STRIDE_LEN;
-        float ls;
-        vec2 pc = projectLayer(stepPos, ls);
-        if (isSolidAtCoord(pc, ls, t))
-        break;
-        if (nc.y + float(d) / GLOBAL_COORD_SCALAR >= /* iRes.y */ 1.0)
-        break;
-        d++;
+        if (y_px >= resolution.y)
+            break;
+        float nY         = (y_px / resolution.y) * 2.0 - 1.0;
+        vec2  stepPosNDC = vec2(normCoord.x, nY);
+        vec2  pc         = stepPosNDC / (PAR_DEPTH_D - stepPosNDC.y);
+        if (isSolidAtCoord(pc, localScale, t))
+            break;
+        y_px += STRIDE_LEN;
+        d    += 1;
     }
     return d;
 }
 
+uniform float iTime;
+uniform vec2  iResolution;
+
+in  vec2 fragTexCoord;
+out vec4 finalColor;
+
 void main() {
-    vec2 normCoord = v_normCoord;
-    float ls;
-    vec2 topPC = projectLayer(normCoord, ls);
-    int depth = depthMarch(normCoord, iTime);
-    bool solid = isSolidAtCoord(topPC, ls, iTime);
-    vec3 terrain = getTerrainColor(solid, depth);
-    vec3 water = tintAndDarkenWater(terrain, solid, depth);
+    vec2 fragCoord = fragTexCoord * iResolution;
+    vec2 normCoord = (fragCoord * 2.0 - iResolution) / iResolution.y;
+    float localScale    = PAR_NEAR_SCALE;
+    vec2  topPC         = normCoord / (PAR_DEPTH_D - normCoord.y);
+    bool rawSolid = isSolidAtCoord(topPC, localScale, iTime);
+    int depth = depthMarch(normCoord, localScale, iTime, iResolution);
+    bool solid;
+    if (depth > 0 && rawSolid)
+        solid = true;
+    else
+        solid = false;
+
+    vec3 terrain = solid
+    ? vec3(SOLID_REGION_BRIGHTNESS)
+    : pow(WATER_COLOR, vec3(float(depth) / WATER_DEPTH_DIV));
+
+    vec3 water = solid
+    ? terrain
+    : (depth > WATER_STATIC_TH
+    ? terrain * WATER_DARKEN_MULT
+    : terrain);
+
     vec3 col = sqrt(water);
     finalColor = vec4(col, 1.0);
 }

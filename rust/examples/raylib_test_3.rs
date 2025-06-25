@@ -1,10 +1,11 @@
 use bath::render::raylib::RaylibRenderer;
+use bath::render::raylib_util::{BATH_HEIGHT, BATH_WIDTH};
 use bath::render::{renderer::Renderer, renderer::RendererVector2};
 use bath_resources::glsl::{ICE_FRAG_2_PATH, ICE_VERT_2_PATH};
 use raylib::math::Vector2;
 
 fn main() {
-    let mut render = RaylibRenderer::init();
+    let mut render = RaylibRenderer::init(BATH_WIDTH, BATH_HEIGHT);
     let screen_size = RendererVector2::new(
         render.handle.get_screen_width() as f32,
         render.handle.get_screen_height() as f32,

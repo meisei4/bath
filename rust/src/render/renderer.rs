@@ -11,7 +11,7 @@ pub trait Renderer {
     type RenderTarget;
     type Texture;
     type Shader;
-    fn init() -> Self;
+    fn init(width: i32, height: i32) -> Self;
     fn init_render_target(&mut self, size: RendererVector2, hdr: bool) -> Self::RenderTarget;
     fn load_texture(&mut self, path: &str) -> Self::Texture;
     fn tweak_texture_parameters(&mut self, texture: &mut Self::Texture, repeat: bool, nearest: bool);
