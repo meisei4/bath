@@ -1,4 +1,5 @@
 pub mod glsl {
+    pub const RAYLIB_DEFAULT_VERT_PATH: &str = "resources/glsl/raylib_default_vert.glsl";
     pub const DREKKER_PATH: &str = "resources/glsl/color/drekker_effect.glsl";
     pub const BUFFER_A_PATH: &str = "resources/glsl/buffer_a.glsl";
     pub const IMAGE_PATH: &str = "resources/glsl/image.glsl";

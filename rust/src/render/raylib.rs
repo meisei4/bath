@@ -36,7 +36,10 @@ impl Renderer for RaylibRenderer {
         println!("screen: {}x{}", screen_width, screen_height);
         println!("render:{}x{}", render_width, render_height);
         println!("dpi: {:?}", dpi);
-        Self { handle, thread }
+        Self {
+            handle,
+            thread,
+        }
     }
     fn init_render_target(&mut self, size: RendererVector2, hdr: bool) -> Self::RenderTarget {
         if hdr {
@@ -78,14 +81,9 @@ impl Renderer for RaylibRenderer {
 
     fn load_shader(&mut self, frag_path: &str, vert_path: &str) -> Self::Shader {
         let frag_source_code = load_shader_with_includes(frag_path);
-        if !vert_path.is_empty() {
-            let vert_source_code = load_shader_with_includes(vert_path);
-            self.handle
-                .load_shader_from_memory(&self.thread, Some(&vert_source_code), Some(&frag_source_code))
-        } else {
-            self.handle
-                .load_shader_from_memory(&self.thread, None, Some(&frag_source_code))
-        }
+        let vert_source_code = load_shader_with_includes(vert_path);
+        self.handle
+            .load_shader_from_memory(&self.thread, Some(&vert_source_code), Some(&frag_source_code))
     }
 
     fn set_uniform_float(&mut self, shader: &mut Self::Shader, name: &str, value: f32) {

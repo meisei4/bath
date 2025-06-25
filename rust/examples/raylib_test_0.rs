@@ -26,12 +26,15 @@ fn main() {
     println!("screen: {}x{}", screen_width, screen_height);
     println!("render:{}x{}", render_width, render_height);
     println!("dpi: {:?}", dpi);
-
+    let raylib_vertex_shader_src_code = read_to_string(glsl::RAYLIB_DEFAULT_VERT_PATH).unwrap();
     let feedback_buffer_src_code = read_to_string(glsl::BUFFER_A_PATH).unwrap();
     let image_src_code = read_to_string(glsl::IMAGE_PATH).unwrap();
 
-    let mut feedback_buffer_shader =
-        raylib_handle.load_shader_from_memory(&raylib_thread, None, Some(&feedback_buffer_src_code));
+    let mut feedback_buffer_shader = raylib_handle.load_shader_from_memory(
+        &raylib_thread,
+        Some(&raylib_vertex_shader_src_code),
+        Some(&feedback_buffer_src_code),
+    );
     let mut image_shader = raylib_handle.load_shader_from_memory(&raylib_thread, None, Some(&image_src_code));
 
     let i_time_location = feedback_buffer_shader.get_shader_location("iTime");

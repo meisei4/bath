@@ -1,7 +1,7 @@
 use bath::render::raylib::RaylibRenderer;
 use bath::render::raylib_util::{BATH_HEIGHT, BATH_WIDTH};
 use bath::render::{renderer::Renderer, renderer::RendererVector2};
-use bath_resources::glsl::{ICE_FRAG_PATH, ICE_SHEETS_PATH, ICE_VERT_PATH};
+use bath_resources::glsl::{ICE_SHEETS_PATH, RAYLIB_DEFAULT_VERT_PATH};
 
 fn main() {
     let mut render = RaylibRenderer::init(BATH_WIDTH, BATH_HEIGHT);
@@ -10,7 +10,7 @@ fn main() {
         render.handle.get_screen_height() as f32,
     );
     let mut buffer = render.init_render_target(screen_size, true);
-    let mut shader = render.load_shader(ICE_FRAG_PATH, "");
+    let mut shader = render.load_shader(ICE_SHEETS_PATH, RAYLIB_DEFAULT_VERT_PATH);
     //let mut shader = render.load_shader(ICE_FRAG_PATH, ICE_VERT_PATH);
     render.set_uniform_vec2(&mut shader, "iResolution", screen_size);
     while !render.handle.window_should_close() {

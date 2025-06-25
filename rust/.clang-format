@@ -1,4 +1,5 @@
-# clang-format -i $(find . -name "*.glsl")
+# clang-format -style=file:.clang-format -i $(find . -name "*.glsl")
+
 BasedOnStyle: WebKit                    # Base style preset (similar to Apple's coding standards)
 IndentWidth: 4                          # Use 4 spaces per indent
 UseTab: Never                           # Never use tabs

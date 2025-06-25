@@ -84,7 +84,10 @@ pub fn process_midi_events_with_timing(
         if let TrackEventKind::Meta(MetaMessage::Tempo(us)) = &event {
             us_per_qn = us.as_int() as u64;
         }
-        let channel = if let TrackEventKind::Midi { channel, .. } = event {
+        let channel = if let TrackEventKind::Midi {
+            channel, ..
+        } = event
+        {
             Some(channel.as_int())
         } else {
             None
@@ -112,13 +115,22 @@ fn inner_parse_note_on_off<T>(
     events.sort_unstable_by_key(|(tick, _)| *tick);
     for (tick, kind) in events {
         let time_value = time_fn(tick, &kind);
-        if let TrackEventKind::Midi { channel, message } = kind {
+        if let TrackEventKind::Midi {
+            channel,
+            message,
+        } = kind
+        {
             let ch = channel.as_int();
             match message {
-                MidiMessage::ProgramChange { program } => {
+                MidiMessage::ProgramChange {
+                    program,
+                } => {
                     current_instrument_for_channel[ch as usize] = program.as_int();
                 },
-                MidiMessage::NoteOn { key, vel } => {
+                MidiMessage::NoteOn {
+                    key,
+                    vel,
+                } => {
                     handle_note_fn(
                         ch,
                         key.as_int(),
@@ -127,7 +139,9 @@ fn inner_parse_note_on_off<T>(
                         &current_instrument_for_channel,
                     );
                 },
-                MidiMessage::NoteOff { key, .. } => {
+                MidiMessage::NoteOff {
+                    key, ..
+                } => {
                     handle_note_fn(ch, key.as_int(), 0, time_value, &current_instrument_for_channel);
                 },
                 _ => {},

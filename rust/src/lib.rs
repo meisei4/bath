@@ -201,8 +201,13 @@ impl RustUtil {
             }
             if let Some(channel) = ch {
                 match event {
-                    TrackEventKind::Midi { message, .. } => match message {
-                        MidiMessage::NoteOn { key, vel } => {
+                    TrackEventKind::Midi {
+                        message, ..
+                    } => match message {
+                        MidiMessage::NoteOn {
+                            key,
+                            vel,
+                        } => {
                             let note = key.as_int() as i32;
                             let velocity = vel.as_int() as i32;
                             if velocity > 0 {
@@ -213,7 +218,9 @@ impl RustUtil {
                                 active_notes.remove(&(channel, note));
                             }
                         },
-                        MidiMessage::NoteOff { key, .. } => {
+                        MidiMessage::NoteOff {
+                            key, ..
+                        } => {
                             let note = key.as_int() as i32;
                             synth.note_off(channel as i32, note);
                             active_notes.remove(&(channel, note));

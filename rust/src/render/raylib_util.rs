@@ -23,8 +23,8 @@ pub const APPLE_DPI: i32 = 2;
 pub const EXPERIMENTAL_WINDOW_WIDTH: i32 = 850;
 pub const EXPERIMENTAL_WINDOW_HEIGHT: i32 = 480;
 
-pub const BATH_WIDTH: i32 = 256;
-pub const BATH_HEIGHT: i32 = 384;
+pub const BATH_WIDTH: i32 = 256 * 2;
+pub const BATH_HEIGHT: i32 = 384 * 2;
 
 pub fn create_rgba16_render_texture(width: i32, height: i32) -> RenderTexture2D {
     // raylib_bath code: https://github.com/raysan5/raylib/blob/4bc8d3761c48f4dcf56f126640da8f3567dc516b/src/rtextures.c#L4246

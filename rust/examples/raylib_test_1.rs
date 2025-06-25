@@ -2,6 +2,7 @@ use bath::render::raylib_util::{
     create_rgba16_render_texture, flip_framebuffer, load_shader_with_includes, APPLE_DPI, EXPERIMENTAL_WINDOW_HEIGHT,
     EXPERIMENTAL_WINDOW_WIDTH, ORIGIN,
 };
+use bath_resources::glsl;
 use bath_resources::glsl::DREKKER_PATH;
 use bath_resources::textures::ICEBERGS_JPG;
 use raylib::color::Color;
@@ -15,6 +16,7 @@ use raylib::math::Vector2;
 use raylib::shaders::RaylibShader;
 use raylib::texture::Texture2D;
 use std::ffi::CString;
+use std::fs::read_to_string;
 
 fn main() {
     let (mut raylib_handle, raylib_thread) = init()
@@ -33,8 +35,11 @@ fn main() {
     println!("screen: {}x{}", screen_width, screen_height);
     println!("render:{}x{}", render_width, render_height);
     println!("dpi: {:?}", dpi);
+    let raylib_vertex_shader_src_code = read_to_string(glsl::RAYLIB_DEFAULT_VERT_PATH).unwrap();
+
     let drekker_src = load_shader_with_includes(DREKKER_PATH);
-    let mut shader = raylib_handle.load_shader_from_memory(&raylib_thread, None, Some(&drekker_src));
+    let mut shader =
+        raylib_handle.load_shader_from_memory(&raylib_thread, Some(&raylib_vertex_shader_src_code), Some(&drekker_src));
     let i_resolution_location = shader.get_shader_location("iResolution");
     let i_channel_1_location = shader.get_shader_location("iChannel1");
     println!(
