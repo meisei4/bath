@@ -48,6 +48,5 @@ void main() {
     vec2 totalOffset         = timePan - noiseCoordinateOffset;
     vertexNoiseOrigin        = linearPart * vertexProjectedOrigin + totalOffset;
     vertexNoiseStep          = linearPart * vertexProjectedStep;
-
-    gl_Position = mvp * vec4(vertexPosition, 1.0);
+    gl_Position              = mvp * vec4(vertexPosition, 1.0);
 }

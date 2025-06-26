@@ -1,5 +1,8 @@
 pub mod glsl {
     pub const RAYLIB_DEFAULT_VERT_PATH: &str = "resources/glsl/raylib_default_vertex.glsl";
+    pub const RAYLIB_DEBUG_VERT_PATH: &str = "resources/glsl/raylib_debug_vertex.glsl";
+    pub const RAYLIB_DEBUG_FRAG_PATH: &str = "resources/glsl/raylib_debug_fragment.glsl";
+
     pub const DREKKER_PATH: &str = "resources/glsl/color/drekker_effect.glsl";
     pub const BUFFER_A_PATH: &str = "resources/glsl/buffer_a.glsl";
     pub const IMAGE_PATH: &str = "resources/glsl/image.glsl";
@@ -7,6 +10,9 @@ pub mod glsl {
     pub const ICESHEETS_FRAG_PATH: &str = "resources/glsl/ice_sheets/icesheets_fragment.glsl";
     pub const ICESHEETS_VERT_DRAFT_PATH: &str = "resources/glsl/ice_sheets/icesheets_vertex_drafting.glsl";
     pub const ICESHEETS_VERT_PATH: &str = "resources/glsl/ice_sheets/icesheets_vertex.glsl";
+
+
+
     pub const BUFFER_A_CONTENTS: &str = include_str!("../glsl/buffer_a.glsl");
     pub const IMAGE_CONTENTS: &str = include_str!("../glsl/image.glsl");
 }

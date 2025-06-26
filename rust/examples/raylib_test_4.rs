@@ -12,13 +12,13 @@ fn main() {
         render.handle.get_screen_height() as f32,
     );
     let mut buffer = render.init_render_target(i_resolution, true);
-    //let mut shader = render.load_shader(ICESHEETS_FRAG_DRAFT_PATH, ICESHEETS_VERT_DRAFT_PATH);
+    //let mut shader = render.load_shader(ICESHEETS_VERT_DRAFT_PATH, ICESHEETS_FRAG_DRAFT_PATH);
     let mut shader = render.load_shader(ICESHEETS_VERT_PATH, ICESHEETS_FRAG_PATH);
     render.set_uniform_vec2(&mut shader, "iResolution", i_resolution);
     render.set_uniform_float(&mut shader, "parallaxDepth", 6.0);
     render.set_uniform_float(&mut shader, "strideLength", 1.0);
     render.set_uniform_float(&mut shader, "globalCoordinateScale", 180.0);
-    render.set_uniform_vec2(&mut shader, "noiseScrollVelocity", Vector2::new(0.0, 0.1));
+    render.set_uniform_vec2(&mut shader, "noiseScrollVelocity", Vector2::new(0.0, 0.05));
     render.set_uniform_float(&mut shader, "uniformStretchCorrection", SQRT_2);
     render.set_uniform_float(&mut shader, "stretchScalarY", 2.0);
     render.set_uniform_vec2(&mut shader, "noiseCoordinateOffset", Vector2::new(2.0, 0.0));

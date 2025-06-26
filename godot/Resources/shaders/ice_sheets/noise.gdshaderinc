@@ -59,7 +59,7 @@ float voronoi_edge_fast(vec2 p) {
 #define M_PI_4   0.785398163397448309616
 #define TAU      (M_PI + M_PI)
 
-#define NOISE_SCROLL_VELOCITY       vec2(0.0, 0.025)
+#define NOISE_SCROLL_VELOCITY       vec2(0.0, 0.05)
 #define GLOBAL_COORD_SCALAR         180.0
 
 #define STRETCH_SCALAR_X            1.0

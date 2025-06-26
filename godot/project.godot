@@ -42,11 +42,12 @@ gdscript/warnings/unsafe_call_argument=1
 
 [display]
 
+window/size/resizable=false
 window/size/always_on_top=true
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/script-tabs/plugin.cfg")
+enabled=PackedStringArray()
 
 [global_group]
 
