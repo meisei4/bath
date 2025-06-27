@@ -6,4 +6,4 @@ class_name CruisingData
 @export var DECELERATION: float = 2000.0
 
 #https://www.dolphins-for-kids.com/how-fast-do-dolphins-swim
-#max speed of a dolphin is 
+#max speed of a dolphin is

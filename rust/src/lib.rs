@@ -6,10 +6,7 @@ pub mod render;
 pub mod resource_paths;
 
 use crate::audio_analysis::godot::{detect_bpm_aubio_ogg, detect_bpm_aubio_wav};
-use crate::collision_mask::isp::{
-    apply_horizontal_projection, apply_vertical_projection, compute_quantized_vertical_pixel_coord,
-    shift_polygon_vertices_down_by_vertical_scroll_1_pixel, update_polygons_with_scanline_alpha_buckets,
-};
+use crate::collision_mask::isp::{shift_polygon_vertices_down_by_pixels, update_polygons_with_scanline_alpha_buckets};
 use crate::midi::godot::{
     make_note_on_off_event_dict_seconds, make_note_on_off_event_dict_ticks, write_samples_to_wav,
 };
@@ -20,6 +17,7 @@ use collision_mask::godot::{
 use godot::builtin::{PackedByteArray, PackedVector2Array, Vector2};
 use godot::classes::file_access::ModeFlags;
 use godot::classes::{FileAccess, Node2D};
+use godot::global::godot_print;
 use godot::prelude::{
     gdextension, godot_api, Array, Base, Dictionary, ExtensionLibrary, GString, GodotClass, PackedInt32Array,
 };
@@ -27,6 +25,7 @@ use midly::{MidiMessage, Smf, TrackEventKind};
 use rustysynth::{SoundFont, Synthesizer, SynthesizerSettings};
 use std::io::Cursor;
 use std::sync::Arc;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 struct MyExtension;
 
@@ -48,41 +47,86 @@ impl RustUtil {
     #[func]
     fn process_scanline(
         &self,
-        i_time: f32,
-        i_resolution: Vector2,
-        mut collision_polygons: Array<PackedVector2Array>,
+        delta_time: f32,
+        screen_h: f32,
+        vel_y: f32,
+        depth: f32,
         scanline_alpha_buckets: PackedVector2Array,
-        previous_quantized_vertical_pixel_coord: i32,
+        mut collision_polygons: Array<PackedVector2Array>,
+        mut scroll_accum: f32,
         mut scanline_count_per_polygon: PackedInt32Array,
     ) -> Dictionary {
-        let quantized_vertical_pixel_coord = compute_quantized_vertical_pixel_coord(i_time, i_resolution);
-        let quantized_vertical_pixel_coords_scrolled_this_frame =
-            quantized_vertical_pixel_coord - previous_quantized_vertical_pixel_coord;
-        for _ in 0..quantized_vertical_pixel_coords_scrolled_this_frame {
+        let a = 0.5 * ((depth + 1.0) / (depth - 1.0)).ln();
+        let b = 1.5 * (depth * ((depth + 1.0) / (depth - 1.0)).ln() - 2.0);
+        let scale_y_top = a + b * -1.0;
+        let speed_px_per_sec = vel_y * screen_h / (2.0 * scale_y_top);
+
+        scroll_accum += speed_px_per_sec * delta_time;
+        let rows = scroll_accum.floor() as i32;
+        scroll_accum -= rows as f32;
+
+        let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
+        let total_millis = now.as_millis();
+        let hours = (total_millis / 1000 / 60 / 60) % 24;
+        let minutes = (total_millis / 1000 / 60) % 60;
+        let seconds = (total_millis / 1000) % 60;
+        let millis = total_millis % 1000;
+
+        godot_print!(
+            "INFO [SYSTEM_TIME: {:02}:{:02}:{:02}.{:03}] rows: {}, speed_px_per_sec: {}, delta_time: {:.3}, scroll_accum: {:.3}",
+            hours,
+            minutes,
+            seconds,
+            millis,
+            rows,
+            speed_px_per_sec,
+            delta_time,
+            scroll_accum
+        );
+
+        for row in 0..rows {
+            godot_print!("row: {}", row);
+            godot_print!("BEFORE");
+            godot_print!("scanline_alpha_buckets:");
+            for (i, vec) in scanline_alpha_buckets.as_slice().iter().enumerate() {
+                godot_print!("  [{}] {:?}", i, vec);
+            }
+            godot_print!("collision_polygons:");
+            for (i, poly) in collision_polygons.iter_shared().enumerate() {
+                godot_print!("  [{}] {:?}", i, poly);
+            }
+            godot_print!("scanline_count_per_polygon:");
+            for (i, count) in scanline_count_per_polygon.as_slice().iter().enumerate() {
+                godot_print!("  [{}] {}", i, count);
+            }
+
+            shift_polygon_vertices_down_by_pixels(&mut collision_polygons, scanline_count_per_polygon.as_slice(), 1);
             update_polygons_with_scanline_alpha_buckets(
                 &mut collision_polygons,
                 &scanline_alpha_buckets,
                 &mut scanline_count_per_polygon,
             );
-        }
-        let mut projected_polygons = apply_horizontal_projection(&collision_polygons, i_resolution);
-        shift_polygon_vertices_down_by_vertical_scroll_1_pixel(&mut collision_polygons);
-        apply_vertical_projection(
-            &mut projected_polygons,
-            i_resolution,
-            &scanline_count_per_polygon,
-            i_time,
-        );
-        let mut output_dictionary = Dictionary::new();
-        let _ = output_dictionary.insert(
-            "previous_quantized_vertical_pixel_coord",
-            quantized_vertical_pixel_coord,
-        );
 
-        let _ = output_dictionary.insert("scanline_count_per_polygon", scanline_count_per_polygon);
-        let _ = output_dictionary.insert("collision_polygons", collision_polygons);
-        let _ = output_dictionary.insert("projected_polygons", projected_polygons);
-        output_dictionary
+            godot_print!("AFTER");
+            godot_print!("scanline_alpha_buckets:");
+            for (i, vec) in scanline_alpha_buckets.as_slice().iter().enumerate() {
+                godot_print!("  [{}] {:?}", i, vec);
+            }
+            godot_print!("collision_polygons:");
+            for (i, poly) in collision_polygons.iter_shared().enumerate() {
+                godot_print!("  [{}] {:?}", i, poly);
+            }
+            godot_print!("scanline_count_per_polygon:");
+            for (i, count) in scanline_count_per_polygon.as_slice().iter().enumerate() {
+                godot_print!("  [{}] {}", i, count);
+            }
+        }
+
+        let mut out = Dictionary::new();
+        let _ = out.insert("scroll_accum", scroll_accum);
+        let _ = out.insert("scanline_count_per_polygon", scanline_count_per_polygon);
+        let _ = out.insert("collision_polygons", collision_polygons);
+        out
     }
 
     #[func]

@@ -15,7 +15,7 @@ var target_depth_position: float
 enum DivePhase { LEVEL, ASCENDING, DIVING }
 var current_phase: DivePhase = DivePhase.LEVEL
 
-var debug_autoswim: bool = false #true
+var debug_autoswim: bool = false  #true
 const _DEBUG_PERIOD: float = 3.0
 var _debug_clock: float = 0.0
 

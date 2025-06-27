@@ -101,6 +101,7 @@ const WATER_PROJECTED_SHADER: String = "res://Resources/shaders/water/water_proj
 const SUPERSAMPLING: String = "res://Resources/shaders/color/supersampling.gdshaderinc"
 const DREKKER_EFFECT: String = "res://Resources/shaders/color/drekker_effect.gdshader"
 
+const ICE_SHEETS_SHADER_FULL: String = "res://Resources/shaders/ice_sheets/icesheet_full.gdshader"
 const ICE_SHEETS_SHADER: String = "res://Resources/shaders/ice_sheets/ice_sheets.gdshader"
 const NOISE_INCLUDE: String = "res://Resources/shaders/ice_sheets/noise.gdshaderinc"
 const PROJECTIONS_INCLUDE: String = "res://Resources/shaders/ice_sheets/projections.gdshaderinc"

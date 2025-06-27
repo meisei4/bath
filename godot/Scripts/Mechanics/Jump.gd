@@ -38,12 +38,14 @@ func _jump1() -> void:
         current_vertical_velocity = jump_data.INITIAL_JUMP_VELOCITY
         _set_phase(JumpPhase.ASCENDING)
 
+
 func _jump() -> void:
     if current_phase == JumpPhase.GROUNDED:
         current_altitude_position = 0.0
         current_vertical_velocity = jump_data.INITIAL_JUMP_VELOCITY
         jump_normal = 0.0
         _set_phase(JumpPhase.ASCENDING)
+
 
 func _physics_process(delta: float) -> void:
     var time_scaled_delta: float = SpacetimeManager.apply_time_scale(delta)
@@ -66,7 +68,8 @@ func _update_altitude1(delta: float) -> void:
         _set_phase(JumpPhase.ASCENDING)
     elif current_vertical_velocity < 0.0 and current_altitude_position > 0.0:
         _set_phase(JumpPhase.DESCENDING)
-        
+
+
 func _update_altitude(delta: float) -> void:
     if jump_normal < 1.0:
         jump_normal += jump_speed * delta
@@ -82,7 +85,7 @@ func _update_altitude(delta: float) -> void:
 
         if jump_normal >= 1.0:
             _handle_landing()
-        
+
 
 func easeInOutBack(x: float) -> float:
     const c1 = 2.5  # Was 1.70158
@@ -92,7 +95,6 @@ func easeInOutBack(x: float) -> float:
         return (pow(2 * x, 2) * ((c2 + 1) * 2 * x - c2)) / 2
     else:
         return (pow(2 * x - 2, 2) * ((c2 + 1) * (x * 2 - 2) + c2) + 2) / 2
-
 
 
 func _handle_landing() -> void:

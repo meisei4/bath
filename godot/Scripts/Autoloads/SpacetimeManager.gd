@@ -19,7 +19,6 @@ const ORBITAL_GRAVITY_FACTOR: float = 0.0
 const UNIVERSAL_ROTATION_SPEED: float = 0.0
 
 
-
 func to_physical_space(world_distance_units: float) -> float:
     return world_distance_units * PIXELS_PER_WORLD_UNIT
 

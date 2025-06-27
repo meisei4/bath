@@ -25,7 +25,6 @@ func _physics_process(delta: float) -> void:
     if Input.is_action_pressed("down"):
         _backward()
 
-
     var time_scaled_delta: float = SpacetimeManager.apply_time_scale(delta)
     _apply_movement_input(time_scaled_delta)
 

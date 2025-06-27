@@ -2,7 +2,8 @@ extends Node2D
 class_name IceSheets
 
 var BufferAShaderNode: ColorRect
-var BufferAShader: Shader = preload(ResourcePaths.ICE_SHEETS_SHADER)
+var BufferAShader: Shader = preload(ResourcePaths.ICE_SHEETS_SHADER_FULL)
+#var BufferAShader: Shader = preload(ResourcePaths.ICE_SHEETS_SHADER)
 var BufferAShaderMaterial: ShaderMaterial
 var BufferA: SubViewport
 
@@ -17,7 +18,6 @@ var iChannel0: Texture
 
 func _ready() -> void:
     iResolution = ResolutionManager.resolution
-
     BufferA = ShaderToyUtil.create_buffer_viewport(iResolution)
     BufferAShaderMaterial = ShaderMaterial.new()
     BufferAShaderNode = ColorRect.new()
@@ -25,7 +25,14 @@ func _ready() -> void:
     BufferAShaderMaterial.shader = BufferAShader
     BufferAShaderNode.material = BufferAShaderMaterial
     BufferAShaderMaterial.set_shader_parameter("iResolution", iResolution)
-
+    BufferAShaderMaterial.set_shader_parameter("parallaxDepth", 6.0)
+    BufferAShaderMaterial.set_shader_parameter("strideLength", 1.0)
+    BufferAShaderMaterial.set_shader_parameter("globalCoordinateScale", 180.0)
+    BufferAShaderMaterial.set_shader_parameter("noiseScrollVelocity", Vector2(0.0, 0.01))
+    BufferAShaderMaterial.set_shader_parameter("uniformStretchCorrection", 1.414213562373095)
+    BufferAShaderMaterial.set_shader_parameter("stretchScalarY", 2.0)
+    BufferAShaderMaterial.set_shader_parameter("noiseCoordinateOffset", Vector2(2.0, 0.0))
+    BufferAShaderMaterial.set_shader_parameter("parallaxNearScale", 0.025)
     MainImage = TextureRect.new()
     MainImage.texture = BufferA.get_texture()
     MainImage.flip_v = true

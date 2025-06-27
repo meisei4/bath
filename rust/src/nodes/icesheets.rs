@@ -10,13 +10,13 @@ use std::f32::consts::SQRT_2;
 
 #[derive(GodotClass)]
 #[class(init, base=Node2D)]
-pub struct IceSheets {
+pub struct RustyIceSheets {
     base: Base<Node2D>,
     render: Option<Gd<GodotRenderer>>,
 }
 
 #[godot_api]
-impl INode2D for IceSheets {
+impl INode2D for RustyIceSheets {
     fn ready(&mut self) {
         let mut render_smart_pointer = GodotRenderer::new_alloc();
         self.base_mut()
@@ -35,14 +35,10 @@ impl INode2D for IceSheets {
         render.set_uniform_float(&mut shader, "parallaxDepth", 6.0);
         render.set_uniform_float(&mut shader, "strideLength", 1.0);
         render.set_uniform_float(&mut shader, "globalCoordinateScale", 180.0);
-        render.set_uniform_vec2(&mut shader, "noiseScrollVelocity", raylib::math::Vector2::new(0.0, 0.1));
+        render.set_uniform_vec2(&mut shader, "noiseScrollVelocity", RendererVector2::new(0.0, 0.1));
         render.set_uniform_float(&mut shader, "uniformStretchCorrection", SQRT_2);
         render.set_uniform_float(&mut shader, "stretchScalarY", 2.0);
-        render.set_uniform_vec2(
-            &mut shader,
-            "noiseCoordinateOffset",
-            raylib::math::Vector2::new(2.0, 0.0),
-        );
+        render.set_uniform_vec2(&mut shader, "noiseCoordinateOffset", RendererVector2::new(2.0, 0.0));
         render.set_uniform_float(&mut shader, "parallaxNearScale", 0.025);
         //TODO: Figure out how to actually achieve HDR and WHEN to apply it
         //render.draw_texture(&mut Texture2D::new_gd(), &mut buffer_a);
