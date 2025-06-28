@@ -10,9 +10,6 @@ out vec2 fragTexCoord;
 out vec4 fragColor;
 
 out vec2  vertexNormCoord;
-out vec2  vertexTopLayerProjection;
-out vec2  vertexProjectedOrigin;
-out vec2  vertexProjectedStep;
 out float projectionScaleFactor;
 out vec2  vertexNoiseOrigin;
 out vec2  vertexNoiseStep;
@@ -53,28 +50,25 @@ void main() {
     vertexNormCoord = (fragCoord * 2.0 - iResolution) / iResolution.y;
 
     // TODO: UV AFFINE CORRECTION ONLY -> bilinear/quadratic somewhere in x still?? -> barycentric interpolation warp)
-    //  float scale              = affineScale(parallaxDepth, vertexNormCoord.y);
-    //  vertexTopLayerProjection = vertexNormCoord * scale;
-    //  projectionScaleFactor    = scale;
-    //  vertexProjectedOrigin    = vertexNormCoord * scale;
-    //  vertexProjectedStep      = vec2(0.0, (1.0 / globalCoordinateScale) * scale);
+    // float scale              = affineScale(parallaxDepth, vertexNormCoord.y);
+    // projectionScaleFactor    = scale;
+    // vec2 vertexProjectedOrigin    = vertexNormCoord * scale;
+    // vec2 vertexProjectedStep      = vec2(0.0, (1.0 / globalCoordinateScale) * scale);
 
     // TODO: UV AFFINE CORRECTION Y ONLY PROJECTION -> ZERO barycentric interpolation warp!?
-    float a                  = affineConstsA(parallaxDepth);
-    float b                  = affineConstsB(parallaxDepth);
-    float kX                 = a;
-    float scaleY             = a + b * vertexNormCoord.y;
-    vertexTopLayerProjection = vec2(vertexNormCoord.x * kX, vertexNormCoord.y * scaleY);
-    projectionScaleFactor    = scaleY;
-    vertexProjectedOrigin    = vec2(vertexNormCoord.x * kX, vertexNormCoord.y * scaleY);
-    vertexProjectedStep      = vec2(0.0, (1.0 / globalCoordinateScale) * scaleY);
+    float a                    = affineConstsA(parallaxDepth);
+    float b                    = affineConstsB(parallaxDepth);
+    float kX                   = a;
+    float scaleY               = a + b * vertexNormCoord.y;
+    projectionScaleFactor      = scaleY;
+    vec2 vertexProjectedOrigin = vec2(vertexNormCoord.x * kX, vertexNormCoord.y * scaleY);
+    vec2 vertexProjectedStep   = vec2(0.0, (1.0 / globalCoordinateScale) * scaleY);
 
     // TODO: ORIGINAL UV NON-AFFINE CURVED PROJECITON -> barycentric interpolation warp
-    //  vertexTopLayerProjection = vertexNormCoord / (parallaxDepth - vertexNormCoord.y);
-    //  projectionScaleFactor    = 1.0 / (parallaxDepth - vertexNormCoord.y);
-    //  vertexProjectedOrigin    = (fragCoord * 2.0 - iResolution) / iResolution.y * projectionScaleFactor;
-    //  vertexProjectedStep      = vec2(0.0, (1.0 / globalCoordinateScale) * (1.0 / (parallaxDepth -
-    //  vertexNormCoord.y)));
+    // projectionScaleFactor    = 1.0 / (parallaxDepth - vertexNormCoord.y);
+    // vec2 vertexProjectedOrigin    = (fragCoord * 2.0 - iResolution) / iResolution.y * projectionScaleFactor;
+    // vec2 vertexProjectedStep      = vec2(0.0, (1.0 / globalCoordinateScale) * (1.0 / (parallaxDepth -
+    // vertexNormCoord.y)));
 
     mat2 scaleStretch = uniformStretchCorrection * mat2(1.0, 0.0, 0.0, stretchScalarY);
     mat2 linearPart   = rotationMatrix * scaleStretch * (globalCoordinateScale * parallaxNearScale);

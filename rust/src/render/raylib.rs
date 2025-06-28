@@ -12,11 +12,14 @@ use raylib::shaders::{RaylibShader, Shader};
 use raylib::texture::{RaylibTexture2D, RenderTexture2D, Texture2D};
 use raylib::{init, RaylibHandle, RaylibThread};
 use std::ffi::{c_char, CString};
+use std::sync::Once;
 
 pub struct RaylibRenderer {
     pub handle: RaylibHandle,
     thread: RaylibThread,
 }
+
+static LOG_ITIME_LOCATION: Once = Once::new();
 
 impl Renderer for RaylibRenderer {
     type RenderTarget = RenderTexture2D;
@@ -85,6 +88,20 @@ impl Renderer for RaylibRenderer {
     }
 
     fn set_uniform_float(&mut self, shader: &mut Self::Shader, name: &str, value: f32) {
+        let location = shader.get_shader_location(name);
+        match name {
+            "iTime" => {
+                LOG_ITIME_LOCATION.call_once(|| {
+                    println!("{} uniform location = {}", name, location);
+                });
+            },
+            _ => {
+                println!("{} uniform location = {}", name, location);
+            },
+        }
+        shader.set_shader_value(location, value);
+    }
+    fn set_uniform_int(&mut self, shader: &mut Self::Shader, name: &str, value: i32) {
         let location = shader.get_shader_location(name);
         println!("{} uniform location = {}", name, location);
         shader.set_shader_value(location, value);

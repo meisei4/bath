@@ -53,6 +53,10 @@ impl Renderer for GodotRenderer {
         shader.set_shader_parameter(name, &value.to_variant());
     }
 
+    fn set_uniform_int(&mut self, _shader: &mut Self::Shader, _name: &str, _value: i32) {
+        todo!();
+    }
+
     fn set_uniform_vec2(&mut self, shader: &mut Self::Shader, name: &str, vec2: RendererVector2) {
         shader.set_shader_parameter(name, &Vector2::new(vec2.x, vec2.y).to_variant());
     }

@@ -1,7 +1,7 @@
 pub mod glsl {
     pub const RAYLIB_DEFAULT_VERT_PATH: &str = "resources/glsl/raylib_default_vertex.glsl";
-    pub const RAYLIB_DEBUG_VERT_PATH: &str = "resources/glsl/raylib_debug_vertex.glsl";
-    pub const RAYLIB_DEBUG_FRAG_PATH: &str = "resources/glsl/raylib_debug_fragment.glsl";
+    pub const DEBUG_VERT_PATH: &str = "resources/glsl/debug_vertex.glsl";
+    pub const DEBUG_FRAG_PATH: &str = "resources/glsl/debug_fragment.glsl";
 
     pub const DREKKER_PATH: &str = "resources/glsl/color/drekker_effect.glsl";
     pub const BUFFER_A_PATH: &str = "resources/glsl/buffer_a.glsl";

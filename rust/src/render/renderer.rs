@@ -17,6 +17,7 @@ pub trait Renderer {
     fn tweak_texture_parameters(&mut self, texture: &mut Self::Texture, repeat: bool, nearest: bool);
     fn load_shader(&mut self, vert_path: &str, frag_path: &str) -> Self::Shader;
     fn set_uniform_float(&mut self, shader: &mut Self::Shader, name: &str, value: f32);
+    fn set_uniform_int(&mut self, shader: &mut Self::Shader, name: &str, value: i32);
     fn set_uniform_vec2(&mut self, shader: &mut Self::Shader, name: &str, vec2: RendererVector2);
     fn set_uniform_mat2(&mut self, shader: &mut Self::Shader, name: &str, mat2: &[RendererVector2]);
     fn set_uniform_sampler2d(&mut self, shader: &mut Self::Shader, name: &str, texture: &Self::Texture);
