@@ -1,7 +1,7 @@
 use godot::builtin::Vector2;
 use godot::prelude::{real, Array, PackedInt32Array, PackedVector2Array};
 
-pub const MAX_POLYGONS: usize = 4;
+pub const MAX_POLYGONS: usize = 8;
 
 fn scanline_bucket_overlaps_polygon(
     bucket_start: real,

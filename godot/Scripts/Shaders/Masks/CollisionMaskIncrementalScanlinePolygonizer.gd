@@ -1,7 +1,7 @@
 extends Node2D
 class_name CollisionMaskIncrementalScanlinePolygonizer
 
-const MAX_POLYGONS: int = 4
+const MAX_POLYGONS: int = 8
 
 var isp_texture: ISPTexture
 var iResolution: Vector2
@@ -14,6 +14,7 @@ var scanline_count_per_polygon: PackedInt32Array
 var previous_scroll_accum: float = 0
 var prev_iTime: float
 var speed_px_per_sec: float
+var total_rows_scrolled: int
 
 
 func _ready() -> void:
@@ -24,9 +25,6 @@ func _ready() -> void:
     MaskManager.ice_sheets_entered_scene.connect(_on_ice_sheets_entered)
     if MaskManager.ice_sheets:
         _on_ice_sheets_entered(MaskManager.ice_sheets)
-        speed_px_per_sec = shader_scroll_speed_px_per_sec(
-            MaskManager.ice_sheets.BufferAShaderMaterial, iResolution.y
-        )
 
 
 func _on_ice_sheets_entered(ice_sheets: IceSheets) -> void:
@@ -57,49 +55,55 @@ func _init_concave_collision_polygon_pool() -> void:
         collision_mask_concave_polygons_pool.append(shape_node)
 
 
-func shader_scroll_speed_px_per_sec(mat: ShaderMaterial, screen_h: float) -> float:
-    var vel_y = mat.get_shader_parameter("noiseScrollVelocity").y
-    var stretch_y = mat.get_shader_parameter("stretchScalarY")
-    var gscale = mat.get_shader_parameter("globalCoordinateScale")
-    var near_scale = mat.get_shader_parameter("parallaxNearScale")
-    # WRONG: assumed px/s came from noise‐space × stretch × scale × near_scale
-    # return vel_y * stretch_y * gscale * near_scale
-    # CORRECT: convert noise‐units/s → screen‐pixels/s by dividing out the per‐row projection factor at Y = –1
-    var depth = mat.get_shader_parameter("parallaxDepth")
-    var a = 0.5 * log((depth + 1.0) / (depth - 1.0))
-    var b = 1.5 * (depth * log((depth + 1.0) / (depth - 1.0)) - 2.0)
-    var scaleY_top = a + b * -1.0
-    return vel_y * screen_h / (2.0 * scaleY_top)
-
-
 func _on_frame_post_draw() -> void:
     var iTime: float = MaskManager.iTime
-    var delta_time: float = iTime - prev_iTime
-    prev_iTime = iTime
     isp_texture.update_scanline_alpha_bucket_bit_masks()
     var scanline_alpha_buckets_top_row: PackedVector2Array
     scanline_alpha_buckets_top_row = isp_texture.fill_scanline_alpha_buckets_top_row()
-    var vel_y = (
-        MaskManager.ice_sheets.BufferAShaderMaterial.get_shader_parameter("noiseScrollVelocity").y
+    var noise_vel = MaskManager.ice_sheets.BufferAShaderMaterial.get_shader_parameter(
+        "noiseScrollVelocity"
     )
     var depth = MaskManager.ice_sheets.BufferAShaderMaterial.get_shader_parameter("parallaxDepth")
+    var global_coordinate_scale = MaskManager.ice_sheets.BufferAShaderMaterial.get_shader_parameter(
+        "globalCoordinateScale"
+    )
+    var uniform_stretch_correction = (
+        MaskManager
+        . ice_sheets
+        . BufferAShaderMaterial
+        . get_shader_parameter("uniformStretchCorrection")
+    )
+    var stretch_scalar_y = MaskManager.ice_sheets.BufferAShaderMaterial.get_shader_parameter(
+        "stretchScalarY"
+    )
+    var parallax_near_scale = MaskManager.ice_sheets.BufferAShaderMaterial.get_shader_parameter(
+        "parallaxNearScale"
+    )
     var result: Dictionary = (
         RustUtilSingleton
         . rust_util
-        . process_scanline(
-            delta_time,
+        . process_scanline_closest_1(
+            prev_iTime,
+            iTime,
             iResolution.y,
-            vel_y,
+            noise_vel,
             depth,
+            global_coordinate_scale,
+            uniform_stretch_correction,
+            stretch_scalar_y,
+            parallax_near_scale,
             scanline_alpha_buckets_top_row,
             collision_polygons,
             previous_scroll_accum,
             scanline_count_per_polygon,
+            total_rows_scrolled
         )
     )
-    previous_scroll_accum = result["scroll_accum"]
     scanline_count_per_polygon = result["scanline_count_per_polygon"]
     collision_polygons = result["collision_polygons"]
+    total_rows_scrolled = result["total_rows_scrolled"]
+    previous_scroll_accum = result["scroll_accum"]
+    prev_iTime = result["prev_time"]
     _update_collision_polygons()
 
 
