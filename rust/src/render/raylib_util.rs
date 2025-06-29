@@ -93,11 +93,10 @@ pub fn create_rgba16_render_texture(width: i32, height: i32) -> RenderTexture2D 
             );
         }
         rlDisableColorBlend();
-        //rlDisableColorBlend(); //TODO: consolidate this
         rlDisableFramebuffer();
         RenderTexture2D::from_raw(raw_render_texture)
     };
-    render_texture //TODO: I like this because it reminds me how returns work
+    render_texture
 }
 
 pub fn load_shader_with_includes(path: impl AsRef<Path>) -> String {

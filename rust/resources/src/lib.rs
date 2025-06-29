@@ -11,8 +11,6 @@ pub mod glsl {
     pub const ICESHEETS_VERT_DRAFT_PATH: &str = "resources/glsl/ice_sheets/icesheets_vertex_drafting.glsl";
     pub const ICESHEETS_VERT_PATH: &str = "resources/glsl/ice_sheets/icesheets_vertex.glsl";
 
-
-
     pub const BUFFER_A_CONTENTS: &str = include_str!("../glsl/buffer_a.glsl");
     pub const IMAGE_CONTENTS: &str = include_str!("../glsl/image.glsl");
 }

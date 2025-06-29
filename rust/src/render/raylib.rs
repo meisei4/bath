@@ -1,22 +1,23 @@
 use crate::render::raylib_util::{
     create_rgba16_render_texture, flip_framebuffer, load_shader_with_includes, APPLE_DPI, ORIGIN, ORIGIN_X, ORIGIN_Y,
 };
-use crate::render::renderer::{Renderer, RendererVector2};
+use crate::render::renderer::{Renderer, RendererMatrix, RendererVector2};
 use raylib::color::Color;
 use raylib::drawing::{RaylibDraw, RaylibShaderModeExt, RaylibTextureModeExt};
 use raylib::ffi::{
     rlTextureParameters, LoadImage, LoadTextureFromImage, UnloadImage, RL_TEXTURE_FILTER_NEAREST,
     RL_TEXTURE_MAG_FILTER, RL_TEXTURE_MIN_FILTER, RL_TEXTURE_WRAP_REPEAT, RL_TEXTURE_WRAP_S, RL_TEXTURE_WRAP_T,
 };
+use raylib::math::{Matrix, Vector3};
 use raylib::shaders::{RaylibShader, Shader};
 use raylib::texture::{RaylibTexture2D, RenderTexture2D, Texture2D};
-use raylib::{init, RaylibHandle, RaylibThread};
+use raylib::{ffi, init, RaylibHandle, RaylibThread};
 use std::ffi::{c_char, CString};
 use std::sync::Once;
 
 pub struct RaylibRenderer {
     pub handle: RaylibHandle,
-    thread: RaylibThread,
+    pub thread: RaylibThread,
 }
 
 static LOG_ITIME_LOCATION: Once = Once::new();
@@ -29,7 +30,7 @@ impl Renderer for RaylibRenderer {
     fn init(width: i32, height: i32) -> Self {
         let (mut handle, thread) = init()
             .size(width / APPLE_DPI, height / APPLE_DPI)
-            .title("drekker effect")
+            .title("raylib renderer")
             .build();
         handle.set_target_fps(60);
         let screen_width = handle.get_screen_width();
@@ -42,6 +43,7 @@ impl Renderer for RaylibRenderer {
         println!("dpi: {:?}", dpi);
         Self { handle, thread }
     }
+
     fn init_render_target(&mut self, size: RendererVector2, hdr: bool) -> Self::RenderTarget {
         if hdr {
             create_rgba16_render_texture(size.x as i32, size.y as i32)
@@ -113,11 +115,17 @@ impl Renderer for RaylibRenderer {
         shader.set_shader_value_v(location, &[value]);
     }
 
-    fn set_uniform_mat2(&mut self, shader: &mut Self::Shader, name: &str, _mat2: &[RendererVector2]) {
+    fn set_uniform_mat2(&mut self, shader: &mut Self::Shader, name: &str, mat2: RendererMatrix) {
         let location = shader.get_shader_location(name);
         println!("{} uniform location = {}", name, location);
         //TODO: figure out how to make a Matrix in raylib
-        //shader.set_shader_value_matrix(location, mat2);
+        shader.set_shader_value_matrix(location, mat2);
+    }
+
+    fn set_uniform_mat4(&mut self, shader: &mut Self::Shader, name: &str, mat4: RendererMatrix) {
+        let location = shader.get_shader_location(name);
+        println!("{} uniform location = {}", name, location);
+        shader.set_shader_value_matrix(location, mat4);
     }
 
     fn set_uniform_sampler2d(&mut self, shader: &mut Self::Shader, name: &str, _texture: &Self::Texture) {
@@ -146,5 +154,89 @@ impl Renderer for RaylibRenderer {
         let width = render_target.width() as f32;
         let height = render_target.height() as f32;
         shader_mode.draw_texture_rec(render_target, flip_framebuffer(width, height), ORIGIN, Color::WHITE);
+    }
+
+    fn draw_shader_screen_alt_geometry(&mut self, shader: &mut Self::Shader, render_target: &mut Self::RenderTarget) {
+        //https://github.com/raylib-rs/raylib-rs/blob/unstable/showcase/src/example/others/rlgl_standalone.rs#L4
+        //https://github.com/raysan5/raylib/blob/master/examples/others/rlgl_standalone.c
+        let mut draw_handle = self.handle.begin_drawing(&self.thread);
+        draw_handle.clear_background(Color::BLACK);
+        let fov_y = 90.0_f32;
+        let observer_pos = Vector3::new(0.0, 250.0, 50.0);
+        let target = Vector3::new(0.0, 0.0, 0.0);
+        let y_up = Vector3::new(0.0, 1.0, 0.0);
+        let near_plane = 0.01;
+        let far_plane = 500.0;
+        let width = render_target.width() as f32;
+        let height = render_target.height() as f32;
+        let mat_proj = Matrix::perspective(fov_y.to_radians(), width / height, near_plane, far_plane);
+        let mat_view = Matrix::look_at(observer_pos, target, y_up);
+        let _ = draw_handle.begin_shader_mode(shader);
+        unsafe {
+            ffi::rlEnableDepthTest();
+            ffi::rlSetMatrixModelview(mat_view.into());
+            ffi::rlSetMatrixProjection(mat_proj.into());
+            ffi::rlDrawRenderBatchActive();
+            ffi::rlSetTexture(render_target.texture.id);
+            ffi::rlBegin(ffi::RL_QUADS as i32);
+            ffi::rlColor4ub(Color::WHITE.r, Color::WHITE.g, Color::WHITE.b, Color::WHITE.a);
+
+            ffi::rlTexCoord2f(0.0, 1.0);
+            ffi::rlVertex3f(-width / 2.0, 0.0, height / 2.0);
+
+            ffi::rlTexCoord2f(1.0, 1.0);
+            ffi::rlVertex3f(width / 2.0, 0.0, height / 2.0);
+
+            ffi::rlTexCoord2f(1.0, 0.0);
+            ffi::rlVertex3f(width / 2.0, 0.0, -height / 2.0);
+
+            ffi::rlTexCoord2f(0.0, 0.0);
+            ffi::rlVertex3f(-width / 2.0, 0.0, -height / 2.0);
+
+            ffi::rlEnd();
+            ffi::rlSetTexture(0);
+        }
+    }
+
+    fn draw_shader_screen_ortho(&mut self, shader: &mut Self::Shader, render_target: &mut Self::RenderTarget) {
+        let mut draw_handle = self.handle.begin_drawing(&self.thread);
+        draw_handle.clear_background(Color::BLACK);
+        let width = render_target.width() as f32;
+        let height = render_target.height() as f32;
+        let distance_y = 1.0;
+        let fov_y = 2.0 * (height / 2.0 / distance_y).atan().to_degrees();
+        let observer_pos = Vector3::new(width / 2.0, distance_y, height / 2.0);
+        let target = Vector3::new(width / 2.0, 0.0, height / 2.0);
+        let up = Vector3::new(0.0, 0.0, -1.0);
+        let near_plane = 0.01;
+        let far_plane = 10.0;
+        let projection = Matrix::perspective(fov_y.to_radians(), width / height, near_plane, far_plane);
+        let view = Matrix::look_at(observer_pos, target, up);
+        let _ = draw_handle.begin_shader_mode(shader);
+        unsafe {
+            ffi::rlEnableDepthTest();
+            ffi::rlSetMatrixModelview(view.into());
+            ffi::rlSetMatrixProjection(projection.into());
+
+            ffi::rlDrawRenderBatchActive();
+            ffi::rlSetTexture(render_target.texture.id);
+            ffi::rlBegin(ffi::RL_QUADS as i32);
+            ffi::rlColor4ub(Color::WHITE.r, Color::WHITE.g, Color::WHITE.b, Color::WHITE.a);
+
+            ffi::rlTexCoord2f(0.0, 1.0);
+            ffi::rlVertex3f(0.0, 0.0, height);
+
+            ffi::rlTexCoord2f(1.0, 1.0);
+            ffi::rlVertex3f(width, 0.0, height);
+
+            ffi::rlTexCoord2f(1.0, 0.0);
+            ffi::rlVertex3f(width, 0.0, 0.0);
+
+            ffi::rlTexCoord2f(0.0, 0.0);
+            ffi::rlVertex3f(0.0, 0.0, 0.0);
+
+            ffi::rlEnd();
+            ffi::rlSetTexture(0);
+        }
     }
 }

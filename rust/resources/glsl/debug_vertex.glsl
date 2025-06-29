@@ -18,6 +18,7 @@ out vec3 vertexDebugPayload0;
 out vec4 vertexDebugPayload1;
 
 uniform mat4 mvp;
+uniform mat4 mode7_mvp;
 
 uniform float iTime;
 uniform vec2  iResolution;
@@ -30,20 +31,19 @@ uniform mat3x2 uvXbilinear;
 uniform mat3x2 uvXnonlinear;
 uniform mat3x2 uvXaffine;
 
-// #define PASS
+#define PASS
 // #define BARYCENTRIC
-// #define ANIMATE_UV
-// #define AFFINE_UV
-#define PERSPECTIVE_PROJECTION_UV
-// #define XY_POLYNOMIAL_APPROX_PROJECTION_UV
-// TODO: I am the dumbest person alive
-// #define X_LINEAR_Y_POLYNOMIAL_APPROX_PROJECTION_UV
-// #define LINEAR_UV
-// #define BILINEAR_UV
+//  #define ANIMATE_UV
+//  #define AFFINE_UV
+//  #define PERSPECTIVE_PROJECTION_UV
+//  #define XY_POLYNOMIAL_APPROX_PROJECTION_UV
+//  #define X_LINEAR_Y_POLYNOMIAL_APPROX_PROJECTION_UV
+//  #define LINEAR_UV
+//  #define BILINEAR_UV
 
 // #define ANIMATE_GEOM
 // #define AFFINE_GEOM
-// #define NONAFFINE_GEOM
+// #define PERSPECTIVE_PROJECTION_GEOM
 // #define LINEAR_GEOM
 // #define BILINEAR_GEOM
 // #define NONLINEAR_GEOM
@@ -66,12 +66,6 @@ void main() {
 #ifdef BARYCENTRIC
     fragColor = palette[gl_VertexID % 6];
 #endif
-#ifdef ANIMATE_UV
-// TODO:
-#endif
-#ifdef AFFINE_UV
-    vTexCoord = (uvXaffine * vec3(vTexCoord, 1.0));
-#endif
 #ifdef PERSPECTIVE_PROJECTION_UV
     vec2 vAspectNormal          = (vPixelCoord * 2.0 - iResolution) / iResolution.y;
     vec2 vProperPerspectiveProj = vAspectNormal / (depthScalar - vAspectNormal.y);
@@ -86,45 +80,24 @@ void main() {
     vTexCoord                    = (polynomialApproxProjXY + 1.0) * 0.5;
 #endif
 #ifdef X_LINEAR_Y_POLYNOMIAL_APPROX_PROJECTION_UV
-    vec2  vAspectNormal         = (vPixelCoord * 2.0 - iResolution) / iResolution.y;
-    float k                     = log((depthScalar + 1.0)
-                            / (depthScalar - 1.0)); // solved least common squares or something from the true perspective divide
+    vec2 vAspectNormal = (vPixelCoord * 2.0 - iResolution) / iResolution.y;
+    // TODO: solved least common squares or something from the true perspective divide
+    float k                     = log((depthScalar + 1.0) / (depthScalar - 1.0));
     float focalScale            = 0.5 * k;
     float gradScale             = 1.5 * (depthScalar * k - 2.0);
     float scaleY                = focalScale + gradScale * vAspectNormal.y;
     vec2  polynomialApproxProjY = vAspectNormal * vec2(focalScale, scaleY);
     vTexCoord                   = (polynomialApproxProjY + 1.0) * 0.5;
 #endif
-#ifdef NONAFFINE_UV
-    vTexCoord = (uvXnonaffine * vec3(vTexCoord, 1.0));
-#endif
-#ifdef LINEAR_UV
-    vTexCoord = (uvXlinear * vec3(vTexCoord, 1.0));
-#endif
-#ifdef BILINEAR_UV
-    vTexCoord = (uvXbilinear * vec3(vTexCoord, 1.0));
-#endif
-#ifdef AFFINE_GEOM
-    vPosition.xy = (uvXaffine * vec3(vPosition.xy, 1.0));
-#endif
-#ifdef NONAFFINE_GEOM
-    vPosition.xy = (uvXnonaffine * vec3(vPosition.xy, 1.0));
-#endif
-#ifdef LINEAR_GEOM
-    vPosition.xy = (uvXlinear * vec3(vPosition.xy, 1.0));
-#endif
-#ifdef BILINEAR_GEOM
-    vPosition.xy = (uvXbilinear * vec3(vPosition.xy, 1.0));
-#endif
-#ifdef NONLINEAR_GEOM
-    vPosition.xy = (uvXnonlinear * vec3(vPosition.xy, 1.0));
+#ifdef PERSPECTIVE_PROJECTION_GEOM
+    fragColor    = vertexColor;
+    fragCoord    = vPixelCoord; // keep unwarped
+    fragTexCoord = vTexCoord; // potentially warped
+    gl_Position  = mode7_mvp * vec4(vPosition, 1.0);
+    return;
 #endif
 #ifdef PASS
-    fragColor    = vertexColor;
-    fragCoord    = vPixelCoord;
-    fragTexCoord = vertexTexCoord;
-    gl_Position  = mvp * vec4(vertexPosition, 1.0);
-    return;
+    fragColor = vertexColor;
 #endif
     fragCoord    = vPixelCoord; // keep unwarped
     fragTexCoord = vTexCoord; // potentially warped

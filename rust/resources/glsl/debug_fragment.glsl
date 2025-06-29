@@ -14,8 +14,8 @@ uniform vec2  iResolution;
 uniform int   tileSize;
 uniform float zigzagAmplitude;
 
-const vec4 BLACK = vec4(0.1, 0.0, 0.0, 1.0);
-const vec4 WHITE = vec4(1.0, .99, 0.99, 0.5);
+const vec4 BLACK = vec4(0.0, 0.0, 0.0, 1.0);
+const vec4 WHITE = vec4(1.0, 1.0, 1.0, 1.0);
 
 // #define PASS
 // #define GRID_UV
@@ -43,5 +43,6 @@ void main() {
     finalColor = fragColor;
     return;
 #endif
+    // Vert colors do not track here
     finalColor = fColor;
 }

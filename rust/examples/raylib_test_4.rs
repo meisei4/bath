@@ -26,6 +26,8 @@ fn main() {
     while !render.handle.window_should_close() {
         let t = render.handle.get_time() as f32;
         render.set_uniform_float(&mut shader, "iTime", t);
-        render.draw_shader_screen(&mut shader, &mut buffer);
+        //render.draw_shader_screen(&mut shader, &mut buffer);
+        //render.draw_shader_screen_alt_geometry(&mut shader, &mut buffer);
+        render.draw_shader_screen_ortho(&mut shader, &mut buffer);
     }
 }

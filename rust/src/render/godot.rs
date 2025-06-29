@@ -1,6 +1,5 @@
 use crate::render::godot_util::create_buffer_viewport;
-use crate::render::renderer::Renderer;
-use crate::render::renderer::RendererVector2;
+use crate::render::renderer::{Renderer, RendererMatrix, RendererVector2};
 use godot::builtin::{real, Vector2, Vector2i};
 use godot::classes::canvas_item::{TextureFilter, TextureRepeat};
 use godot::classes::texture_rect::StretchMode;
@@ -61,7 +60,11 @@ impl Renderer for GodotRenderer {
         shader.set_shader_parameter(name, &Vector2::new(vec2.x, vec2.y).to_variant());
     }
 
-    fn set_uniform_mat2(&mut self, _shader: &mut Self::Shader, _name: &str, _mat2: &[RendererVector2]) {
+    fn set_uniform_mat2(&mut self, _shader: &mut Self::Shader, _name: &str, _mat2: RendererMatrix) {
+        todo!()
+    }
+
+    fn set_uniform_mat4(&mut self, _shader: &mut Self::Shader, _name: &str, _mat4: RendererMatrix) {
         todo!()
     }
 
@@ -97,5 +100,13 @@ impl Renderer for GodotRenderer {
         buffer_a_shader_node.set_material(&*shader);
         render_target.add_child(&buffer_a_shader_node);
         self.draw_screen(render_target);
+    }
+
+    fn draw_shader_screen_alt_geometry(&mut self, _shader: &mut Self::Shader, _render_target: &mut Self::RenderTarget) {
+        todo!()
+    }
+
+    fn draw_shader_screen_ortho(&mut self, _shader: &mut Self::Shader, _render_target: &mut Self::RenderTarget) {
+        todo!()
     }
 }
