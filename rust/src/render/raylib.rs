@@ -12,6 +12,7 @@ use raylib::math::{Matrix, Vector3};
 use raylib::shaders::{RaylibShader, Shader};
 use raylib::texture::{RaylibTexture2D, RenderTexture2D, Texture2D};
 use raylib::{ffi, init, RaylibHandle, RaylibThread};
+use std::f32::consts::FRAC_PI_2;
 use std::ffi::{c_char, CString};
 use std::sync::Once;
 
@@ -165,44 +166,40 @@ impl Renderer for RaylibRenderer {
         draw_handle.clear_background(Color::BLACK);
         let width = render_target.width() as f32;
         let height = render_target.height() as f32;
-        let distance_y = 1.0;
-        let fov_y = 2.0 * (height / 2.0 / distance_y).atan().to_degrees();
-        let observer_pos = Vector3::new(width / 2.0, distance_y, height / 2.0);
-        let target = Vector3::new(width / 2.0, 0.0, height / 2.0);
-        let up = Vector3::new(0.0, 0.0, 1.0);
-        let near_plane = 0.01;
-        let far_plane = 10.0;
-        let projection = Matrix::perspective(fov_y.to_radians(), width / height, near_plane, far_plane);
+        let observer_pos = Vector3::new(width / 2.0, height / 2.0, height / 2.0);
+        let target = Vector3::new(width / 2.0, height / 2.0, 0.0);
+        let up = Vector3::new(0.0, 1.0, 0.0);
+        let projection = Matrix::perspective(FRAC_PI_2, width / height, 0.01, 1000.0);
         let view = Matrix::look_at(observer_pos, target, up);
         let _shader = draw_handle.begin_shader_mode(shader);
         unsafe {
             ffi::rlSetMatrixModelview(view.into());
             ffi::rlSetMatrixProjection(projection.into());
-
-            ffi::rlTexCoord2f(1.0, 1.0);
-            ffi::rlVertex3f(0.0, 0.0, height);
+            //PERFECT
             ffi::rlTexCoord2f(0.0, 1.0);
-            ffi::rlVertex3f(width, 0.0, height);
+            ffi::rlVertex3f(0.0, height, 0.0);
             ffi::rlTexCoord2f(0.0, 0.0);
-            ffi::rlVertex3f(width, 0.0, 0.0);
-            ffi::rlTexCoord2f(1.0, 0.0);
             ffi::rlVertex3f(0.0, 0.0, 0.0);
+            ffi::rlTexCoord2f(1.0, 0.0);
+            ffi::rlVertex3f(width, 0.0, 0.0);
+            ffi::rlTexCoord2f(1.0, 1.0);
+            ffi::rlVertex3f(width, height, 0.0);
 
-            // 180° rotation + horizontal mirror (left↔right):
+            // VERTICES ARE THE WRONG ORDER? (BATHYCENTRIC GRADIENT TEST FAILS)
             // ffi::rlTexCoord2f(0.0, 0.0);
-            // ffi::rlVertex3f(0.0,  0.0, height);
+            // ffi::rlVertex3f(0.0, 0.0, 0.0);
             // ffi::rlTexCoord2f(1.0, 0.0);
-            // ffi::rlVertex3f(width, 0.0, height);
-            // ffi::rlTexCoord2f(1.0, 1.0);
             // ffi::rlVertex3f(width, 0.0, 0.0);
-            // ffi::rlTexCoord2f(0.0, 1.0);
-            // ffi::rlVertex3f(0.0,  0.0, 0.0);
-
-            // some other shit
-            // ffi::rlTexCoord2f(0.0, 1.0);
-            // ffi::rlVertex3f(0.0, 0.0, height);
             // ffi::rlTexCoord2f(1.0, 1.0);
-            // ffi::rlVertex3f(width, 0.0, height);
+            // ffi::rlVertex3f(width, height, 0.0);
+            // ffi::rlTexCoord2f(0.0, 1.0);
+            // ffi::rlVertex3f(0.0, height, 0.0);
+
+            //BLACK FACE CULLING??? WHAT??
+            // ffi::rlTexCoord2f(0.0, 1.0);
+            // ffi::rlVertex3f(0.0, height, 0.0);
+            // ffi::rlTexCoord2f(1.0, 1.0);
+            // ffi::rlVertex3f(width, height, 0.0);
             // ffi::rlTexCoord2f(1.0, 0.0);
             // ffi::rlVertex3f(width, 0.0, 0.0);
             // ffi::rlTexCoord2f(0.0, 0.0);
@@ -210,41 +207,98 @@ impl Renderer for RaylibRenderer {
         }
     }
 
+    fn draw_shader_screen_tilted_geom(
+        &mut self,
+        shader: &mut Self::Shader,
+        render_target: &mut Self::RenderTarget,
+        mut tilt_deg: f32,
+    ) {
+        let mut draw_handle = self.handle.begin_drawing(&self.thread);
+        draw_handle.clear_background(Color::BLACK);
+        let width = render_target.width() as f32;
+        let height = render_target.height() as f32;
+        let observer_pos = Vector3::new(width / 2.0, height / 2.0, height / 2.0);
+        let target = Vector3::new(width / 2.0, height / 2.0, 0.0);
+        let up = Vector3::new(0.0, 1.0, 0.0);
+        let projection = Matrix::perspective(FRAC_PI_2, width / height, 0.01, 1000.0);
+        let view = Matrix::look_at(observer_pos, target, up);
+        let _shader = draw_handle.begin_shader_mode(shader);
+        unsafe {
+            ffi::rlSetMatrixModelview(view.into());
+            ffi::rlSetMatrixProjection(projection.into());
+            tilt_deg = tilt_deg.clamp(0.0, 89.0);
+
+            // TODO: this is for allowing letter boxing
+            let pivot_y = height / 2.0;
+            ffi::rlPushMatrix();
+            ffi::rlTranslatef(0.0, pivot_y, 0.0);
+            ffi::rlRotatef(-tilt_deg, 1.0, 0.0, 0.0);
+            ffi::rlTranslatef(0.0, -pivot_y, 0.0);
+
+            // TODO: this is for scaling to JUST (minimally) prevent any letterboxing
+            // let theta = tilt_deg.to_radians();
+            // let scale = (1.0 + theta.sin()) / theta.cos();
+            // let center_x = width / 2.0;
+            // let center_y = height / 2.0;
+            // ffi::rlPushMatrix();
+            // ffi::rlTranslatef(center_x, center_y, 0.0);
+            // ffi::rlScalef(scale, scale, 1.0);
+            // ffi::rlTranslatef(-center_x, -center_y, 0.0);
+            // ffi::rlTranslatef(0.0, center_y, 0.0);
+            // ffi::rlRotatef(-tilt_deg, 1.0, 0.0, 0.0);
+            // ffi::rlTranslatef(0.0, -center_y, 0.0);
+
+            ffi::rlTexCoord2f(0.0, 1.0);
+            ffi::rlVertex3f(0.0, height, 0.0);
+            ffi::rlTexCoord2f(0.0, 0.0);
+            ffi::rlVertex3f(0.0, 0.0, 0.0);
+            ffi::rlTexCoord2f(1.0, 0.0);
+            ffi::rlVertex3f(width, 0.0, 0.0);
+            ffi::rlTexCoord2f(1.0, 1.0);
+            ffi::rlVertex3f(width, height, 0.0);
+            ffi::rlPopMatrix();
+        }
+    }
+
     // TODO: figure out how to make this smoother:
     //  1.potentially just pass the MVP as a uniform and bypass all of raylibs stuff?
     //  1.5. learn how raylibs batch stuff works for the graphics pipeline
     //  2. figure out how custom MVP works on different versions of openGL
-    //  3. figure out if there is any performance issue here with hacing to reset mvp every frame
+    //  3. figure out if there is any performance issue here with having to reset mvp every frame
     //  3.5 i dont htink we should have to do it every frame because the MVP never changes.
-    fn draw_shader_screen_alt_geom(&mut self, shader: &mut Self::Shader, render_target: &mut Self::RenderTarget) {
-        //https://github.com/raylib-rs/raylib-rs/blob/unstable/showcase/src/example/others/rlgl_standalone.rs#L4
-        //https://github.com/raysan5/raylib/blob/master/examples/others/rlgl_standalone.c
-        let mut draw_handle = self.handle.begin_drawing(&self.thread);
-        //draw_handle.clear_background(Color::BLACK);
-        let fov_y = 90.0_f32;
-        let observer_pos = Vector3::new(0.0, 250.0, 50.0);
-        let target = Vector3::new(0.0, 0.0, 0.0);
-        let y_up = Vector3::new(0.0, 1.0, 0.0);
-        let near_plane = 0.01;
-        let far_plane = 500.0;
-        let width = render_target.width() as f32;
-        let height = render_target.height() as f32;
-        let mat_proj = Matrix::perspective(fov_y.to_radians(), width / height, near_plane, far_plane);
-        let mat_view = Matrix::look_at(observer_pos, target, y_up);
-        //TODO: you really need to learn how rust works, let _ = here will break everything
-        let _shader = draw_handle.begin_shader_mode(shader);
-        unsafe {
-            ffi::rlSetMatrixModelview(mat_view.into());
-            ffi::rlSetMatrixProjection(mat_proj.into());
-
-            ffi::rlTexCoord2f(0.0, 0.0);
-            ffi::rlVertex3f(-width / 2.0, 0.0, height / 2.0);
-            ffi::rlTexCoord2f(1.0, 0.0);
-            ffi::rlVertex3f(width / 2.0, 0.0, height / 2.0);
-            ffi::rlTexCoord2f(1.0, 1.0);
-            ffi::rlVertex3f(width / 2.0, 0.0, -height / 2.0);
-            ffi::rlTexCoord2f(0.0, 1.0);
-            ffi::rlVertex3f(-width / 2.0, 0.0, -height / 2.0);
-        }
-    }
+    //https://github.com/raylib-rs/raylib-rs/blob/unstable/showcase/src/example/others/rlgl_standalone.rs#L4
+    //https://github.com/raysan5/raylib/blob/master/examples/others/rlgl_standalone.c
+    // fn ambigious_template(&mut self, shader: &mut Self::Shader, render_target: &mut Self::RenderTarget) {
+    //     let mut draw_handle = self.handle.begin_drawing(&self.thread);
+    //     draw_handle.clear_background(Color::BLACK);
+    //     let width  = render_target.width()  as f32;
+    //     let height = render_target.height() as f32;
+    //     let observer_pos = Vector3::new( , , );
+    //     let target       = Vector3::new( , , );
+    //     let up           = Vector3::new( , , );
+    //     let projection = Matrix::perspective( , , , );
+    //     let view = Matrix::look_at(observer_pos, target, up);
+    //     //_shader_mode.draw_texture_rec(render_target, flip_framebuffer(width, height), ORIGIN, Color::WHITE);
+    //     // TODO: NOPE
+    //     // let mvp = projection * view;
+    //     // let mvp_location = shader.get_shader_location("mvp");
+    //     // println!("mvp uniform location = {}", mvp_location);
+    //     // shader.set_shader_value_matrix(mvp_location, mvp);
+    //     // TODO: you really need to learn how rust works, let _ = here will break everything
+    //     let _shader = draw_handle.begin_shader_mode(shader);
+    //     unsafe {
+    //         ffi::rlSetMatrixModelview(view.into());
+    //         ffi::rlSetMatrixProjection(projection.into());
+    //         ffi::rlTexCoord2f( , );
+    //         ffi::rlVertex3f( , , );
+    //         ffi::rlTexCoord2f( , );
+    //         ffi::rlVertex3f( , , );
+    //         ffi::rlTexCoord2f( , );
+    //         ffi::rlVertex3f( , , );
+    //         ffi::rlTexCoord2f( , );
+    //         ffi::rlVertex3f( , , );
+    //      // TODO: no need to deallocate thats the whole point of the raylib-rs safety stuff??
+    //      //  https://github.com/raylib-rs/raylib-rs/blob/unstable/raylib/src/core/drawing.rs#L326
+    //     }
+    // }
 }

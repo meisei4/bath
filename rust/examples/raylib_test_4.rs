@@ -25,7 +25,8 @@ fn main() {
     while !render.handle.window_should_close() {
         let t = render.handle.get_time() as f32;
         render.set_uniform_float(&mut shader, "iTime", t);
-        render.draw_shader_screen(&mut shader, &mut buffer);
-        //render.draw_shader_screen_alt_geom(&mut shader, &mut buffer);
+        //render.draw_shader_screen(&mut shader, &mut buffer);
+        render.draw_shader_screen_tilted_geom(&mut shader, &mut buffer, 20.0_f32);
+        //render.draw_shader_screen_pseudo_ortho_geom(&mut shader, &mut buffer);
     }
 }

@@ -23,12 +23,6 @@ uniform mat4 mode7_mvp;
 uniform float iTime;
 uniform vec2  iResolution;
 
-// uniform float macroScale;
-// uniform float microScale;
-// uniform float uniformStretch;
-// uniform float stretchY;
-// uniform vec2  staticOffset;
-
 const float depthScalar    = 6.0;
 const vec2  scrollVelocity = vec2(0.0, 0.05);
 const float macroScale     = 180.0;
@@ -39,12 +33,12 @@ const float PI             = 3.141592653589793;
 const mat2  rotationMatrix = mat2(cos(-PI * 0.25), -sin(-PI * 0.25), sin(-PI * 0.25), cos(-PI * 0.25));
 const vec2  staticOffset   = vec2(2.0, 0.0);
 
-// #define PASS
+#define PASS
 // #define BARYCENTRIC
-// #define PERSPECTIVE_PROJECTION_UV
+//  #define PERSPECTIVE_PROJECTION_UV
 //  #define XY_POLYNOMIAL_APPROX_PROJECTION_UV
 //  #define X_LINEAR_Y_POLYNOMIAL_APPROX_PROJECTION_UV
-#define AFFINE_UV
+// #define AFFINE_UV
 
 const vec4 RED    = vec4(1.0, 0.0, 0.0, 1.0);
 const vec4 GREEN  = vec4(0.0, 1.0, 0.0, 1.0);
@@ -56,9 +50,11 @@ const vec4 CYAN       = vec4(0.0, 1.0, 1.0, 1.0);
 const vec4 palette[6] = vec4[6](RED, GREEN, BLUE, YELLOW, MAGENTA, CYAN);
 
 void main() {
-    vec3 vPosition      = vertexPosition;
-    vec2 vTexCoord      = vertexTexCoord;
-    vec2 vPixelCoord    = vertexTexCoord * iResolution;
+    vec3 vPosition   = vertexPosition;
+    vec2 vTexCoord   = vertexTexCoord;
+    vec2 vPixelCoord = vertexTexCoord * iResolution;
+    mat4 vmpv        = mvp;
+
     vertexDebugPayload0 = vertexNormal;
     vertexDebugPayload1 = vertexColor;
 #ifdef BARYCENTRIC
@@ -101,5 +97,14 @@ void main() {
 #endif
     fragCoord    = vPixelCoord;
     fragTexCoord = vTexCoord;
-    gl_Position  = mvp * vec4(vPosition, 1.0);
+    // gl_Position  = mvp * vec4(vPosition, 1.0);
+
+    // TODO: GOT IT!!!!!!!!!!!!!!!
+    float zoom    = 0.5;
+    mat4  zoomOut = mat4(zoom, 0.0, 0.0, 0.0, 0.0, zoom, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0,
+         (1.0 - zoom) * 0.5 * iResolution.x, (1.0 - zoom) * 0.5 * iResolution.y, 0.0, 1.0);
+
+    vmpv = vmpv * zoomOut;
+
+    gl_Position = vmpv * vec4(vPosition, 1.0);
 }

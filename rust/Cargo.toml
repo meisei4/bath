@@ -20,6 +20,9 @@ midir = { version = "0.10.1", optional = true }
 rdev = { version = "0.5.3", optional = true }
 terminal_size = { version = "0.4.2", optional = true }
 raylib = { version = "5.5.1", optional = true }
+#raylib = { git = "https://github.com/deltaphc/raylib-rs.git", optional = true }
+#raylib = { git = "https://github.com/raylib-rs/raylib-rs.git", branch = "unstable", optional = true}
+#raylib = { git = "https://github.com/raylib-rs/raylib-rs.git", branch = "stable", optional = true }
 
 [features]
 # TODO: Im very tired/annoyed by all this feature gating and gaurding and just this whole project..

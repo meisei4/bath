@@ -13,8 +13,8 @@ out vec4 finalColor;
 uniform vec2 iResolution;
 
 const float depthScalar     = 6.0;
-const int   tileSize        = 256;
-const float zigzagAmplitude = 1.4;
+const int   tileSize        = 32;
+const float zigzagAmplitude = 1.3;
 
 const vec4 BLACK = vec4(0.0, 0.0, 0.0, 1.0);
 const vec4 WHITE = vec4(1.0, 1.0, 1.0, 1.0);

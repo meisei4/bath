@@ -7,6 +7,7 @@ pub use raylib::math::Vector2 as RendererVector2;
 pub use godot::builtin::Variant as RendererMatrix;
 #[cfg(all(feature = "godot", not(feature = "raylib")))]
 pub use godot::builtin::Vector2 as RendererVector2;
+
 #[cfg(all(feature = "raylib", feature = "godot"))]
 pub use raylib::math::Matrix as RendererMatrix;
 #[cfg(all(feature = "raylib", feature = "godot"))]
@@ -35,5 +36,10 @@ pub trait Renderer {
         shader: &mut Self::Shader,
         render_target: &mut Self::RenderTarget,
     );
-    fn draw_shader_screen_alt_geom(&mut self, shader: &mut Self::Shader, render_target: &mut Self::RenderTarget);
+    fn draw_shader_screen_tilted_geom(
+        &mut self,
+        shader: &mut Self::Shader,
+        render_target: &mut Self::RenderTarget,
+        tilt: f32,
+    );
 }

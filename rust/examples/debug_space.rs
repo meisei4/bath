@@ -2,7 +2,6 @@ use bath::render::raylib::RaylibRenderer;
 use bath::render::raylib_util::{BATH_HEIGHT, BATH_WIDTH};
 use bath::render::{renderer::Renderer, renderer::RendererVector2};
 use bath_resources::glsl::{DEBUG_FRAG_PATH, DEBUG_VERT_PATH};
-use std::f32::consts::SQRT_2;
 use std::fs;
 use std::time::SystemTime;
 
@@ -14,7 +13,7 @@ fn main() {
     let mut buffer = render.init_render_target(i_resolution, true);
     let mut shader = render.load_shader(DEBUG_VERT_PATH, DEBUG_FRAG_PATH);
     render.set_uniform_vec2(&mut shader, "iResolution", i_resolution);
-    //_set_static_uniforms(&mut render, &mut shader);
+    //render.handle.set_matrix_modelview(&render.thread, mat_view);
     let mut vert_mod_time = get_file_mod_time(DEBUG_VERT_PATH);
     let mut frag_mod_time = get_file_mod_time(DEBUG_FRAG_PATH);
     while !render.handle.window_should_close() {
@@ -26,28 +25,13 @@ fn main() {
             println!("Shader modified, reloading...");
             shader = render.load_shader(DEBUG_VERT_PATH, DEBUG_FRAG_PATH);
             render.set_uniform_vec2(&mut shader, "iResolution", i_resolution);
-            //_set_static_uniforms(&mut render, &mut shader);
             vert_mod_time = new_vert_mod_time;
             frag_mod_time = new_frag_mod_time;
         }
         //render.draw_shader_screen(&mut shader, &mut buffer);
-        render.draw_shader_screen_pseudo_ortho_geom(&mut shader, &mut buffer);
-        //render.draw_shader_screen_alt_geom(&mut shader, &mut buffer);
+        //render.draw_shader_screen_pseudo_ortho_geom(&mut shader, &mut buffer);
+        render.draw_shader_screen_tilted_geom(&mut shader, &mut buffer, 45.0_f32);
     }
-}
-
-fn _set_static_uniforms(render: &mut RaylibRenderer, shader: &mut <RaylibRenderer as Renderer>::Shader) {
-    render.set_uniform_float(shader, "depthScalar", 6.0);
-    //render.set_uniform_int(shader, "tileSize", 128);
-    render.set_uniform_int(shader, "tileSize", 32);
-    //render.set_uniform_int(shader, "tileSize", 8);
-    render.set_uniform_float(shader, "zigzagAmplitude", 1.25);
-    render.set_uniform_vec2(shader, "scrollVelocity", RendererVector2::new(0.0, 0.05));
-    render.set_uniform_float(shader, "macroScale", 180.0);
-    render.set_uniform_float(shader, "microScale", 0.025);
-    render.set_uniform_float(shader, "uniformStretch", SQRT_2);
-    render.set_uniform_float(shader, "stretchY", 2.0);
-    render.set_uniform_vec2(shader, "staticOffset", RendererVector2::new(2.0, 0.0));
 }
 
 fn get_file_mod_time(path: &str) -> SystemTime {

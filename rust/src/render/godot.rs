@@ -110,7 +110,12 @@ impl Renderer for GodotRenderer {
         todo!()
     }
 
-    fn draw_shader_screen_alt_geom(&mut self, _shader: &mut Self::Shader, _render_target: &mut Self::RenderTarget) {
+    fn draw_shader_screen_tilted_geom(
+        &mut self,
+        _shader: &mut Self::Shader,
+        _render_target: &mut Self::RenderTarget,
+        _tilt: f32,
+    ) {
         todo!()
     }
 }
