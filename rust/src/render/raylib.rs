@@ -149,18 +149,78 @@ impl Renderer for RaylibRenderer {
 
     fn draw_shader_screen(&mut self, shader: &mut Self::Shader, render_target: &mut Self::RenderTarget) {
         let mut draw_handle = self.handle.begin_drawing(&self.thread);
-        draw_handle.clear_background(Color::BLACK);
+        //draw_handle.clear_background(Color::BLACK);
         let mut shader_mode = draw_handle.begin_shader_mode(shader);
         let width = render_target.width() as f32;
         let height = render_target.height() as f32;
         shader_mode.draw_texture_rec(render_target, flip_framebuffer(width, height), ORIGIN, Color::WHITE);
     }
 
-    fn draw_shader_screen_alt_geometry(&mut self, shader: &mut Self::Shader, render_target: &mut Self::RenderTarget) {
+    fn draw_shader_screen_pseudo_ortho_geom(
+        &mut self,
+        shader: &mut Self::Shader,
+        render_target: &mut Self::RenderTarget,
+    ) {
+        let mut draw_handle = self.handle.begin_drawing(&self.thread);
+        draw_handle.clear_background(Color::BLACK);
+        let width = render_target.width() as f32;
+        let height = render_target.height() as f32;
+        let distance_y = 1.0;
+        let fov_y = 2.0 * (height / 2.0 / distance_y).atan().to_degrees();
+        let observer_pos = Vector3::new(width / 2.0, distance_y, height / 2.0);
+        let target = Vector3::new(width / 2.0, 0.0, height / 2.0);
+        let up = Vector3::new(0.0, 0.0, 1.0);
+        let near_plane = 0.01;
+        let far_plane = 10.0;
+        let projection = Matrix::perspective(fov_y.to_radians(), width / height, near_plane, far_plane);
+        let view = Matrix::look_at(observer_pos, target, up);
+        let _shader = draw_handle.begin_shader_mode(shader);
+        unsafe {
+            ffi::rlSetMatrixModelview(view.into());
+            ffi::rlSetMatrixProjection(projection.into());
+
+            ffi::rlTexCoord2f(1.0, 1.0);
+            ffi::rlVertex3f(0.0, 0.0, height);
+            ffi::rlTexCoord2f(0.0, 1.0);
+            ffi::rlVertex3f(width, 0.0, height);
+            ffi::rlTexCoord2f(0.0, 0.0);
+            ffi::rlVertex3f(width, 0.0, 0.0);
+            ffi::rlTexCoord2f(1.0, 0.0);
+            ffi::rlVertex3f(0.0, 0.0, 0.0);
+
+            // 180° rotation + horizontal mirror (left↔right):
+            // ffi::rlTexCoord2f(0.0, 0.0);
+            // ffi::rlVertex3f(0.0,  0.0, height);
+            // ffi::rlTexCoord2f(1.0, 0.0);
+            // ffi::rlVertex3f(width, 0.0, height);
+            // ffi::rlTexCoord2f(1.0, 1.0);
+            // ffi::rlVertex3f(width, 0.0, 0.0);
+            // ffi::rlTexCoord2f(0.0, 1.0);
+            // ffi::rlVertex3f(0.0,  0.0, 0.0);
+
+            // some other shit
+            // ffi::rlTexCoord2f(0.0, 1.0);
+            // ffi::rlVertex3f(0.0, 0.0, height);
+            // ffi::rlTexCoord2f(1.0, 1.0);
+            // ffi::rlVertex3f(width, 0.0, height);
+            // ffi::rlTexCoord2f(1.0, 0.0);
+            // ffi::rlVertex3f(width, 0.0, 0.0);
+            // ffi::rlTexCoord2f(0.0, 0.0);
+            // ffi::rlVertex3f(0.0, 0.0, 0.0);
+        }
+    }
+
+    // TODO: figure out how to make this smoother:
+    //  1.potentially just pass the MVP as a uniform and bypass all of raylibs stuff?
+    //  1.5. learn how raylibs batch stuff works for the graphics pipeline
+    //  2. figure out how custom MVP works on different versions of openGL
+    //  3. figure out if there is any performance issue here with hacing to reset mvp every frame
+    //  3.5 i dont htink we should have to do it every frame because the MVP never changes.
+    fn draw_shader_screen_alt_geom(&mut self, shader: &mut Self::Shader, render_target: &mut Self::RenderTarget) {
         //https://github.com/raylib-rs/raylib-rs/blob/unstable/showcase/src/example/others/rlgl_standalone.rs#L4
         //https://github.com/raysan5/raylib/blob/master/examples/others/rlgl_standalone.c
         let mut draw_handle = self.handle.begin_drawing(&self.thread);
-        draw_handle.clear_background(Color::BLACK);
+        //draw_handle.clear_background(Color::BLACK);
         let fov_y = 90.0_f32;
         let observer_pos = Vector3::new(0.0, 250.0, 50.0);
         let target = Vector3::new(0.0, 0.0, 0.0);
@@ -171,72 +231,20 @@ impl Renderer for RaylibRenderer {
         let height = render_target.height() as f32;
         let mat_proj = Matrix::perspective(fov_y.to_radians(), width / height, near_plane, far_plane);
         let mat_view = Matrix::look_at(observer_pos, target, y_up);
-        let _ = draw_handle.begin_shader_mode(shader);
+        //TODO: you really need to learn how rust works, let _ = here will break everything
+        let _shader = draw_handle.begin_shader_mode(shader);
         unsafe {
-            ffi::rlEnableDepthTest();
             ffi::rlSetMatrixModelview(mat_view.into());
             ffi::rlSetMatrixProjection(mat_proj.into());
-            ffi::rlDrawRenderBatchActive();
-            ffi::rlSetTexture(render_target.texture.id);
-            ffi::rlBegin(ffi::RL_QUADS as i32);
-            ffi::rlColor4ub(Color::WHITE.r, Color::WHITE.g, Color::WHITE.b, Color::WHITE.a);
 
-            ffi::rlTexCoord2f(0.0, 1.0);
+            ffi::rlTexCoord2f(0.0, 0.0);
             ffi::rlVertex3f(-width / 2.0, 0.0, height / 2.0);
-
-            ffi::rlTexCoord2f(1.0, 1.0);
+            ffi::rlTexCoord2f(1.0, 0.0);
             ffi::rlVertex3f(width / 2.0, 0.0, height / 2.0);
-
-            ffi::rlTexCoord2f(1.0, 0.0);
-            ffi::rlVertex3f(width / 2.0, 0.0, -height / 2.0);
-
-            ffi::rlTexCoord2f(0.0, 0.0);
-            ffi::rlVertex3f(-width / 2.0, 0.0, -height / 2.0);
-
-            ffi::rlEnd();
-            ffi::rlSetTexture(0);
-        }
-    }
-
-    fn draw_shader_screen_ortho(&mut self, shader: &mut Self::Shader, render_target: &mut Self::RenderTarget) {
-        let mut draw_handle = self.handle.begin_drawing(&self.thread);
-        draw_handle.clear_background(Color::BLACK);
-        let width = render_target.width() as f32;
-        let height = render_target.height() as f32;
-        let distance_y = 1.0;
-        let fov_y = 2.0 * (height / 2.0 / distance_y).atan().to_degrees();
-        let observer_pos = Vector3::new(width / 2.0, distance_y, height / 2.0);
-        let target = Vector3::new(width / 2.0, 0.0, height / 2.0);
-        let up = Vector3::new(0.0, 0.0, -1.0);
-        let near_plane = 0.01;
-        let far_plane = 10.0;
-        let projection = Matrix::perspective(fov_y.to_radians(), width / height, near_plane, far_plane);
-        let view = Matrix::look_at(observer_pos, target, up);
-        let _ = draw_handle.begin_shader_mode(shader);
-        unsafe {
-            ffi::rlEnableDepthTest();
-            ffi::rlSetMatrixModelview(view.into());
-            ffi::rlSetMatrixProjection(projection.into());
-
-            ffi::rlDrawRenderBatchActive();
-            ffi::rlSetTexture(render_target.texture.id);
-            ffi::rlBegin(ffi::RL_QUADS as i32);
-            ffi::rlColor4ub(Color::WHITE.r, Color::WHITE.g, Color::WHITE.b, Color::WHITE.a);
-
-            ffi::rlTexCoord2f(0.0, 1.0);
-            ffi::rlVertex3f(0.0, 0.0, height);
-
             ffi::rlTexCoord2f(1.0, 1.0);
-            ffi::rlVertex3f(width, 0.0, height);
-
-            ffi::rlTexCoord2f(1.0, 0.0);
-            ffi::rlVertex3f(width, 0.0, 0.0);
-
-            ffi::rlTexCoord2f(0.0, 0.0);
-            ffi::rlVertex3f(0.0, 0.0, 0.0);
-
-            ffi::rlEnd();
-            ffi::rlSetTexture(0);
+            ffi::rlVertex3f(width / 2.0, 0.0, -height / 2.0);
+            ffi::rlTexCoord2f(0.0, 1.0);
+            ffi::rlVertex3f(-width / 2.0, 0.0, -height / 2.0);
         }
     }
 }

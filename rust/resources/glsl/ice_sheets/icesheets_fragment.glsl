@@ -25,30 +25,27 @@ const float waterDarkenMultiplier = 0.5;
 const float waterDepthDivision    = 9.0;
 const int   waterStaticThreshold  = 12;
 
-uniform vec2  iResolution;
-uniform float iTime;
+uniform vec2 iResolution;
 
 in vec2 fragTexCoord;
-in vec2 vertexNormCoord;
-in vec2 vertexNoiseOrigin;
-in vec2 vertexNoiseStep;
+in vec2 uvNoiseOrigin;
+in vec2 uvNoiseStep;
 
 out vec4 finalColor;
 
 int marchDepthInProjectedNoiseSpace() {
-    vec2 sampleProj = vertexNoiseOrigin;
+    vec2 sampleProj = uvNoiseOrigin;
     for (int depthStep = 0;; depthStep++) {
         if (perlin_noise_iq(sampleProj) < perlinSolidThreshold) {
             return depthStep;
         }
-        sampleProj += vertexNoiseStep;
+        sampleProj += uvNoiseStep;
     }
 }
 
 void main() {
-    vec2 fragCoord  = fragTexCoord * iResolution;
     int  depthSteps = marchDepthInProjectedNoiseSpace();
-    bool isSolid    = perlin_noise_iq(vertexNoiseOrigin) < perlinSolidThreshold ? true : false;
+    bool isSolid    = perlin_noise_iq(uvNoiseOrigin) < perlinSolidThreshold ? true : false;
     vec3 baseColor  = isSolid ? vec3(0.9) : pow(waterColor, vec3(float(depthSteps) / waterDepthDivision));
     if (!isSolid && depthSteps > waterStaticThreshold) {
         baseColor *= waterDarkenMultiplier;

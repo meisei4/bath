@@ -23,30 +23,28 @@ uniform mat4 mode7_mvp;
 uniform float iTime;
 uniform vec2  iResolution;
 
-uniform float depthScalar;
-uniform int   tileSize;
+// uniform float macroScale;
+// uniform float microScale;
+// uniform float uniformStretch;
+// uniform float stretchY;
+// uniform vec2  staticOffset;
 
-uniform mat3x2 uvXlinear;
-uniform mat3x2 uvXbilinear;
-uniform mat3x2 uvXnonlinear;
-uniform mat3x2 uvXaffine;
+const float depthScalar    = 6.0;
+const vec2  scrollVelocity = vec2(0.0, 0.05);
+const float macroScale     = 180.0;
+const float microScale     = 0.025;
+const float uniformStretch = 1.414213562;
+const float stretchY       = 2.0;
+const float PI             = 3.141592653589793;
+const mat2  rotationMatrix = mat2(cos(-PI * 0.25), -sin(-PI * 0.25), sin(-PI * 0.25), cos(-PI * 0.25));
+const vec2  staticOffset   = vec2(2.0, 0.0);
 
-#define PASS
+// #define PASS
 // #define BARYCENTRIC
-//  #define ANIMATE_UV
-//  #define AFFINE_UV
-//  #define PERSPECTIVE_PROJECTION_UV
+// #define PERSPECTIVE_PROJECTION_UV
 //  #define XY_POLYNOMIAL_APPROX_PROJECTION_UV
 //  #define X_LINEAR_Y_POLYNOMIAL_APPROX_PROJECTION_UV
-//  #define LINEAR_UV
-//  #define BILINEAR_UV
-
-// #define ANIMATE_GEOM
-// #define AFFINE_GEOM
-// #define PERSPECTIVE_PROJECTION_GEOM
-// #define LINEAR_GEOM
-// #define BILINEAR_GEOM
-// #define NONLINEAR_GEOM
+#define AFFINE_UV
 
 const vec4 RED    = vec4(1.0, 0.0, 0.0, 1.0);
 const vec4 GREEN  = vec4(0.0, 1.0, 0.0, 1.0);
@@ -64,6 +62,7 @@ void main() {
     vertexDebugPayload0 = vertexNormal;
     vertexDebugPayload1 = vertexColor;
 #ifdef BARYCENTRIC
+    // TODO: this perfectly demonstrates the difference between the custom geom and the default geom with flipping
     fragColor = palette[gl_VertexID % 6];
 #endif
 #ifdef PERSPECTIVE_PROJECTION_UV
@@ -81,7 +80,7 @@ void main() {
 #endif
 #ifdef X_LINEAR_Y_POLYNOMIAL_APPROX_PROJECTION_UV
     vec2 vAspectNormal = (vPixelCoord * 2.0 - iResolution) / iResolution.y;
-    // TODO: solved least common squares or something from the true perspective divide
+    // TODO: solved least common squares or something from the true perspective divide = Taylor expansion
     float k                     = log((depthScalar + 1.0) / (depthScalar - 1.0));
     float focalScale            = 0.5 * k;
     float gradScale             = 1.5 * (depthScalar * k - 2.0);
@@ -89,17 +88,18 @@ void main() {
     vec2  polynomialApproxProjY = vAspectNormal * vec2(focalScale, scaleY);
     vTexCoord                   = (polynomialApproxProjY + 1.0) * 0.5;
 #endif
-#ifdef PERSPECTIVE_PROJECTION_GEOM
-    fragColor    = vertexColor;
-    fragCoord    = vPixelCoord; // keep unwarped
-    fragTexCoord = vTexCoord; // potentially warped
-    gl_Position  = mode7_mvp * vec4(vPosition, 1.0);
-    return;
+#ifdef AFFINE_UV
+    vTexCoord += scrollVelocity * iTime;
+    vTexCoord *= macroScale * microScale;
+    vTexCoord.x *= uniformStretch;
+    vTexCoord.y *= stretchY;
+    vTexCoord = rotationMatrix * vTexCoord;
+    vTexCoord += staticOffset;
 #endif
 #ifdef PASS
     fragColor = vertexColor;
 #endif
-    fragCoord    = vPixelCoord; // keep unwarped
-    fragTexCoord = vTexCoord; // potentially warped
+    fragCoord    = vPixelCoord;
+    fragTexCoord = vTexCoord;
     gl_Position  = mvp * vec4(vPosition, 1.0);
 }

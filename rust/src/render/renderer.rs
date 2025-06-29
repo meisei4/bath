@@ -30,6 +30,10 @@ pub trait Renderer {
     fn draw_texture(&mut self, texture: &mut Self::Texture, render_target: &mut Self::RenderTarget);
     fn draw_screen(&mut self, render_target: &Self::RenderTarget);
     fn draw_shader_screen(&mut self, shader: &mut Self::Shader, render_target: &mut Self::RenderTarget);
-    fn draw_shader_screen_alt_geometry(&mut self, shader: &mut Self::Shader, render_target: &mut Self::RenderTarget);
-    fn draw_shader_screen_ortho(&mut self, shader: &mut Self::Shader, render_target: &mut Self::RenderTarget);
+    fn draw_shader_screen_pseudo_ortho_geom(
+        &mut self,
+        shader: &mut Self::Shader,
+        render_target: &mut Self::RenderTarget,
+    );
+    fn draw_shader_screen_alt_geom(&mut self, shader: &mut Self::Shader, render_target: &mut Self::RenderTarget);
 }

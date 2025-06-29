@@ -102,11 +102,15 @@ impl Renderer for GodotRenderer {
         self.draw_screen(render_target);
     }
 
-    fn draw_shader_screen_alt_geometry(&mut self, _shader: &mut Self::Shader, _render_target: &mut Self::RenderTarget) {
+    fn draw_shader_screen_pseudo_ortho_geom(
+        &mut self,
+        _shader: &mut Self::Shader,
+        _render_target: &mut Self::RenderTarget,
+    ) {
         todo!()
     }
 
-    fn draw_shader_screen_ortho(&mut self, _shader: &mut Self::Shader, _render_target: &mut Self::RenderTarget) {
+    fn draw_shader_screen_alt_geom(&mut self, _shader: &mut Self::Shader, _render_target: &mut Self::RenderTarget) {
         todo!()
     }
 }

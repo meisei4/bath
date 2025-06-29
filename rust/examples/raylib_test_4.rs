@@ -16,7 +16,6 @@ fn main() {
     let mut shader = render.load_shader(ICESHEETS_VERT_PATH, ICESHEETS_FRAG_PATH);
     render.set_uniform_vec2(&mut shader, "iResolution", i_resolution);
     render.set_uniform_float(&mut shader, "parallaxDepth", 6.0);
-    render.set_uniform_float(&mut shader, "strideLength", 1.0);
     render.set_uniform_float(&mut shader, "globalCoordinateScale", 180.0);
     render.set_uniform_vec2(&mut shader, "noiseScrollVelocity", Vector2::new(0.0, 0.05));
     render.set_uniform_float(&mut shader, "uniformStretchCorrection", SQRT_2);
@@ -26,8 +25,7 @@ fn main() {
     while !render.handle.window_should_close() {
         let t = render.handle.get_time() as f32;
         render.set_uniform_float(&mut shader, "iTime", t);
-        //render.draw_shader_screen(&mut shader, &mut buffer);
-        //render.draw_shader_screen_alt_geometry(&mut shader, &mut buffer);
-        render.draw_shader_screen_ortho(&mut shader, &mut buffer);
+        render.draw_shader_screen(&mut shader, &mut buffer);
+        //render.draw_shader_screen_alt_geom(&mut shader, &mut buffer);
     }
 }

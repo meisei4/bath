@@ -27,7 +27,7 @@ pub const BATH_WIDTH: i32 = 256 * 2;
 pub const BATH_HEIGHT: i32 = 384 * 2;
 
 pub fn create_rgba16_render_texture(width: i32, height: i32) -> RenderTexture2D {
-    // raylib_bath code: https://github.com/raysan5/raylib/blob/4bc8d3761c48f4dcf56f126640da8f3567dc516b/src/rtextures.c#L4246
+    // raylib code: https://github.com/raysan5/raylib/blob/4bc8d3761c48f4dcf56f126640da8f3567dc516b/src/rtextures.c#L4246
     let render_texture = unsafe {
         let fbo_id = rlLoadFramebuffer();
         rlEnableFramebuffer(fbo_id);
