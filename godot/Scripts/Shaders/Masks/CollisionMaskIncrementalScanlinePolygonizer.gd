@@ -79,25 +79,21 @@ func _on_frame_post_draw() -> void:
     var parallax_near_scale = MaskManager.ice_sheets.BufferAShaderMaterial.get_shader_parameter(
         "parallaxNearScale"
     )
-    var result: Dictionary = (
-        RustUtilSingleton
-        . rust_util
-        . process_scanline_closest_1(
-            prev_iTime,
-            iTime,
-            iResolution.y,
-            noise_vel,
-            depth,
-            global_coordinate_scale,
-            uniform_stretch_correction,
-            stretch_scalar_y,
-            parallax_near_scale,
-            scanline_alpha_buckets_top_row,
-            collision_polygons,
-            previous_scroll_accum,
-            scanline_count_per_polygon,
-            total_rows_scrolled
-        )
+    var result: Dictionary = RustUtilSingleton.rust_util.process_scanline_closest_1(
+        prev_iTime,
+        iTime,
+        iResolution.y,
+        noise_vel,
+        depth,
+        global_coordinate_scale,
+        uniform_stretch_correction,
+        stretch_scalar_y,
+        parallax_near_scale,
+        scanline_alpha_buckets_top_row,
+        collision_polygons,
+        previous_scroll_accum,
+        scanline_count_per_polygon,
+        total_rows_scrolled
     )
     scanline_count_per_polygon = result["scanline_count_per_polygon"]
     collision_polygons = result["collision_polygons"]
