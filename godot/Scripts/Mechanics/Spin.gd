@@ -5,10 +5,10 @@ signal animate_mechanic(mechanic_animation_data: MechanicAnimationData)
 
 signal state_completed(completed_state: MechanicController.STATE)
 
-var mechanic_animation_data: MechanicAnimationData
-var mut_ref_velocity: MutRefVelocity
+@export var mechanic_animation_data: MechanicAnimationData
+@export var mut_ref_velocity: MutRefVelocity
 
-const SPIN_DURATION: float = 0.5  # seconds for a full 2π spin
+@export var SPIN_DURATION: float = 0.5  # seconds for a full 2π spin
 var spin_speed: float = 1.0 / SPIN_DURATION
 var spin_normal: float = 0.0
 

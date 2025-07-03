@@ -1,7 +1,7 @@
 extends Node
 class_name SpinAnimation
 
-var sprite: Sprite2D
+@export var sprite: Sprite2D
 
 
 func _ready() -> void:

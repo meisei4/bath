@@ -55,11 +55,13 @@ func _init_concave_collision_polygon_pool() -> void:
     for i: int in range(MAX_COLLISION_SHAPES):
         var static_body: StaticBody2D = StaticBody2D.new()
         add_child(static_body)
+        static_body.owner = self
         var shape_node: CollisionShape2D = CollisionShape2D.new()
         shape_node.disabled = true
         var concave: ConcavePolygonShape2D = ConcavePolygonShape2D.new()
         shape_node.shape = concave
         static_body.add_child(shape_node)
+        shape_node.owner = static_body
         collision_mask_bodies.append(static_body)
         collision_mask_concave_polygons_pool.append(shape_node)
 

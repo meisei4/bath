@@ -5,18 +5,18 @@ signal animate_mechanic(mechanic_animation_data: MechanicAnimationData)
 
 signal state_completed(completed_state: MechanicController.STATE)
 
-var jump_data: JumpData
+@export var jump_data: JumpData
 @export var mechanic_animation_data: MechanicAnimationData
-var mut_ref_velocity: MutRefVelocity
+@export var mut_ref_velocity: MutRefVelocity
 var current_vertical_velocity: float
 var current_altitude_position: float
 
-const JUMP_DURATION: float = 1.0  # Total jump duration in seconds
+@export var JUMP_DURATION: float = 1.0  # Total jump duration in seconds
 var jump_speed: float = 1.0 / JUMP_DURATION
 var jump_normal: float = 0.0
 
 enum JumpPhase { GROUNDED, ASCENDING, DESCENDING }
-var current_phase: JumpPhase = JumpPhase.GROUNDED
+@export var current_phase: JumpPhase = JumpPhase.GROUNDED
 
 
 func _ready() -> void:

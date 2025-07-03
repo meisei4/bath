@@ -56,6 +56,12 @@ func _ready() -> void:
     add_child(BufferB)
     add_child(MainImage)
     add_child(waveform_texture)
+    BufferAShaderNode.owner = BufferA
+    BufferA.owner = self
+    BufferBShaderNode.owner = BufferB
+    BufferB.owner = self
+    MainImage.owner = self
+
     AudioPoolManager.play_music(ogg_stream)
 
 

@@ -17,9 +17,11 @@ func _ready() -> void:
     fracturing_timer.wait_time = GlacierConstants.FRACTURING_CYCLE_INTERVAL
     fracturing_timer.timeout.connect(_on_simulation_tick)
     add_child(fracturing_timer)
+    fracturing_timer.owner = self
     fracturing_timer.start()
     water_shader.z_index = -1
     add_child(water_shader)
+    water_shader.owner = self
     iceberg_manager.iceberg_cluster_formed.connect(_on_iceberg_cluster_formed)
     iceberg_manager.iceberg_cluster_moved.connect(_on_iceberg_cluster_moved)
     iceberg_manager.force_fracture_glacier_cell.connect(
@@ -31,6 +33,7 @@ func _ready() -> void:
 func setup_glacier() -> void:
     glacier_map = GLACIER_MAP_SCENE.instantiate() as TileMapLayer
     add_child(glacier_map)
+    glacier_map.owner = self
     glacier_data.initialize_from_tilemap(glacier_map)
 
 

@@ -1,17 +1,17 @@
 extends Node
 class_name AnimationController
 
-var sprite: Sprite2D
-var animation_scenes: Array[PackedScene] = [
+@export var sprite: Sprite2D
+@export var animation_scenes: Array[PackedScene] = [
     preload(ResourcePaths.JUMP_ANIMATION),
     preload(ResourcePaths.DIVE_ANIMATION),
     preload(ResourcePaths.SPIN_ANIMATION),
 ]
 
-var mechanics: Array[Node]
-var jump: Jump
-var dive: Dive
-var spin: Spin
+@export var mechanics: Array[Node]
+@export var jump: Jump
+@export var dive: Dive
+@export var spin: Spin
 
 
 func _ready() -> void:

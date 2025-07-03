@@ -129,18 +129,10 @@ var procedural_script_found: bool = false
 
 
 func bake_better() -> void:
-    print("Starting bake for: %s" % name)
-
     var cloned_root: Node = clone_and_bake_node(self)
-
     set_owner_recursively(cloned_root, cloned_root)
-
     var packed_scene: PackedScene = PackedScene.new()
-    var pack_status: int = packed_scene.pack(cloned_root)
-    if pack_status != OK:
-        push_error("Pack failed: %d" % pack_status)
-        return
-
+    packed_scene.pack(cloned_root)
     var output_folder: String = "res://Baked/Scenes"
     DirAccess.make_dir_recursive_absolute(output_folder)
 
@@ -149,11 +141,7 @@ func bake_better() -> void:
     if procedural_script_found:
         save_flags = ResourceSaver.FLAG_BUNDLE_RESOURCES
 
-    var save_status: int = ResourceSaver.save(packed_scene, scene_file_path, save_flags)
-    if save_status != OK:
-        push_error("Save failed: %d" % save_status)
-    else:
-        print("Scene saved to %s" % scene_file_path)
+    ResourceSaver.save(packed_scene, scene_file_path, save_flags)
 
 
 func clone_and_bake_node(original_node: Node) -> Node:
@@ -220,9 +208,3 @@ func bake_script_if_needed(node: Node) -> void:
                 print("Assigned baked script to node: %s" % node.name)
             else:
                 push_error("Script reload failed on node: %s" % node.name)
-
-
-func set_owner_recursively(current_node: Node, owner_node: Node) -> void:
-    for child_node in current_node.get_children():
-        child_node.owner = owner_node
-        set_owner_recursively(child_node, owner_node)

@@ -31,6 +31,10 @@ func _ready() -> void:
     add_child(BufferA)
     add_child(MainImage)
     add_child(audio_texture)
+    BufferAShaderNode.owner = BufferA
+    BufferA.owner = self
+    MainImage.owner = self
+    audio_texture.owner = self
 
 
 func _process(_delta: float) -> void:

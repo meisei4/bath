@@ -25,18 +25,21 @@ func _ready() -> void:
     sfx_pool.bus = AudioBus.BUS.SFX
     sfx_pool.loop_on_end = false
     add_child(sfx_pool)
+    sfx_pool.owner = self
 
     music_pool = AudioPool.new()
     music_pool.pool_size = MUSIC_POOL_SIZE
     music_pool.bus = AudioBus.BUS.MUSIC
     music_pool.loop_on_end = true
     add_child(music_pool)
+    music_pool.owner = self
 
     input_pool = AudioPool.new()
     input_pool.pool_size = INPUT_POOL_SIZE
     input_pool.bus = AudioBus.BUS.INPUT
     input_pool.loop_on_end = false
     add_child(input_pool)
+    input_pool.owner = self
 
 
 func _setup_buses(buses: Array[AudioBus.BUS]) -> void:

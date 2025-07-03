@@ -45,6 +45,14 @@ func _ready() -> void:
     #add_child(ioi_texture)
     add_child(pitch_dimension)
     add_child(rhythm_dimension)
+    BufferAShaderNode.owner = BufferA
+    BufferA.owner = self
+    MainImage.owner = self
+    fft_texture.owner = self
+    #ioi_texture.owner = self
+    pitch_dimension.owner = self
+    rhythm_dimension.owner = self
+
     BufferAShaderMaterial.set_shader_parameter("bpm", rhythm_dimension.bpm)
     var f_onsets: PackedVector2Array = rhythm_dimension.f_onsets_flat_buffer
     var j_onsets: PackedVector2Array = rhythm_dimension.j_onsets_flat_buffer

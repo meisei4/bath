@@ -1,0 +1,145 @@
+[gd_scene load_steps=34 format=3]
+
+[ext_resource type="Script" path="res://Scripts/Entities/Characters/FlatDummy.gd" id="1_awbxl"]
+[ext_resource type="Script" path="res://Scripts/Mechanics/MechanicsData/MutRefVelocity.gd" id="2_vvl8x"]
+[ext_resource type="Texture2D" path="res://Resources/sprites/capsule.png" id="3_aoq1s"]
+[ext_resource type="PackedScene" path="res://Scenes/Mechanics/Strafe.tscn" id="4_ifik8"]
+[ext_resource type="Script" path="res://Scripts/Mechanics/Strafe.gd" id="5_ofif0"]
+[ext_resource type="Script" path="res://Scripts/Mechanics/MechanicsData/StrafeData.gd" id="6_mqajj"]
+[ext_resource type="PackedScene" path="res://Scenes/Mechanics/Cruising.tscn" id="7_xkwyo"]
+[ext_resource type="Script" path="res://Scripts/Mechanics/Cruising.gd" id="8_8ba6i"]
+[ext_resource type="Script" path="res://Scripts/Mechanics/MechanicsData/CruisingData.gd" id="9_sqbqo"]
+[ext_resource type="PackedScene" path="res://Scenes/Mechanics/Jump.tscn" id="10_x2wof"]
+[ext_resource type="Script" path="res://Scripts/Mechanics/Jump.gd" id="11_el0dw"]
+[ext_resource type="Script" path="res://Scripts/Mechanics/MechanicsData/JumpData.gd" id="12_5d5hi"]
+[ext_resource type="Script" path="res://Scripts/Mechanics/MechanicsData/MechanicAnimationData.gd" id="13_hjg2g"]
+[ext_resource type="PackedScene" path="res://Scenes/Mechanics/Dive.tscn" id="14_nbds6"]
+[ext_resource type="Script" path="res://Scripts/Mechanics/Dive.gd" id="15_8balu"]
+[ext_resource type="Script" path="res://Scripts/Mechanics/MechanicsData/DiveData.gd" id="16_jmady"]
+[ext_resource type="PackedScene" path="res://Scenes/Mechanics/Spin.tscn" id="17_uopc0"]
+[ext_resource type="Script" path="res://Scripts/Mechanics/Spin.gd" id="18_7gh1s"]
+[ext_resource type="PackedScene" path="res://Scenes/Mechanics/JumpAnimation.tscn" id="19_wtux0"]
+[ext_resource type="Script" path="res://Scripts/Mechanics/JumpAnimation.gd" id="20_lkrcm"]
+[ext_resource type="PackedScene" path="res://Scenes/Mechanics/DiveAnimation.tscn" id="21_wttll"]
+[ext_resource type="Script" path="res://Scripts/Mechanics/DiveAnimation.gd" id="22_brwr7"]
+[ext_resource type="PackedScene" path="res://Scenes/Mechanics/SpinAnimation.tscn" id="23_mjg4s"]
+[ext_resource type="Script" path="res://Scripts/Mechanics/SpinAnimation.gd" id="24_05q54"]
+
+[sub_resource type="Resource" id="Resource_nqsxb"]
+script = ExtResource("2_vvl8x")
+val = Vector2(0, 0)
+
+[sub_resource type="ConvexPolygonShape2D" id="ConvexPolygonShape2D_rupt1"]
+points = PackedVector2Array(-7.5, -7.5, -5.5, -9.5, -1.5, -11.5, 1.5, -11.5, 5.5, -9.5, 7.5, -7.5, 7.5, 7.5, 5.5, 9.5, 1.5, 11.5, -1.5, 11.5, -5.5, 9.5, -7.5, 7.5, -7.5, -7.5)
+
+[sub_resource type="Resource" id="Resource_qs01d"]
+script = ExtResource("6_mqajj")
+MAX_SPEED = 60.0
+ACCELERATION = 4000.0
+DECELERATION = 2000.0
+
+[sub_resource type="Resource" id="Resource_0p08s"]
+script = ExtResource("9_sqbqo")
+MAX_SPEED = 60.0
+ACCELERATION = 4000.0
+DECELERATION = 2000.0
+
+[sub_resource type="Resource" id="Resource_kiq8r"]
+script = ExtResource("12_5d5hi")
+OVERRIDE_GRAVITY = 0.0
+INITIAL_VERTICAL_POSITION = 0.0
+INITIAL_JUMP_VELOCITY = 8.0
+FORWARD_VELOCITY = 12.0
+
+[sub_resource type="Resource" id="Resource_ly17g"]
+script = ExtResource("13_hjg2g")
+current_vertical_position = 0.0
+vertical_normal = 0.0
+ascending = false
+
+[sub_resource type="Resource" id="Resource_61ei2"]
+script = ExtResource("16_jmady")
+LEVEL_DEPTH = 0.0
+MAX_DIVE_DEPTH = -1.0
+DEPTH_SPEED = 8.0
+THRESHOLD = 0.001
+
+[sub_resource type="Resource" id="Resource_yymxw"]
+script = ExtResource("13_hjg2g")
+current_vertical_position = 0.0
+vertical_normal = 0.0
+ascending = false
+
+[sub_resource type="Resource" id="Resource_lov5y"]
+script = ExtResource("13_hjg2g")
+current_vertical_position = 0.0
+vertical_normal = 0.0
+ascending = false
+
+[node name="CharacterBody2D" type="CharacterBody2D" node_paths=PackedStringArray("sprite", "collision_shape", "jump", "dive", "spin", "all_mechanics", "jump_animation", "dive_animation", "spin_animation")]
+z_index = 1
+script = ExtResource("1_awbxl")
+sprite = NodePath("Sprite2D")
+collision_shape = NodePath("CollisionShape2D")
+mut_ref_velocity = SubResource("Resource_nqsxb")
+jump = NodePath("Jump")
+dive = NodePath("Dive")
+spin = NodePath("Spin")
+all_mechanics = [NodePath("Strafe"), NodePath("Cruising"), NodePath("Jump"), NodePath("Dive"), NodePath("Spin")]
+jump_animation = NodePath("JumpAnimation")
+dive_animation = NodePath("DiveAnimation")
+spin_animation = NodePath("SpinAnimation")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture_filter = 1
+texture = ExtResource("3_aoq1s")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("ConvexPolygonShape2D_rupt1")
+
+[node name="Strafe" type="Node" parent="." instance=ExtResource("4_ifik8")]
+script = ExtResource("5_ofif0")
+mut_ref_velocity = SubResource("Resource_nqsxb")
+strafe_data = SubResource("Resource_qs01d")
+metadata/_custom_type_script = "uid://dsps8nekbea1s"
+
+[node name="Cruising" type="Node" parent="." instance=ExtResource("7_xkwyo")]
+script = ExtResource("8_8ba6i")
+mut_ref_velocity = SubResource("Resource_nqsxb")
+cruising_data = SubResource("Resource_0p08s")
+metadata/_custom_type_script = "uid://bp8lx60pyh0gi"
+
+[node name="Jump" type="Node" parent="." instance=ExtResource("10_x2wof")]
+script = ExtResource("11_el0dw")
+jump_data = SubResource("Resource_kiq8r")
+mechanic_animation_data = SubResource("Resource_ly17g")
+mut_ref_velocity = SubResource("Resource_nqsxb")
+metadata/_custom_type_script = "uid://dak4nmt80lkir"
+
+[node name="Dive" type="Node" parent="." instance=ExtResource("14_nbds6")]
+script = ExtResource("15_8balu")
+dive_data = SubResource("Resource_61ei2")
+mechanic_animation_data = SubResource("Resource_yymxw")
+mut_ref_velocity = SubResource("Resource_nqsxb")
+metadata/_custom_type_script = "uid://bd4d02py7c1y5"
+
+[node name="Spin" type="Node" parent="." instance=ExtResource("17_uopc0")]
+script = ExtResource("18_7gh1s")
+mechanic_animation_data = SubResource("Resource_lov5y")
+mut_ref_velocity = SubResource("Resource_nqsxb")
+metadata/_custom_type_script = "uid://b8vsayp2tnykh"
+
+[node name="JumpAnimation" type="Node" parent="." node_paths=PackedStringArray("sprite") instance=ExtResource("19_wtux0")]
+script = ExtResource("20_lkrcm")
+sprite = NodePath("../Sprite2D")
+metadata/_custom_type_script = "uid://beuhelx1f6m0i"
+
+[node name="DiveAnimation" type="Node" parent="." node_paths=PackedStringArray("sprite") instance=ExtResource("21_wttll")]
+script = ExtResource("22_brwr7")
+sprite = NodePath("../Sprite2D")
+metadata/_custom_type_script = "uid://smggmxyj3q3g"
+
+[node name="SpinAnimation" type="Node" parent="." node_paths=PackedStringArray("sprite") instance=ExtResource("23_mjg4s")]
+script = ExtResource("24_05q54")
+sprite = NodePath("../Sprite2D")
+metadata/_custom_type_script = "uid://bhb8q2ecxgnlp"

@@ -5,17 +5,17 @@ signal animate_mechanic(mechanic_animation_data: MechanicAnimationData)
 
 signal state_completed(completed_state: MechanicController.STATE)
 
-var dive_data: DiveData
-var mechanic_animation_data: MechanicAnimationData
-var mut_ref_velocity: MutRefVelocity
+@export var dive_data: DiveData
+@export var mechanic_animation_data: MechanicAnimationData
+@export var mut_ref_velocity: MutRefVelocity
 var in_queued_ascend: bool
 var current_depth_position: float
 var target_depth_position: float
 
 enum DivePhase { LEVEL, ASCENDING, DIVING }
-var current_phase: DivePhase = DivePhase.LEVEL
+@export var current_phase: DivePhase = DivePhase.LEVEL
 
-var debug_autoswim: bool = false  #true
+@export var debug_autoswim: bool = true  #true
 const _DEBUG_PERIOD: float = 3.0
 var _debug_clock: float = 0.0
 

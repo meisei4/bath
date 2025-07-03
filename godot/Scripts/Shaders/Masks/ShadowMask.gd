@@ -41,6 +41,7 @@ func _ready() -> void:
     BaseCanvasLayer = CanvasLayer.new()
     BaseCanvasLayer.layer = 1
     add_child(BaseCanvasLayer)
+    BaseCanvasLayer.owner = self
     #TODO: always apply umbral zone first if there are overlaps in the
     # zones, because dither is going to serve as a penumbral gradient perhaps
     setup_ubmral_zone()
@@ -56,6 +57,7 @@ func setup_ubmral_zone() -> void:
     )
     umbral_zone_instance.set_zone_bounds(screen_space_umbral_zone_bounds)
     add_child(umbral_zone_instance)
+    umbral_zone_instance.owner = self
 
     UmbralShaderMaterial = ShaderMaterial.new()
     UmbralShaderMaterial.shader = UmbralShader
@@ -81,7 +83,9 @@ func setup_ubmral_zone() -> void:
     UmbralBackBuffer = BackBufferCopy.new()
     UmbralBackBuffer.copy_mode = BackBufferCopy.COPY_MODE_VIEWPORT
     UmbralBackBuffer.add_child(UmbralShaderNode)
+    UmbralShaderNode.owner = UmbralBackBuffer
     BaseCanvasLayer.add_child(UmbralBackBuffer)
+    UmbralBackBuffer.owner = BaseCanvasLayer
     #BaseCanvasLayer.add_child(UmbralShaderNode)
 
 
@@ -94,6 +98,7 @@ func setup_dither_zone() -> void:
     )
     dither_zone_instance.set_zone_bounds(screen_space_dither_zone_bounds)
     add_child(dither_zone_instance)
+    dither_zone_instance.owner = self
 
     DitherShaderMaterial = ShaderMaterial.new()
     DitherShaderMaterial.shader = DitherShader
@@ -108,5 +113,7 @@ func setup_dither_zone() -> void:
     DitherBackBuffer = BackBufferCopy.new()
     DitherBackBuffer.copy_mode = BackBufferCopy.COPY_MODE_VIEWPORT
     DitherBackBuffer.add_child(DitherShaderNode)
+    DitherShaderNode.owner = DitherBackBuffer
     BaseCanvasLayer.add_child(DitherBackBuffer)
+    DitherBackBuffer.owner = BaseCanvasLayer
     #BaseCanvasLayer.add_child(DitherShaderNode)

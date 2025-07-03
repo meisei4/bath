@@ -44,6 +44,5 @@ void main() {
     finalColor = fragColor;
     return;
 #endif
-    // TODO: Vert colors do not track here, fix it if you want to have it work smoother
     finalColor = fColor;
 }

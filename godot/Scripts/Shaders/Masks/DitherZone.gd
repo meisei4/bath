@@ -10,6 +10,7 @@ func _init() -> void:
     var shape: RectangleShape2D = RectangleShape2D.new()
     collision_shape.shape = shape
     add_child(collision_shape)
+    collision_shape.owner = self
     monitoring = true
     monitorable = true
     set_collision_layer_value(1, true)

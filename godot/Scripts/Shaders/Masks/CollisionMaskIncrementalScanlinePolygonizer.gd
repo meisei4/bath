@@ -34,6 +34,7 @@ func _on_ice_sheets_entered(ice_sheets: IceSheets) -> void:
     isp_texture = ISPTexture.new()
     isp_texture.TargetFrameBuffer = ice_sheets.BufferA
     add_child(isp_texture)
+    isp_texture.owner = self
     RenderingServer.frame_post_draw.connect(_on_frame_post_draw)
 
 
@@ -46,12 +47,14 @@ func _init_concave_collision_polygon_pool() -> void:
     for i: int in range(MAX_POLYGONS):
         var static_body: StaticBody2D = StaticBody2D.new()
         add_child(static_body)
+        static_body.owner = self
         collision_mask_bodies.append(static_body)
         var shape_node: CollisionShape2D = CollisionShape2D.new()
         shape_node.disabled = true
         var concave: ConcavePolygonShape2D = ConcavePolygonShape2D.new()
         shape_node.shape = concave
         static_body.add_child(shape_node)
+        shape_node.owner = static_body
         collision_mask_concave_polygons_pool.append(shape_node)
 
 

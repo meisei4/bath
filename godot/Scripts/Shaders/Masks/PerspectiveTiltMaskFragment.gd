@@ -44,11 +44,14 @@ func _ready() -> void:
     BufferAShaderNode = ColorRect.new()
     BufferAShaderNode.size = iResolution
     BufferAShaderNode.material = BufferAShaderMaterial
-    BufferA.add_child(BufferAShaderNode)
-    add_child(BufferA)
     MainImage = TextureRect.new()
     MainImage.texture = BufferA.get_texture()
+    BufferA.add_child(BufferAShaderNode)
+    add_child(BufferA)
     add_child(MainImage)
+    BufferAShaderNode.owner = BufferA
+    BufferA.owner = self
+    MainImage.owner = self
     MaskManager.register_perspective_tilt_mask_fragment(self)
 
 

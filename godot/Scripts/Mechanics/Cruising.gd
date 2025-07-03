@@ -3,7 +3,7 @@ class_name Cruising
 
 signal state_completed(completed_state: MechanicController.STATE)
 
-var mut_ref_velocity: MutRefVelocity
+@export var mut_ref_velocity: MutRefVelocity
 @export var cruising_data: CruisingData
 var direction: int = 0
 

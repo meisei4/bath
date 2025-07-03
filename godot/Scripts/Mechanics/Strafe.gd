@@ -3,8 +3,8 @@ class_name Strafe
 
 signal state_completed(completed_state: MechanicController.STATE)
 
-var mut_ref_velocity: MutRefVelocity
-var strafe_data: StrafeData
+@export var mut_ref_velocity: MutRefVelocity
+@export var strafe_data: StrafeData
 var direction: int = 0
 
 enum StrafePhase { LEFT, RIGHT, IDLE }

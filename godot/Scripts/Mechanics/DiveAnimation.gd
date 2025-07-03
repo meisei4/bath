@@ -1,8 +1,8 @@
 extends Node
 class_name DiveAnimation
 
-var shader: Shader = preload(ResourcePaths.DIVE_SHADER)
-var sprite: Sprite2D
+@export var shader: Shader = preload(ResourcePaths.DIVE_SHADER)
+@export var sprite: Sprite2D
 
 
 func _ready() -> void:

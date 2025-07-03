@@ -79,8 +79,10 @@ func _ready() -> void:
     collision.owner = character_body
 
     var capsule_script: Script = load(ResourcePaths.CAPSULE_DUMMY_SCRIPT) as Script
+    #var capsule_script: Script = load(ResourcePaths.FLAT_DUMMY_SCRIPT) as Script
     character_body.set_script(capsule_script)
 
     var scene: PackedScene = PackedScene.new()
     scene.pack(character_body)
     ResourceSaver.save(scene, ResourcePaths.CAPSULE_DUMMY)
+    #ResourceSaver.save(scene, ResourcePaths.FLAT_DUMMY)

@@ -45,6 +45,10 @@ func _ready() -> void:
     BufferA.add_child(BufferAShaderNode)
     add_child(BufferA)
     add_child(MainImage)
+    BufferAShaderNode.owner = BufferA
+    BufferA.owner = self
+    MainImage.owner = self
+
     MaskManager.register_ice_sheets(self)
 
 

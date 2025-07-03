@@ -3,10 +3,10 @@ class_name MechanicController
 
 enum STATE { DIVE, DIVE_ASCEND, JUMP, IDLE, SPIN }
 signal state_changed(new_state: MechanicController.STATE)
-var current_state: MechanicController.STATE = MechanicController.STATE.DIVE
+@export var current_state: MechanicController.STATE = MechanicController.STATE.DIVE
 var queued_state: MechanicController.STATE = MechanicController.STATE.IDLE
 
-var mechanic_scenes: Array[PackedScene] = [
+@export var mechanic_scenes: Array[PackedScene] = [
     preload(ResourcePaths.STRAFE_MECHANIC),
     preload(ResourcePaths.CRUISING_MECHANIC),
     preload(ResourcePaths.JUMP_MECHANIC),
@@ -14,7 +14,7 @@ var mechanic_scenes: Array[PackedScene] = [
     preload(ResourcePaths.SPIN_MECHANIC),
 ]
 
-var mut_ref_velocity: MutRefVelocity
+@export var mut_ref_velocity: MutRefVelocity
 
 
 func _ready() -> void:

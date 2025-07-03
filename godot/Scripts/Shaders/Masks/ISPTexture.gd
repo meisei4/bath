@@ -40,7 +40,9 @@ func _ready() -> void:
         ScanlineShaderMaterial.set_shader_parameter("iChannel0", TargetFrameBuffer.get_texture())
 
     Scanline.add_child(ScanlineShaderNode)
+    ScanlineShaderNode.owner = Scanline
     add_child(Scanline)
+    Scanline.owner = self
     #TODO: this is an ugly little issue where if i try to set the scanline texture to height 1 it wont work
     var img: Image = Scanline.get_texture().get_image()
     print("Scanline image is actually ", img.get_width(), "×", img.get_height())

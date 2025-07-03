@@ -21,7 +21,12 @@ const WATER_PROJECTED_SCENE: String = "res://Scenes/Shaders/Water/WaterProjected
 const GLACIER_GEN_SCENE: String = "res://Scenes/Entities/Glacier/GlacierGen.tscn"
 const CAPSULE_DUMMY_GEN: String = "res://Scenes/Entities/Characters/CapsuleDummyGen.tscn"
 const CAPSULE_DUMMY_SCRIPT: String = "res://Scripts/Entities/Characters/CapsuleDummy.gd"
+const FLAT_DUMMY_SCRIPT: String = "res://Scripts/Entities/Characters/FlatDummy.gd"
 const CAPSULE_DUMMY: String = "res://Scenes/Entities/Characters/CapsuleDummy.tscn"
+const FLAT_DUMMY: String = "res://Scenes/Entities/Characters/FlatDummy.tscn"
+
+const ANIMATION_CONTROLLER: String = "res://Scenes/Mechanics/AnimationController.tscn"
+const MECHANIC_CONTROLLER: String = "res://Scenes/Mechanics/MechanicController.tscn"
 
 const STRAFE_MECHANIC: String = "res://Scenes/Mechanics/Strafe.tscn"
 const CRUISING_MECHANIC: String = "res://Scenes/Mechanics/Cruising.tscn"

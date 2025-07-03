@@ -15,6 +15,7 @@ func _ready() -> void:
         p.bus = AudioBus.val(bus)
         p.finished.connect(_on_finished.bind(p))
         add_child(p)
+        p.owner = self
         players.append(p)
         available.append(p)
 

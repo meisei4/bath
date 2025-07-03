@@ -1,9 +1,9 @@
 extends Node
 class_name CollisionController
 
-var mechanics: Array[Node]
-var jump: Jump
-var dive: Dive
+@export var mechanics: Array[Node]
+@export var jump: Jump
+@export var dive: Dive
 
 
 func _ready() -> void:
