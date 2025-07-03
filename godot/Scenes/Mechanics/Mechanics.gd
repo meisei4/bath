@@ -1,9 +1,11 @@
 extends Node2D
 class_name Mechanics
 
-@export var capsule_dummy: CapsuleDummy
-@export var capsule_dummy_scene: PackedScene = preload(ResourcePaths.CAPSULE_DUMMY)
+@onready var capsule_dummy: CapsuleDummy = $CharacterBody2D
+@onready var capsule_dummy_scene: PackedScene = preload(ResourcePaths.CAPSULE_DUMMY)
 
+#@export var capsule_dummy: CapsuleDummy
+#@export var capsule_dummy_scene: PackedScene = preload(ResourcePaths.CAPSULE_DUMMY)
 
 func _ready() -> void:
     capsule_dummy = capsule_dummy_scene.instantiate()

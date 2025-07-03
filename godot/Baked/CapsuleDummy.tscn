@@ -1,0 +1,182 @@
+[gd_scene load_steps=34 format=3 uid="uid://d4a0taohfsg7i"]
+
+[ext_resource type="Script" uid="uid://cfndhqfjgfs1a" path="res://Scripts/Entities/Characters/CapsuleDummy.gd" id="1_2gp3x"]
+[ext_resource type="Texture2D" uid="uid://ciqt3sis1qfe2" path="res://Resources/sprites/capsule.png" id="2_12tij"]
+[ext_resource type="Script" uid="uid://cvjrw27duhoar" path="res://Scripts/Mechanics/MechanicController.gd" id="3_shdcl"]
+[ext_resource type="Script" uid="uid://2nh7unjt6pys" path="res://Scripts/Mechanics/MechanicsData/MutRefVelocity.gd" id="4_12tij"]
+[ext_resource type="Script" uid="uid://dak4nmt80lkir" path="res://Scripts/Mechanics/Jump.gd" id="4_ta2sv"]
+[ext_resource type="Script" uid="uid://bd4d02py7c1y5" path="res://Scripts/Mechanics/Dive.gd" id="5_e1nbt"]
+[ext_resource type="Script" uid="uid://bbjl3vrdnvbdd" path="res://Scripts/Mechanics/MechanicsData/JumpData.gd" id="6_fvl6b"]
+[ext_resource type="Script" uid="uid://b8vsayp2tnykh" path="res://Scripts/Mechanics/Spin.gd" id="6_hxxv3"]
+[ext_resource type="Script" uid="uid://bp8lx60pyh0gi" path="res://Scripts/Mechanics/Cruising.gd" id="7_fvl6b"]
+[ext_resource type="Script" uid="uid://c0jqvqibrmydq" path="res://Scripts/Mechanics/MechanicsData/MechanicAnimationData.gd" id="7_geu64"]
+[ext_resource type="Script" uid="uid://dsps8nekbea1s" path="res://Scripts/Mechanics/Strafe.gd" id="8_geu64"]
+[ext_resource type="Script" uid="uid://dt0uu4jt48sjm" path="res://Scripts/Mechanics/AnimationController.gd" id="9_n00tm"]
+[ext_resource type="Script" uid="uid://cn776p2gauhvr" path="res://Scripts/Mechanics/MechanicsData/CruisingData.gd" id="9_shdcl"]
+[ext_resource type="Script" uid="uid://s2ptkdeqgm2s" path="res://Scripts/Mechanics/MechanicsData/DiveData.gd" id="9_wng41"]
+[ext_resource type="Script" uid="uid://beuhelx1f6m0i" path="res://Scripts/Mechanics/JumpAnimation.gd" id="10_wng41"]
+[ext_resource type="Script" uid="uid://smggmxyj3q3g" path="res://Scripts/Mechanics/DiveAnimation.gd" id="11_ytfu3"]
+[ext_resource type="Script" uid="uid://bhb8q2ecxgnlp" path="res://Scripts/Mechanics/SpinAnimation.gd" id="12_rpp4a"]
+[ext_resource type="Script" uid="uid://6l46yt0uo06t" path="res://Scripts/Mechanics/CollisionController.gd" id="13_clfif"]
+[ext_resource type="Script" uid="uid://b2g6oo3vgcglq" path="res://Scripts/Mechanics/MechanicsData/StrafeData.gd" id="14_ytfu3"]
+
+[sub_resource type="ConvexPolygonShape2D" id="ConvexPolygonShape2D_mujhx"]
+points = PackedVector2Array(-7.5, -7.5, -5.5, -9.5, -1.5, -11.5, 1.5, -11.5, 5.5, -9.5, 7.5, -7.5, 7.5, 7.5, 5.5, 9.5, 1.5, 11.5, -1.5, 11.5, -5.5, 9.5, -7.5, 7.5, -7.5, -7.5)
+
+[sub_resource type="Resource" id="Resource_shdcl"]
+script = ExtResource("4_12tij")
+val = Vector2(0, 0)
+metadata/_custom_type_script = "uid://2nh7unjt6pys"
+
+[sub_resource type="Resource" id="Resource_rpp4a"]
+script = ExtResource("6_fvl6b")
+OVERRIDE_GRAVITY = 0.0
+INITIAL_VERTICAL_POSITION = 0.0
+INITIAL_JUMP_VELOCITY = 8.0
+FORWARD_VELOCITY = 12.0
+metadata/_custom_type_script = "uid://bbjl3vrdnvbdd"
+
+[sub_resource type="Resource" id="Resource_clfif"]
+script = ExtResource("7_geu64")
+current_vertical_position = 0.0
+vertical_normal = 0.0
+ascending = false
+metadata/_custom_type_script = "uid://c0jqvqibrmydq"
+
+[sub_resource type="Resource" id="Resource_w6hjs"]
+script = ExtResource("4_12tij")
+val = Vector2(0, 0)
+metadata/_custom_type_script = "uid://2nh7unjt6pys"
+
+[sub_resource type="Resource" id="Resource_v8lk8"]
+script = ExtResource("9_wng41")
+LEVEL_DEPTH = 0.0
+MAX_DIVE_DEPTH = -1.0
+DEPTH_SPEED = 8.0
+THRESHOLD = 0.001
+metadata/_custom_type_script = "uid://s2ptkdeqgm2s"
+
+[sub_resource type="Resource" id="Resource_606el"]
+script = ExtResource("7_geu64")
+current_vertical_position = 0.0
+vertical_normal = 0.0
+ascending = false
+metadata/_custom_type_script = "uid://c0jqvqibrmydq"
+
+[sub_resource type="Resource" id="Resource_ikusm"]
+script = ExtResource("4_12tij")
+val = Vector2(0, 0)
+metadata/_custom_type_script = "uid://2nh7unjt6pys"
+
+[sub_resource type="Resource" id="Resource_dms4m"]
+script = ExtResource("7_geu64")
+current_vertical_position = 0.0
+vertical_normal = 0.0
+ascending = false
+metadata/_custom_type_script = "uid://c0jqvqibrmydq"
+
+[sub_resource type="Resource" id="Resource_pc71v"]
+script = ExtResource("4_12tij")
+val = Vector2(0, 0)
+metadata/_custom_type_script = "uid://2nh7unjt6pys"
+
+[sub_resource type="Resource" id="Resource_ta2sv"]
+script = ExtResource("4_12tij")
+val = Vector2(0, 0)
+metadata/_custom_type_script = "uid://2nh7unjt6pys"
+
+[sub_resource type="Resource" id="Resource_e1nbt"]
+script = ExtResource("9_shdcl")
+MAX_SPEED = 60.0
+ACCELERATION = 4000.0
+DECELERATION = 2000.0
+metadata/_custom_type_script = "uid://cn776p2gauhvr"
+
+[sub_resource type="Resource" id="Resource_hnj31"]
+script = ExtResource("4_12tij")
+val = Vector2(0, 0)
+metadata/_custom_type_script = "uid://2nh7unjt6pys"
+
+[sub_resource type="Resource" id="Resource_rkjfh"]
+script = ExtResource("14_ytfu3")
+MAX_SPEED = 60.0
+ACCELERATION = 4000.0
+DECELERATION = 2000.0
+metadata/_custom_type_script = "uid://b2g6oo3vgcglq"
+
+[node name="CharacterBody2D" type="CharacterBody2D"]
+script = ExtResource("1_2gp3x")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture_filter = 1
+texture = ExtResource("2_12tij")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("ConvexPolygonShape2D_mujhx")
+
+[node name="MechanicController" type="Node" parent="."]
+script = ExtResource("3_shdcl")
+mut_ref_velocity = SubResource("Resource_shdcl")
+metadata/_custom_type_script = "uid://cvjrw27duhoar"
+
+[node name="Jump" type="Node" parent="MechanicController"]
+script = ExtResource("4_ta2sv")
+jump_data = SubResource("Resource_rpp4a")
+mechanic_animation_data = SubResource("Resource_clfif")
+mut_ref_velocity = SubResource("Resource_w6hjs")
+metadata/_custom_type_script = "uid://dak4nmt80lkir"
+
+[node name="Dive" type="Node" parent="MechanicController"]
+script = ExtResource("5_e1nbt")
+dive_data = SubResource("Resource_v8lk8")
+mechanic_animation_data = SubResource("Resource_606el")
+mut_ref_velocity = SubResource("Resource_ikusm")
+metadata/_custom_type_script = "uid://bd4d02py7c1y5"
+
+[node name="Spin" type="Node" parent="MechanicController"]
+script = ExtResource("6_hxxv3")
+mechanic_animation_data = SubResource("Resource_dms4m")
+mut_ref_velocity = SubResource("Resource_pc71v")
+metadata/_custom_type_script = "uid://b8vsayp2tnykh"
+
+[node name="Cruising" type="Node" parent="MechanicController"]
+script = ExtResource("7_fvl6b")
+mut_ref_velocity = SubResource("Resource_ta2sv")
+cruising_data = SubResource("Resource_e1nbt")
+metadata/_custom_type_script = "uid://bp8lx60pyh0gi"
+
+[node name="Strafe" type="Node" parent="MechanicController"]
+script = ExtResource("8_geu64")
+mut_ref_velocity = SubResource("Resource_hnj31")
+strafe_data = SubResource("Resource_rkjfh")
+metadata/_custom_type_script = "uid://dsps8nekbea1s"
+
+[node name="AnimationController" type="Node" parent="." node_paths=PackedStringArray("mechanics", "jump", "dive", "spin")]
+script = ExtResource("9_n00tm")
+mechanics = [null]
+jump = NodePath("../MechanicController/Jump")
+dive = NodePath("../MechanicController/Dive")
+spin = NodePath("../MechanicController/Spin")
+metadata/_custom_type_script = "uid://dt0uu4jt48sjm"
+
+[node name="JumpAnimation" type="Node" parent="AnimationController" node_paths=PackedStringArray("sprite")]
+script = ExtResource("10_wng41")
+sprite = NodePath("../../Sprite2D")
+metadata/_custom_type_script = "uid://beuhelx1f6m0i"
+
+[node name="DiveAnimation" type="Node" parent="AnimationController" node_paths=PackedStringArray("sprite")]
+script = ExtResource("11_ytfu3")
+sprite = NodePath("../../Sprite2D")
+metadata/_custom_type_script = "uid://smggmxyj3q3g"
+
+[node name="SpinAnimation" type="Node" parent="AnimationController" node_paths=PackedStringArray("sprite")]
+script = ExtResource("12_rpp4a")
+sprite = NodePath("../../Sprite2D")
+metadata/_custom_type_script = "uid://bhb8q2ecxgnlp"
+
+[node name="CollisionController" type="Node" parent="." node_paths=PackedStringArray("mechanics", "jump", "dive")]
+script = ExtResource("13_clfif")
+mechanics = [NodePath("../MechanicController/Jump"), NodePath("../MechanicController/Dive"), NodePath("../MechanicController/Spin"), NodePath("../MechanicController/Cruising"), NodePath("../MechanicController/Strafe")]
+jump = NodePath("../MechanicController/Jump")
+dive = NodePath("../MechanicController/Dive")
+metadata/_custom_type_script = "uid://6l46yt0uo06t"

@@ -1,0 +1,10 @@
+[gd_scene load_steps=3 format=3 uid="uid://dgt7lmeyv8nq2"]
+
+[ext_resource type="Script" uid="uid://c7xuj5tnp4b2l" path="res://Scenes/Mechanics/Mechanics.gd" id="1_a2e7h"]
+[ext_resource type="PackedScene" uid="uid://d4a0taohfsg7i" path="res://Baked/CapsuleDummy.tscn" id="2_ejb7c"]
+
+[node name="Mechanics" type="Node2D"]
+script = ExtResource("1_a2e7h")
+metadata/_custom_type_script = "uid://c7xuj5tnp4b2l"
+
+[node name="CharacterBody2D" parent="." instance=ExtResource("2_ejb7c")]
