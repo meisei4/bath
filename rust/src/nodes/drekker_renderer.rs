@@ -35,7 +35,6 @@ impl INode2D for DrekkerRenderer {
         render.set_uniform_vec2(&mut shader, "iResolution", i_resolution);
         render.set_uniform_sampler2d(&mut shader, "iChannel0", &texture);
         render.draw_texture(&mut texture, &mut buffer_a);
-        //render.draw_screen(&buffer_a);
         render.draw_shader_screen(&mut shader, &mut buffer_a);
     }
 }

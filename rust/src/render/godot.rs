@@ -84,6 +84,16 @@ impl Renderer for GodotRenderer {
         self.base_mut().add_child(&*render_target);
     }
 
+    fn draw_shader_texture(&mut self, shader: &mut Self::Shader, render_target: &mut Self::RenderTarget) {
+        let mut buffer_a_shader_node = ColorRect::new_alloc();
+        let i_resolution = Vector2::new(render_target.get_size().x as real, render_target.get_size().y as real);
+        buffer_a_shader_node.set_size(i_resolution);
+        buffer_a_shader_node.set_texture_filter(TextureFilter::NEAREST);
+        buffer_a_shader_node.set_material(&*shader);
+        render_target.add_child(&buffer_a_shader_node);
+        self.base_mut().add_child(&*render_target);
+    }
+
     fn draw_screen(&mut self, render_target: &Self::RenderTarget) {
         let mut main_image = TextureRect::new_alloc();
         main_image.set_texture_filter(TextureFilter::NEAREST);

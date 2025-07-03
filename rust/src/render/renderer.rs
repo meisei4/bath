@@ -29,6 +29,7 @@ pub trait Renderer {
     fn set_uniform_mat4(&mut self, shader: &mut Self::Shader, name: &str, mat4: RendererMatrix);
     fn set_uniform_sampler2d(&mut self, shader: &mut Self::Shader, name: &str, texture: &Self::Texture);
     fn draw_texture(&mut self, texture: &mut Self::Texture, render_target: &mut Self::RenderTarget);
+    fn draw_shader_texture(&mut self, shader: &mut Self::Shader, render_target: &mut Self::RenderTarget);
     fn draw_screen(&mut self, render_target: &Self::RenderTarget);
     fn draw_shader_screen(&mut self, shader: &mut Self::Shader, render_target: &mut Self::RenderTarget);
     fn draw_shader_screen_pseudo_ortho_geom(

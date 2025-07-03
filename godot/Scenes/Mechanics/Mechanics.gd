@@ -7,6 +7,7 @@ class_name Mechanics
 #@export var capsule_dummy: CapsuleDummy
 #@export var capsule_dummy_scene: PackedScene = preload(ResourcePaths.CAPSULE_DUMMY)
 
+
 func _ready() -> void:
     capsule_dummy = capsule_dummy_scene.instantiate()
     capsule_dummy.z_index = 1

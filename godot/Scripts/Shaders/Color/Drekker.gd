@@ -8,8 +8,6 @@ var BufferA: SubViewport
 var MainImage: TextureRect
 
 var iResolution: Vector2
-#TODO: this is also resulting in texel level alpha/transparency issues in gl_compatability mode
-# studying this as Forward+/Vulkan vs Compatibility/GL could perhaps also explain issues with the perspective tilt mask behavior
 var iChannel0: Texture = preload(ResourcePaths.ICEBERGS_JPG)
 
 

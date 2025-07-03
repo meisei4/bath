@@ -31,8 +31,6 @@ func _ready() -> void:
     RippleShaderMaterial.shader = RippleShader
     RippleShaderNode.material = RippleShaderMaterial
     RippleShaderMaterial.set_shader_parameter("iResolution", iResolution)
-    RippleShaderMaterial.set_shader_parameter("tile_size", GlacierConstants.TILE_SIZE_1D)
-
     BufferB = ShaderToyUtil.create_buffer_viewport(iResolution)
     BufferB.use_hdr_2d = false
     WaterShaderMaterial = ShaderMaterial.new()
