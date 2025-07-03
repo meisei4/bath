@@ -1,3 +1,2 @@
-mod drekker_renderer;
-mod icesheets;
+mod drekker;
 mod water;

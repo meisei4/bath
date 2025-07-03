@@ -1,6 +1,0 @@
-[gd_scene load_steps=2 format=3 uid="uid://dis83nsli1m0i"]
-
-[ext_resource type="Script" uid="uid://b3bblhpgdi8rb" path="res://Scripts/Shaders/Water/WaterProjected.gd" id="1_ml6q8"]
-
-[node name="WaterProjected" type="Node2D" groups=["display_experimental"]]
-script = ExtResource("1_ml6q8")
