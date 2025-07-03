@@ -108,6 +108,7 @@ impl ResourcePaths {
     pub const NOISE_INCLUDE: &'static str = "res://Resources/shaders/ice_sheets/noise.gdshaderinc";
     pub const PROJECTIONS_INCLUDE: &'static str = "res://Resources/shaders/ice_sheets/projections.gdshaderinc";
     pub const COLOR_INCLUDE: &'static str = "res://Resources/shaders/ice_sheets/color.gdshaderinc";
+    pub const ICE_SHEETS_SHADER_FULL: &'static str = "res://Resources/shaders/ice_sheets/icesheet_full.gdshader";
 
     pub const DIVE_SHADER: &'static str = "res://Resources/shaders/mechanics/dive.gdshader";
     pub const JUMP_TRIG_SHADER: &'static str = "res://Resources/shaders/mechanics/jump_trig.gdshader";

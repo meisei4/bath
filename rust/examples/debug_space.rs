@@ -11,7 +11,7 @@ fn main() {
     let height = render.handle.get_screen_height() as f32;
     let i_resolution = RendererVector2::new(width, height);
     let mut buffer = render.init_render_target(i_resolution, true);
-    let mut shader = render.load_shader(DEBUG_VERT_PATH, DEBUG_FRAG_PATH);
+    let mut shader = render.load_shader_full(DEBUG_VERT_PATH, DEBUG_FRAG_PATH);
     render.set_uniform_vec2(&mut shader, "iResolution", i_resolution);
     //render.handle.set_matrix_modelview(&render.thread, mat_view);
     let mut vert_mod_time = get_file_mod_time(DEBUG_VERT_PATH);
@@ -23,7 +23,7 @@ fn main() {
         let new_frag_mod_time = get_file_mod_time(DEBUG_FRAG_PATH);
         if new_vert_mod_time != vert_mod_time || new_frag_mod_time != frag_mod_time {
             println!("Shader modified, reloading...");
-            shader = render.load_shader(DEBUG_VERT_PATH, DEBUG_FRAG_PATH);
+            shader = render.load_shader_full(DEBUG_VERT_PATH, DEBUG_FRAG_PATH);
             render.set_uniform_vec2(&mut shader, "iResolution", i_resolution);
             vert_mod_time = new_vert_mod_time;
             frag_mod_time = new_frag_mod_time;

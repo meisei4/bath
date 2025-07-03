@@ -13,7 +13,7 @@ fn main() {
     );
     let mut buffer = render.init_render_target(i_resolution, true);
     //let mut shader = render.load_shader(ICESHEETS_VERT_DRAFT_PATH, ICESHEETS_FRAG_DRAFT_PATH);
-    let mut shader = render.load_shader(ICESHEETS_VERT_PATH, ICESHEETS_FRAG_PATH);
+    let mut shader = render.load_shader_full(ICESHEETS_VERT_PATH, ICESHEETS_FRAG_PATH);
     render.set_uniform_vec2(&mut shader, "iResolution", i_resolution);
     render.set_uniform_float(&mut shader, "parallaxDepth", 6.0);
     render.set_uniform_float(&mut shader, "globalCoordinateScale", 180.0);

@@ -12,7 +12,7 @@ var mechanics_scene: PackedScene = preload(ResourcePaths.MECHANICS_TEST)
 
 @export var collision_mask_fragment: CollisionMaskFragment
 @export var collision_mask_isp: CollisionMaskIncrementalScanlinePolygonizer
-@export var ice_sheets: IceSheets
+@export var ice_sheets: IceSheetsRenderer
 @export var perspective_tilt_mask_fragment: PerspectiveTiltMaskFragment
 @export var shadow_mask: ShadowMask
 @export var mechanics: Mechanics
@@ -43,7 +43,7 @@ func add_collision_mask_isp_scene() -> void:
 
 
 func add_ice_sheets_scene() -> void:
-    ice_sheets = ice_sheets_scene.instantiate() as IceSheets
+    ice_sheets = ice_sheets_scene.instantiate() as IceSheetsRenderer
     add_child(ice_sheets)
     ice_sheets.owner = self
 

@@ -1,16 +1,16 @@
 extends Node
 #class_name MaskManager
 
-signal ice_sheets_entered_scene(ice_sheets: IceSheets)
+signal ice_sheets_entered_scene(ice_sheets: IceSheetsRenderer)
 
 var iTime: float
-var ice_sheets: IceSheets
+var ice_sheets: IceSheetsRenderer
 var umbral_shadow: ShaderMaterial
 var perspective_tilt_mask_fragment: PerspectiveTiltMaskFragment
 var sprite_to_mask_index: Dictionary[Sprite2D, int]
 
 
-func register_ice_sheets(_ice_sheets: IceSheets) -> void:
+func register_ice_sheets(_ice_sheets: IceSheetsRenderer) -> void:
     self.ice_sheets = _ice_sheets
     ice_sheets_entered_scene.emit(_ice_sheets)
 

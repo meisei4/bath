@@ -27,7 +27,7 @@ func _ready() -> void:
         _on_ice_sheets_entered(MaskManager.ice_sheets)
 
 
-func _on_ice_sheets_entered(ice_sheets: IceSheets) -> void:
+func _on_ice_sheets_entered(ice_sheets: IceSheetsRenderer) -> void:
     if isp_texture:
         return
 

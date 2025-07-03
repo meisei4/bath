@@ -45,6 +45,14 @@ impl Renderer for RaylibRenderer {
         Self { handle, thread }
     }
 
+    fn init_i_resolution(&mut self) -> RendererVector2 {
+        todo!()
+    }
+
+    fn update_mask(&mut self, _i_time: f32) {
+        todo!()
+    }
+
     fn init_render_target(&mut self, size: RendererVector2, hdr: bool) -> Self::RenderTarget {
         if hdr {
             create_rgba16_render_texture(size.x as i32, size.y as i32)
@@ -83,7 +91,15 @@ impl Renderer for RaylibRenderer {
         }
     }
 
-    fn load_shader(&mut self, vert_path: &str, frag_path: &str) -> Self::Shader {
+    fn load_shader_fragment(&mut self, _frag_path: &str) -> Self::Shader {
+        todo!()
+    }
+
+    fn load_shader_vertex(&mut self, _vert_path: &str) -> Self::Shader {
+        todo!()
+    }
+
+    fn load_shader_full(&mut self, vert_path: &str, frag_path: &str) -> Self::Shader {
         let vert_source_code = load_shader_with_includes(vert_path);
         let frag_source_code = load_shader_with_includes(frag_path);
         self.handle

@@ -49,7 +49,7 @@ const RUSTY_COLLISION_MASK: String = "res://Scenes/Shaders/Masks/CollisionMaskIn
 const PERSPECTIVE_TILT_MASK_FRAGMENT: String = "res://Scenes/Shaders/Masks/PerspectiveTiltMaskFragment.tscn"
 const SHADOW_MASK_SCENE: String = "res://Scenes/Shaders/Masks/ShadowMask.tscn"
 
-const ICE_SHEETS_SCENE: String = "res://Scenes/Shaders/IceSheets/IceSheets.tscn"
+const ICE_SHEETS_SCENE: String = "res://Scenes/Shaders/IceSheets/IceSheetsRenderer.tscn"
 const SNOWFALL_PARTICLES: String = "res://Scenes/Shaders/Particles/SnowfallParticles.tscn"
 
 const HELLION: String = "res://Resources/audio/hellion.wav"

@@ -15,6 +15,8 @@ pub struct GodotRenderer {
     base: Base<Node>,
 }
 
+const EMPTY: &str = "";
+
 impl Renderer for GodotRenderer {
     type RenderTarget = Gd<SubViewport>;
     type Texture = Gd<Texture2D>;
@@ -22,6 +24,22 @@ impl Renderer for GodotRenderer {
 
     fn init(_width: i32, _height: i32) -> Self {
         unreachable!("Godot instantiates this node; Renderer::init() is never called")
+    }
+
+    fn init_i_resolution(&mut self) -> RendererVector2 {
+        let scene_tree = self.base().get_tree().unwrap();
+        let root_window = scene_tree.get_root().unwrap();
+        let resolution_manager = root_window.get_node_as::<Node>("ResolutionManager");
+        let godot_resolution = resolution_manager.get("resolution").try_to::<Vector2>().unwrap();
+        let i_resolution = RendererVector2::new(godot_resolution.x, godot_resolution.y);
+        i_resolution
+    }
+
+    fn update_mask(&mut self, i_time: f32) {
+        let scene_tree = self.base().get_tree().unwrap();
+        let root_window = scene_tree.get_root().unwrap();
+        let mut mask_manager = root_window.get_node_as::<Node>("MaskManager");
+        mask_manager.set("iTime", &i_time.to_variant());
     }
 
     fn init_render_target(&mut self, size: RendererVector2, hdr: bool) -> Self::RenderTarget {
@@ -41,7 +59,15 @@ impl Renderer for GodotRenderer {
         // Otherwise use viewport but somehow make the rendertarget filter and repeat (but that breaks from how raylib does it)
     }
 
-    fn load_shader(&mut self, _vert_path: &str, frag_path: &str) -> Self::Shader {
+    fn load_shader_fragment(&mut self, frag_path: &str) -> Self::Shader {
+        self.load_shader_full(EMPTY, frag_path)
+    }
+
+    fn load_shader_vertex(&mut self, _vert_path: &str) -> Self::Shader {
+        todo!()
+    }
+
+    fn load_shader_full(&mut self, _vert_path: &str, frag_path: &str) -> Self::Shader {
         let shader = ResourceLoader::singleton().load(frag_path).unwrap().cast::<Shader>();
         let mut shader_material = ShaderMaterial::new_gd();
         shader_material.set_shader(&shader);
