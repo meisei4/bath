@@ -23,7 +23,6 @@ driver/enable_input=true
 SceneManager="*res://Scripts/Autoloads/SceneManager.gd"
 ResourcePaths="*res://Scripts/Autoloads/ResourcePaths.gd"
 ResolutionManager="*res://Scripts/Autoloads/ResolutionManager.gd"
-RustUtilSingleton="*res://Scripts/Autoloads/RustUtilSingleton.gd"
 AudioEffectManager="*res://Scripts/Autoloads/AudioEffectManager.gd"
 AudioPoolManager="*res://Scripts/Autoloads/AudioPoolManager.gd"
 AudioBus="*res://Scripts/Audio/AudioBus.gd"

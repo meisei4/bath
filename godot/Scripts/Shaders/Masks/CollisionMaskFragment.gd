@@ -42,10 +42,8 @@ func _on_frame_post_draw() -> void:
     for i: int in range(w * h):
         mask_data[i] = raw_rgba[4 * i + 3]
 
-    var collision_polygons: Array[PackedVector2Array] = (
-        RustUtilSingleton
-        . rust_util
-        . compute_concave_collision_polygons(mask_data, w, h, TILE_SIZE_PIXELS)
+    var collision_polygons: Array[PackedVector2Array] = RustUtil.compute_concave_collision_polygons(
+        mask_data, w, h, TILE_SIZE_PIXELS
     )
     _update_concave_polygons(collision_polygons)
     #debug_print_ascii(mask_data)

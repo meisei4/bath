@@ -2,6 +2,6 @@
 
 [ext_resource type="Script" uid="uid://lo3wbjgu1j66" path="res://Scripts/Audio/RhythmDimension.gd" id="1_0jllm"]
 
-[node name="RhythmDimension" type="Node"]
+[node name="RhythmDimension" type="Node" groups=["display_experimental"]]
 script = ExtResource("1_0jllm")
 metadata/_custom_type_script = "uid://lo3wbjgu1j66"

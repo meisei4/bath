@@ -2,5 +2,5 @@
 
 [ext_resource type="Script" uid="uid://c1n6gehpi5u2o" path="res://Scripts/Audio/PitchDimension.gd" id="1_0fl7l"]
 
-[node name="PitchDimension" type="Node"]
+[node name="PitchDimension" type="Node" groups=["display_experimental"]]
 script = ExtResource("1_0fl7l")

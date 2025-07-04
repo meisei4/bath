@@ -82,7 +82,7 @@ func _on_frame_post_draw() -> void:
     var parallax_near_scale = MaskManager.ice_sheets.BufferAShaderMaterial.get_shader_parameter(
         "parallaxNearScale"
     )
-    var result: Dictionary = RustUtilSingleton.rust_util.process_scanline_closest_1(
+    var result: Dictionary = RustUtil.process_scanline_closest_1(
         prev_iTime,
         iTime,
         iResolution.y,

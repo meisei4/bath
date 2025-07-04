@@ -1,9 +1,7 @@
 use crate::sound_render::godot::GodotFFTTexture;
 use crate::sound_render::sound_renderer::FFTTexture;
 use godot::builtin::PackedFloat32Array;
-use godot::classes::{
-    AudioEffectSpectrumAnalyzer, AudioEffectSpectrumAnalyzerInstance, INode2D, Image, ImageTexture, Node, Node2D,
-};
+use godot::classes::{AudioEffectSpectrumAnalyzerInstance, INode2D, Image, ImageTexture, Node, Node2D};
 use godot::obj::{Base, Gd, NewAlloc, WithBaseField};
 use godot::register::{godot_api, GodotClass};
 

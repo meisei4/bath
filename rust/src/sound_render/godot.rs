@@ -1,4 +1,4 @@
-use crate::sound_render::audio_bus::AudioBus;
+use crate::sound_render::audio_bus::BUS::MUSIC;
 use crate::sound_render::godot_util::compute_smooth_energy_for_frequency_range;
 use crate::sound_render::sound_renderer::{FFTTexture, WaveformTexture};
 use godot::builtin::PackedFloat32Array;
@@ -88,8 +88,7 @@ impl WaveformTexture for GodotWaveformTexture {
     fn fetch_waveform_capture(&mut self) -> Self::AudioEffect {
         let waveform_audio_effect_capture = AudioEffectCapture::new_gd();
         let mut audio_server: Gd<AudioServer> = AudioServer::singleton();
-
-        audio_server.add_bus_effect(AudioBus::Music.index(), &waveform_audio_effect_capture);
+        audio_server.add_bus_effect(MUSIC.get_bus_index(), &waveform_audio_effect_capture);
         waveform_audio_effect_capture
     }
 

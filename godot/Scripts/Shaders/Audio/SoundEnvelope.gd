@@ -80,7 +80,7 @@ func _process(_delta: float) -> void:
     #   OR
     # - B:  CPU-side geometry (MultiMesh/Line2D), so the fragment shader only shades simple lines
     #const DOWNSCALED_TARGET_NUMBER_OF_WAVEFORM_SEGMENTS: int = 96
-    #var cpu_next_envelope: PackedFloat32Array = RustUtilSingleton.rust_util.compute_envelope_segments(
+    #var cpu_next_envelope: PackedFloat32Array = RustUtil.compute_envelope_segments(
     #waveform_texture.waveform_data, DOWNSCALED_TARGET_NUMBER_OF_WAVEFORM_SEGMENTS
     #)
     #BufferAShaderMaterial.set_shader_parameter("cpu_next_envelope", cpu_next_envelope)
