@@ -18,7 +18,7 @@ struct MyExtension;
 unsafe impl ExtensionLibrary for MyExtension {
     fn on_level_init(level: InitLevel) {
         if level == InitLevel::Scene {
-            Engine::singleton().register_singleton("AudioBus", &AudioBusRust::new_alloc());
+            Engine::singleton().register_singleton("AudioBusRust", &AudioBusRust::new_alloc());
             Engine::singleton().register_singleton("RustUtil", &RustUtil::new_alloc());
         }
     }

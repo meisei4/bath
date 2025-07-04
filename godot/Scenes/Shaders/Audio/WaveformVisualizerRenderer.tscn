@@ -1,0 +1,3 @@
+[gd_scene format=3 uid="uid://cojewiv2wxabi"]
+
+[node name="WaveformVisualizerRenderer" type="WaveformVisualizerRenderer" groups=["display_experimental"]]

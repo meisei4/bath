@@ -11,7 +11,6 @@ const GLACIER_SIMULATION: String = "res://Scenes/Entities/Glacier/GlacierSimulat
 const WATER_BODY: String = "res://Resources/TileMaps/WaterBody.tscn"
 const GLACIER_MAP: String = "res://Resources/TileMaps/GlacierMap.tscn"
 
-const METRONOME_GEN: String = "res://Scenes/Audio/MetronomeGen.tscn"
 const PITCH_DIMENSION: String = "res://Scenes/Audio/PitchDimension.tscn"
 const RHYTHM_DIMENSION: String = "res://Scenes/Audio/RhythmDimension.tscn"
 const RHYTHM_ONSET_RECORDER: String = "res://Scenes/Audio/RhythmOnsetRecorder.tscn"
@@ -54,7 +53,6 @@ const SNOWFALL_PARTICLES: String = "res://Scenes/Shaders/Particles/SnowfallParti
 
 const HELLION: String = "res://Resources/audio/hellion.wav"
 const SNUFFY: String = "res://Resources/audio/snuffy.wav"
-const METRONOME_CLICK: String = "res://Resources/audio/metronome_click.wav"
 
 # https://shadertoyunofficial.wordpress.com/2019/07/23/shadertoy-media-files
 # https://www.shadertoy.com/media/a/29de534ed5e4a6a224d2dfffab240f2e19a9d95f5e39de8898e850efdb2a99de.mp3

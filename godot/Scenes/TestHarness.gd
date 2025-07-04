@@ -21,11 +21,10 @@ var mechanics_scene: PackedScene = preload(ResourcePaths.MECHANICS_TEST)
 func _ready() -> void:
     add_ice_sheets_scene()
     #add_collision_mask_isp_scene()
-    add_collision_mask_fragment_scene()
+    #add_collision_mask_fragment_scene()
     add_perspective_tilt_mask_fragment_scene()
     add_shadow_mask_scene()
     add_jump_mechanic_test_scene()
-    #bake()
 
 
 func add_collision_mask_fragment_scene() -> void:

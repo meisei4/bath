@@ -1,7 +1,6 @@
 extends Node
 class_name RhythmDimension
 
-var metronome_click: AudioStream
 var rhythm_data: RhythmData
 var bpm: float
 var f_onsets_flat_buffer: PackedVector2Array = PackedVector2Array()
@@ -53,24 +52,6 @@ func load_custom_onsets() -> void:
 
 func _process(delta: float) -> void:
     debug_custom_onsets_ASCII(delta)
-
-
-func debug_custom_onsets_metronome_sfx(delta: float) -> void:
-    var uki_onset_index: int = 0
-    var shizumi_onset_index: int = 0
-    MusicDimensionsManager.song_time += delta
-    while uki_onset_index < f_onsets_flat_buffer.size():
-        var next_uki_onset: float = f_onsets_flat_buffer[uki_onset_index].x
-        if MusicDimensionsManager.song_time < next_uki_onset:
-            break
-        #AudioPoolManager.play_sfx(metronome_click)
-        uki_onset_index += 1
-    while shizumi_onset_index < j_onsets_flat_buffer.size():
-        var next_j_start: float = j_onsets_flat_buffer[shizumi_onset_index].x
-        if MusicDimensionsManager.song_time < next_j_start:
-            break
-        #AudioPoolManager.play_sfx(metronome_click)
-        shizumi_onset_index += 1
 
 
 func debug_custom_onsets_ASCII(delta: float) -> void:

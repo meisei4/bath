@@ -1,7 +1,7 @@
 extends Node2D
 class_name Mechanics
 
-@onready var capsule_dummy: CapsuleDummy = $CharacterBody2D
+@onready var capsule_dummy: CapsuleDummy
 @onready var capsule_dummy_scene: PackedScene = preload(ResourcePaths.CAPSULE_DUMMY)
 
 #@export var capsule_dummy: CapsuleDummy

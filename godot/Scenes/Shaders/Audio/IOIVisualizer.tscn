@@ -1,7 +1,0 @@
-[gd_scene load_steps=2 format=3 uid="uid://bck1lbe5mvj73"]
-
-[sub_resource type="Resource" id="Resource_s7x5v"]
-metadata/__load_path__ = "res://Scripts/Shaders/Audio/IOIVisualizer.gd"
-
-[node name="IoiVisualizer" type="Node2D"]
-script = SubResource("Resource_s7x5v")
