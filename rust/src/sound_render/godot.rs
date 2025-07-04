@@ -1,9 +1,13 @@
 use crate::sound_render::audio_bus::BUS::MUSIC;
-use crate::sound_render::godot_util::compute_smooth_energy_for_frequency_range;
-use crate::sound_render::sound_renderer::{FFTTexture, WaveformTexture};
+use crate::sound_render::sound_renderer::{
+    FFTTexture, WaveformTexture, BUFFER_SIZE, DEAD_CHANNEL, FFT_ROW, MDN_BINS_F, SAMPLE_RATE, TEXTURE_HEIGHT,
+};
+use crate::sound_render::util::{compute_smooth_energy, MDN_MAX_AUDIO_DECIBEL, MDN_MIN_AUDIO_DECIBEL};
 use godot::builtin::PackedFloat32Array;
+use godot::classes::audio_effect_spectrum_analyzer_instance::MagnitudeMode;
 use godot::classes::image::Format;
 use godot::classes::{AudioEffectCapture, AudioEffectSpectrumAnalyzerInstance, AudioServer, Image, Node};
+use godot::global::linear_to_db;
 use godot::obj::{Base, Gd, NewGd, WithBaseField};
 use godot::prelude::{Color, GodotClass};
 
@@ -12,13 +16,6 @@ use godot::prelude::{Color, GodotClass};
 pub struct GodotFFTTexture {
     base: Base<Node>,
 }
-
-const TEXTURE_HEIGHT: i32 = 1;
-const BUFFER_SIZE: usize = 512;
-const MDN_BINS_F: f32 = 1024.0;
-const FFT_ROW: i32 = 0;
-const DEAD_CHANNEL: f32 = 0.0;
-const SAMPLE_RATE: f32 = 44_100.0;
 
 impl FFTTexture for GodotFFTTexture {
     type Image = Gd<Image>;
@@ -55,11 +52,19 @@ impl FFTTexture for GodotFFTTexture {
             let bin_index_f = bin_index as f32;
             let from_hz = bin_index_f * (SAMPLE_RATE * 0.5) / MDN_BINS_F;
             let to_hz = (bin_index_f + 1.0) * (SAMPLE_RATE * 0.5) / MDN_BINS_F;
+            let stereo_magnitude = spectrum
+                .get_magnitude_for_frequency_range_ex(from_hz, to_hz)
+                .mode(MagnitudeMode::AVERAGE)
+                .done();
+
+            let linear_magnitude = (stereo_magnitude.x + stereo_magnitude.y) * 0.5;
+            let db: f32 = linear_to_db(linear_magnitude as f64) as f32;
+            let normalized =
+                ((db - MDN_MIN_AUDIO_DECIBEL) / (MDN_MAX_AUDIO_DECIBEL - MDN_MIN_AUDIO_DECIBEL)).clamp(0.0, 1.0);
             let previous_smooth_energy = fft_data_slice[bin_index];
-            let smooth_energy =
-                compute_smooth_energy_for_frequency_range(spectrum, from_hz, to_hz, previous_smooth_energy);
+            let smooth_energy = compute_smooth_energy(previous_smooth_energy, normalized);
             fft_data_slice[bin_index] = smooth_energy;
-            let color = Color::from_rgba(smooth_energy, DEAD_CHANNEL, DEAD_CHANNEL, DEAD_CHANNEL);
+            let color = Color::from_rgba8(smooth_energy as u8, DEAD_CHANNEL, DEAD_CHANNEL, DEAD_CHANNEL);
             audio_texture.set_pixel(bin_index as i32, FFT_ROW, color);
         }
     }
@@ -130,13 +135,13 @@ impl WaveformTexture for GodotWaveformTexture {
                 waveform_data_slice[x] = average_amplitude;
 
                 let audio_texture_value: Color =
-                    Color::from_rgba(average_amplitude, DEAD_CHANNEL, DEAD_CHANNEL, DEAD_CHANNEL);
+                    Color::from_rgba8(average_amplitude as u8, DEAD_CHANNEL, DEAD_CHANNEL, DEAD_CHANNEL);
                 audio_texture.set_pixel(x as i32, WAVEFORM_ROW, audio_texture_value);
             }
         } else {
             for x in 0..BUFFER_SIZE {
                 let audio_texture_value: Color =
-                    Color::from_rgba(waveform_data_slice[x], DEAD_CHANNEL, DEAD_CHANNEL, DEAD_CHANNEL);
+                    Color::from_rgba8(waveform_data_slice[x] as u8, DEAD_CHANNEL, DEAD_CHANNEL, DEAD_CHANNEL);
                 audio_texture.set_pixel(x as i32, WAVEFORM_ROW, audio_texture_value);
             }
         }

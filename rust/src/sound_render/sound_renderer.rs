@@ -1,3 +1,10 @@
+pub const TEXTURE_HEIGHT: i32 = 1;
+pub const BUFFER_SIZE: usize = 512;
+pub const MDN_BINS_F: f32 = 1024.0;
+pub const FFT_ROW: i32 = 0;
+pub const DEAD_CHANNEL: u8 = 0_u8;
+pub const SAMPLE_RATE: f32 = 44_100.0;
+
 pub trait FFTTexture {
     type Image;
     type FFTData;

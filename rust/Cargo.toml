@@ -34,3 +34,6 @@ tests-only = ["midir", "rdev", "terminal_size", "raylib"]
 aubio-rs = "0.2.0"
 lewton = "0.10.2"
 
+
+[build-dependencies]
+cc = "=1.0"

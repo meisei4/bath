@@ -1,6 +1,9 @@
 #[cfg(feature = "godot")]
-pub mod godot_util;
+pub mod godot;
+
+#[cfg(feature = "raylib")]
+pub mod raylib;
 
 pub mod audio_bus;
-pub mod godot;
 pub mod sound_renderer;
+mod util;
