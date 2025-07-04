@@ -25,6 +25,6 @@ func _ready() -> void:
     # juggling too many locations where music is tested for playback
     # especially PitchDimension scene with all the caching and shit
 
-    #AudioPoolManager.play_music(audio_stream)
+    AudioPoolManager.play_music(audio_stream)
 
     #AudioPoolManager.play_input(input_stream)

@@ -11,6 +11,7 @@ pub mod glsl {
     pub const ICESHEETS_VERT_DRAFT_PATH: &str = "resources/glsl/ice_sheets/icesheets_vertex_drafting.glsl";
     pub const ICESHEETS_VERT_PATH: &str = "resources/glsl/ice_sheets/icesheets_vertex.glsl";
 
+    pub const FFT_FRAG_PATH: &str = "resources/glsl/audio/fft.glsl";
     pub const BUFFER_A_CONTENTS: &str = include_str!("../glsl/buffer_a.glsl");
     pub const IMAGE_CONTENTS: &str = include_str!("../glsl/image.glsl");
 }
@@ -30,6 +31,9 @@ pub mod audio_godot {
     pub const MIDI_FILE_PATH: &str = "../godot/Resources/audio/fingerbib.mid";
     pub const SOUND_FONT_FILE_BYTES: &[u8] = include_bytes!("../../../godot/Resources/audio/dsdnmoy.sf2");
     pub const MIDI_FILE_BYTES: &[u8] = include_bytes!("../../../godot/Resources/audio/fingerbib.mid");
+    pub const SHADERTOY_MUSIC_EXPERIMENT_OGG: &'static str = "../../../godot/Resources/audio/shadertoy_music_experiment_min_bitrate.ogg";
+    pub const WAV_TEST: &'static str = "resources/glsl/audio/cached_wav.wav";
+
 }
 
 pub mod textures {

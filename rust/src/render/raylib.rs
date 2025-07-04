@@ -164,7 +164,7 @@ impl Renderer for RaylibRenderer {
         texture_mode.draw_texture_rec(texture, flip_framebuffer(width, height), ORIGIN, Color::WHITE);
     }
 
-    fn draw_shader_texture(&mut self, shader: &mut Self::Shader, render_target: &mut Self::RenderTarget) {
+    fn draw_shader_texture(&mut self, _shader: &mut Self::Shader, _render_target: &mut Self::RenderTarget) {
         todo!()
     }
 

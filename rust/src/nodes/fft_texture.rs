@@ -21,12 +21,11 @@ pub struct FFTTextureNode {
 impl INode2D for FFTTextureNode {
     fn process(&mut self, _delta: f64) {
         let mut render = self.render.as_mut().unwrap().bind_mut();
-        let spectrum = self.spectrum.as_mut().unwrap();
         let fft_data = self.fft_data.as_mut().unwrap();
         let audio_image = self.audio_image.as_mut().unwrap();
         let audio_texture = self.audio_texture.as_mut().unwrap();
 
-        render.update_audio_texture(&spectrum, fft_data, audio_image);
+        render.update_audio_texture(fft_data, audio_image);
         audio_texture.update(&audio_image.clone());
     }
 

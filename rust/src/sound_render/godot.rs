@@ -1,8 +1,8 @@
 use crate::sound_render::audio_bus::BUS::MUSIC;
 use crate::sound_render::sound_renderer::{
-    FFTTexture, WaveformTexture, BUFFER_SIZE, DEAD_CHANNEL, FFT_ROW, MDN_BINS_F, SAMPLE_RATE, TEXTURE_HEIGHT,
+    FFTTexture, WaveformTexture, BUFFER_SIZE, DEAD_CHANNEL, FFT_ROW, HZ_STEP, INVERSE_DECIBEL_RANGE, TEXTURE_HEIGHT,
 };
-use crate::sound_render::util::{compute_smooth_energy, MDN_MAX_AUDIO_DECIBEL, MDN_MIN_AUDIO_DECIBEL};
+use crate::sound_render::util::{compute_smooth_energy, MDN_MIN_AUDIO_DECIBEL};
 use godot::builtin::PackedFloat32Array;
 use godot::classes::audio_effect_spectrum_analyzer_instance::MagnitudeMode;
 use godot::classes::image::Format;
@@ -27,7 +27,7 @@ impl FFTTexture for GodotFFTTexture {
     }
 
     fn init_audio_texture(&mut self) -> Self::Image {
-        Image::create_empty(BUFFER_SIZE as i32, TEXTURE_HEIGHT, false, Format::R8).unwrap()
+        Image::create_empty(BUFFER_SIZE as i32, TEXTURE_HEIGHT, false, Format::RGBA8).unwrap()
     }
 
     fn fetch_spectrum_analyzer(&mut self) -> Self::AudioEffect {
@@ -41,30 +41,26 @@ impl FFTTexture for GodotFFTTexture {
         spectrum_analyzer
     }
 
-    fn update_audio_texture(
-        &mut self,
-        spectrum: &Self::AudioEffect,
-        fft_data: &mut Self::FFTData,
-        audio_texture: &mut Self::Image,
-    ) {
+    fn update_audio_texture(&mut self, fft_data: &mut Self::FFTData, audio_texture: &mut Self::Image) {
         let fft_data_slice = fft_data.as_mut_slice();
         for bin_index in 0..BUFFER_SIZE {
             let bin_index_f = bin_index as f32;
-            let from_hz = bin_index_f * (SAMPLE_RATE * 0.5) / MDN_BINS_F;
-            let to_hz = (bin_index_f + 1.0) * (SAMPLE_RATE * 0.5) / MDN_BINS_F;
+            let from_hz = bin_index_f * HZ_STEP;
+            let to_hz = (bin_index_f + 1.0) * HZ_STEP;
+            // http://github.com/godotengine/godot/blob/master/servers/audio/effects/audio_effect_spectrum_analyzer.cpp
+            let spectrum = self.fetch_spectrum_analyzer();
             let stereo_magnitude = spectrum
                 .get_magnitude_for_frequency_range_ex(from_hz, to_hz)
                 .mode(MagnitudeMode::AVERAGE)
                 .done();
 
-            let linear_magnitude = (stereo_magnitude.x + stereo_magnitude.y) * 0.5;
-            let db: f32 = linear_to_db(linear_magnitude as f64) as f32;
-            let normalized =
-                ((db - MDN_MIN_AUDIO_DECIBEL) / (MDN_MAX_AUDIO_DECIBEL - MDN_MIN_AUDIO_DECIBEL)).clamp(0.0, 1.0);
+            let linear_magnitude = (stereo_magnitude.x + stereo_magnitude.y) / 2_f32;
+            let db = linear_to_db(linear_magnitude as f64) as f32;
+            let normalized = ((db - MDN_MIN_AUDIO_DECIBEL) * INVERSE_DECIBEL_RANGE).clamp(0_f32, 1_f32);
             let previous_smooth_energy = fft_data_slice[bin_index];
             let smooth_energy = compute_smooth_energy(previous_smooth_energy, normalized);
             fft_data_slice[bin_index] = smooth_energy;
-            let color = Color::from_rgba8(smooth_energy as u8, DEAD_CHANNEL, DEAD_CHANNEL, DEAD_CHANNEL);
+            let color = Color::from_rgba(smooth_energy, DEAD_CHANNEL, DEAD_CHANNEL, DEAD_CHANNEL);
             audio_texture.set_pixel(bin_index as i32, FFT_ROW, color);
         }
     }
@@ -131,17 +127,17 @@ impl WaveformTexture for GodotWaveformTexture {
                     0.0
                 };
 
-                average_amplitude = average_amplitude * 0.5 + 0.5;
+                average_amplitude = average_amplitude / 2.0 + 0.5;
                 waveform_data_slice[x] = average_amplitude;
 
                 let audio_texture_value: Color =
-                    Color::from_rgba8(average_amplitude as u8, DEAD_CHANNEL, DEAD_CHANNEL, DEAD_CHANNEL);
+                    Color::from_rgba(average_amplitude, DEAD_CHANNEL, DEAD_CHANNEL, DEAD_CHANNEL);
                 audio_texture.set_pixel(x as i32, WAVEFORM_ROW, audio_texture_value);
             }
         } else {
             for x in 0..BUFFER_SIZE {
                 let audio_texture_value: Color =
-                    Color::from_rgba8(waveform_data_slice[x] as u8, DEAD_CHANNEL, DEAD_CHANNEL, DEAD_CHANNEL);
+                    Color::from_rgba(waveform_data_slice[x], DEAD_CHANNEL, DEAD_CHANNEL, DEAD_CHANNEL);
                 audio_texture.set_pixel(x as i32, WAVEFORM_ROW, audio_texture_value);
             }
         }
