@@ -47,4 +47,31 @@ pub trait Renderer {
         render_target: &mut Self::RenderTarget,
         tilt: f32,
     );
+
+    fn init_feedback_buffer(
+        &mut self,
+        resolution: RendererVector2,
+        feedback_pass_shader_path: &str,
+        main_pass_shader_path: &str,
+    ) -> FeedbackBufferContext<Self>
+    where
+        Self: Sized;
+
+    fn render_feedback_pass(&mut self, context: &mut FeedbackBufferContext<Self>)
+    where
+        Self: Sized;
+}
+
+// TODO: ok be careful dont let this shit get out of hand with generics
+pub struct FeedbackBufferContext<R: Renderer> {
+    pub buffer_a: R::RenderTarget,
+    pub buffer_b: R::RenderTarget,
+    pub feedback_pass_shader: R::Shader,
+    pub main_pass_shader: R::Shader,
+}
+
+impl<R: Renderer> FeedbackBufferContext<R> {
+    pub fn swap(&mut self) {
+        std::mem::swap(&mut self.buffer_a, &mut self.buffer_b);
+    }
 }

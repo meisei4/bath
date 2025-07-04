@@ -1,7 +1,8 @@
 use crate::render::raylib_util::{
-    create_rgba16_render_texture, flip_framebuffer, load_shader_with_includes, APPLE_DPI, ORIGIN, ORIGIN_X, ORIGIN_Y,
+    create_rgba16_render_texture, feedback_buffer_pass, flip_framebuffer, image_pass, load_shader_with_includes,
+    APPLE_DPI, ORIGIN, ORIGIN_X, ORIGIN_Y,
 };
-use crate::render::renderer::{Renderer, RendererMatrix, RendererVector2};
+use crate::render::renderer::{FeedbackBufferContext, Renderer, RendererMatrix, RendererVector2};
 use raylib::color::Color;
 use raylib::drawing::{RaylibDraw, RaylibShaderModeExt, RaylibTextureModeExt};
 use raylib::ffi::{
@@ -91,12 +92,16 @@ impl Renderer for RaylibRenderer {
         }
     }
 
-    fn load_shader_fragment(&mut self, _frag_path: &str) -> Self::Shader {
-        todo!()
+    fn load_shader_fragment(&mut self, frag_path: &str) -> Self::Shader {
+        let frag_source_code = load_shader_with_includes(frag_path);
+        self.handle
+            .load_shader_from_memory(&self.thread, None, Some(&frag_source_code))
     }
 
-    fn load_shader_vertex(&mut self, _vert_path: &str) -> Self::Shader {
-        todo!()
+    fn load_shader_vertex(&mut self, vert_path: &str) -> Self::Shader {
+        let vert_source_code = load_shader_with_includes(vert_path);
+        self.handle
+            .load_shader_from_memory(&self.thread, Some(&vert_source_code), None)
     }
 
     fn load_shader_full(&mut self, vert_path: &str, frag_path: &str) -> Self::Shader {
@@ -321,4 +326,43 @@ impl Renderer for RaylibRenderer {
     //      //  https://github.com/raylib-rs/raylib-rs/blob/unstable/raylib/src/core/drawing.rs#L326
     //     }
     // }
+
+    fn init_feedback_buffer(
+        &mut self,
+        resolution: RendererVector2,
+        feedback_pass_shader_path: &str,
+        main_pass_shader_path: &str,
+    ) -> FeedbackBufferContext<Self> {
+        let buffer_a = create_rgba16_render_texture(resolution.x as i32, resolution.y as i32);
+        let buffer_b = create_rgba16_render_texture(resolution.x as i32, resolution.y as i32);
+
+        let feedback_pass_shader = self.load_shader_fragment(feedback_pass_shader_path);
+        let main_pass_shader = self.load_shader_fragment(main_pass_shader_path);
+
+        FeedbackBufferContext {
+            buffer_a,
+            buffer_b,
+            feedback_pass_shader,
+            main_pass_shader,
+        }
+    }
+
+    fn render_feedback_pass(&mut self, context: &mut FeedbackBufferContext<Self>) {
+        feedback_buffer_pass(
+            &mut self.handle,
+            &self.thread,
+            &mut context.feedback_pass_shader,
+            &mut context.buffer_b,
+            &context.buffer_a,
+        );
+
+        context.swap();
+
+        image_pass(
+            &mut self.handle,
+            &self.thread,
+            &mut context.main_pass_shader,
+            &context.buffer_a,
+        );
+    }
 }

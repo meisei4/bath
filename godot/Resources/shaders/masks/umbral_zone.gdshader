@@ -6,7 +6,7 @@ uniform sampler2D iChannel0 : hint_screen_texture, filter_nearest;
 // compatibility mode (OpenGl has no such error draw_list_bind_uniform_set: Attempted to use the same texture in
 // framebuffer attachment and a uniform (set: 1, binding: 1), this is not allowed. <C++ Error> Condition
 //"attachable_ptr[i].texture == bound_ptr[j]" is true. <C++ Source> servers/rendering/rendering_device.cpp:4538 @
-//draw_list_bind_uniform_set()
+// draw_list_bind_uniform_set()
 //  source: https://github.com/godotengine/godot/issues/44473
 
 // In OpenGL/Compatibility mode it results in the upper left quadrant triangle visibility bug

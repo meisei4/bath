@@ -1,7 +1,6 @@
 pub struct ResourcePaths;
 
 impl ResourcePaths {
-    pub const MAIN: &'static str = "res://Main.tscn";
     pub const TEST_HARNESS: &'static str = "res://Scenes/TestHarness.tscn";
     pub const MECHANICS_TEST: &'static str = "res://Scenes/Mechanics/Mechanics.tscn";
     pub const DREKKER_SCENE: &'static str = "res://Scenes/Shaders/Color/Drekker.tscn";
@@ -124,4 +123,7 @@ impl ResourcePaths {
     pub const FREE_ALPHA_CHANNEL: &'static str = "res://Resources/shaders/masks/free_alpha_channel.gdshader";
     pub const COLLISION_MASK_FRAGMENT_SHADER: &'static str =
         "res://Resources/shaders/masks/collision_mask_fragment.gdshader";
+
+    pub const BUFFER_A: &'static str = "res://Resources/shaders/buffer_a.gdshader";
+    pub const MAIN: &'static str = "res://Resources/shaders/main.gdshader";
 }

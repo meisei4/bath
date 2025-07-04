@@ -1,5 +1,5 @@
 use crate::render::godot_util::create_buffer_viewport;
-use crate::render::renderer::{Renderer, RendererMatrix, RendererVector2};
+use crate::render::renderer::{FeedbackBufferContext, Renderer, RendererMatrix, RendererVector2};
 use godot::builtin::{real, Vector2, Vector2i};
 use godot::classes::canvas_item::{TextureFilter, TextureRepeat};
 use godot::classes::texture_rect::StretchMode;
@@ -78,8 +78,8 @@ impl Renderer for GodotRenderer {
         shader.set_shader_parameter(name, &value.to_variant());
     }
 
-    fn set_uniform_int(&mut self, _shader: &mut Self::Shader, _name: &str, _value: i32) {
-        todo!();
+    fn set_uniform_int(&mut self, shader: &mut Self::Shader, name: &str, value: i32) {
+        shader.set_shader_parameter(name, &value.to_variant());
     }
 
     fn set_uniform_vec2(&mut self, shader: &mut Self::Shader, name: &str, vec2: RendererVector2) {
@@ -153,5 +153,52 @@ impl Renderer for GodotRenderer {
         _tilt: f32,
     ) {
         todo!()
+    }
+
+    fn init_feedback_buffer(
+        &mut self,
+        resolution: RendererVector2,
+        feedback_pass_shader_path: &str,
+        main_pass_shader_path: &str,
+    ) -> FeedbackBufferContext<Self> {
+        let mut buffer_a = self.init_render_target(resolution, false);
+        let mut buffer_b = self.init_render_target(resolution, false);
+
+        // TODO: if you are going to convert feedback shaders HERE is where you need to update the
+        //  uniform sampler2D iChannel0 : hint_screen_texture;
+        //  hint tagging in godot
+        let mut feedback_pass_shader = self.load_shader_fragment(feedback_pass_shader_path);
+        self.set_uniform_vec2(&mut feedback_pass_shader, "iResolution", resolution);
+
+        let mut main_pass_shader = self.load_shader_fragment(main_pass_shader_path);
+        self.set_uniform_vec2(&mut main_pass_shader, "iResolution", resolution);
+
+        let mut buffer_a_rect = ColorRect::new_alloc();
+        buffer_a_rect.set_size(Vector2::new(resolution.x, resolution.y));
+        buffer_a_rect.set_material(&feedback_pass_shader);
+        buffer_a.add_child(&buffer_a_rect);
+        self.base_mut().add_child(&buffer_a);
+
+        let mut buffer_b_rect = ColorRect::new_alloc();
+        buffer_b_rect.set_size(Vector2::new(resolution.x, resolution.y));
+        buffer_b_rect.set_material(&feedback_pass_shader);
+        buffer_b.add_child(&buffer_b_rect);
+        self.base_mut().add_child(&buffer_b);
+        FeedbackBufferContext {
+            buffer_a,
+            buffer_b,
+            feedback_pass_shader,
+            main_pass_shader,
+        }
+    }
+
+    fn render_feedback_pass(&mut self, context: &mut FeedbackBufferContext<Self>) {
+        let texture = context.buffer_a.get_texture().unwrap().upcast::<Texture2D>();
+        self.set_uniform_sampler2d(&mut context.feedback_pass_shader, "iChannel0", &texture);
+        let mut screen = TextureRect::new_alloc();
+        screen.set_texture(&context.buffer_b.get_texture().unwrap());
+        screen.set_flip_v(true);
+        self.base_mut().add_child(&screen);
+        context.swap();
     }
 }

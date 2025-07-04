@@ -1,4 +1,6 @@
 # clang-format -style=file:.clang-format -i $(find . -name "*.glsl")
+# clang-format -style=file:../rust/.clang-format -i $(find . -name "*.gdshader")
+
 
 BasedOnStyle: WebKit                    # Base style preset (similar to Apple's coding standards)
 IndentWidth: 4                          # Use 4 spaces per indent
