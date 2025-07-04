@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3 uid="uid://25atfl8q8pmu"]
+[gd_scene load_steps=2 format=3 uid="uid://bguhendrhiecx"]
 
-[ext_resource type="Script" uid="uid://ct4yydnky7uat" path="res://Scripts/Shaders/Audio/FFTVisualizer.gd" id="1_3pwv5"]
+[ext_resource type="Script" uid="uid://ct4yydnky7uat" path="res://Scripts/Shaders/Audio/FFTVisualizer.gd" id="1_u2lpt"]
 
-[node name="FftVisualizer" type="Node2D" groups=["display_experimental"]]
-script = ExtResource("1_3pwv5")
+[node name="FFTVisualizer" type="Node2D" groups=["display_experimental"]]
+script = ExtResource("1_u2lpt")
+metadata/_custom_type_script = "uid://ct4yydnky7uat"

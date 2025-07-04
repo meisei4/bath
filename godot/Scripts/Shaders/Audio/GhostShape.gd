@@ -13,7 +13,7 @@ var iChannel0: Texture = preload(ResourcePaths.BAYER_PNG)
 var iChannel1: Texture
 var iChannel2: Texture
 
-var fft_texture: FFTTexture
+var fft_texture: FFTTextureNode
 var ioi_texture: IOITexture
 
 var pitch_dimension: PitchDimension
@@ -30,7 +30,7 @@ func _ready() -> void:
     BufferAShaderNode.material = BufferAShaderMaterial
     BufferAShaderMaterial.set_shader_parameter("iResolution", iResolution)
     BufferAShaderMaterial.set_shader_parameter("iChannel0", iChannel0)
-    fft_texture = FFTTexture.new()
+    fft_texture = FFTTextureNode.new()
     #ioi_texture = IOITexture.new()
     pitch_dimension = PitchDimension.new()
     rhythm_dimension = RhythmDimension.new()

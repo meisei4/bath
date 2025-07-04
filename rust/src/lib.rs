@@ -4,6 +4,7 @@ pub mod midi;
 mod nodes;
 pub mod render;
 pub mod resource_paths;
+mod sound_render;
 
 use crate::audio_analysis::godot::{detect_bpm_aubio_ogg, detect_bpm_aubio_wav};
 use crate::collision_mask::isp::{shift_polygon_vertices_down_by_pixels, update_polygons_with_scanline_alpha_buckets};

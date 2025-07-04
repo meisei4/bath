@@ -10,7 +10,7 @@ var MainImage: TextureRect
 var iResolution: Vector2
 var iChannel0: Texture
 
-var audio_texture: FFTTexture
+var audio_texture: FFTTextureNode
 
 
 func _ready() -> void:
@@ -26,7 +26,7 @@ func _ready() -> void:
     MainImage = TextureRect.new()
     MainImage.texture = BufferA.get_texture()
     MainImage.flip_v = true
-    audio_texture = FFTTexture.new()
+    audio_texture = FFTTextureNode.new()
     BufferA.add_child(BufferAShaderNode)
     add_child(BufferA)
     add_child(MainImage)

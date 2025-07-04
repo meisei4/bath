@@ -33,7 +33,7 @@ func _ready() -> void:
         print("Using cached BPM → ", bpm)
 
     load_custom_onsets()
-    AudioPoolManager.play_music(ogg_stream)
+    #AudioPoolManager.play_music(ogg_stream)
 
 
 func load_custom_onsets() -> void:

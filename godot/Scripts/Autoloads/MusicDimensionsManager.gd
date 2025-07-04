@@ -27,13 +27,18 @@ var onset_event_counter: int = 0
 # do not run rhythmdimension and manual onset recorder at the same time ever
 var song_time: float = 0.0
 
-#var audio_stream: AudioStream = preload(ResourcePaths.SHADERTOY_MUSIC_TRACK_EXPERIMENT_WAV)
+var audio_stream: AudioStream = preload(ResourcePaths.SHADERTOY_MUSIC_EXPERIMENT_OGG)
 #var audio_stream: AudioStream = preload(ResourcePaths.HELLION)
 #var audio_stream: AudioStream = preload(ResourcePaths.SNUFFY)
 #var input_stream: AudioStreamMicrophone = AudioStreamMicrophone.new()
 
 
+func _enter_tree() -> void:
+    print("IN ENTER TREE: mix rate = ", AudioServer.get_mix_rate())
+
+
 func _ready() -> void:
+    print("IN READY: mix rate = ", AudioServer.get_mix_rate())
     var bus_index: int = AudioBus.get_bus_index(AudioBus.BUS.MUSIC)
     var effect: AudioEffectSpectrumAnalyzer = AudioEffectSpectrumAnalyzer.new()
     effect.fft_size = AudioEffectSpectrumAnalyzer.FFTSize.FFT_SIZE_2048
@@ -45,7 +50,7 @@ func _ready() -> void:
     # juggling too many locations where music is tested for playback
     # especially PitchDimension scene with all the caching and shit
 
-    #AudioPoolManager.play_music(audio_stream)
+    AudioPoolManager.play_music(audio_stream)
 
     #AudioPoolManager.play_input(input_stream)
 
@@ -145,6 +150,7 @@ func _compute_linear_average_for_frequency_range(from_hz: float, to_hz: float) -
     var stereo_magnitude: Vector2 = spectrum_analyzer_instance.get_magnitude_for_frequency_range(
         from_hz, to_hz, AudioEffectSpectrumAnalyzerInstance.MagnitudeMode.MAGNITUDE_AVERAGE
     )
+    print(stereo_magnitude)
     return (stereo_magnitude.x + stereo_magnitude.y) * 0.5
 
 
