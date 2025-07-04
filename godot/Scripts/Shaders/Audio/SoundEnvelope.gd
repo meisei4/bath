@@ -11,7 +11,7 @@ var BufferBShader: Shader = preload(ResourcePaths.IMAGE_SOUND_ENVELOPE)
 #var BufferBShader: Shader = preload(ResourcePaths.OPTIMIZED_ENVELOPE_BUFFER_B)
 var BufferBShaderMaterial: ShaderMaterial
 
-var waveform_texture: WaveformTexture
+var waveform_texture: WaveformTextureNode
 
 var BufferA: SubViewport
 var BufferB: SubViewport
@@ -48,7 +48,7 @@ func _ready() -> void:
     MainImage = TextureRect.new()
     MainImage.texture = BufferB.get_texture()
     MainImage.flip_v = true
-    waveform_texture = WaveformTexture.new()
+    waveform_texture = WaveformTextureNode.new()
 
     BufferA.add_child(BufferAShaderNode)
     add_child(BufferA)

@@ -1,9 +1,10 @@
+use crate::sound_render::audio_bus::AudioBus;
 use crate::sound_render::godot_util::compute_smooth_energy_for_frequency_range;
-use crate::sound_render::sound_renderer::FFTTexture;
+use crate::sound_render::sound_renderer::{FFTTexture, WaveformTexture};
 use godot::builtin::PackedFloat32Array;
 use godot::classes::image::Format;
-use godot::classes::{AudioEffectSpectrumAnalyzerInstance, Image, Node};
-use godot::obj::{Base, Gd, WithBaseField};
+use godot::classes::{AudioEffectCapture, AudioEffectSpectrumAnalyzerInstance, AudioServer, Image, Node};
+use godot::obj::{Base, Gd, NewGd, WithBaseField};
 use godot::prelude::{Color, GodotClass};
 
 #[derive(GodotClass)]
@@ -22,7 +23,7 @@ const SAMPLE_RATE: f32 = 44_100.0;
 impl FFTTexture for GodotFFTTexture {
     type Image = Gd<Image>;
     type FFTData = PackedFloat32Array;
-    type SpectrumAnalyzer = Gd<AudioEffectSpectrumAnalyzerInstance>;
+    type AudioEffect = Gd<AudioEffectSpectrumAnalyzerInstance>;
 
     fn resize_buffer(&mut self, fft_data: &mut PackedFloat32Array) {
         fft_data.resize(BUFFER_SIZE);
@@ -32,20 +33,20 @@ impl FFTTexture for GodotFFTTexture {
         Image::create_empty(BUFFER_SIZE as i32, TEXTURE_HEIGHT, false, Format::R8).unwrap()
     }
 
-    fn fetch_spectrum_analyzer(&mut self) -> Self::SpectrumAnalyzer {
+    fn fetch_spectrum_analyzer(&mut self) -> Self::AudioEffect {
         let scene_tree = self.base().get_tree().unwrap();
         let root_window = scene_tree.get_root().unwrap();
         let music_dimensions_manager = root_window.get_node_as::<Node>("MusicDimensionsManager");
         let spectrum_analyzer = music_dimensions_manager
             .get("spectrum_analyzer_instance")
-            .try_to::<Self::SpectrumAnalyzer>()
+            .try_to::<Self::AudioEffect>()
             .unwrap();
         spectrum_analyzer
     }
 
     fn update_audio_texture(
         &mut self,
-        spectrum: &Self::SpectrumAnalyzer,
+        spectrum: &Self::AudioEffect,
         fft_data: &mut Self::FFTData,
         audio_texture: &mut Self::Image,
     ) {
@@ -60,6 +61,85 @@ impl FFTTexture for GodotFFTTexture {
             fft_data_slice[bin_index] = smooth_energy;
             let color = Color::from_rgba(smooth_energy, DEAD_CHANNEL, DEAD_CHANNEL, DEAD_CHANNEL);
             audio_texture.set_pixel(bin_index as i32, FFT_ROW, color);
+        }
+    }
+}
+
+const WAVEFORM_ROW: i32 = 0;
+
+#[derive(GodotClass)]
+#[class(init, base = Node)]
+pub struct GodotWaveformTexture {
+    base: Base<Node>,
+}
+
+impl WaveformTexture for GodotWaveformTexture {
+    type Image = Gd<Image>;
+    type WaveformData = PackedFloat32Array;
+    type AudioEffect = Gd<AudioEffectCapture>;
+    fn resize_buffer(&mut self, waveform_data: &mut Self::WaveformData) {
+        waveform_data.resize(BUFFER_SIZE);
+    }
+
+    fn init_audio_texture(&mut self) -> Self::Image {
+        Image::create_empty(BUFFER_SIZE as i32, TEXTURE_HEIGHT, false, Format::R8).unwrap()
+    }
+
+    fn fetch_waveform_capture(&mut self) -> Self::AudioEffect {
+        let waveform_audio_effect_capture = AudioEffectCapture::new_gd();
+        let mut audio_server: Gd<AudioServer> = AudioServer::singleton();
+
+        audio_server.add_bus_effect(AudioBus::Music.index(), &waveform_audio_effect_capture);
+        waveform_audio_effect_capture
+    }
+
+    fn update_audio_texture(
+        &mut self,
+        waveform_capture: &mut Self::AudioEffect,
+        waveform_data: &mut Self::WaveformData,
+        audio_texture: &mut Self::Image,
+    ) {
+        let waveform_data_slice = waveform_data.as_mut_slice();
+        let waveform_audio_effect_capture = waveform_capture;
+        if waveform_audio_effect_capture.can_get_buffer(BUFFER_SIZE as i32) {
+            let captured_frames_from_current_waveform_buffer =
+                waveform_audio_effect_capture.get_buffer(BUFFER_SIZE as i32);
+            let waveform_buffer_slice = captured_frames_from_current_waveform_buffer.as_slice();
+            let frame_count = captured_frames_from_current_waveform_buffer.len();
+            let frames_per_pixel = frame_count / BUFFER_SIZE;
+            for x in 0..BUFFER_SIZE {
+                let start_frame_index = x * frames_per_pixel;
+                let mut end_frame_index = (x + 1) * frames_per_pixel;
+                if end_frame_index > frame_count {
+                    end_frame_index = frame_count;
+                }
+
+                let mut accumulated_amplitudes: f32 = 0.0;
+                let mut number_of_amplitude_frames_to_average: usize = 0;
+                for i in start_frame_index..end_frame_index {
+                    accumulated_amplitudes += waveform_buffer_slice[i].x;
+                    number_of_amplitude_frames_to_average += 1;
+                }
+
+                let mut average_amplitude: f32 = if number_of_amplitude_frames_to_average > 0 {
+                    accumulated_amplitudes / number_of_amplitude_frames_to_average as f32
+                } else {
+                    0.0
+                };
+
+                average_amplitude = average_amplitude * 0.5 + 0.5;
+                waveform_data_slice[x] = average_amplitude;
+
+                let audio_texture_value: Color =
+                    Color::from_rgba(average_amplitude, DEAD_CHANNEL, DEAD_CHANNEL, DEAD_CHANNEL);
+                audio_texture.set_pixel(x as i32, WAVEFORM_ROW, audio_texture_value);
+            }
+        } else {
+            for x in 0..BUFFER_SIZE {
+                let audio_texture_value: Color =
+                    Color::from_rgba(waveform_data_slice[x], DEAD_CHANNEL, DEAD_CHANNEL, DEAD_CHANNEL);
+                audio_texture.set_pixel(x as i32, WAVEFORM_ROW, audio_texture_value);
+            }
         }
     }
 }

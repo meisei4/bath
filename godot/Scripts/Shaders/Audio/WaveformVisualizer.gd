@@ -4,7 +4,7 @@ class_name WaveformVisualizer
 var BufferAShaderNode: ColorRect
 var BufferAShader: Shader = preload(ResourcePaths.WAVEFORM_SHADER)
 var BufferAShaderMaterial: ShaderMaterial
-var audio_texture: WaveformTexture
+var audio_texture: WaveformTextureNode
 var BufferA: SubViewport
 var MainImage: TextureRect
 var iResolution: Vector2
@@ -23,7 +23,7 @@ func _ready() -> void:
     MainImage = TextureRect.new()
     MainImage.texture = BufferA.get_texture()
     MainImage.flip_v = true
-    audio_texture = WaveformTexture.new()
+    audio_texture = WaveformTextureNode.new()
     BufferA.add_child(BufferAShaderNode)
     add_child(BufferA)
     add_child(MainImage)
