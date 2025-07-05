@@ -1,7 +1,7 @@
 use crate::audio_analysis::fftw::{fftw_complex, fftw_create_plan, fftw_direction, fftw_one, fftw_plan};
 use crate::sound_render::sound_renderer::{
     FFTTexture, BUFFER_SIZE, DEAD_CHANNEL, FFT_ROW, HALF_SAMPLE_RATE, HZ_STEP, INVERSE_DECIBEL_RANGE, K,
-    MDN_MIN_AUDIO_DECIBEL, PER_CYCLE_PUSHED_RING_BUFFER_CHUNK_SIZE_HARDCODED, TEXTURE_HEIGHT,
+    MDN_MIN_AUDIO_DECIBEL, TEXTURE_HEIGHT,
 };
 use crate::sound_render::util::compute_smooth_energy;
 use raylib::color::Color;

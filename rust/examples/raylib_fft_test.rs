@@ -7,14 +7,14 @@ use bath::sound_render::sound_renderer::{
     FFTTexture, BUFFER_SIZE, CHANNELS, PER_CYCLE_PUSHED_RING_BUFFER_CHUNK_SIZE_HARDCODED,
     PER_SAMPLE_BIT_DEPTH_HARDCODED, SAMPLE_RATE_HARDCODED,
 };
-use bath_resources::audio_godot::{SHADERTOY_WAV, SHADERTOY_WHAT_WAV, WAV_TEST};
+use bath_resources::audio_godot::SHADERTOY_WHAT_WAV;
 use bath_resources::glsl::FFT_FRAG_PATH;
 use hound::SampleFormat::Int;
 use hound::WavReader;
 use raylib::core::audio::RaylibAudio;
 use raylib::ffi::{
-    IsAudioStreamProcessed, LoadAudioStream, PlayAudioStream, SetAudioStreamBufferSizeDefault, UpdateAudioStream,
-    UpdateTexture,
+    IsAudioStreamProcessed, LoadAudioStream, PlayAudioStream, SetAudioStreamBufferSizeDefault, UpdateAudioStream
+    ,
 };
 use raylib::texture::RaylibTexture2D;
 use std::slice::from_raw_parts;
