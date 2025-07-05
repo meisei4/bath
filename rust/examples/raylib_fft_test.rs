@@ -4,17 +4,17 @@ use bath::render::raylib_util::{EXPERIMENTAL_WINDOW_HEIGHT, EXPERIMENTAL_WINDOW_
 use bath::render::{renderer::Renderer, renderer::RendererVector2};
 use bath::sound_render::raylib::RaylibFFTTexture;
 use bath::sound_render::sound_renderer::{
-    FFTTexture, BUFFER_SIZE, CHANNELS, PER_CYCLE_PUSHED_RING_BUFFER_CHUNK_SIZE_HARDCODED,
-    PER_SAMPLE_BIT_DEPTH_HARDCODED, SAMPLE_RATE_HARDCODED,
+    FFTTexture, BUFFER_SIZE, CHANNELS, FFT_HISTORICAL_SMOOTHING_BUFFER_TIME_SECONDS, FFT_WINDOW_SIZE,
+    PER_CYCLE_PUSHED_RING_BUFFER_CHUNK_SIZE_HARDCODED, PER_SAMPLE_BIT_DEPTH_HARDCODED, RING_BUFFER_PADDING,
+    SAMPLE_RATE_HARDCODED, WINDOW_TIME,
 };
-use bath_resources::audio_godot::SHADERTOY_WHAT_WAV;
+use bath_resources::audio_godot::WAV_TEST;
 use bath_resources::glsl::FFT_FRAG_PATH;
 use hound::SampleFormat::Int;
 use hound::WavReader;
 use raylib::core::audio::RaylibAudio;
 use raylib::ffi::{
-    IsAudioStreamProcessed, LoadAudioStream, PlayAudioStream, SetAudioStreamBufferSizeDefault, UpdateAudioStream
-    ,
+    IsAudioStreamProcessed, LoadAudioStream, PlayAudioStream, SetAudioStreamBufferSizeDefault, UpdateAudioStream,
 };
 use raylib::texture::RaylibTexture2D;
 use std::slice::from_raw_parts;
@@ -28,11 +28,17 @@ fn main() {
     let mut buffer_a = render.init_render_target(i_resolution, true);
     let mut shader = render.load_shader_fragment(FFT_FRAG_PATH);
     render.set_uniform_vec2(&mut shader, "iResolution", i_resolution);
+    let fft_history_len: usize =
+        (FFT_HISTORICAL_SMOOTHING_BUFFER_TIME_SECONDS as f64 / WINDOW_TIME).ceil() as usize + RING_BUFFER_PADDING;
     let mut fft = RaylibFFTTexture {
         plan: None,
-        spectrum: [fftw_complex { re: 0.0, im: 0.0 }; BUFFER_SIZE],
+        spectrum: [fftw_complex { re: 0.0, im: 0.0 }; FFT_WINDOW_SIZE],
+        fft_history: vec![[0.0; BUFFER_SIZE]; fft_history_len],
+        history_pos: 0_usize,
+        last_fft_time: 0_f64,
+        tapback_pos: 0.01_f32,
     };
-    let mut fft_data = [0_f32; BUFFER_SIZE];
+    let mut fft_data = [0_f32; FFT_WINDOW_SIZE];
     let mut fft_image = fft.init_audio_texture();
     let mut fft_texture = render
         .handle
@@ -50,7 +56,7 @@ fn main() {
         [0; PER_CYCLE_PUSHED_RING_BUFFER_CHUNK_SIZE_HARDCODED];
     //TODO: WTF just happened in this:
     // ffmpeg -i "shadertoy_music_experiment_min_bitrate.ogg" -ac 1 -sample_fmt s16 -c:a pcm_s16le shadertoy.wav
-    let mut wav = WavReader::open(SHADERTOY_WHAT_WAV).unwrap();
+    let mut wav = WavReader::open(WAV_TEST).unwrap();
     let wav_spec = wav.spec();
     let mut wav_iter = wav.samples::<i16>();
     let is_stereo = wav_spec.channels == 2_u16;
@@ -93,7 +99,7 @@ fn main() {
         fft.update_audio_texture(&mut fft_data, &mut fft_image);
         let len = fft_image.get_pixel_data_size();
         let pixels = unsafe { from_raw_parts(fft_image.data as *const u8, len) };
-        eprintln!("FFT image bytes [0..8]: {:?}", &pixels[0..8.min(len)]);
+        //println!("FFT image bytes [0..8]: {:?}", &pixels[0..8.min(len)]);
         fft_texture.update_texture(pixels).unwrap();
         render.draw_shader_screen(&mut shader, &mut buffer_a);
     }

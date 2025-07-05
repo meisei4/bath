@@ -12,7 +12,7 @@ use raylib::ffi::{
 };
 use raylib::math::{Matrix, Vector3};
 use raylib::shaders::{RaylibShader, Shader};
-use raylib::texture::{RaylibRenderTexture2D, RaylibTexture2D, RenderTexture2D, Texture2D};
+use raylib::texture::{RaylibTexture2D, RenderTexture2D, Texture2D};
 use raylib::{ffi, init, RaylibHandle, RaylibThread};
 use std::f32::consts::FRAC_PI_2;
 use std::ffi::{c_char, CString};

@@ -7,9 +7,13 @@ pub const PER_CYCLE_PUSHED_RING_BUFFER_CHUNK_SIZE_HARDCODED: usize = 2048_usize;
 pub const TEXTURE_HEIGHT: i32 = 1_i32;
 pub const BUFFER_SIZE: usize = 512_usize;
 pub const MDN_BINS_F: f32 = 1024_f32;
+pub const FFT_WINDOW_SIZE: usize = 1024_usize; // actual FFT size
 pub const FFT_ROW: i32 = 0_i32;
 pub const DEAD_CHANNEL: f32 = 0_f32;
 pub const SAMPLE_RATE: f32 = 44_100_f32;
+pub const WINDOW_TIME: f64 = FFT_WINDOW_SIZE as f64 / SAMPLE_RATE as f64;
+pub const FFT_HISTORICAL_SMOOTHING_BUFFER_TIME_SECONDS: usize = 2_usize; //GODOT uses this
+pub const RING_BUFFER_PADDING: usize = 1_usize; // safety
 
 pub const HALF_SAMPLE_RATE: f32 = SAMPLE_RATE / 2_f32;
 pub const HZ_STEP: f32 = HALF_SAMPLE_RATE / MDN_BINS_F;
