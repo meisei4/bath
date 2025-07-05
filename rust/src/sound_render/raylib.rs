@@ -14,7 +14,7 @@ pub struct RaylibFFTTexture {
 
 impl FFTTexture for RaylibFFTTexture {
     type Image = Image;
-    type FFTData = Vec<f32>;
+    type FFTData = Vec<f32>; // TODO later use [f32] but figure out the Sized constraint
     type AudioEffect = Vec<fftw_complex>;
 
     fn resize_buffer(&mut self, fft_data: &mut Self::FFTData) {
@@ -44,47 +44,32 @@ impl FFTTexture for RaylibFFTTexture {
             fftw_one(self.plan.unwrap(), input.as_mut_ptr(), output.as_mut_ptr());
         }
         //let fft_size = (output.len() * 2_usize) as f32; // number of real bins
-        let fft_size = (BUFFER_SIZE * 2_usize) as f32; // identical value, less ambiguity
-        let bin_scale = fft_size / HALF_SAMPLE_RATE;
-        let fft_max_i = (BUFFER_SIZE - 1_usize) as i32;
+        let fft_size = (BUFFER_SIZE * 2_usize) as f32;
         for bin_index in 0_usize..BUFFER_SIZE {
             let bin_index_f = bin_index as f32;
             let freq_low_hz = bin_index_f * HZ_STEP;
             let freq_high_hz = (bin_index_f + 1_f32) * HZ_STEP;
-
-            let bin_low_i = ((freq_low_hz * bin_scale).floor() as i32).clamp(0_i32, fft_max_i);
-            let bin_high_i = ((freq_high_hz * bin_scale).ceil() as i32).clamp(0_i32, fft_max_i);
-            // let mut bin_low = (freq_low_hz * fft_size / HALF_SAMPLE_RATE).floor();
-            // let mut bin_high = (freq_high_hz * fft_size / HALF_SAMPLE_RATE).ceil();
-            // bin_low = bin_low.clamp(0_f32, fft_size - 1_f32);
-            // bin_high = bin_high.clamp(0_f32, fft_size - 1_f32);
-            let start_bin = bin_low_i.min(bin_high_i);
-            let end_bin = bin_low_i.max(bin_high_i);
+            let mut bin_low = (freq_low_hz * fft_size / HALF_SAMPLE_RATE).floor();
+            let mut bin_high = (freq_high_hz * fft_size / HALF_SAMPLE_RATE).ceil();
+            bin_low = bin_low.clamp(0_f32, fft_size - 1_f32);
+            bin_high = bin_high.clamp(0_f32, fft_size - 1_f32);
+            if bin_low > bin_high {
+                std::mem::swap(&mut bin_low, &mut bin_high);
+            }
+            let bin_low_i = bin_low as i32;
+            let bin_high_i = bin_high as i32;
             let mut magnitude_sum = 0_f64;
-            for i in start_bin..=end_bin {
+            for i in bin_low_i..=bin_high_i {
                 let sample = &output[i as usize];
                 let magnitude = (sample.re * sample.re + sample.im * sample.im).sqrt() / fft_size as f64;
                 magnitude_sum += magnitude;
             }
-            let bin_span = (end_bin - start_bin + 1_i32) as f64;
+            let bin_span = (bin_high_i - bin_low_i + 1_i32) as f64;
             let linear_magnitude = if bin_span > 0_f64 {
                 magnitude_sum / bin_span
             } else {
                 0_f64
             };
-            // if bin_low > bin_high { std::mem::swap(&mut bin_low, &mut bin_high); }
-            // let bin_low_i = bin_low as i32;
-            // let bin_high_i = bin_high as i32;
-            // let mut magnitude_sum = 0_f64;
-            // for i in bin_low_i..=bin_high_i {
-            //     let sample = &output[i as usize];
-            //     let magnitude = (sample.re * sample.re + sample.im * sample.im).sqrt() / fft_size as f64;
-            //     magnitude_sum += magnitude;
-            // }
-            // let bin_span = (bin_high_i - bin_low_i + 1_i32) as f64;
-            // let linear_magnitude = if bin_span > 0_f64 { magnitude_sum / bin_span } else { 0_f64 };
-
-            //let db = linear_to_db(linear_magnitude) as f32;
             let db = (linear_magnitude.max(f64::MIN_POSITIVE).ln() * K) as f32;
             let normalized = ((db - MDN_MIN_AUDIO_DECIBEL) * INVERSE_DECIBEL_RANGE).clamp(0_f32, 1_f32);
             let previous_smooth_energy = fft_data[bin_index];

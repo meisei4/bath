@@ -74,28 +74,28 @@ impl Renderer for GodotRenderer {
         shader_material
     }
 
-    fn set_uniform_float(&mut self, shader: &mut Self::Shader, name: &str, value: f32) {
-        shader.set_shader_parameter(name, &value.to_variant());
+    fn set_uniform_float(&mut self, shader: &mut Self::Shader, uniform_name: &str, value: f32) {
+        shader.set_shader_parameter(uniform_name, &value.to_variant());
     }
 
-    fn set_uniform_int(&mut self, shader: &mut Self::Shader, name: &str, value: i32) {
-        shader.set_shader_parameter(name, &value.to_variant());
+    fn set_uniform_int(&mut self, shader: &mut Self::Shader, uniform_name: &str, value: i32) {
+        shader.set_shader_parameter(uniform_name, &value.to_variant());
     }
 
-    fn set_uniform_vec2(&mut self, shader: &mut Self::Shader, name: &str, vec2: RendererVector2) {
-        shader.set_shader_parameter(name, &Vector2::new(vec2.x, vec2.y).to_variant());
+    fn set_uniform_vec2(&mut self, shader: &mut Self::Shader, uniform_name: &str, vec2: RendererVector2) {
+        shader.set_shader_parameter(uniform_name, &Vector2::new(vec2.x, vec2.y).to_variant());
     }
 
-    fn set_uniform_mat2(&mut self, _shader: &mut Self::Shader, _name: &str, _mat2: RendererMatrix) {
+    fn set_uniform_mat2(&mut self, _shader: &mut Self::Shader, _uniform_name: &str, _mat2: RendererMatrix) {
         todo!()
     }
 
-    fn set_uniform_mat4(&mut self, _shader: &mut Self::Shader, _name: &str, _mat4: RendererMatrix) {
+    fn set_uniform_mat4(&mut self, _shader: &mut Self::Shader, _uniform_name: &str, _mat4: RendererMatrix) {
         todo!()
     }
 
-    fn set_uniform_sampler2d(&mut self, shader: &mut Self::Shader, name: &str, texture: &Self::Texture) {
-        shader.set_shader_parameter(name, &texture.to_variant());
+    fn set_uniform_sampler2d(&mut self, shader: &mut Self::Shader, uniform_name: &str, texture: &Self::Texture) {
+        shader.set_shader_parameter(uniform_name, &texture.to_variant());
     }
 
     fn draw_texture(&mut self, texture: &mut Self::Texture, render_target: &mut Self::RenderTarget) {

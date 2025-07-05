@@ -6,12 +6,13 @@ use crate::render::renderer::{FeedbackBufferContext, Renderer, RendererMatrix, R
 use raylib::color::Color;
 use raylib::drawing::{RaylibDraw, RaylibShaderModeExt, RaylibTextureModeExt};
 use raylib::ffi::{
-    rlTextureParameters, LoadImage, LoadTextureFromImage, UnloadImage, RL_TEXTURE_FILTER_NEAREST,
-    RL_TEXTURE_MAG_FILTER, RL_TEXTURE_MIN_FILTER, RL_TEXTURE_WRAP_REPEAT, RL_TEXTURE_WRAP_S, RL_TEXTURE_WRAP_T,
+    rlActiveTextureSlot, rlEnableTexture, rlTextureParameters, LoadImage, LoadTextureFromImage, UnloadImage,
+    RL_TEXTURE_FILTER_NEAREST, RL_TEXTURE_MAG_FILTER, RL_TEXTURE_MIN_FILTER, RL_TEXTURE_WRAP_REPEAT, RL_TEXTURE_WRAP_S,
+    RL_TEXTURE_WRAP_T,
 };
 use raylib::math::{Matrix, Vector3};
 use raylib::shaders::{RaylibShader, Shader};
-use raylib::texture::{RaylibTexture2D, RenderTexture2D, Texture2D};
+use raylib::texture::{RaylibRenderTexture2D, RaylibTexture2D, RenderTexture2D, Texture2D};
 use raylib::{ffi, init, RaylibHandle, RaylibThread};
 use std::f32::consts::FRAC_PI_2;
 use std::ffi::{c_char, CString};
@@ -111,49 +112,54 @@ impl Renderer for RaylibRenderer {
             .load_shader_from_memory(&self.thread, Some(&vert_source_code), Some(&frag_source_code))
     }
 
-    fn set_uniform_float(&mut self, shader: &mut Self::Shader, name: &str, value: f32) {
-        let location = shader.get_shader_location(name);
-        match name {
+    fn set_uniform_float(&mut self, shader: &mut Self::Shader, uniform_name: &str, value: f32) {
+        let location = shader.get_shader_location(uniform_name);
+        match uniform_name {
             "iTime" => {
                 LOG_ITIME_LOCATION.call_once(|| {
-                    println!("{} uniform location = {}", name, location);
+                    println!("{} uniform location = {}", uniform_name, location);
                 });
             },
             _ => {
-                println!("{} uniform location = {}", name, location);
+                println!("{} uniform location = {}", uniform_name, location);
             },
         }
         shader.set_shader_value(location, value);
     }
-    fn set_uniform_int(&mut self, shader: &mut Self::Shader, name: &str, value: i32) {
-        let location = shader.get_shader_location(name);
-        println!("{} uniform location = {}", name, location);
+    fn set_uniform_int(&mut self, shader: &mut Self::Shader, uniform_name: &str, value: i32) {
+        let location = shader.get_shader_location(uniform_name);
+        println!("{} uniform location = {}", uniform_name, location);
         shader.set_shader_value(location, value);
     }
 
-    fn set_uniform_vec2(&mut self, shader: &mut Self::Shader, name: &str, value: RendererVector2) {
-        let location = shader.get_shader_location(name);
-        println!("{} uniform location = {}", name, location);
+    fn set_uniform_vec2(&mut self, shader: &mut Self::Shader, uniform_name: &str, value: RendererVector2) {
+        let location = shader.get_shader_location(uniform_name);
+        println!("{} uniform location = {}", uniform_name, location);
         shader.set_shader_value_v(location, &[value]);
     }
 
-    fn set_uniform_mat2(&mut self, shader: &mut Self::Shader, name: &str, mat2: RendererMatrix) {
-        let location = shader.get_shader_location(name);
-        println!("{} uniform location = {}", name, location);
-        //TODO: figure out how to make a Matrix in raylib
+    fn set_uniform_mat2(&mut self, shader: &mut Self::Shader, uniform_name: &str, mat2: RendererMatrix) {
+        let location = shader.get_shader_location(uniform_name);
+        println!("{} uniform location = {}", uniform_name, location);
         shader.set_shader_value_matrix(location, mat2);
     }
 
-    fn set_uniform_mat4(&mut self, shader: &mut Self::Shader, name: &str, mat4: RendererMatrix) {
-        let location = shader.get_shader_location(name);
-        println!("{} uniform location = {}", name, location);
+    fn set_uniform_mat4(&mut self, shader: &mut Self::Shader, uniform_name: &str, mat4: RendererMatrix) {
+        let location = shader.get_shader_location(uniform_name);
+        println!("{} uniform location = {}", uniform_name, location);
         shader.set_shader_value_matrix(location, mat4);
     }
 
-    fn set_uniform_sampler2d(&mut self, shader: &mut Self::Shader, name: &str, _texture: &Self::Texture) {
-        let location = shader.get_shader_location(name);
-        println!("{} uniform location = {}", name, location);
+    fn set_uniform_sampler2d(&mut self, shader: &mut Self::Shader, uniform_name: &str, texture: &Self::Texture) {
+        //
+        let location = shader.get_shader_location(uniform_name);
+        println!("{} uniform location = {}", uniform_name, location);
         //shader.set_shader_value_texture(location, texture);
+        unsafe {
+            rlActiveTextureSlot(7_i32);
+            rlEnableTexture(texture.id);
+        }
+        shader.set_shader_value(location, 7_i32);
     }
 
     fn draw_texture(&mut self, texture: &mut Self::Texture, render_target: &mut Self::RenderTarget) {
@@ -164,8 +170,26 @@ impl Renderer for RaylibRenderer {
         texture_mode.draw_texture_rec(texture, flip_framebuffer(width, height), ORIGIN, Color::WHITE);
     }
 
-    fn draw_shader_texture(&mut self, _shader: &mut Self::Shader, _render_target: &mut Self::RenderTarget) {
-        todo!()
+    fn draw_shader_texture(&mut self, shader: &mut Self::Shader, render_target: &mut Self::RenderTarget) {
+        let width = render_target.width() as f32;
+        let height = render_target.height() as f32;
+        let rect = flip_framebuffer(width, height);
+        //NOTE 1: issue with draw_texture_rec -> Trait `AsRef<Texture>` is not implemented for `Texture2D`
+        // let render_target_texture: ffi::Texture2D = render_target.texture;
+        //NOTE 2: issue with begin_texture_mode -> cannot borrow `*render_target` as mutable because already immutably borrowed
+        //let render_target_texture: &WeakTexture2D = render_target.texture();
+        //NOTE 3 this one works, but it involves function parens and a clone to get a WeakTexture
+        //let render_target_texture: WeakTexture2D  = render_target.texture().clone();
+        let mut texture_mode = self.handle.begin_texture_mode(&self.thread, render_target);
+        texture_mode.clear_background(Color::BLACK);
+        let mut shader_mode = texture_mode.begin_shader_mode(shader);
+        shader_mode.draw_rectangle(
+            rect.x as i32,
+            rect.y as i32,
+            rect.width as i32,
+            rect.height as i32,
+            Color::WHITE,
+        );
     }
 
     fn draw_screen(&mut self, render_target: &Self::RenderTarget) {
@@ -175,7 +199,7 @@ impl Renderer for RaylibRenderer {
 
     fn draw_shader_screen(&mut self, shader: &mut Self::Shader, render_target: &mut Self::RenderTarget) {
         let mut draw_handle = self.handle.begin_drawing(&self.thread);
-        //draw_handle.clear_background(Color::BLACK);
+        draw_handle.clear_background(Color::BLACK);
         let mut shader_mode = draw_handle.begin_shader_mode(shader);
         let width = render_target.width() as f32;
         let height = render_target.height() as f32;

@@ -5,6 +5,8 @@ build/
 
 /rust/Cargo.lock
 /rust/target/
+/rust/build.rs
+/rust/c_src
 
 godot/Resources/audio/Cache/
 *.wav
