@@ -5,11 +5,11 @@ const SFX_POOL_SIZE: int = 12
 const MUSIC_POOL_SIZE: int = 5
 const INPUT_POOL_SIZE: int = 1
 
-const bus_volumes: Dictionary[AudioBus.BUS, float] = {
-    AudioBus.BUS.MASTER: 0.0,
-    AudioBus.BUS.SFX: 0.0,
-    AudioBus.BUS.MUSIC: 0.0,
-    AudioBus.BUS.INPUT: 0.0,
+const bus_volumes: Dictionary[int, float] = {
+    AudioBus.MASTER: 0.0,
+    AudioBus.SFX: 0.0,
+    AudioBus.MUSIC: 0.0,
+    AudioBus.INPUT: 0.0,
 }
 
 var sfx_pool: AudioPool
@@ -18,31 +18,31 @@ var input_pool: AudioPool
 
 
 func _ready() -> void:
-    _setup_buses([AudioBus.BUS.MASTER, AudioBus.BUS.SFX, AudioBus.BUS.MUSIC, AudioBus.BUS.INPUT])
+    _setup_buses([AudioBus.MASTER, AudioBus.SFX, AudioBus.MUSIC, AudioBus.INPUT])
     _set_bus_volumes()
     sfx_pool = AudioPool.new()
     sfx_pool.pool_size = SFX_POOL_SIZE
-    sfx_pool.bus = AudioBus.BUS.SFX
+    sfx_pool.bus = AudioBus.SFX
     sfx_pool.loop_on_end = false
     add_child(sfx_pool)
     sfx_pool.owner = self
 
     music_pool = AudioPool.new()
     music_pool.pool_size = MUSIC_POOL_SIZE
-    music_pool.bus = AudioBus.BUS.MUSIC
+    music_pool.bus = AudioBus.MUSIC
     music_pool.loop_on_end = true
     add_child(music_pool)
     music_pool.owner = self
 
     input_pool = AudioPool.new()
     input_pool.pool_size = INPUT_POOL_SIZE
-    input_pool.bus = AudioBus.BUS.INPUT
+    input_pool.bus = AudioBus.INPUT
     input_pool.loop_on_end = false
     add_child(input_pool)
     input_pool.owner = self
 
 
-func _setup_buses(buses: Array[AudioBus.BUS]) -> void:
+func _setup_buses(buses: Array[int]) -> void:
     var current_bus_count: int = AudioServer.get_bus_count()
     for i: int in range(current_bus_count, buses.size()):
         AudioServer.add_bus()
@@ -51,7 +51,7 @@ func _setup_buses(buses: Array[AudioBus.BUS]) -> void:
 
 
 func _set_bus_volumes() -> void:
-    for bus: AudioBus.BUS in bus_volumes.keys():
+    for bus: int in bus_volumes.keys():
         AudioServer.set_bus_volume_db(AudioBus.get_bus_index(bus), bus_volumes[bus])
 
 

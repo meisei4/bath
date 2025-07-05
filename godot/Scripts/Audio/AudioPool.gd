@@ -2,7 +2,7 @@ extends Node
 class_name AudioPool
 
 var pool_size: int
-var bus: AudioBus.BUS
+var bus: int
 var loop_on_end: bool = false
 
 var players: Array[AudioStreamPlayer] = []

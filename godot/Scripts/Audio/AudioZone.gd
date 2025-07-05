@@ -5,7 +5,7 @@ var max_effect_distance: float = 300.0
 var effects_enabled: bool = true
 var effect_min_value: float = 0.0
 var effect_max_value: float = 1.0
-var audio_bus: AudioBus.BUS = AudioBus.BUS.MUSIC
+var audio_bus: int = AudioBus.MUSIC
 
 var viewer: Node2D = null
 
@@ -18,7 +18,7 @@ var current_pitch: float = 1.0
 
 func _ready() -> void:
     initialize_viewer()
-    self.audio_bus = AudioBus.BUS.MUSIC
+    self.audio_bus = AudioBus.MUSIC
 
     if effects_enabled:
         AudioEffectManager.add_distortion(audio_bus, AudioEffectManager.DEFAULT_DISTORTION)

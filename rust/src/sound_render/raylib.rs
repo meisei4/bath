@@ -19,6 +19,16 @@ pub struct RaylibFFTTexture {
 
 impl RaylibFFTTexture {
     pub fn capture_frame(&mut self, fft_data: &mut [f32; FFT_WINDOW_SIZE]) {
+        let mut hann_windowed = [0.0f32; FFT_WINDOW_SIZE];
+        for n in 0..FFT_WINDOW_SIZE {
+            let hann = 0.5 * (1.0 - ((2.0 * std::f32::consts::PI * n as f32) / (FFT_WINDOW_SIZE as f32 - 1.0)).cos());
+            hann_windowed[n] = fft_data[n] * hann;
+        }
+        let mut input = [fftw_complex { re: 0.0, im: 0.0 }; FFT_WINDOW_SIZE];
+        for i in 0..FFT_WINDOW_SIZE {
+            input[i].re = hann_windowed[i] as f64;
+            input[i].im = 0.0;
+        }
         let mut input = [fftw_complex { re: 0_f64, im: 0_f64 }; FFT_WINDOW_SIZE];
         let mut output = self.fetch_spectrum_analyzer();
         for i in 0_usize..FFT_WINDOW_SIZE {
@@ -33,7 +43,6 @@ impl RaylibFFTTexture {
             fftw_one(self.plan.unwrap(), input.as_mut_ptr(), output.as_mut_ptr());
         }
         let mut smoothed_spectrum = [0.0f32; BUFFER_SIZE];
-
         for bin in 0_usize..BUFFER_SIZE {
             let freq_low = bin as f32 * HZ_STEP;
             let freq_high = (bin as f32 + 1.0) * HZ_STEP;

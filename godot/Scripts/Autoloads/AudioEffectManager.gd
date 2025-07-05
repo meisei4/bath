@@ -25,14 +25,14 @@ const DEFAULT_REVERB: Dictionary[String, float] = {
 }
 
 
-func add_effect(bus: AudioBus.BUS, effect: AudioEffect) -> void:
+func add_effect(bus: int, effect: AudioEffect) -> void:
     var bus_idx: int = AudioBus.get_bus_index(bus)
     var bus_effect_count: int = AudioServer.get_bus_effect_count(bus_idx)
     AudioServer.add_bus_effect(bus_idx, effect, bus_effect_count)
     print("Added ", effect.get_class(), " effect to bus: ", bus)
 
 
-func remove_effect(bus: AudioBus.BUS, effect_type: String) -> void:
+func remove_effect(bus: int, effect_type: String) -> void:
     var bus_idx: int = AudioBus.get_bus_index(bus)
     var effect_count: int = AudioServer.get_bus_effect_count(bus_idx)
     for i: int in range(effect_count):
@@ -44,7 +44,7 @@ func remove_effect(bus: AudioBus.BUS, effect_type: String) -> void:
             return
 
 
-func add_distortion(bus_enum: AudioBus.BUS, config: Dictionary = DEFAULT_DISTORTION) -> void:
+func add_distortion(bus_enum: int, config: Dictionary = DEFAULT_DISTORTION) -> void:
     var distortion: AudioEffectDistortion = AudioEffectDistortion.new()
     distortion.mode = config["mode"]
     distortion.drive = config["drive"]
@@ -54,7 +54,7 @@ func add_distortion(bus_enum: AudioBus.BUS, config: Dictionary = DEFAULT_DISTORT
     add_effect(bus_enum, distortion)
 
 
-func add_reverb(bus_enum: AudioBus.BUS, config: Dictionary = DEFAULT_REVERB) -> void:
+func add_reverb(bus_enum: int, config: Dictionary = DEFAULT_REVERB) -> void:
     var reverb: AudioEffectReverb = AudioEffectReverb.new()
     reverb.room_size = config["room_size"]
     reverb.damping = config["damping"]
@@ -67,7 +67,7 @@ func add_reverb(bus_enum: AudioBus.BUS, config: Dictionary = DEFAULT_REVERB) -> 
     add_effect(bus_enum, reverb)
 
 
-func set_pitch_shift(bus: AudioBus.BUS, pitch: float) -> void:
+func set_pitch_shift(bus: int, pitch: float) -> void:
     var bus_idx: int = AudioBus.get_bus_index(bus)
     var pitch_shift_found: bool = false
     for i: int in range(AudioServer.get_bus_effect_count(bus_idx)):
@@ -87,7 +87,7 @@ func set_pitch_shift(bus: AudioBus.BUS, pitch: float) -> void:
         print("Added new pitch shift effect to bus ", bus, " with pitch_scale: ", pitch)
 
 
-func update_distortion(bus: AudioBus.BUS, config: Dictionary) -> void:
+func update_distortion(bus: int, config: Dictionary) -> void:
     var bus_idx: int = AudioBus.get_bus_index(bus)
     for i: int in range(AudioServer.get_bus_effect_count(bus_idx)):
         var effect: AudioEffect = AudioServer.get_bus_effect(bus_idx, i)
@@ -103,7 +103,7 @@ func update_distortion(bus: AudioBus.BUS, config: Dictionary) -> void:
             break
 
 
-func update_reverb(bus: AudioBus.BUS, config: Dictionary) -> void:
+func update_reverb(bus: int, config: Dictionary) -> void:
     var bus_idx: int = AudioBus.get_bus_index(bus)
     for i: int in range(AudioServer.get_bus_effect_count(bus_idx)):
         var effect: AudioEffect = AudioServer.get_bus_effect(bus_idx, i)

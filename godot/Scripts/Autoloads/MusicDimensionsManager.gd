@@ -15,7 +15,7 @@ var audio_stream: AudioStream = preload(ResourcePaths.CACHED_WAV)
 
 
 func _ready() -> void:
-    var bus_index: int = AudioBus.get_bus_index(AudioBus.BUS.MUSIC)
+    var bus_index: int = AudioBus.get_bus_index(AudioBus.MUSIC)
     var effect: AudioEffectSpectrumAnalyzer = AudioEffectSpectrumAnalyzer.new()
     effect.fft_size = AudioEffectSpectrumAnalyzer.FFTSize.FFT_SIZE_2048
     AudioEffectManager.add_effect(bus_index, effect)

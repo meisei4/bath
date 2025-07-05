@@ -1,60 +1,74 @@
-use crate::sound_render::audio_bus::BUS::{INPUT, MASTER, MUSIC, SFX};
 use godot::builtin::StringName;
-use godot::classes::{AudioServer, Node};
-use godot::obj::Base;
-use godot::register::{godot_api, GodotClass, GodotConvert, Var};
+use godot::classes::{AudioServer, Engine, Node};
+use godot::global::godot_warn;
+use godot::obj::{Base, Gd, GodotClass};
+use godot::register::{godot_api, Export, GodotClass, GodotConvert, Var};
 
-#[derive(GodotConvert, Var, Copy, Clone, Debug)]
-#[godot(via = i64)]
+#[derive(GodotConvert, Var, Copy, Clone, Debug, Export, Default)]
+#[repr(u8)]
+#[godot(via = u8)]
 pub enum BUS {
+    #[default]
     MASTER = 0,
-    SFX,
-    MUSIC,
-    INPUT,
-}
-
-impl BUS {
-    pub fn as_name(self) -> StringName {
-        match self {
-            MASTER => StringName::from("Master"),
-            SFX => StringName::from("SFX"),
-            MUSIC => StringName::from("Music"),
-            INPUT => StringName::from("Input"),
-        }
-    }
-
-    pub fn get_bus_index(self) -> i32 {
-        AudioServer::singleton().get_bus_index(&self.as_name().to_string())
-    }
+    SFX = 1,
+    MUSIC = 2,
+    INPUT = 3,
 }
 
 #[derive(GodotClass)]
 #[class(init, base=Node)]
-pub struct AudioBusRust {
+pub struct AudioBus {
     base: Base<Node>,
+    #[export(enum = (MASTER = 0, SFX = 1, MUSIC = 2, INPUT = 3))]
+    pub bus: BUS,
 }
 
-// TODO: this is psycho https://godot-rust.github.io/book/register/properties.html?highlight=enum#enums
-//  https://godot-rust.github.io/book/register/constants.html
-//  https://godot-rust.github.io/book/recipes/engine-singleton.html
-#[godot_api]
-impl AudioBusRust {
-    #[func]
-    pub fn get_bus_index(&self, bus: BUS) -> i32 {
-        bus.get_bus_index()
+impl AudioBus {
+    //TODO: eh, keep it for reference
+    pub fn singleton() -> Gd<AudioBus> {
+        Engine::singleton()
+            .get_singleton(&AudioBus::class_name().to_string_name())
+            .unwrap()
+            .cast::<AudioBus>()
     }
+
+    pub fn get_bus_index_rust(bus: BUS) -> i32 {
+        let name = Self::val_rust(bus).to_string();
+        let index = AudioServer::singleton().get_bus_index(&name);
+        if index == -1 {
+            godot_warn!("Bus not found: {}", name);
+        }
+        index
+    }
+
+    pub fn val_rust(bus: BUS) -> StringName {
+        match bus {
+            BUS::MASTER => "Master".into(),
+            BUS::SFX => "SFX".into(),
+            BUS::MUSIC => "Music".into(),
+            BUS::INPUT => "Input".into(),
+        }
+    }
+}
+
+#[godot_api]
+impl AudioBus {
+    #[constant]
+    const MASTER: u8 = BUS::MASTER as u8;
+    #[constant]
+    const SFX: u8 = BUS::SFX as u8;
+    #[constant]
+    const MUSIC: u8 = BUS::MUSIC as u8;
+    #[constant]
+    const INPUT: u8 = BUS::INPUT as u8;
 
     #[func]
     pub fn val(&self, bus: BUS) -> StringName {
-        bus.as_name()
+        Self::val_rust(bus)
     }
 
-    #[constant]
-    const MASTER: i32 = MASTER as i32;
-    #[constant]
-    const SFX: i32 = SFX as i32;
-    #[constant]
-    const MUSIC: i32 = MUSIC as i32;
-    #[constant]
-    const INPUT: i32 = INPUT as i32;
+    #[func]
+    pub fn get_bus_index(&self, bus: BUS) -> i32 {
+        Self::get_bus_index_rust(bus)
+    }
 }

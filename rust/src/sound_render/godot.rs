@@ -1,3 +1,4 @@
+use crate::sound_render::audio_bus::AudioBus;
 use crate::sound_render::audio_bus::BUS::MUSIC;
 use crate::sound_render::sound_renderer::{
     FFTTexture, WaveformTexture, BUFFER_SIZE, DEAD_CHANNEL, FFT_ROW, HZ_STEP, INVERSE_DECIBEL_RANGE,
@@ -90,7 +91,9 @@ impl WaveformTexture for GodotWaveformTexture {
     fn fetch_waveform_capture(&mut self) -> Self::AudioEffect {
         let waveform_audio_effect_capture = AudioEffectCapture::new_gd();
         let mut audio_server: Gd<AudioServer> = AudioServer::singleton();
-        audio_server.add_bus_effect(MUSIC.get_bus_index(), &waveform_audio_effect_capture);
+        //let bus_index = AudioBus::singleton().bind_mut().get_bcus_index(MUSIC);
+        //audio_server.add_bus_effect(bus_index, &waveform_audio_effect_capture);
+        audio_server.add_bus_effect(AudioBus::get_bus_index_rust(MUSIC), &waveform_audio_effect_capture);
         waveform_audio_effect_capture
     }
 
