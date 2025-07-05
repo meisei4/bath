@@ -1,8 +1,9 @@
 use crate::sound_render::audio_bus::BUS::MUSIC;
 use crate::sound_render::sound_renderer::{
-    FFTTexture, WaveformTexture, BUFFER_SIZE, DEAD_CHANNEL, FFT_ROW, HZ_STEP, INVERSE_DECIBEL_RANGE, TEXTURE_HEIGHT,
+    FFTTexture, WaveformTexture, BUFFER_SIZE, DEAD_CHANNEL, FFT_ROW, HZ_STEP, INVERSE_DECIBEL_RANGE,
+    MDN_MIN_AUDIO_DECIBEL, TEXTURE_HEIGHT,
 };
-use crate::sound_render::util::{compute_smooth_energy, MDN_MIN_AUDIO_DECIBEL};
+use crate::sound_render::util::compute_smooth_energy;
 use godot::builtin::PackedFloat32Array;
 use godot::classes::audio_effect_spectrum_analyzer_instance::MagnitudeMode;
 use godot::classes::image::Format;

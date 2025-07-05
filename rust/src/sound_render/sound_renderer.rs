@@ -1,4 +1,8 @@
-use crate::sound_render::util::{MDN_MAX_AUDIO_DECIBEL, MDN_MIN_AUDIO_DECIBEL};
+//sound_renderer.rs
+pub const CHANNELS: u32 = 1_u32;
+pub const SAMPLE_RATE_HARDCODED: u32 = 44_100_u32; //THIS COMES FROM THE ORIGINAL CONFIGURATION FROM SHADERTOY AND GODOT
+pub const PER_SAMPLE_BIT_DEPTH_HARDCODED: u32 = 16_u32;
+pub const PER_CYCLE_PUSHED_RING_BUFFER_CHUNK_SIZE_HARDCODED: usize = 2048_usize;
 
 pub const TEXTURE_HEIGHT: i32 = 1_i32;
 pub const BUFFER_SIZE: usize = 512_usize;
@@ -9,12 +13,13 @@ pub const SAMPLE_RATE: f32 = 44_100_f32;
 
 pub const HALF_SAMPLE_RATE: f32 = SAMPLE_RATE / 2_f32;
 pub const HZ_STEP: f32 = HALF_SAMPLE_RATE / MDN_BINS_F;
+pub const MDN_MIN_AUDIO_DECIBEL: f32 = -100.0; //match WebAudio defaults
+pub const MDN_MAX_AUDIO_DECIBEL: f32 = -30.0; //match WebAudio defaults
 pub const INVERSE_DECIBEL_RANGE: f32 = 1_f32 / (MDN_MAX_AUDIO_DECIBEL - MDN_MIN_AUDIO_DECIBEL);
 
-//TODO: dafuq
-// https://github.com/godotengine/godot/blob/master/core/math/math_funcs.h#L611
 pub const K: f64 = 20_f64 / std::f64::consts::LN_10;
-
+//TODO: ^^dafuq
+// https://github.com/godotengine/godot/blob/master/core/math/math_funcs.h#L611
 pub trait FFTTexture {
     type Image;
     type FFTData;

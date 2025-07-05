@@ -3,10 +3,21 @@ use bath::render::raylib::RaylibRenderer;
 use bath::render::raylib_util::{EXPERIMENTAL_WINDOW_HEIGHT, EXPERIMENTAL_WINDOW_WIDTH};
 use bath::render::{renderer::Renderer, renderer::RendererVector2};
 use bath::sound_render::raylib::RaylibFFTTexture;
-use bath::sound_render::sound_renderer::{FFTTexture, BUFFER_SIZE};
-use bath_resources::audio_godot::WAV_TEST;
+use bath::sound_render::sound_renderer::{
+    FFTTexture, BUFFER_SIZE, CHANNELS, PER_CYCLE_PUSHED_RING_BUFFER_CHUNK_SIZE_HARDCODED,
+    PER_SAMPLE_BIT_DEPTH_HARDCODED, SAMPLE_RATE_HARDCODED,
+};
+use bath_resources::audio_godot::{SHADERTOY_WAV, SHADERTOY_WHAT_WAV, WAV_TEST};
 use bath_resources::glsl::FFT_FRAG_PATH;
+use hound::SampleFormat::Int;
+use hound::WavReader;
 use raylib::core::audio::RaylibAudio;
+use raylib::ffi::{
+    IsAudioStreamProcessed, LoadAudioStream, PlayAudioStream, SetAudioStreamBufferSizeDefault, UpdateAudioStream,
+    UpdateTexture,
+};
+use raylib::texture::RaylibTexture2D;
+use std::slice::from_raw_parts;
 
 fn main() {
     let mut render = RaylibRenderer::init(EXPERIMENTAL_WINDOW_WIDTH, EXPERIMENTAL_WINDOW_HEIGHT);
@@ -19,9 +30,9 @@ fn main() {
     render.set_uniform_vec2(&mut shader, "iResolution", i_resolution);
     let mut fft = RaylibFFTTexture {
         plan: None,
-        spectrum: vec![fftw_complex { re: 0.0, im: 0.0 }; BUFFER_SIZE],
+        spectrum: [fftw_complex { re: 0.0, im: 0.0 }; BUFFER_SIZE],
     };
-    let mut fft_data = vec![0.0_f32; BUFFER_SIZE];
+    let mut fft_data = [0_f32; BUFFER_SIZE];
     let mut fft_image = fft.init_audio_texture();
     let mut fft_texture = render
         .handle
@@ -30,21 +41,60 @@ fn main() {
     render.set_uniform_sampler2d(&mut shader, "iChannel0", &fft_texture);
 
     let raylib_audio = RaylibAudio::init_audio_device().unwrap();
-    let sample_byte_size = size_of::<f32>() as u32;
-    let sample_bit_size = sample_byte_size * u8::BITS;
-    let raw_audio_stream = raylib_audio.new_audio_stream(44_100_u32, sample_bit_size, 1_u32);
-    // TODO: somehow get the raw audio data from the wav file but such that its in chunks alligned with the audiostream update rate
-    //  which means same sample rate, same sample size, and same channel count??
-    let wav_reader = hound::WavReader::open(WAV_TEST).unwrap();
-    //TODO: can raylib do it? what?
-    //let wav_raylib = WaveSamples;
-    raw_audio_stream.play();
-    //TODO: how do we initialize the buffer? do we need to? how do we read and fill everything correctly
-    let raw_audio_data = ();
+    raylib_audio.set_audio_stream_buffer_size_default(PER_CYCLE_PUSHED_RING_BUFFER_CHUNK_SIZE_HARDCODED as i32);
+    unsafe {
+        SetAudioStreamBufferSizeDefault(PER_CYCLE_PUSHED_RING_BUFFER_CHUNK_SIZE_HARDCODED as i32);
+    }
+    let audio_stream = unsafe { LoadAudioStream(SAMPLE_RATE_HARDCODED, PER_SAMPLE_BIT_DEPTH_HARDCODED, CHANNELS) };
+    let mut chunk_samples: [i16; PER_CYCLE_PUSHED_RING_BUFFER_CHUNK_SIZE_HARDCODED] =
+        [0; PER_CYCLE_PUSHED_RING_BUFFER_CHUNK_SIZE_HARDCODED];
+    //TODO: WTF just happened in this:
+    // ffmpeg -i "shadertoy_music_experiment_min_bitrate.ogg" -ac 1 -sample_fmt s16 -c:a pcm_s16le shadertoy.wav
+    let mut wav = WavReader::open(SHADERTOY_WHAT_WAV).unwrap();
+    let wav_spec = wav.spec();
+    let mut wav_iter = wav.samples::<i16>();
+    let is_stereo = wav_spec.channels == 2_u16;
+    assert!(
+        wav_spec.sample_format == Int && wav_spec.bits_per_sample == 16_u16,
+        "WAV must be 16-bit signed PCM"
+    );
+    print!(
+        "fmt: {:?}, bits per sample: {}",
+        wav_spec.sample_format, wav_spec.bits_per_sample
+    );
+    unsafe {
+        PlayAudioStream(audio_stream);
+    }
     while !render.handle.window_should_close() {
-        // raw_audio_stream.update(raw_audio_data);
+        if unsafe { IsAudioStreamProcessed(audio_stream) } {
+            for sample in &mut chunk_samples {
+                //downMIX
+                if is_stereo {
+                    let left = wav_iter.next().unwrap_or(Ok(0)).unwrap();
+                    let right = wav_iter.next().unwrap_or(Ok(0)).unwrap();
+                    *sample = ((left as i32 + right as i32) / 2_i32) as i16;
+                } else {
+                    *sample = wav_iter.next().unwrap_or(Ok(0)).unwrap();
+                }
+            }
+            unsafe {
+                UpdateAudioStream(
+                    audio_stream,
+                    chunk_samples.as_ptr() as *const _,
+                    PER_CYCLE_PUSHED_RING_BUFFER_CHUNK_SIZE_HARDCODED as i32,
+                );
+            }
+            //downSAMPLE
+            for (fft_sample, wav_sample) in fft_data.iter_mut().zip(chunk_samples.chunks_exact(2)) {
+                let avg = (wav_sample[0] as i32 + wav_sample[1] as i32) / 2_i32;
+                *fft_sample = avg as f32 / i16::MAX as f32;
+            }
+        }
         fft.update_audio_texture(&mut fft_data, &mut fft_image);
-        // [...]
+        let len = fft_image.get_pixel_data_size();
+        let pixels = unsafe { from_raw_parts(fft_image.data as *const u8, len) };
+        eprintln!("FFT image bytes [0..8]: {:?}", &pixels[0..8.min(len)]);
+        fft_texture.update_texture(pixels).unwrap();
         render.draw_shader_screen(&mut shader, &mut buffer_a);
     }
 }

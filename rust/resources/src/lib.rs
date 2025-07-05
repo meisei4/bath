@@ -31,8 +31,11 @@ pub mod audio_godot {
     pub const MIDI_FILE_PATH: &str = "../godot/Resources/audio/fingerbib.mid";
     pub const SOUND_FONT_FILE_BYTES: &[u8] = include_bytes!("../../../godot/Resources/audio/dsdnmoy.sf2");
     pub const MIDI_FILE_BYTES: &[u8] = include_bytes!("../../../godot/Resources/audio/fingerbib.mid");
-    pub const SHADERTOY_MUSIC_EXPERIMENT_OGG: &'static str = "../../../godot/Resources/audio/shadertoy_music_experiment_min_bitrate.ogg";
     pub const WAV_TEST: &'static str = "resources/glsl/audio/cached_wav.wav";
+    pub const SHADERTOY_WAV: &'static str = "resources/glsl/audio/shadertoy.wav";
+    pub const SHADERTOY_WHAT_WAV: &'static str = "resources/glsl/audio/shadertoy_what.wav";
+
+
 
 }
 

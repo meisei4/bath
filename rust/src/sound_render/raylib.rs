@@ -1,24 +1,25 @@
 use crate::audio_analysis::fftw::{fftw_complex, fftw_create_plan, fftw_direction, fftw_one, fftw_plan};
 use crate::sound_render::sound_renderer::{
-    FFTTexture, BUFFER_SIZE, DEAD_CHANNEL, FFT_ROW, HALF_SAMPLE_RATE, HZ_STEP, INVERSE_DECIBEL_RANGE, K, TEXTURE_HEIGHT,
+    FFTTexture, BUFFER_SIZE, DEAD_CHANNEL, FFT_ROW, HALF_SAMPLE_RATE, HZ_STEP, INVERSE_DECIBEL_RANGE, K,
+    MDN_MIN_AUDIO_DECIBEL, PER_CYCLE_PUSHED_RING_BUFFER_CHUNK_SIZE_HARDCODED, TEXTURE_HEIGHT,
 };
-use crate::sound_render::util::{compute_smooth_energy, MDN_MIN_AUDIO_DECIBEL};
+use crate::sound_render::util::compute_smooth_energy;
 use raylib::color::Color;
 use raylib::math::Vector4;
 use raylib::texture::Image;
 
 pub struct RaylibFFTTexture {
     pub plan: Option<fftw_plan>,
-    pub spectrum: Vec<fftw_complex>,
+    pub spectrum: [fftw_complex; BUFFER_SIZE],
 }
 
 impl FFTTexture for RaylibFFTTexture {
     type Image = Image;
-    type FFTData = Vec<f32>; // TODO later use [f32] but figure out the Sized constraint
-    type AudioEffect = Vec<fftw_complex>;
+    type FFTData = [f32; BUFFER_SIZE];
+    type AudioEffect = [fftw_complex; BUFFER_SIZE];
 
-    fn resize_buffer(&mut self, fft_data: &mut Self::FFTData) {
-        fft_data.resize(BUFFER_SIZE, 0_f32);
+    fn resize_buffer(&mut self, _fft_data: &mut Self::FFTData) {
+        //NO OP
     }
 
     fn init_audio_texture(&mut self) -> Self::Image {
@@ -26,11 +27,11 @@ impl FFTTexture for RaylibFFTTexture {
     }
 
     fn fetch_spectrum_analyzer(&mut self) -> Self::AudioEffect {
-        self.spectrum.clone()
+        self.spectrum
     }
 
     fn update_audio_texture(&mut self, fft_data: &mut Self::FFTData, audio_texture: &mut Self::Image) {
-        let mut input = vec![fftw_complex { re: 0_f64, im: 0_f64 }; BUFFER_SIZE];
+        let mut input = [fftw_complex { re: 0_f64, im: 0_f64 }; BUFFER_SIZE];
         let mut output = self.fetch_spectrum_analyzer();
         for i in 0_usize..BUFFER_SIZE {
             input[i].re = fft_data[i] as f64;
@@ -43,16 +44,17 @@ impl FFTTexture for RaylibFFTTexture {
             }
             fftw_one(self.plan.unwrap(), input.as_mut_ptr(), output.as_mut_ptr());
         }
-        //let fft_size = (output.len() * 2_usize) as f32; // number of real bins
-        let fft_size = (BUFFER_SIZE * 2_usize) as f32;
+        let max_bin_f = (BUFFER_SIZE - 1_usize) as f32;
         for bin_index in 0_usize..BUFFER_SIZE {
-            let bin_index_f = bin_index as f32;
-            let freq_low_hz = bin_index_f * HZ_STEP;
-            let freq_high_hz = (bin_index_f + 1_f32) * HZ_STEP;
-            let mut bin_low = (freq_low_hz * fft_size / HALF_SAMPLE_RATE).floor();
-            let mut bin_high = (freq_high_hz * fft_size / HALF_SAMPLE_RATE).ceil();
-            bin_low = bin_low.clamp(0_f32, fft_size - 1_f32);
-            bin_high = bin_high.clamp(0_f32, fft_size - 1_f32);
+            let f_low = bin_index as f32 * HZ_STEP;
+            let f_high = (bin_index as f32 + 1.0) * HZ_STEP;
+
+            // convert Hz→bin indices (fs/2 = HALF_SAMPLE_RATE)
+            let mut bin_low = (f_low * BUFFER_SIZE as f32 / HALF_SAMPLE_RATE).floor();
+            let mut bin_high = (f_high * BUFFER_SIZE as f32 / HALF_SAMPLE_RATE).ceil();
+            bin_low = bin_low.clamp(0_f32, max_bin_f);
+            bin_high = bin_high.clamp(0_f32, max_bin_f);
+
             if bin_low > bin_high {
                 std::mem::swap(&mut bin_low, &mut bin_high);
             }
@@ -61,7 +63,7 @@ impl FFTTexture for RaylibFFTTexture {
             let mut magnitude_sum = 0_f64;
             for i in bin_low_i..=bin_high_i {
                 let sample = &output[i as usize];
-                let magnitude = (sample.re * sample.re + sample.im * sample.im).sqrt() / fft_size as f64;
+                let magnitude = (sample.re * sample.re + sample.im * sample.im).sqrt() / (BUFFER_SIZE as f64);
                 magnitude_sum += magnitude;
             }
             let bin_span = (bin_high_i - bin_low_i + 1_i32) as f64;

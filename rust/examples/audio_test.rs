@@ -19,13 +19,15 @@ use std::f32::consts::PI;
 // const PER_CYCLE_PUSHED_RING_BUFFER_CHUNK_SIZE_DERIVED: usize = 4096_usize; //TODO: derive this from the above stuff please
 
 const CHANNELS: u32 = 1_u32;
-const SAMPLE_RATE_HARDCODED: u32 = 22_050_u32;
+//const SAMPLE_RATE_HARDCODED: u32 = 22_050_u32;
+const SAMPLE_RATE_HARDCODED: u32 = 44_100_u32;
 //const SAMPLE_RATE_HARDCODED: u32 = 48_000_u32;
 
 const PER_SAMPLE_BIT_DEPTH_HARDCODED: u32 = 16_u32;
 //const PER_SAMPLE_BIT_DEPTH_HARDCODED: u32 = 32_u32;
 const HALF_CYCLE_LOOK_UP_TABLE_SAMPLE_COUNT_HARDCODED: usize = 512_usize; // = 512 BYTES!
-const PER_CYCLE_PUSHED_RING_BUFFER_CHUNK_SIZE_HARDCODED: usize = 4096_usize; // = 4096 BYTES
+                                                                          //const PER_CYCLE_PUSHED_RING_BUFFER_CHUNK_SIZE_HARDCODED: usize = 4096_usize; // = 4096 BYTES
+const PER_CYCLE_PUSHED_RING_BUFFER_CHUNK_SIZE_HARDCODED: usize = 1024_usize;
 
 const LUT_ELEMENTS_PER_CYCLE: usize = HALF_CYCLE_LOOK_UP_TABLE_SAMPLE_COUNT_HARDCODED * 2_usize;
 
