@@ -1,19 +1,24 @@
-use crate::audio_analysis::godot::{detect_bpm_aubio_ogg, detect_bpm_aubio_wav};
 use crate::midi::util::{
-    parse_midi_events_into_note_on_off_event_buffer_seconds_from_bytes,
-    parse_midi_events_into_note_on_off_event_buffer_ticks_from_bytes, render_midi_to_wav_bytes,
+    midi_note_to_hsv, parse_midi_events_into_note_on_off_event_buffer_seconds_from_bytes, render_midi_to_wav_bytes,
+    sample_active_notes_at_time, update_note_log_history, MidiNote,
 };
-use godot::builtin::{Dictionary, GString, PackedByteArray, PackedVector2Array, Vector2, Vector2i};
+use godot::builtin::{GString, PackedByteArray, PackedVector3Array, Vector3};
 use godot::classes::file_access::ModeFlags;
 use godot::classes::{FileAccess, Node};
 use godot::obj::Base;
 use godot::prelude::{godot_api, GodotClass};
+use std::collections::HashMap;
 
+// godot --path . --scene Scenes/Audio/PitchDimension.tscn
 #[derive(GodotClass)]
 #[class(init, base=Node)]
 pub struct Midi {
     #[base]
     base: Base<Node>,
+    note_buffer: HashMap<MidiNote, Vec<(f32, f32)>>,
+    last_active_notes: Vec<u8>,
+    note_log_history: Vec<String>,
+    hsv_buffer: Vec<[f32; 3]>,
 }
 
 const TARGET_CHANNEL: u8 = 0;
@@ -22,53 +27,36 @@ const PROGRAM: u8 = 0; //"Accordion" figure out a better way to do this
 #[godot_api]
 impl Midi {
     #[func]
-    pub fn detect_bpm_wav(&self, wav_file_path: GString) -> f32 {
-        let wav_path = wav_file_path.to_string();
-        let wav_file = FileAccess::open(&wav_path, ModeFlags::READ).unwrap();
-        let wav_bytes = wav_file.get_buffer(wav_file.get_length() as i64).to_vec();
-        detect_bpm_aubio_wav(&wav_bytes)
-    }
-
-    #[func]
-    pub fn detect_bpm_ogg(&self, ogg_file_path: GString) -> f32 {
-        let ogg_path = ogg_file_path.to_string();
-        let ogg_file = FileAccess::open(&ogg_path, ModeFlags::READ).unwrap();
-        let ogg_bytes = ogg_file.get_buffer(ogg_file.get_length() as i64).to_vec();
-        detect_bpm_aubio_ogg(&ogg_bytes)
-    }
-
-    #[func]
-    pub fn get_midi_note_on_off_event_buffer_ticks(&self, midi_file_path: GString) -> Dictionary {
-        let gd_file = FileAccess::open(&midi_file_path, ModeFlags::READ).unwrap();
+    pub fn load_midi_to_buffer(&mut self, midi_file_path: GString) {
+        let gd_file = FileAccess::open(&midi_file_path.to_string(), ModeFlags::READ).unwrap();
         let midi_bytes = gd_file.get_buffer(gd_file.get_length() as i64).to_vec();
-        let note_map_ticks = parse_midi_events_into_note_on_off_event_buffer_ticks_from_bytes(&midi_bytes);
-        let mut dict = Dictionary::new();
-        for (key, segments) in note_map_ticks {
-            let dict_key = Vector2i::new(key.midi_note as i32, key.instrument_id as i32);
-            let mut arr = PackedVector2Array::new();
-            for (onset, release) in segments {
-                arr.push(Vector2::new(onset as f32, release as f32));
-            }
-            let _ = dict.insert(dict_key, arr);
-        }
-        dict
+        self.note_buffer = parse_midi_events_into_note_on_off_event_buffer_seconds_from_bytes(&midi_bytes);
     }
 
     #[func]
-    pub fn get_midi_note_on_off_event_buffer_seconds(&self, midi_file_path: GString) -> Dictionary {
-        let gd_file = FileAccess::open(&midi_file_path, ModeFlags::READ).unwrap();
-        let midi_bytes = gd_file.get_buffer(gd_file.get_length() as i64).to_vec();
-        let note_map_secs = parse_midi_events_into_note_on_off_event_buffer_seconds_from_bytes(&midi_bytes);
-        let mut dict = Dictionary::new();
-        for (key, segments) in note_map_secs {
-            let dict_key = Vector2i::new(key.midi_note as i32, key.instrument_id as i32);
-            let mut arr = PackedVector2Array::new();
-            for (onset, release) in segments {
-                arr.push(Vector2::new(onset, release));
-            }
-            let _ = dict.insert(dict_key, arr);
+    pub fn update_hsv_buffer(&mut self, time: f32) -> PackedByteArray {
+        let notes = sample_active_notes_at_time(&self.note_buffer, time);
+        self.hsv_buffer.clear();
+        let polyphony = notes.len();
+        for note in notes.iter().take(6) {
+            let (h, s, v) = midi_note_to_hsv(*note, polyphony);
+            self.hsv_buffer.push([h, s, v]);
         }
-        dict
+        while self.hsv_buffer.len() < 6 {
+            self.hsv_buffer.push([0.0, 0.0, 0.0]);
+        }
+
+        update_note_log_history(time, &notes, &mut self.last_active_notes, &mut self.note_log_history);
+        PackedByteArray::from(notes)
+    }
+
+    #[func]
+    pub fn get_hsv_buffer(&self) -> PackedVector3Array {
+        let mut out = PackedVector3Array::new();
+        for [h, s, v] in &self.hsv_buffer {
+            out.push(Vector3::new(*h, *s, *v));
+        }
+        out
     }
 
     #[func]

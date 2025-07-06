@@ -4,7 +4,8 @@ use midly::{MetaMessage, MidiMessage, Smf, Timing, TrackEventKind};
 use rustysynth::{SoundFont, Synthesizer, SynthesizerSettings};
 use std::collections::{HashMap, HashSet};
 use std::error::Error;
-use std::io::Cursor;
+use std::f32::consts::TAU;
+use std::io::{stdout, Cursor, Write};
 use std::sync::Arc;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -356,4 +357,87 @@ pub fn debug_midi_note_onset_buffer(buffer: &HashMap<MidiNote, Vec<(u32, u32)>>,
         let line: String = row.into_iter().collect();
         println!("{}", line);
     }
+}
+
+pub const MAX_NOTE_HISTORY: usize = 6;
+
+pub fn update_note_log_history(
+    song_time: f32,
+    active_notes: &[u8],
+    _last_active_notes: &mut Vec<u8>,
+    _note_log_history: &mut Vec<String>,
+) {
+    if active_notes != _last_active_notes {
+        *_last_active_notes = active_notes.to_vec();
+        let mut line = format!("time: {:.3} | polyphony: {}\n", song_time, active_notes.len());
+        for &note in active_notes {
+            let name = midi_note_to_name(note);
+            let freq = midi_note_to_frequency(note);
+            let (hue, sat, val) = midi_note_to_hsv(note, active_notes.len());
+            line += &format!(
+                "  - {:<4} (MIDI:{:2}, {:6.2}Hz)  hue: {:5.2}rad | sat: {:.2} | val: {:.2}\n",
+                name, note, freq, hue, sat, val
+            );
+        }
+
+        _note_log_history.push(line);
+        if _note_log_history.len() > MAX_NOTE_HISTORY {
+            _note_log_history.remove(0);
+        }
+
+        clear_console();
+        println!("=== polyphony buffer (last {} changes) ===", MAX_NOTE_HISTORY);
+        for entry in _note_log_history.iter() {
+            print!("{}", entry);
+        }
+    }
+}
+
+pub fn clear_console() {
+    print!("\x1b[2J\x1b[H");
+    stdout().flush().unwrap();
+}
+
+pub fn sample_active_notes_at_time(buffer: &HashMap<MidiNote, Vec<(f32, f32)>>, t: f32) -> Vec<u8> {
+    let mut notes = Vec::new();
+    for (key, segments) in buffer {
+        for &(onset, release) in segments {
+            if onset <= t && t < release {
+                notes.push(key.midi_note);
+                break;
+            }
+        }
+    }
+    notes.sort_unstable();
+    notes
+}
+
+pub fn midi_note_to_hsv(note: u8, polyphony: usize) -> (f32, f32, f32) {
+    let pitch_class = (note % 12) as f32;
+    let pitch_radians = (pitch_class / 12.0) * TAU;
+    let octave = (note / 12) as i32 - 1;
+    let value = (((octave - 1) as f32) / 7.0).clamp(0.3, 1.0);
+    let saturation = ((polyphony as f32) / 8.0).clamp(0.3, 1.0);
+    (pitch_radians, saturation, value)
+}
+
+pub fn midi_note_to_frequency(note: u8) -> f32 {
+    440.0 * 2f32.powf((note as f32 - 69.0) / 12.0)
+}
+
+pub fn midi_note_to_name(note: u8) -> String {
+    const NAMES: [&str; 12] = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+    let name = NAMES[(note % 12) as usize];
+    let octave = (note / 12) as i32 - 1;
+    format!("{}{}", name, octave)
+}
+
+pub fn make_onset_pairs(flat: &[f32]) -> Vec<(f32, f32)> {
+    let mut pairs = Vec::new();
+    let mut i = 0;
+    while i + 1 < flat.len() {
+        pairs.push((flat[i], flat[i + 1]));
+        i += 2;
+    }
+    pairs
 }
