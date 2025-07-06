@@ -6,6 +6,7 @@ mod fft_texture;
 mod fft_visualizer;
 mod icesheets;
 mod midi;
+mod pitch_dimension;
 mod water;
 mod waveform_texture;
 mod waveform_visualizer;

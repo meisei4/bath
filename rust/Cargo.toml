@@ -14,8 +14,7 @@ rustysynth = "1.3.5"
 # midly = { version = "0.5.3", default-features = false, features = ["std", "alloc"] }
 midly = "0.5.3"
 godot = { version = "0.3.1", features = ["experimental-wasm"], optional = true }
-
-#TODO: optional and should not be added when using godot lib only
+heapless = {version = "0.8.0", optional = true}
 midir = { version = "0.10.1", optional = true }
 rdev = { version = "0.5.3", optional = true }
 terminal_size = { version = "0.4.2", optional = true }
@@ -25,9 +24,8 @@ raylib = { version = "5.5.1", optional = true }
 #raylib = { git = "https://github.com/raylib-rs/raylib-rs.git", branch = "stable", optional = true }
 
 [features]
-# TODO: Im very tired/annoyed by all this feature gating and gaurding and just this whole project..
-#  at somepoint find time to actually organize it all intuitively..
-default = ["godot"]
+default = ["std", "godot"]
+std = []
 tests-only = ["midir", "rdev", "terminal_size", "raylib"]
 
 [target.'cfg(not(any(target_arch = "wasm32", target_os = "linux")))'.dependencies]

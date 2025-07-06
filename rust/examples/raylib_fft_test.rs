@@ -8,7 +8,7 @@ use bath::sound_render::sound_renderer::{
     PER_CYCLE_PUSHED_RING_BUFFER_CHUNK_SIZE_HARDCODED, PER_SAMPLE_BIT_DEPTH_HARDCODED, RING_BUFFER_PADDING,
     SAMPLE_RATE_HARDCODED, WINDOW_TIME,
 };
-use bath_resources::audio_godot::WAV_TEST;
+use bath_resources::audio::WAV_TEST;
 use bath_resources::glsl::{DEBUG_FRAG_PATH, DEBUG_VERT_PATH, FFT_FRAG_PATH};
 use hound::SampleFormat::Int;
 use hound::WavReader;
