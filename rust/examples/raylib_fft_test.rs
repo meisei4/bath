@@ -9,7 +9,7 @@ use bath::sound_render::sound_renderer::{
     SAMPLE_RATE_HARDCODED, WINDOW_TIME,
 };
 use bath_resources::audio_godot::WAV_TEST;
-use bath_resources::glsl::FFT_FRAG_PATH;
+use bath_resources::glsl::{DEBUG_FRAG_PATH, DEBUG_VERT_PATH, FFT_FRAG_PATH};
 use hound::SampleFormat::Int;
 use hound::WavReader;
 use raylib::core::audio::RaylibAudio;
@@ -17,7 +17,9 @@ use raylib::ffi::{
     IsAudioStreamProcessed, LoadAudioStream, PlayAudioStream, SetAudioStreamBufferSizeDefault, UpdateAudioStream,
 };
 use raylib::texture::RaylibTexture2D;
+use std::fs;
 use std::slice::from_raw_parts;
+use std::time::SystemTime;
 
 fn main() {
     let mut render = RaylibRenderer::init(EXPERIMENTAL_WINDOW_WIDTH, EXPERIMENTAL_WINDOW_HEIGHT);
@@ -26,7 +28,8 @@ fn main() {
         render.handle.get_screen_height() as f32,
     );
     let mut buffer_a = render.init_render_target(i_resolution, true);
-    let mut shader = render.load_shader_fragment(FFT_FRAG_PATH);
+    //let mut shader = render.load_shader_fragment(FFT_FRAG_PATH);
+    let mut shader = render.load_shader_full(DEBUG_VERT_PATH, FFT_FRAG_PATH);
     render.set_uniform_vec2(&mut shader, "iResolution", i_resolution);
     let fft_history_len: usize =
         (FFT_HISTORICAL_SMOOTHING_BUFFER_TIME_SECONDS as f64 / WINDOW_TIME).ceil() as usize + RING_BUFFER_PADDING;
@@ -71,6 +74,8 @@ fn main() {
     unsafe {
         PlayAudioStream(audio_stream);
     }
+    let mut vert_mod_time = get_file_mod_time(DEBUG_VERT_PATH);
+    let mut frag_mod_time = get_file_mod_time(DEBUG_FRAG_PATH);
     while !render.handle.window_should_close() {
         if unsafe { IsAudioStreamProcessed(audio_stream) } {
             for sample in &mut chunk_samples {
@@ -101,6 +106,23 @@ fn main() {
         let pixels = unsafe { from_raw_parts(fft_image.data as *const u8, len) };
         //println!("FFT image bytes [0..8]: {:?}", &pixels[0..8.min(len)]);
         fft_texture.update_texture(pixels).unwrap();
-        render.draw_shader_screen(&mut shader, &mut buffer_a);
+        let new_vert_mod_time = get_file_mod_time(DEBUG_VERT_PATH);
+        let new_frag_mod_time = get_file_mod_time(FFT_FRAG_PATH);
+        if new_vert_mod_time != vert_mod_time || new_frag_mod_time != frag_mod_time {
+            println!("Shader modified, reloading...");
+            shader = render.load_shader_full(DEBUG_VERT_PATH, FFT_FRAG_PATH);
+            render.set_uniform_vec2(&mut shader, "iResolution", i_resolution);
+            render.set_uniform_sampler2d(&mut shader, "iChannel0", &fft_texture);
+            vert_mod_time = new_vert_mod_time;
+            frag_mod_time = new_frag_mod_time;
+        }
+        render.draw_shader_screen_tilted_geom(&mut shader, &mut buffer_a, 0_f32);
+        //render.draw_shader_screen(&mut shader, &mut buffer_a);
     }
+}
+
+fn get_file_mod_time(path: &str) -> SystemTime {
+    fs::metadata(path)
+        .and_then(|m| m.modified())
+        .unwrap_or(SystemTime::UNIX_EPOCH)
 }

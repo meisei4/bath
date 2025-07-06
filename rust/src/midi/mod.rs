@@ -1,5 +1,4 @@
-pub mod godot;
 pub mod util;
 
 #[cfg(feature = "tests-only")]
-pub mod tests;
+pub mod debug;

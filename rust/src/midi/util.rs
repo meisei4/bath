@@ -1,8 +1,11 @@
-use hound::{SampleFormat, WavSpec, WavWriter};
+use hound::SampleFormat::Int;
+use hound::{WavSpec, WavWriter};
 use midly::{MetaMessage, MidiMessage, Smf, Timing, TrackEventKind};
-use rustysynth::Synthesizer;
-use std::collections::HashMap;
+use rustysynth::{SoundFont, Synthesizer, SynthesizerSettings};
+use std::collections::{HashMap, HashSet};
+use std::error::Error;
 use std::io::Cursor;
+use std::sync::Arc;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct MidiNote {
@@ -10,12 +13,68 @@ pub struct MidiNote {
     pub instrument_id: u8,
 }
 
-pub fn prepare_events(smf: &Smf) -> Vec<(u64, TrackEventKind<'static>)> {
+pub fn render_midi_to_wav_bytes(
+    sample_rate: i32,
+    midi_bytes: &[u8],
+    sf2_bytes: &[u8],
+    target_channel: u8,
+    program: u8,
+) -> Result<Vec<u8>, Box<dyn Error>> {
+    //TODO: the Box dyn is to allow for whatever hound Error or soundfont error or synth error i think
+    let mut sf2_cursor = Cursor::new(sf2_bytes.to_vec());
+    let sf = SoundFont::new(&mut sf2_cursor)?;
+    let soundfont = Arc::new(sf);
+    let mut synth = Synthesizer::new(&soundfont, &SynthesizerSettings::new(sample_rate))?;
+    let smf = Smf::parse(midi_bytes)?;
+    let mut events = prepare_events(&smf);
+    events = inject_program_change(events, target_channel, program);
+    let mut samples = Vec::new();
+    let mut active_notes = HashSet::new();
+    let mut time_cursor = 0_f32;
+    let step_secs = 1_f32 / (sample_rate as f32);
+
+    process_midi_events_with_timing(events, &smf, |event_time, event, ch| {
+        while time_cursor < event_time {
+            samples.push(render_one_frame(&mut synth));
+            time_cursor += step_secs;
+        }
+        if let Some(channel) = ch {
+            if let TrackEventKind::Midi { message, .. } = event {
+                match message {
+                    MidiMessage::NoteOn { key, vel } => {
+                        let note = key.as_int();
+                        let velocity = vel.as_int();
+                        if velocity > 0 {
+                            synth.note_on(channel as i32, note as i32, velocity as i32);
+                            active_notes.insert((channel, note));
+                        } else {
+                            synth.note_off(channel as i32, note as i32);
+                            active_notes.remove(&(channel, note));
+                        }
+                    },
+                    MidiMessage::NoteOff { key, .. } => {
+                        let note = key.as_int();
+                        synth.note_off(channel as i32, note as i32);
+                        active_notes.remove(&(channel, note));
+                    },
+                    _ => {},
+                }
+            }
+        }
+    });
+    while !active_notes.is_empty() {
+        samples.push(render_one_frame(&mut synth));
+        time_cursor += step_secs;
+    }
+    Ok(write_samples_to_wav_bytes(sample_rate, &samples)?)
+}
+
+pub fn prepare_events(smf: &Smf) -> Vec<(u32, TrackEventKind<'static>)> {
     let mut events = Vec::new();
     for track in &smf.tracks {
-        let mut abs_tick = 0u64;
+        let mut abs_tick = 0_u32;
         for e in track {
-            abs_tick += e.delta.as_int() as u64;
+            abs_tick += e.delta.as_int();
             events.push((abs_tick, e.kind.clone().to_static()));
         }
     }
@@ -24,10 +83,10 @@ pub fn prepare_events(smf: &Smf) -> Vec<(u64, TrackEventKind<'static>)> {
 }
 
 pub fn inject_program_change(
-    mut events: Vec<(u64, TrackEventKind<'static>)>,
+    mut events: Vec<(u32, TrackEventKind<'static>)>,
     channel: u8,
     program: u8,
-) -> Vec<(u64, TrackEventKind<'static>)> {
+) -> Vec<(u32, TrackEventKind<'static>)> {
     let pc = TrackEventKind::Midi {
         channel: midly::num::u4::from(channel),
         message: MidiMessage::ProgramChange {
@@ -38,51 +97,53 @@ pub fn inject_program_change(
     events
 }
 
-pub fn render_sample_frame(synth: &mut Synthesizer) -> (i16, i16) {
-    let mut left = [0.0];
-    let mut right = [0.0];
+pub fn render_one_frame(synth: &mut Synthesizer) -> (i16, i16) {
+    let mut left = [0_f32; 1];
+    let mut right = [0_f32; 1];
     synth.render(&mut left, &mut right);
-    let l = (left[0].clamp(-1.0, 1.0) * i16::MAX as f32) as i16;
-    let r = (right[0].clamp(-1.0, 1.0) * i16::MAX as f32) as i16;
-    (l, r)
+    let l_i = (left[0].clamp(-1_f32, 1_f32) * i16::MAX as f32) as i16;
+    let r_i = (left[0].clamp(-1_f32, 1_f32) * i16::MAX as f32) as i16;
+    (l_i, r_i)
 }
 
-pub fn write_samples_to_wav_bytes(sample_rate: i32, samples: Vec<(i16, i16)>) -> Vec<u8> {
-    let mut buffer = Cursor::new(Vec::new());
+pub fn write_samples_to_wav_bytes(sample_rate: i32, samples: &[(i16, i16)]) -> Result<Vec<u8>, hound::Error> {
     let spec = WavSpec {
-        channels: 2,
-        sample_rate: sample_rate as u32,
-        bits_per_sample: 16,
-        sample_format: SampleFormat::Int,
+        channels: 2_u16,
+        sample_rate: sample_rate as u32, //TODO: i3 u32 choose whose in charge, rustysynth? SynthesizerSettings, or hound WavSpec?
+        bits_per_sample: 16_u16,
+        sample_format: Int,
     };
-    let mut writer = WavWriter::new(&mut buffer, spec).unwrap();
-    for (l, r) in samples {
-        writer.write_sample(l).unwrap();
-        writer.write_sample(r).unwrap();
+    let mut cursor = Cursor::new(Vec::new());
+    let mut writer = WavWriter::new(&mut cursor, spec)?;
+    for &(left, right) in samples {
+        writer.write_sample(left)?;
+        writer.write_sample(right)?;
     }
-    writer.finalize().unwrap();
-    buffer.into_inner()
+    writer.finalize()?;
+    Ok(cursor.into_inner())
 }
 
 pub fn process_midi_events_with_timing(
-    events: Vec<(u64, TrackEventKind<'static>)>,
+    events: Vec<(u32, TrackEventKind<'static>)>,
     smf: &Smf,
-    mut on_event: impl FnMut(f64, &TrackEventKind<'_>, Option<u8>),
+    mut on_event: impl FnMut(f32, &TrackEventKind<'_>, Option<u8>),
 ) {
     let tpq = match smf.header.timing {
-        Timing::Metrical(t) => t.as_int() as f64,
+        Timing::Metrical(t) => t.as_int(),
         _ => panic!(),
     };
-    let mut us_per_qn = 500_000u64;
-    let mut time_sec = 0.0;
-    let mut last_tick = 0u64;
+    let tpq_arithmetic = tpq as f32;
+    let mut us_per_qn = 500_000_f32;
+    let mut time_sec = 0_f32;
+    let mut last_tick = 0_u32;
     for (tick, event) in events {
         let delta_ticks = tick - last_tick;
-        let delta_secs = (delta_ticks as f64 / tpq) * (us_per_qn as f64 / 1_000_000.0);
+        let delta_ticks_arithmetic = delta_ticks as f32;
+        let delta_secs = (delta_ticks_arithmetic / tpq_arithmetic) * (us_per_qn / 1_000_000_f32);
         time_sec += delta_secs;
         last_tick = tick;
         if let TrackEventKind::Meta(MetaMessage::Tempo(us)) = &event {
-            us_per_qn = us.as_int() as u64;
+            us_per_qn = us.as_int() as f32; //TODO: idk what is best idiomatic to make these type casts clearer and intuitve
         }
         let channel = if let TrackEventKind::Midi { channel, .. } = event {
             Some(channel.as_int())
@@ -95,17 +156,16 @@ pub fn process_midi_events_with_timing(
 
 fn inner_parse_note_on_off<T>(
     midi_bytes: &[u8],
-    mut time_fn: impl FnMut(u64, &TrackEventKind<'_>) -> T,
+    mut time_fn: impl FnMut(u32, &TrackEventKind<'_>) -> T,
     mut handle_note_fn: impl FnMut(u8, u8, u8, T, &[u8; 16]),
 ) {
     let smf = Smf::parse(midi_bytes).unwrap_or_else(|e| panic!("Failed to parse SMF from bytes: {}", e));
-
     let mut current_instrument_for_channel = [0u8; 16];
-    let mut events: Vec<(u64, TrackEventKind<'static>)> = Vec::new();
+    let mut events: Vec<(u32, TrackEventKind<'static>)> = Vec::new();
     for track in &smf.tracks {
-        let mut abs_tick = 0u64;
+        let mut abs_tick = 0_u32;
         for e in track {
-            abs_tick += e.delta.as_int() as u64;
+            abs_tick += e.delta.as_int();
             events.push((abs_tick, e.kind.clone().to_static()));
         }
     }
@@ -138,12 +198,12 @@ fn inner_parse_note_on_off<T>(
 
 pub fn parse_midi_events_into_note_on_off_event_buffer_ticks_from_bytes(
     midi_bytes: &[u8],
-) -> HashMap<MidiNote, Vec<(u64, u64)>> {
-    let mut active_note_on: HashMap<(u8, u8), u64> = HashMap::new();
-    let mut final_buffer: HashMap<MidiNote, Vec<(u64, u64)>> = HashMap::new();
+) -> HashMap<MidiNote, Vec<(u32, u32)>> {
+    let mut active_note_on: HashMap<(u8, u8), u32> = HashMap::new();
+    let mut final_buffer: HashMap<MidiNote, Vec<(u32, u32)>> = HashMap::new();
     let smf = Smf::parse(midi_bytes).unwrap();
-    let ticks_per_quarter: u64 = match smf.header.timing {
-        Timing::Metrical(tpq) => tpq.as_int() as u64,
+    let ticks_per_quarter = match smf.header.timing {
+        Timing::Metrical(tpq) => tpq.as_int(),
         _ => panic!("Unsupported MIDI timing format"),
     };
     inner_parse_note_on_off(
@@ -172,27 +232,27 @@ pub fn parse_midi_events_into_note_on_off_event_buffer_ticks_from_bytes(
 
 pub fn parse_midi_events_into_note_on_off_event_buffer_seconds_from_bytes(
     midi_bytes: &[u8],
-) -> HashMap<MidiNote, Vec<(f64, f64)>> {
-    let mut active_note_on: HashMap<(u8, u8), f64> = HashMap::new();
-    let mut final_buffer: HashMap<MidiNote, Vec<(f64, f64)>> = HashMap::new();
+) -> HashMap<MidiNote, Vec<(f32, f32)>> {
+    let mut active_note_on: HashMap<(u8, u8), f32> = HashMap::new();
+    let mut final_buffer: HashMap<MidiNote, Vec<(f32, f32)>> = HashMap::new();
     let smf = Smf::parse(midi_bytes).unwrap();
-    let tpq: u64 = match smf.header.timing {
-        Timing::Metrical(tpq) => tpq.as_int() as u64,
+    let tpq = match smf.header.timing {
+        Timing::Metrical(tpq) => tpq.as_int() as f32,
         _ => panic!("Unsupported MIDI timing format"),
     };
     inner_parse_note_on_off(
         midi_bytes,
         {
-            let mut current_us_per_qn = 500_000u64; // initial default microseconds per quarter note
-            let mut last_tick = 0u64;
-            let mut elapsed_secs = 0f64;
+            let mut current_us_per_qn = 500_000_f32; // initial default microseconds per quarter note
+            let mut last_tick = 0_u32;
+            let mut elapsed_secs = 0_f32;
             move |tick, kind| {
-                let delta_ticks = tick - last_tick;
-                let delta_secs = (delta_ticks as f64 / tpq as f64) * (current_us_per_qn as f64 / 1_000_000.0);
+                let delta_ticks = (tick - last_tick) as f32;
+                let delta_secs = (delta_ticks / tpq) * (current_us_per_qn / 1_000_000_f32);
                 elapsed_secs += delta_secs;
                 last_tick = tick;
                 if let TrackEventKind::Meta(MetaMessage::Tempo(us)) = kind {
-                    current_us_per_qn = us.as_int() as u64;
+                    current_us_per_qn = us.as_int() as f32;
                 }
                 elapsed_secs
             }
@@ -215,16 +275,16 @@ pub fn parse_midi_events_into_note_on_off_event_buffer_seconds_from_bytes(
     final_buffer
 }
 
-pub fn debug_midi_note_onset_buffer(buffer: &HashMap<MidiNote, Vec<(u64, u64)>>, ticks_per_quarter: u64) {
+pub fn debug_midi_note_onset_buffer(buffer: &HashMap<MidiNote, Vec<(u32, u32)>>, ticks_per_quarter: u16) {
     if buffer.is_empty() {
         println!("-- no note events to display --");
         return;
     }
     let bars_to_display = 8;
-    let ticks_per_bar = ticks_per_quarter * 4;
-    let max_tick_to_display = ticks_per_bar * bars_to_display as u64;
-    let chart_width: usize = 128;
-    let scale = max_tick_to_display as f64 / chart_width as f64;
+    let ticks_per_bar = ticks_per_quarter as usize * 4;
+    let max_tick_to_display = (ticks_per_bar * bars_to_display) as u32;
+    let chart_width = 128;
+    let scale = max_tick_to_display as f32 / chart_width as f32;
     let label_width = 7;
     let segment = chart_width / bars_to_display;
     print!("{:label_width$}", "");
@@ -269,8 +329,8 @@ pub fn debug_midi_note_onset_buffer(buffer: &HashMap<MidiNote, Vec<(u64, u64)>>,
                 if onset >= max_tick_to_display {
                     continue;
                 }
-                let start = (onset as f64 / scale).floor() as usize;
-                let end = ((release.min(max_tick_to_display) as f64) / scale).ceil() as usize;
+                let start = (onset as f32 / scale).floor() as usize;
+                let end = ((release.min(max_tick_to_display)) as f32 / scale).ceil() as usize;
                 for x in start.min(chart_width - 1)..end.min(chart_width) {
                     row[x] = '▀';
                 }
@@ -282,8 +342,8 @@ pub fn debug_midi_note_onset_buffer(buffer: &HashMap<MidiNote, Vec<(u64, u64)>>,
                     if onset >= max_tick_to_display {
                         continue;
                     }
-                    let start = (onset as f64 / scale).floor() as usize;
-                    let end = ((release.min(max_tick_to_display) as f64) / scale).ceil() as usize;
+                    let start = (onset as f32 / scale).floor() as usize;
+                    let end = ((release.min(max_tick_to_display) as f32) / scale).ceil() as usize;
                     for x in start.min(chart_width - 1)..end.min(chart_width) {
                         row[x] = match row[x] {
                             '▀' | '█' => '█',

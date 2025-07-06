@@ -99,12 +99,28 @@ void main() {
     fragTexCoord = vTexCoord;
     // gl_Position  = mvp * vec4(vPosition, 1.0);
 
-    // TODO: GOT IT!!!!!!!!!!!!!!!
-    float zoom    = 0.5;
-    mat4  zoomOut = mat4(zoom, 0.0, 0.0, 0.0, 0.0, zoom, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0,
-         (1.0 - zoom) * 0.5 * iResolution.x, (1.0 - zoom) * 0.5 * iResolution.y, 0.0, 1.0);
+    float zoom = 1.0;
+    float z_x  = (1.0 - zoom) * 0.5 * iResolution.x;
+    float z_y  = (1.0 - zoom) * 0.5 * iResolution.y;
+    // clang-format off
+    mat4 zoomOut = mat4(zoom, 0.0,  0.0, 0.0,
+                        0.0,  zoom, 0.0, 0.0,
+                        0.0,  0.0,  1.0, 0.0,
+                        z_x,  z_y,  0.0, 1.0);
+    // clang-format on
+    float tiltBack = 0.0;
+    float t_cos    = cos(radians(tilt));
+    float t_sin    = sin(radians(tilt));
+    float t_y1     = (0.5 * iResolution.y) * (1.0 - t_cos);
+    float t_y2     = -(0.5 * iResolution.y) * t_sin;
+    // clang-format off
+    mat4 tiltBack = mat4(1.0,  0.0,    0.0,   0.0,
+                        0.0,  t_cos,  t_sin, 0.0,
+                        0.0, -t_sin,  t_cos, 0.0,
+                        0.0,  t_y1,   t_y2,  1.0);
+    // clang-format on
 
-    vmpv = vmpv * zoomOut;
+    vmpv = vmpv * zoomOut * tiltBack;
 
     gl_Position = vmpv * vec4(vPosition, 1.0);
 }

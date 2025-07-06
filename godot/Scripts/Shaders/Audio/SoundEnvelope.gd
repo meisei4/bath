@@ -65,26 +65,10 @@ func _ready() -> void:
     AudioPoolManager.play_music(ogg_stream)
 
 
-#TODO: its very important to control frame rate with these audio shaders
 func _process(_delta: float) -> void:
     iFrame += 1
     iChannel1 = waveform_texture.audio_texture
     BufferAShaderMaterial.set_shader_parameter("iChannel1", iChannel1)
-
-    #TODO: This is not effective, the entire sound envelope buffer needs to be optimized in a more advanced way
-    # - offloading the audio down-sampling to Rust/GDScript didn’t solve the main bottleneck
-    # - it's still doing thousands of unneccessary per-pixel calculations (nested loop) every frame
-    # - thus the gpu load is too heavy to reach real-time on high resolutions
-    # - the next optimization phase will involve moving the per-segment/history work into either:
-    # - A: A vertex shader stage (instanced line drawing, vertex shader)
-    #   OR
-    # - B:  CPU-side geometry (MultiMesh/Line2D), so the fragment shader only shades simple lines
-    #const DOWNSCALED_TARGET_NUMBER_OF_WAVEFORM_SEGMENTS: int = 96
-    #var cpu_next_envelope: PackedFloat32Array = RustUtil.compute_envelope_segments(
-    #waveform_texture.waveform_data, DOWNSCALED_TARGET_NUMBER_OF_WAVEFORM_SEGMENTS
-    #)
-    #BufferAShaderMaterial.set_shader_parameter("cpu_next_envelope", cpu_next_envelope)
-
     iChannel0 = BufferA.get_texture() as ViewportTexture
     BufferBShaderMaterial.set_shader_parameter("iChannel0", iChannel0)
     BufferBShaderMaterial.set_shader_parameter("iFrame", iFrame)

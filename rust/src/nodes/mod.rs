@@ -1,9 +1,10 @@
+pub mod collision;
 mod drekker;
 mod feedback_buffer;
 mod fft_texture;
 mod fft_visualizer;
 mod icesheets;
-pub mod rust_util;
+pub mod midi;
 mod water;
 mod waveform_texture;
 mod waveform_visualizer;

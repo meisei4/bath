@@ -2,7 +2,7 @@ extends Node
 class_name PitchDimension
 
 #TODO: rust godot gdextension cant return typed Dictionaries yet i dont think, have to use
-# dict = RustUtil.function() as Dictionary[key_type, value_type] for that i guess
+# dict = RustSingleton .function() as Dictionary[key_type, value_type] for that i guess
 var midi_note_on_off_event_buffer: Dictionary  #[Vector2i, PackedVector2Array]
 var _song_time: float = 0.0
 var _last_time: float = 0.0
@@ -21,7 +21,7 @@ func _ready() -> void:
     _song_time = 0.0
     _last_time = 0.0
     midi_note_on_off_event_buffer = (
-        RustUtil.get_midi_note_on_off_event_buffer_seconds(ResourcePaths.FINGERBIB)
+        Midi.get_midi_note_on_off_event_buffer_seconds(ResourcePaths.FINGERBIB)
         as Dictionary[Vector2i, PackedVector2Array]
     )
     #TODO: look into ogg vorbis compression for better audio file resources later, maybe OPUS too
@@ -43,7 +43,7 @@ func setup_wav() -> void:
     if ResourceLoader.exists(ResourcePaths.CACHED_WAV):
         wav_stream = load(ResourcePaths.CACHED_WAV) as AudioStreamWAV
     else:
-        var sound_bytes: PackedByteArray = RustUtil.render_midi_to_sound_bytes_constant_time(
+        var sound_bytes: PackedByteArray = Midi.render_midi_to_sound_bytes_constant_time(
             int(AudioServer.get_mix_rate()), ResourcePaths.FINGERBIB, ResourcePaths.DSDNMOY_SF2
         )
         var file_access: FileAccess = FileAccess.open(ResourcePaths.CACHED_WAV, FileAccess.WRITE)

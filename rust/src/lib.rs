@@ -1,4 +1,5 @@
-use crate::nodes::rust_util::RustUtil;
+use crate::nodes::collision::Collision;
+use crate::nodes::midi::Midi;
 use crate::sound_render::audio_bus::AudioBus;
 use godot::classes::Engine;
 use godot::init::{gdextension, ExtensionLibrary, InitLevel};
@@ -19,7 +20,8 @@ unsafe impl ExtensionLibrary for MyExtension {
     fn on_level_init(level: InitLevel) {
         if level == InitLevel::Scene {
             Engine::singleton().register_singleton("AudioBus", &AudioBus::new_alloc());
-            Engine::singleton().register_singleton("RustUtil", &RustUtil::new_alloc());
+            Engine::singleton().register_singleton("Collision", &Collision::new_alloc());
+            Engine::singleton().register_singleton("Midi", &Midi::new_alloc());
         }
     }
 
@@ -32,7 +34,13 @@ unsafe impl ExtensionLibrary for MyExtension {
                 singleton.free();
             }
 
-            let name = "RustUtil";
+            let name = "Collision";
+            if let Some(singleton) = engine.get_singleton(name) {
+                engine.unregister_singleton(name);
+                singleton.free();
+            }
+
+            let name = "Midi";
             if let Some(singleton) = engine.get_singleton(name) {
                 engine.unregister_singleton(name);
                 singleton.free();

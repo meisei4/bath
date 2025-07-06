@@ -8,7 +8,7 @@ var spectrum_analyzer_instance: AudioEffectSpectrumAnalyzerInstance
 var song_time: float = 0.0
 
 #var audio_stream: AudioStream = preload(ResourcePaths.SHADERTOY_MUSIC_EXPERIMENT_OGG)
-var audio_stream: AudioStream = preload(ResourcePaths.CACHED_WAV)
+#var audio_stream: AudioStream = preload(ResourcePaths.CACHED_WAV)
 #var audio_stream: AudioStream = preload(ResourcePaths.HELLION)
 #var audio_stream: AudioStream = preload(ResourcePaths.SNUFFY)
 #var input_stream: AudioStreamMicrophone = AudioStreamMicrophone.new()
@@ -26,6 +26,6 @@ func _ready() -> void:
     # juggling too many locations where music is tested for playback
     # especially PitchDimension scene with all the caching and shit
 
-    AudioPoolManager.play_music(audio_stream)
+    #AudioPoolManager.play_music(audio_stream)
 
     #AudioPoolManager.play_input(input_stream)

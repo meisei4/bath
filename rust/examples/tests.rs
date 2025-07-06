@@ -1,4 +1,4 @@
-use bath::midi::tests::run_playback;
+use bath::midi::debug::run_playback;
 
 // cargo +nightly build -Zbuild-std --target wasm32-unknown-emscripten --lib --release
 // cargo +nightly build -Zbuild-std --target wasm32-unknown-emscripten --lib

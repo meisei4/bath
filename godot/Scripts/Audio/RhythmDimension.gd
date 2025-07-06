@@ -20,8 +20,8 @@ func _ready() -> void:
         rhythm_data = RhythmData.new()
 
     if rhythm_data.bpm <= 0.0:
-        bpm = RustUtil.detect_bpm_ogg(ResourcePaths.SHADERTOY_MUSIC_EXPERIMENT_OGG)
-        #bpm = RustUtil.detect_bpm_wav(ResourcePaths.CACHED_WAV)
+        bpm = Midi.detect_bpm_ogg(ResourcePaths.SHADERTOY_MUSIC_EXPERIMENT_OGG)
+        #bpm = Midi.detect_bpm_wav(ResourcePaths.CACHED_WAV)
         print("Offline BPM detection → ", bpm)
         rhythm_data.bpm = bpm
         ResourceSaver.save(rhythm_data, ResourcePaths.CACHED_RHYTHM_DATA)

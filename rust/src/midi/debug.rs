@@ -297,7 +297,7 @@ pub fn play_midi(midi_path: &str) {
     process_midi_events_with_timing(events, &smf, |event_time, event, ch| {
         let delay = event_time - last_time;
         if delay > 0.0 {
-            thread::sleep(Duration::from_secs_f64(delay));
+            thread::sleep(Duration::from_secs_f32(delay));
         }
         last_time = event_time;
         if let Some(channel) = ch {

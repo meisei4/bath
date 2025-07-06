@@ -22,10 +22,6 @@ pub fn detect_bpm_aubio_wav(_pcm_bytes: &[u8]) -> f32 {
 pub fn detect_bpm_aubio_ogg(_pcm_bytes: &[u8]) -> f32 {
     0.0
 }
-#[cfg(any(target_arch = "wasm32", target_os = "linux"))]
-pub fn detect_bpm_from_beat_detector(_pcm_bytes: &[u8]) -> f32 {
-    0.0
-}
 
 #[cfg(all(not(target_arch = "wasm32"), not(target_os = "linux")))]
 pub fn detect_bpm_aubio_wav(pcm_bytes: &[u8]) -> f32 {
@@ -117,69 +113,5 @@ pub fn detect_bpm_aubio_ogg(ogg_bytes: &[u8]) -> f32 {
         bpm = tempo.get_bpm();
     }
 
-    bpm
-}
-
-#[cfg(all(not(target_arch = "wasm32"), not(target_os = "linux")))]
-pub fn detect_bpm_from_beat_detector(pcm_bytes: &[u8]) -> f32 {
-    let mut reader = match WavReader::new(Cursor::new(pcm_bytes)) {
-        Ok(r) => r,
-        Err(e) => {
-            godot_print!("detect_bpm_from_bytes: failed to parse PCM bytes: {}", e);
-            return 0.0;
-        },
-    };
-    let spec = reader.spec();
-    let sample_rate = spec.sample_rate as f32;
-    let channels = spec.channels as usize;
-    let mut mono_samples: Vec<i16> = Vec::new();
-    let mut samples_iter = reader.samples::<i16>();
-    loop {
-        let mut sum: i32 = 0;
-        for _ in 0..channels {
-            match samples_iter.next() {
-                Some(Ok(s)) => sum += s as i32,
-                _ => {
-                    break;
-                },
-            }
-        }
-        if sum == 0 && samples_iter.len() < channels {
-            break;
-        }
-        let mono_i16 = (sum / (channels as i32)) as i16;
-        mono_samples.push(mono_i16);
-    }
-    let rem = mono_samples.len() % BUF_SIZE;
-    if rem != 0 {
-        let pad = BUF_SIZE - rem;
-        mono_samples.extend(std::iter::repeat(0).take(pad));
-    }
-    //let mut beat_sample_indices: Vec<u64> = Vec::new();
-    let beat_sample_indices: Vec<u64> = Vec::new();
-    let total_windows = mono_samples.len() / BUF_SIZE;
-    //TODO: beat-detector doesnt expose detector lol, i dont want to patch it either
-    //let mut detector: Box<dyn Strategy + Send> = StrategyKind::Spectrum.detector(spec.sample_rate);
-    for window_idx in 0..total_windows {
-        let start = window_idx * BUF_SIZE;
-        let end = start + BUF_SIZE;
-        let _window: &[i16] = &mono_samples[start..end];
-        // if let Some(beat_info) = detector.is_beat(window) {
-        //     let rel_ms = beat_info.relative_ms() as f32;
-        //     let offset_samples = ((rel_ms / 1000.0) * sample_rate).round() as u64;
-        //     let absolute_sample = (start as u64).saturating_add(offset_samples);
-        //     beat_sample_indices.push(absolute_sample);
-        // }
-    }
-    if beat_sample_indices.len() < 2 {
-        return 0.0;
-    }
-    let mut total_delta: u64 = 0;
-    for i in 1..beat_sample_indices.len() {
-        total_delta += beat_sample_indices[i] - beat_sample_indices[i - 1];
-    }
-    let count = (beat_sample_indices.len() - 1) as f32;
-    let avg_delta_samples = total_delta as f32 / count;
-    let bpm = (sample_rate * 60.0) / avg_delta_samples;
     bpm
 }
