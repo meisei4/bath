@@ -1,9 +1,9 @@
-use crate::audio_analysis::fftw::{fftw_complex, fftw_create_plan, fftw_direction, fftw_one, fftw_plan};
 use crate::sound_render::sound_renderer::{
     FFTTexture, BUFFER_SIZE, DEAD_CHANNEL, FFT_ROW, FFT_WINDOW_SIZE, HALF_SAMPLE_RATE, HZ_STEP, INVERSE_DECIBEL_RANGE,
     K, MDN_MIN_AUDIO_DECIBEL, TEXTURE_HEIGHT, WINDOW_TIME,
 };
 use crate::sound_render::util::compute_smooth_energy;
+use fftw2_sys::{fftw_complex, fftw_create_plan, fftw_direction, fftw_one, fftw_plan};
 use raylib::color::Color;
 use raylib::math::Vector4;
 use raylib::texture::Image;

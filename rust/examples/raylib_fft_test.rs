@@ -1,4 +1,3 @@
-use bath::audio_analysis::fftw::fftw_complex;
 use bath::render::raylib::RaylibRenderer;
 use bath::render::raylib_util::{EXPERIMENTAL_WINDOW_HEIGHT, EXPERIMENTAL_WINDOW_WIDTH};
 use bath::render::{renderer::Renderer, renderer::RendererVector2};
@@ -10,6 +9,7 @@ use bath::sound_render::sound_renderer::{
 };
 use bath_resources::audio::WAV_TEST;
 use bath_resources::glsl::{DEBUG_FRAG_PATH, DEBUG_VERT_PATH, FFT_FRAG_PATH};
+use fftw2_sys::fftw_complex;
 use hound::SampleFormat::Int;
 use hound::WavReader;
 use raylib::core::audio::RaylibAudio;

@@ -108,11 +108,11 @@ void main() {
                         0.0,  0.0,  1.0, 0.0,
                         z_x,  z_y,  0.0, 1.0);
     // clang-format on
-    float tiltBack = 0.0;
-    float t_cos    = cos(radians(tilt));
-    float t_sin    = sin(radians(tilt));
-    float t_y1     = (0.5 * iResolution.y) * (1.0 - t_cos);
-    float t_y2     = -(0.5 * iResolution.y) * t_sin;
+    float tilt  = 0.0;
+    float t_cos = cos(radians(tilt));
+    float t_sin = sin(radians(tilt));
+    float t_y1  = (0.5 * iResolution.y) * (1.0 - t_cos);
+    float t_y2  = -(0.5 * iResolution.y) * t_sin;
     // clang-format off
     mat4 tiltBack = mat4(1.0,  0.0,    0.0,   0.0,
                         0.0,  t_cos,  t_sin, 0.0,
