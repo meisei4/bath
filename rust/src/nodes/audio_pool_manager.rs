@@ -9,7 +9,7 @@ use godot::register::{godot_api, GodotClass};
 
 #[derive(GodotClass)]
 #[class(init, base=Node)]
-pub struct AudioPool {
+pub struct AudioPoolRust {
     base: Base<Node>,
     #[export]
     pub pool_size: i32,
@@ -22,7 +22,7 @@ pub struct AudioPool {
 }
 
 #[godot_api]
-impl AudioPool {
+impl AudioPoolRust {
     #[func]
     pub fn ready(&mut self) {
         for _ in 0..self.pool_size {
@@ -62,9 +62,9 @@ impl AudioPool {
 #[class(init, base=Node)]
 pub struct AudioPoolManagerRust {
     base: Base<Node>,
-    sfx_pool: Option<Gd<AudioPool>>,
-    music_pool: Option<Gd<AudioPool>>,
-    input_pool: Option<Gd<AudioPool>>,
+    sfx_pool: Option<Gd<AudioPoolRust>>,
+    music_pool: Option<Gd<AudioPoolRust>>,
+    input_pool: Option<Gd<AudioPoolRust>>,
 }
 
 #[godot_api]
@@ -87,21 +87,21 @@ impl AudioPoolManagerRust {
     pub fn ready(&mut self) {
         self.setup_buses(&[MASTER, SFX, MUSIC, INPUT]);
         self.set_bus_volumes();
-        let mut sfx = AudioPool::new_alloc();
+        let mut sfx = AudioPoolRust::new_alloc();
         sfx.bind_mut().set_pool_size(Self::SFX_POOL_SIZE);
         sfx.bind_mut().set_bus(SFX.to_godot());
         sfx.bind_mut().set_loop_on_end(false);
         self.base_mut().add_child(&sfx);
         self.sfx_pool = Some(sfx);
 
-        let mut music = AudioPool::new_alloc();
+        let mut music = AudioPoolRust::new_alloc();
         music.bind_mut().set_pool_size(Self::MUSIC_POOL_SIZE);
         music.bind_mut().set_bus(MUSIC.to_godot());
         music.bind_mut().set_loop_on_end(true);
         self.base_mut().add_child(&music);
         self.music_pool = Some(music);
 
-        let mut input = AudioPool::new_alloc();
+        let mut input = AudioPoolRust::new_alloc();
         input.bind_mut().set_pool_size(Self::INPUT_POOL_SIZE);
         input.bind_mut().set_bus(INPUT.to_godot());
         input.bind_mut().set_loop_on_end(false);
