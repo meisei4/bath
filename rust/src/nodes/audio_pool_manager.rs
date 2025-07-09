@@ -83,6 +83,7 @@ impl AudioPoolManagerRust {
             .cast::<AudioPoolManagerRust>()
     }
 
+    //TODO: this is not correc tyou need to impl the base to get this to work you psycho
     #[func]
     pub fn ready(&mut self) {
         self.setup_buses(&[MASTER, SFX, MUSIC, INPUT]);

@@ -64,7 +64,7 @@ func _process(delta: float) -> void:
     BufferAShaderMaterial.set_shader_parameter("song_time", MusicDimensionsManager.song_time)
     iChannel1 = fft_texture.audio_texture
     BufferAShaderMaterial.set_shader_parameter("iChannel1", iChannel1)
-    var hsv_buffer: PackedVector3Array = pitch_dimension.get_hsv_buffer()
+    var hsv_buffer: PackedVector3Array = pitch_dimension.inner.get_hsv_buffer()
     #var fft_hsv_dummy: Vector3 = Vector3(0, 0, 1)
     #var light_ball_hsv_dummy: Vector3 = Vector3(0, 0, 1)
     #var hsv_buffer: PackedVector3Array = PackedVector3Array([light_ball_hsv_dummy, fft_hsv_dummy])

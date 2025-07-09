@@ -2,7 +2,7 @@ use crate::midi::pitch::PitchDimension;
 use crate::nodes::audio_pool_manager::AudioPoolManagerRust;
 use asset_loader::runtime_io::{CACHED_WAV, MIDI_FILE_PATH, SOUND_FONT_FILE_PATH};
 use godot::builtin::{PackedByteArray, PackedVector3Array, Vector3};
-use godot::classes::{AudioServer, AudioStreamWav, Node};
+use godot::classes::{AudioServer, AudioStreamWav, INode, Node};
 use godot::global::godot_print;
 use godot::obj::{Base, Gd};
 use godot::register::{godot_api, GodotClass};
@@ -14,42 +14,47 @@ pub struct PitchDimensionGodot {
     #[base]
     base: Base<Node>,
     inner: PitchDimension,
-    song_time: f32,
     wav_stream: Option<Gd<AudioStreamWav>>,
+    #[export]
+    song_time: f32,
+}
+
+#[godot_api]
+impl INode for PitchDimensionGodot {
+    //TODO: this is the only way to get teh prcoess running oh my goooooooooaaaaa
+    fn process(&mut self, delta: f64) {
+        self.song_time += delta as f32;
+        self.inner.update_hsv_buffer(self.song_time);
+    }
 }
 
 #[godot_api]
 impl PitchDimensionGodot {
     #[func]
-    pub fn ready(&mut self) {
-        let wav_bytes = match fs::read(CACHED_WAV) {
-            Ok(bytes) => bytes,
-            Err(_) => {
-                let sample_rate = AudioServer::singleton().get_mix_rate() as i32;
-                let bytes = self.inner.render_midi_to_sound_bytes_constant_time(
-                    sample_rate,
-                    MIDI_FILE_PATH,
-                    SOUND_FONT_FILE_PATH,
-                );
-                if let Some(dir) = std::path::Path::new(CACHED_WAV).parent() {
-                    let _ = fs::create_dir_all(dir);
-                }
-                fs::write(CACHED_WAV, &bytes).expect("write WAV cache");
-                bytes
-            },
-        };
+    fn get_wav_stream(&mut self) -> Gd<AudioStreamWav> {
+        if self.wav_stream.is_none() {
+            let wav_bytes = match fs::read(CACHED_WAV) {
+                Ok(bytes) => bytes,
+                Err(_) => {
+                    let sample_rate = AudioServer::singleton().get_mix_rate() as i32;
+                    let bytes = self.inner.render_midi_to_sound_bytes_constant_time(
+                        sample_rate,
+                        MIDI_FILE_PATH,
+                        SOUND_FONT_FILE_PATH,
+                    );
+                    if let Some(dir) = std::path::Path::new(CACHED_WAV).parent() {
+                        let _ = fs::create_dir_all(dir);
+                    }
+                    fs::write(CACHED_WAV, &bytes).expect("Failed to write WAV cache");
+                    bytes
+                },
+            };
 
-        let gd_wav_bytes = PackedByteArray::from(wav_bytes);
-        self.wav_stream = AudioStreamWav::load_from_buffer(&gd_wav_bytes);
-        AudioPoolManagerRust::singleton()
-            .bind_mut()
-            .play_music(self.wav_stream.clone().unwrap().upcast(), 0.0);
-    }
-
-    #[func]
-    pub fn process(&mut self, delta: f64) {
-        self.song_time += delta as f32;
-        self.inner.update_hsv_buffer(self.song_time);
+            let buffer = PackedByteArray::from(wav_bytes);
+            let stream = AudioStreamWav::load_from_buffer(&buffer).expect("Failed to decode WAV from buffer");
+            self.wav_stream = Some(stream.clone());
+        }
+        self.wav_stream.clone().unwrap()
     }
 
     #[func]
