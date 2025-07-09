@@ -2,7 +2,8 @@ use bath::render::raylib_util::{
     create_rgba16_render_texture, feedback_buffer_pass, image_pass, APPLE_DPI, EXPERIMENTAL_WINDOW_HEIGHT,
     EXPERIMENTAL_WINDOW_WIDTH,
 };
-use bath_resources::glsl;
+
+use asset_loader::runtime_io::{BUFFER_A_PATH, IMAGE_PATH, RAYLIB_DEFAULT_VERT_PATH};
 use raylib::init;
 use raylib::shaders::RaylibShader;
 use std::fs::read_to_string;
@@ -26,9 +27,9 @@ fn main() {
     println!("screen: {}x{}", screen_width, screen_height);
     println!("render:{}x{}", render_width, render_height);
     println!("dpi: {:?}", dpi);
-    let raylib_vertex_shader_src_code = read_to_string(glsl::RAYLIB_DEFAULT_VERT_PATH).unwrap();
-    let feedback_buffer_src_code = read_to_string(glsl::BUFFER_A_PATH).unwrap();
-    let image_src_code = read_to_string(glsl::IMAGE_PATH).unwrap();
+    let raylib_vertex_shader_src_code = read_to_string(RAYLIB_DEFAULT_VERT_PATH).unwrap();
+    let feedback_buffer_src_code = read_to_string(BUFFER_A_PATH).unwrap();
+    let image_src_code = read_to_string(IMAGE_PATH).unwrap();
 
     let mut feedback_buffer_shader = raylib_handle.load_shader_from_memory(
         &raylib_thread,

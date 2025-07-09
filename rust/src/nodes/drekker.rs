@@ -1,6 +1,7 @@
 use crate::render::godot::GodotRenderer;
 use crate::render::renderer::Renderer;
-use crate::resource_paths::ResourcePaths;
+use asset_loader::runtime_io::ICEBERGS_JPG_PATH;
+use asset_loader::ResourcePaths;
 use godot::classes::{INode2D, Node, Node2D};
 use godot::obj::{Base, Gd, NewAlloc, WithBaseField};
 use godot::prelude::{godot_api, GodotClass};
@@ -21,10 +22,10 @@ impl INode2D for DrekkerRenderer {
         let mut render = render.bind_mut();
         let i_resolution = render.init_i_resolution();
         let mut buffer_a = render.init_render_target(i_resolution, true);
-        let mut shader = render.load_shader_fragment(ResourcePaths::DREKKER_EFFECT);
+        let mut shader = render.load_shader_fragment(ResourcePaths::DREKKER_GDSHADER);
         render.set_uniform_vec2(&mut shader, "iResolution", i_resolution);
 
-        let mut texture = render.load_texture(ResourcePaths::ICEBERGS_JPG);
+        let mut texture = render.load_texture(ICEBERGS_JPG_PATH);
         render.draw_texture(&mut texture, &mut buffer_a);
         render.set_uniform_sampler2d(&mut shader, "iChannel0", &texture);
         render.draw_shader_screen(&mut shader, &mut buffer_a);

@@ -2,7 +2,6 @@
 
 [ext_resource type="Script" uid="uid://d3s4s8ymecma3" path="res://Scripts/Entities/Characters/FlatDummy.gd" id="1_awbxl"]
 [ext_resource type="Script" uid="uid://2nh7unjt6pys" path="res://Scripts/Mechanics/MechanicsData/MutRefVelocity.gd" id="2_vvl8x"]
-[ext_resource type="Texture2D" uid="uid://ciqt3sis1qfe2" path="res://Resources/sprites/capsule.png" id="3_aoq1s"]
 [ext_resource type="PackedScene" uid="uid://dlvr50irdywtu" path="res://Scenes/Mechanics/Strafe.tscn" id="4_ifik8"]
 [ext_resource type="Script" uid="uid://dsps8nekbea1s" path="res://Scripts/Mechanics/Strafe.gd" id="5_ofif0"]
 [ext_resource type="Script" uid="uid://b2g6oo3vgcglq" path="res://Scripts/Mechanics/MechanicsData/StrafeData.gd" id="6_mqajj"]
@@ -28,6 +27,9 @@
 [sub_resource type="Resource" id="Resource_nqsxb"]
 script = ExtResource("2_vvl8x")
 val = Vector2(0, 0)
+
+[sub_resource type="Resource" id="Resource_2njf3"]
+metadata/__load_path__ = "res://Resources/sprites/capsule.png"
 
 [sub_resource type="ConvexPolygonShape2D" id="ConvexPolygonShape2D_rupt1"]
 points = PackedVector2Array(-7.5, -7.5, -5.5, -9.5, -1.5, -11.5, 1.5, -11.5, 5.5, -9.5, 7.5, -7.5, 7.5, 7.5, 5.5, 9.5, 1.5, 11.5, -1.5, 11.5, -5.5, 9.5, -7.5, 7.5, -7.5, -7.5)
@@ -92,7 +94,7 @@ spin_animation = NodePath("SpinAnimation")
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
 texture_filter = 1
-texture = ExtResource("3_aoq1s")
+texture = SubResource("Resource_2njf3")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 shape = SubResource("ConvexPolygonShape2D_rupt1")

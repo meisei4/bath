@@ -10,7 +10,6 @@ pub mod collision_mask;
 pub mod midi;
 pub mod nodes;
 pub mod render;
-pub mod resource_paths;
 pub mod sound_render;
 
 struct MyExtension;

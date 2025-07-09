@@ -1,3 +1,4 @@
+use asset_loader::runtime_io::{CACHED_WAV_PATH, DEBUG_FRAG_PATH, DEBUG_VERT_PATH, FFT_FRAG_PATH};
 use bath::render::raylib::RaylibRenderer;
 use bath::render::raylib_util::{EXPERIMENTAL_WINDOW_HEIGHT, EXPERIMENTAL_WINDOW_WIDTH};
 use bath::render::{renderer::Renderer, renderer::RendererVector2};
@@ -7,8 +8,6 @@ use bath::sound_render::sound_renderer::{
     PER_CYCLE_PUSHED_RING_BUFFER_CHUNK_SIZE_HARDCODED, PER_SAMPLE_BIT_DEPTH_HARDCODED, RING_BUFFER_PADDING,
     SAMPLE_RATE_HARDCODED, WINDOW_TIME,
 };
-use bath_resources::audio::WAV_TEST;
-use bath_resources::glsl::{DEBUG_FRAG_PATH, DEBUG_VERT_PATH, FFT_FRAG_PATH};
 use fftw2_sys::fftw_complex;
 use hound::SampleFormat::Int;
 use hound::WavReader;
@@ -59,7 +58,7 @@ fn main() {
         [0; PER_CYCLE_PUSHED_RING_BUFFER_CHUNK_SIZE_HARDCODED];
     //TODO: WTF just happened in this:
     // ffmpeg -i "shadertoy_music_experiment_min_bitrate.ogg" -ac 1 -sample_fmt s16 -c:a pcm_s16le shadertoy.wav
-    let mut wav = WavReader::open(WAV_TEST).unwrap();
+    let mut wav = WavReader::open(CACHED_WAV_PATH).unwrap();
     let wav_spec = wav.spec();
     let mut wav_iter = wav.samples::<i16>();
     let is_stereo = wav_spec.channels == 2_u16;

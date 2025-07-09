@@ -1,6 +1,6 @@
 use crate::render::godot::GodotRenderer;
 use crate::render::renderer::{FeedbackBufferContext, Renderer};
-use crate::resource_paths::ResourcePaths;
+use asset_loader::runtime_io::{BUFFER_A_GDSHADER, MAIN_GDSHADER};
 use godot::classes::{INode2D, Node, Node2D};
 use godot::obj::{Base, Gd, NewAlloc, WithBaseField};
 use godot::prelude::{godot_api, GodotClass};
@@ -31,7 +31,7 @@ impl INode2D for FeedbackBuffer {
 
         let mut render = render.bind_mut();
         let i_resolution = render.init_i_resolution();
-        let context = render.init_feedback_buffer(i_resolution, ResourcePaths::BUFFER_A, ResourcePaths::MAIN);
+        let context = render.init_feedback_buffer(i_resolution, BUFFER_A_GDSHADER, MAIN_GDSHADER);
 
         self.context = Some(context);
         self.i_time = 0.0;

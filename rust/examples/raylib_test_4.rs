@@ -1,7 +1,7 @@
+use asset_loader::runtime_io::{ICESHEETS_FRAG_PATH, ICESHEETS_VERT_PATH};
 use bath::render::raylib::RaylibRenderer;
 use bath::render::raylib_util::{BATH_HEIGHT, BATH_WIDTH};
 use bath::render::{renderer::Renderer, renderer::RendererVector2};
-use bath_resources::glsl::{ICESHEETS_FRAG_PATH, ICESHEETS_VERT_PATH};
 use raylib::math::Vector2;
 use std::f32::consts::SQRT_2;
 

@@ -174,7 +174,7 @@ pub fn convert_shader(input: &str, from: Context, to: Context) -> String {
 
 pub fn convert(input_rel: &str, from: Context, to: Context, output_rel: &str) -> std::io::Result<()> {
     let base = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let in_path = base.join("resources").join(input_rel);
+    let in_path = base.join("../asset_loader").join(input_rel);
     let out_path = base.join("test_output").join(output_rel);
     if let Some(dir) = out_path.parent() {
         create_dir_all(dir)?;
@@ -205,7 +205,7 @@ fn main() {
     .expect("conversion failed");
     convert("gdshader/buffer_a.gdshader", Godot, GLSL, "glsl/buffer_a.glsl").expect("conversion failed");
     convert("gdshader/image.gdshader", Godot, GLSL, "glsl/image.glsl").expect("conversion failed");
-    if let Err(e) = compare_dirs("resources", "test_output") {
+    if let Err(e) = compare_dirs("asset_loader", "test_output") {
         eprintln!("Failed to diff directories: {}", e);
     }
 }

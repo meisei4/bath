@@ -1,7 +1,9 @@
 [gd_scene load_steps=4 format=3 uid="uid://cjoeva1v3qcyl"]
 
 [ext_resource type="Script" uid="uid://cfndhqfjgfs1a" path="res://Scripts/Entities/Characters/CapsuleDummy.gd" id="1_cy3er"]
-[ext_resource type="Texture2D" uid="uid://ciqt3sis1qfe2" path="res://Resources/sprites/capsule.png" id="2_itn4d"]
+
+[sub_resource type="Resource" id="Resource_bulmd"]
+metadata/__load_path__ = "res://Resources/sprites/capsule.png"
 
 [sub_resource type="ConvexPolygonShape2D" id="ConvexPolygonShape2D_mujhx"]
 points = PackedVector2Array(-7.5, -7.5, -5.5, -9.5, -1.5, -11.5, 1.5, -11.5, 5.5, -9.5, 7.5, -7.5, 7.5, 7.5, 5.5, 9.5, 1.5, 11.5, -1.5, 11.5, -5.5, 9.5, -7.5, 7.5, -7.5, -7.5)
@@ -11,7 +13,7 @@ script = ExtResource("1_cy3er")
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
 texture_filter = 1
-texture = ExtResource("2_itn4d")
+texture = SubResource("Resource_bulmd")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 shape = SubResource("ConvexPolygonShape2D_mujhx")

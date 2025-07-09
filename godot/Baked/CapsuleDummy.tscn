@@ -1,7 +1,6 @@
 [gd_scene load_steps=34 format=3 uid="uid://d4a0taohfsg7i"]
 
 [ext_resource type="Script" uid="uid://cfndhqfjgfs1a" path="res://Scripts/Entities/Characters/CapsuleDummy.gd" id="1_2gp3x"]
-[ext_resource type="Texture2D" uid="uid://ciqt3sis1qfe2" path="res://Resources/sprites/capsule.png" id="2_12tij"]
 [ext_resource type="Script" uid="uid://cvjrw27duhoar" path="res://Scripts/Mechanics/MechanicController.gd" id="3_shdcl"]
 [ext_resource type="Script" uid="uid://2nh7unjt6pys" path="res://Scripts/Mechanics/MechanicsData/MutRefVelocity.gd" id="4_12tij"]
 [ext_resource type="Script" uid="uid://dak4nmt80lkir" path="res://Scripts/Mechanics/Jump.gd" id="4_ta2sv"]
@@ -19,6 +18,9 @@
 [ext_resource type="Script" uid="uid://bhb8q2ecxgnlp" path="res://Scripts/Mechanics/SpinAnimation.gd" id="12_rpp4a"]
 [ext_resource type="Script" uid="uid://6l46yt0uo06t" path="res://Scripts/Mechanics/CollisionController.gd" id="13_clfif"]
 [ext_resource type="Script" uid="uid://b2g6oo3vgcglq" path="res://Scripts/Mechanics/MechanicsData/StrafeData.gd" id="14_ytfu3"]
+
+[sub_resource type="Resource" id="Resource_hxxv3"]
+metadata/__load_path__ = "res://Resources/sprites/capsule.png"
 
 [sub_resource type="ConvexPolygonShape2D" id="ConvexPolygonShape2D_mujhx"]
 points = PackedVector2Array(-7.5, -7.5, -5.5, -9.5, -1.5, -11.5, 1.5, -11.5, 5.5, -9.5, 7.5, -7.5, 7.5, 7.5, 5.5, 9.5, 1.5, 11.5, -1.5, 11.5, -5.5, 9.5, -7.5, 7.5, -7.5, -7.5)
@@ -109,7 +111,7 @@ script = ExtResource("1_2gp3x")
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
 texture_filter = 1
-texture = ExtResource("2_12tij")
+texture = SubResource("Resource_hxxv3")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 shape = SubResource("ConvexPolygonShape2D_mujhx")

@@ -1,6 +1,6 @@
 use crate::render::godot::GodotRenderer;
 use crate::render::renderer::{Renderer, RendererVector2};
-use crate::resource_paths::ResourcePaths;
+use asset_loader::runtime_io::{FREE_ALPHA_CHANNEL_GDSHADER, ICE_SHEETS_GDSHADER};
 use godot::classes::{INode2D, Node, Node2D, Texture2D};
 use godot::meta::ToGodot;
 use godot::obj::{Base, Gd, NewAlloc, WithBaseField};
@@ -33,7 +33,7 @@ impl INode2D for IceSheetsRenderer {
         let mut render = render.bind_mut();
         let i_resolution = render.init_i_resolution();
         let mut buffer_a = render.init_render_target(i_resolution, true);
-        let mut buffer_a_shader = render.load_shader_fragment(ResourcePaths::ICE_SHEETS_SHADER_FULL);
+        let mut buffer_a_shader = render.load_shader_fragment(ICE_SHEETS_GDSHADER);
         render.set_uniform_vec2(&mut buffer_a_shader, "iResolution", i_resolution);
         render.set_uniform_float(&mut buffer_a_shader, "parallaxDepth", 6.0);
         render.set_uniform_float(&mut buffer_a_shader, "strideLength", 1.0);
@@ -55,7 +55,7 @@ impl INode2D for IceSheetsRenderer {
         let buffer_a_texture = buffer_a.get_texture().unwrap().upcast::<Texture2D>();
 
         let mut buffer_b = render.init_render_target(i_resolution, false);
-        let mut buffer_b_shader = render.load_shader_fragment(ResourcePaths::FREE_ALPHA_CHANNEL);
+        let mut buffer_b_shader = render.load_shader_fragment(FREE_ALPHA_CHANNEL_GDSHADER);
         render.set_uniform_sampler2d(&mut buffer_b_shader, "iChannel0", &buffer_a_texture);
         render.draw_shader_texture(&mut buffer_b_shader, &mut buffer_b);
         render.draw_screen(&mut buffer_b);

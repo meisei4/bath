@@ -1,7 +1,7 @@
+use asset_loader::runtime_io::{BUFFER_A_PATH, IMAGE_PATH};
 use bath::render::raylib::RaylibRenderer;
 use bath::render::raylib_util::{BATH_HEIGHT, BATH_WIDTH};
 use bath::render::renderer::{Renderer, RendererVector2};
-use bath_resources::glsl::{BUFFER_A_PATH, IMAGE_PATH};
 
 fn main() {
     let mut render = RaylibRenderer::init(BATH_WIDTH, BATH_HEIGHT);

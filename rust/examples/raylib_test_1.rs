@@ -2,9 +2,8 @@ use bath::render::raylib_util::{
     create_rgba16_render_texture, flip_framebuffer, load_shader_with_includes, APPLE_DPI, EXPERIMENTAL_WINDOW_HEIGHT,
     EXPERIMENTAL_WINDOW_WIDTH, ORIGIN,
 };
-use bath_resources::glsl;
-use bath_resources::glsl::DREKKER_PATH;
-use bath_resources::textures::ICEBERGS_JPG;
+
+use asset_loader::runtime_io::{DREKKER_PATH, ICEBERGS_JPG_PATH, RAYLIB_DEFAULT_VERT_PATH};
 use raylib::color::Color;
 use raylib::drawing::{RaylibDraw, RaylibShaderModeExt, RaylibTextureModeExt};
 use raylib::ffi::{
@@ -35,7 +34,7 @@ fn main() {
     println!("screen: {}x{}", screen_width, screen_height);
     println!("render:{}x{}", render_width, render_height);
     println!("dpi: {:?}", dpi);
-    let raylib_vertex_shader_src_code = read_to_string(glsl::RAYLIB_DEFAULT_VERT_PATH).unwrap();
+    let raylib_vertex_shader_src_code = read_to_string(RAYLIB_DEFAULT_VERT_PATH).unwrap();
 
     let drekker_src = load_shader_with_includes(DREKKER_PATH);
     let mut shader =
@@ -48,7 +47,7 @@ fn main() {
     );
     let i_resolution = Vector2::new(screen_width as f32, screen_height as f32);
     shader.set_shader_value_v(i_resolution_location, &[i_resolution]);
-    let image_path = CString::new(ICEBERGS_JPG).unwrap();
+    let image_path = CString::new(ICEBERGS_JPG_PATH).unwrap();
     let image_texture = unsafe {
         let image_raw = LoadImage(image_path.as_ptr());
         let image_texture_raw = LoadTextureFromImage(image_raw);

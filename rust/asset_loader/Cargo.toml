@@ -1,0 +1,10 @@
+[package]
+name = "asset_loader"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+
+[features]
+default = []
+nasa-embed = []

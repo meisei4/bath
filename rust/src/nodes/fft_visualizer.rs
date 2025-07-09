@@ -1,10 +1,10 @@
 use crate::nodes::fft_texture::FFTTextureNode;
 use crate::render::godot::GodotRenderer;
 use crate::render::renderer::Renderer;
-use crate::resource_paths::ResourcePaths;
+use asset_loader::runtime_io::FFT_GDSHADER;
 use godot::classes::{INode2D, Node, Node2D, Texture2D};
 use godot::obj::{Base, Gd, NewAlloc, WithBaseField};
-use godot::prelude::{godot_api, GodotClass};
+use godot::register::{godot_api, GodotClass};
 
 #[derive(GodotClass)]
 #[class(init, base=Node2D)]
@@ -22,7 +22,7 @@ impl INode2D for FFTVisualizerRenderer {
         let mut render = render.bind_mut();
         let i_resolution = render.init_i_resolution();
         let mut buffer_a = render.init_render_target(i_resolution, true);
-        let mut shader = render.load_shader_fragment(ResourcePaths::FFT_SHADER);
+        let mut shader = render.load_shader_fragment(FFT_GDSHADER);
         render.set_uniform_vec2(&mut shader, "iResolution", i_resolution);
         let fft_texture = FFTTextureNode::new_alloc();
         self.base_mut().add_child(&fft_texture.clone().upcast::<Node>());
