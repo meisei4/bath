@@ -1,5 +1,5 @@
-use crate::sound_render::audio_bus::AudioBus;
-use crate::sound_render::audio_bus::BUS::MUSIC;
+use crate::nodes::audio_bus::AudioBus;
+use crate::nodes::audio_bus::BUS::MUSIC;
 use crate::sound_render::sound_renderer::{
     FFTTexture, WaveformTexture, BUFFER_SIZE, DEAD_CHANNEL, FFT_ROW, HZ_STEP, INVERSE_DECIBEL_RANGE,
     MDN_MIN_AUDIO_DECIBEL, TEXTURE_HEIGHT,
@@ -41,6 +41,13 @@ impl FFTTexture for GodotFFTTexture {
             .try_to::<Self::AudioEffect>()
             .unwrap();
         spectrum_analyzer
+        //MusicDimensionsManagerRust::singleton().bind_mut().spectrum_instance()
+        // Engine::singleton()
+        //     .get_singleton(&StringName::from("MusicDimensionsManagerRust"))
+        //     .unwrap()
+        //     .cast::<MusicDimensionsManagerRust>()
+        //     .bind_mut()
+        //     .spectrum_instance()
     }
 
     fn update_audio_texture(&mut self, fft_data: &mut Self::FFTData, audio_texture: &mut Self::Image) {
@@ -91,7 +98,7 @@ impl WaveformTexture for GodotWaveformTexture {
     fn fetch_waveform_capture(&mut self) -> Self::AudioEffect {
         let waveform_audio_effect_capture = AudioEffectCapture::new_gd();
         let mut audio_server: Gd<AudioServer> = AudioServer::singleton();
-        //let bus_index = AudioBus::singleton().bind_mut().get_bcus_index(MUSIC);
+        //let bus_index = AudioBus::singleton().bind_mut().get_bus_index(MUSIC);
         //audio_server.add_bus_effect(bus_index, &waveform_audio_effect_capture);
         audio_server.add_bus_effect(AudioBus::get_bus_index_rust(MUSIC), &waveform_audio_effect_capture);
         waveform_audio_effect_capture

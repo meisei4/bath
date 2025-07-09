@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://civjx5qd6r13c"]
 
-[ext_resource type="Script" uid="uid://cf2cxsnxp3u1l" path="res://Scripts/Audio/RhythmOnsetRecorder.gd" id="1_gva1g"]
+[ext_resource type="Script" uid="uid://cmg8vs0cd5snv" path="res://Scripts/Audio/RhythmOnsetRecorder.gd" id="1_gva1g"]
 
 [node name="RhythmOnsetRecorder" type="Node"]
 script = ExtResource("1_gva1g")

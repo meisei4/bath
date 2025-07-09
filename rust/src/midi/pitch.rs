@@ -1,9 +1,3 @@
-#[cfg(not(feature = "std"))]
-use alloc::{string::String, vec::Vec};
-#[cfg(not(feature = "std"))]
-use heapless::LinearMap;
-
-#[cfg(feature = "std")]
 use std::{collections::HashMap, fs, string::String, vec::Vec};
 
 use crate::midi::util::{
@@ -11,10 +5,6 @@ use crate::midi::util::{
     sample_active_notes_at_time, update_note_log_history, MidiNote,
 };
 
-#[cfg(not(feature = "std"))]
-type NoteBuffer = LinearMap<MidiNote, Vec<(f32, f32)>, 128>;
-
-#[cfg(feature = "std")]
 type NoteBuffer = HashMap<MidiNote, Vec<(f32, f32)>>;
 
 #[derive(Default)]
@@ -33,11 +23,6 @@ impl PitchDimension {
         let midi_bytes =
             fs::read(midi_file_path).unwrap_or_else(|e| panic!("Failed to read MIDI file '{}': {}", midi_file_path, e));
         self.note_buffer = parse_midi_events_into_note_on_off_event_buffer_seconds_from_bytes(&midi_bytes);
-    }
-
-    #[cfg(not(feature = "std"))]
-    pub fn load_midi_from_bytes(&mut self, midi_bytes: &[u8]) {
-        self.note_buffer = parse_midi_events_into_note_on_off_event_buffer_seconds_from_bytes(midi_bytes);
     }
 
     pub fn update_hsv_buffer(&mut self, time: f32) -> Vec<u8> {
@@ -73,10 +58,5 @@ impl PitchDimension {
             fs::read(midi_file_path).unwrap_or_else(|e| panic!("Failed to read MIDI file '{}': {}", midi_file_path, e));
         render_midi_to_wav_bytes(sample_rate, &midi_bytes, &sf2_bytes, TARGET_CHANNEL, PROGRAM)
             .expect("Failed to render MIDI to WAV")
-    }
-
-    #[cfg(not(feature = "std"))]
-    pub fn render_from_bytes(&self, sample_rate: i32, midi_bytes: &[u8], sf2_bytes: &[u8]) -> Vec<u8> {
-        render_midi_to_wav_bytes(sample_rate, midi_bytes, sf2_bytes, TARGET_CHANNEL, PROGRAM).unwrap_or_default()
     }
 }

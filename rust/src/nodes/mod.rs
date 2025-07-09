@@ -1,4 +1,6 @@
+pub mod audio_bus;
 pub mod audio_files;
+pub mod audio_pool_manager;
 pub mod collision;
 mod drekker;
 mod feedback_buffer;
@@ -6,6 +8,7 @@ mod fft_texture;
 mod fft_visualizer;
 mod icesheets;
 mod midi;
+pub mod music_dimension_manager;
 mod pitch_dimension;
 mod water;
 mod waveform_texture;

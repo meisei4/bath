@@ -1,14 +1,14 @@
 [gd_scene load_steps=12 format=3 uid="uid://b4h3l6wedxpfl"]
 
-[ext_resource type="Script" uid="uid://cfndhqfjgfs1a" path="res://Scripts/Entities/Characters/CapsuleDummy.gd" id="1_m7fsa"]
-[ext_resource type="Script" uid="uid://6l46yt0uo06t" path="res://Scripts/Mechanics/CollisionController.gd" id="2_y0nan"]
-[ext_resource type="Script" uid="uid://cvjrw27duhoar" path="res://Scripts/Mechanics/MechanicController.gd" id="3_3bdn7"]
-[ext_resource type="Script" uid="uid://dak4nmt80lkir" path="res://Scripts/Mechanics/Jump.gd" id="4_xhbao"]
-[ext_resource type="Script" uid="uid://bp8lx60pyh0gi" path="res://Scripts/Mechanics/Cruising.gd" id="5_kruy1"]
-[ext_resource type="Script" uid="uid://c0jqvqibrmydq" path="res://Scripts/Mechanics/MechanicsData/MechanicAnimationData.gd" id="5_xhbao"]
-[ext_resource type="Script" uid="uid://dt0uu4jt48sjm" path="res://Scripts/Mechanics/AnimationController.gd" id="6_iym67"]
-[ext_resource type="Script" uid="uid://beuhelx1f6m0i" path="res://Scripts/Mechanics/JumpAnimation.gd" id="7_0ex6y"]
-[ext_resource type="Script" uid="uid://cn776p2gauhvr" path="res://Scripts/Mechanics/MechanicsData/CruisingData.gd" id="7_kruy1"]
+[ext_resource type="Script" uid="uid://cb35c63xuvru5" path="res://Scripts/Entities/Characters/CapsuleDummy.gd" id="1_m7fsa"]
+[ext_resource type="Script" uid="uid://d14hs5hulv1wp" path="res://Scripts/Mechanics/CollisionController.gd" id="2_y0nan"]
+[ext_resource type="Script" uid="uid://e78gl1gdyh0r" path="res://Scripts/Mechanics/MechanicController.gd" id="3_3bdn7"]
+[ext_resource type="Script" uid="uid://by2wrngbaefhl" path="res://Scripts/Mechanics/Jump.gd" id="4_xhbao"]
+[ext_resource type="Script" uid="uid://3je3ewroau46" path="res://Scripts/Mechanics/Cruising.gd" id="5_kruy1"]
+[ext_resource type="Script" uid="uid://pmadigfaekh0" path="res://Scripts/Mechanics/MechanicsData/MechanicAnimationData.gd" id="5_xhbao"]
+[ext_resource type="Script" uid="uid://cmsm15nb5k73d" path="res://Scripts/Mechanics/AnimationController.gd" id="6_iym67"]
+[ext_resource type="Script" uid="uid://ce72ua8tavobn" path="res://Scripts/Mechanics/JumpAnimation.gd" id="7_0ex6y"]
+[ext_resource type="Script" uid="uid://b74axympiish" path="res://Scripts/Mechanics/MechanicsData/CruisingData.gd" id="7_kruy1"]
 
 [sub_resource type="Resource" id="Resource_iym67"]
 script = ExtResource("5_xhbao")

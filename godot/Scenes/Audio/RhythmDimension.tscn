@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://b5r5vgtqs1j30"]
 
-[ext_resource type="Script" uid="uid://lo3wbjgu1j66" path="res://Scripts/Audio/RhythmDimension.gd" id="1_0jllm"]
+[ext_resource type="Script" uid="uid://yef6lhh6h3km" path="res://Scripts/Audio/RhythmDimension.gd" id="1_0jllm"]
 
 [node name="RhythmDimension" type="Node" groups=["display_experimental"]]
 script = ExtResource("1_0jllm")

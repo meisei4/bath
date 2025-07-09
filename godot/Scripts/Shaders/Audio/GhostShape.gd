@@ -15,6 +15,7 @@ var iChannel2: Texture
 
 var fft_texture: FFTTextureNode
 
+#var pitch_dimension: PitchDimensionGodot
 var pitch_dimension: PitchDimension
 var rhythm_dimension: RhythmDimension
 
@@ -30,6 +31,7 @@ func _ready() -> void:
     BufferAShaderMaterial.set_shader_parameter("iResolution", iResolution)
     BufferAShaderMaterial.set_shader_parameter("iChannel0", iChannel0)
     fft_texture = FFTTextureNode.new()
+    #pitch_dimension = PitchDimensionGodot.new()
     pitch_dimension = PitchDimension.new()
     rhythm_dimension = RhythmDimension.new()
 

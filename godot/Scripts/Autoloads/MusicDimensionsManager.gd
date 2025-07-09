@@ -7,7 +7,7 @@ var spectrum_analyzer_instance: AudioEffectSpectrumAnalyzerInstance
 # do not run rhythmdimension and manual onset recorder at the same time ever
 var song_time: float = 0.0
 
-#var audio_stream: AudioStream = preload(ResourcePaths.SHADERTOY_MUSIC_EXPERIMENT_OGG)
+var audio_stream: AudioStream = preload(ResourcePaths.SHADERTOY_MUSIC_EXPERIMENT_OGG)
 #var input_stream: AudioStreamMicrophone = AudioStreamMicrophone.new()
 
 
@@ -25,4 +25,4 @@ func _ready() -> void:
 
     #AudioPoolManager.play_music(audio_stream)
 
-    #AudioPoolManager.play_input(input_stream)
+    #AudioPoolManager.play_input(input_stream, 0.0)
