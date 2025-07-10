@@ -2,7 +2,7 @@ extends Node
 #class_name MusicDimensionsManager
 
 var spectrum_analyzer_instance: AudioEffectSpectrumAnalyzerInstance
-var song_time: float = 0.0 # TODO: where tf does this go, not good,
+var song_time: float = 0.0  # TODO: where tf does this go, not good,
 var audio_stream: AudioStream = preload(ResourcePaths.SHADERTOY_MUSIC_EXPERIMENT_OGG)
 #var input_stream: AudioStreamMicrophone = AudioStreamMicrophone.new()
 

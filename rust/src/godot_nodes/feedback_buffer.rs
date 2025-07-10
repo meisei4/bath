@@ -1,6 +1,6 @@
 use crate::render::godot::GodotRenderer;
 use crate::render::renderer::{FeedbackBufferContext, Renderer};
-use asset_loader::runtime_io::{BUFFER_A_GDSHADER, MAIN_GDSHADER};
+use asset_payload::runtime_io::{BUFFER_A_GDSHADER, MAIN_GDSHADER};
 use godot::classes::{INode2D, Node, Node2D};
 use godot::obj::{Base, Gd, NewAlloc, WithBaseField};
 use godot::prelude::{godot_api, GodotClass};

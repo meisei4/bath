@@ -7,7 +7,7 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-asset_loader = { path = "asset_loader", default-features = false }
+asset_payload = { path = "asset_payload", default-features = false }
 hound = "3.4.0"
 rustysynth = "1.3.5"
 # TODO: for single threaded:
@@ -29,7 +29,7 @@ raylib = { version = "5.5.1", optional = true }
 default = ["std", "godot"]
 std = []
 tests-only = ["midir", "rdev", "terminal_size", "raylib"]
-nasa-embed = ["asset_loader/nasa-embed"]
+nasa-embed = ["asset_payload/nasa-embed"]
 
 [target.'cfg(not(any(target_arch = "wasm32", target_os = "linux")))'.dependencies]
 aubio-rs = "0.2.0"

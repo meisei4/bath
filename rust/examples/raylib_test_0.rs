@@ -3,7 +3,7 @@ use bath::render::raylib_util::{
     EXPERIMENTAL_WINDOW_WIDTH,
 };
 
-use asset_loader::runtime_io::{BUFFER_A_PATH, IMAGE_PATH, RAYLIB_DEFAULT_VERT_PATH};
+use asset_payload::runtime_io::{BUFFER_A_PATH, IMAGE_PATH, RAYLIB_DEFAULT_VERT_PATH};
 use raylib::init;
 use raylib::shaders::RaylibShader;
 use std::fs::read_to_string;

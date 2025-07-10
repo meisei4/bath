@@ -3,7 +3,7 @@ use bath::render::raylib_util::{
     EXPERIMENTAL_WINDOW_WIDTH, ORIGIN,
 };
 
-use asset_loader::runtime_io::{DREKKER_PATH, ICEBERGS_JPG_PATH, RAYLIB_DEFAULT_VERT_PATH};
+use asset_payload::runtime_io::{DREKKER_PATH, ICEBERGS_JPG_PATH, RAYLIB_DEFAULT_VERT_PATH};
 use raylib::color::Color;
 use raylib::drawing::{RaylibDraw, RaylibShaderModeExt, RaylibTextureModeExt};
 use raylib::ffi::{

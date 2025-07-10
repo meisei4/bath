@@ -1,5 +1,5 @@
-use crate::nodes::audio::audio_bus::BUS::{INPUT, MASTER, MUSIC, SFX};
-use crate::nodes::audio::audio_bus::{AudioBus, BUS};
+use crate::godot_nodes::audio::audio_bus::BUS::{INPUT, MASTER, MUSIC, SFX};
+use crate::godot_nodes::audio::audio_bus::{AudioBus, BUS};
 use godot::classes::audio_server::PlaybackType;
 use godot::classes::{AudioServer, AudioStream, AudioStreamPlayer, Engine, INode, Node, Os};
 use godot::global::godot_warn;

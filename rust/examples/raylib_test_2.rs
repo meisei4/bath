@@ -1,4 +1,4 @@
-use asset_loader::runtime_io::{DREKKER_PATH, ICEBERGS_JPG_PATH, RAYLIB_DEFAULT_VERT_PATH};
+use asset_payload::runtime_io::{DREKKER_PATH, ICEBERGS_JPG_PATH, RAYLIB_DEFAULT_VERT_PATH};
 use bath::render::raylib::RaylibRenderer;
 use bath::render::raylib_util::{EXPERIMENTAL_WINDOW_HEIGHT, EXPERIMENTAL_WINDOW_WIDTH};
 use bath::render::{renderer::Renderer, renderer::RendererVector2};

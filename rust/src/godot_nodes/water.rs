@@ -1,7 +1,7 @@
 use crate::render::godot::GodotRenderer;
 use crate::render::renderer::Renderer;
-use asset_loader::runtime_io::{FINITE_APPROX_RIPPLE_GDSHADER, WATER_PROJECTED_GDSHADER};
-use asset_loader::ResourcePaths;
+use asset_payload::runtime_io::{FINITE_APPROX_RIPPLE_GDSHADER, WATER_PROJECTED_GDSHADER};
+use asset_payload::ResourcePaths;
 use godot::classes::{INode2D, Node, Node2D, Texture2D};
 use godot::obj::{Base, Gd, NewAlloc, WithBaseField};
 use godot::prelude::{godot_api, GodotClass};

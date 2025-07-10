@@ -1,4 +1,4 @@
-use asset_loader::runtime_io::{ICESHEETS_FRAG_PATH, ICESHEETS_VERT_PATH};
+use asset_payload::runtime_io::{ICESHEETS_FRAG_PATH, ICESHEETS_VERT_PATH};
 use bath::render::raylib::RaylibRenderer;
 use bath::render::raylib_util::{BATH_HEIGHT, BATH_WIDTH};
 use bath::render::{renderer::Renderer, renderer::RendererVector2};

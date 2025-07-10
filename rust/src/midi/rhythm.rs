@@ -1,7 +1,7 @@
 extern crate alloc;
 use crate::audio_analysis::util::detect_bpm_aubio_ogg;
 use alloc::vec::Vec;
-use asset_loader::runtime_io::{CACHED_RHYTHM_DATA, SHADERTOY_EXPERIMENT_OGG_PATH};
+use asset_payload::runtime_io::{CACHED_RHYTHM_DATA, SHADERTOY_EXPERIMENT_OGG_PATH};
 use std::fs;
 use std::fs::File;
 use std::io::Write;

@@ -1,4 +1,4 @@
-use crate::nodes::audio::audio_bus::{AudioBus, BUS};
+use crate::godot_nodes::audio::audio_bus::{AudioBus, BUS};
 use godot::classes::audio_effect_spectrum_analyzer::FftSize;
 use godot::classes::{
     AudioEffectSpectrumAnalyzer, AudioEffectSpectrumAnalyzerInstance, AudioServer, AudioStream, Engine, INode, Node,

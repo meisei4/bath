@@ -1,6 +1,6 @@
 use crate::render::godot::GodotRenderer;
 use crate::render::renderer::{Renderer, RendererVector2};
-use asset_loader::runtime_io::{FREE_ALPHA_CHANNEL_GDSHADER, ICE_SHEETS_GDSHADER};
+use asset_payload::runtime_io::{FREE_ALPHA_CHANNEL_GDSHADER, ICE_SHEETS_GDSHADER};
 use godot::classes::{INode2D, Node, Node2D, Texture2D};
 use godot::meta::ToGodot;
 use godot::obj::{Base, Gd, NewAlloc, WithBaseField};

@@ -1,14 +1,14 @@
-use crate::nodes::audio::audio_files::AudioFiles;
-use crate::nodes::collision::Collision;
+use crate::godot_nodes::audio::audio_files::AudioFiles;
+use crate::godot_nodes::collision::Collision;
 use godot::classes::Engine;
 use godot::init::{gdextension, ExtensionLibrary, InitLevel};
 use godot::obj::NewAlloc;
-use nodes::audio::audio_bus::AudioBus;
+use godot_nodes::audio::audio_bus::AudioBus;
 
 pub mod audio_analysis;
 pub mod collision_mask;
+pub mod godot_nodes;
 pub mod midi;
-pub mod nodes;
 pub mod render;
 pub mod sound_render;
 

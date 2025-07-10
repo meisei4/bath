@@ -1,5 +1,5 @@
-use crate::nodes::audio::audio_bus::AudioBus;
-use crate::nodes::audio::audio_bus::BUS::MUSIC;
+use crate::godot_nodes::audio::audio_bus::AudioBus;
+use crate::godot_nodes::audio::audio_bus::BUS::MUSIC;
 use crate::sound_render::sound_renderer::{
     FFTTexture, WaveformTexture, BUFFER_SIZE, DEAD_CHANNEL, FFT_ROW, HZ_STEP, INVERSE_DECIBEL_RANGE,
     MDN_MIN_AUDIO_DECIBEL, TEXTURE_HEIGHT,

@@ -1,5 +1,5 @@
 use crate::midi::pitch::PitchDimension;
-use asset_loader::runtime_io::{CACHED_WAV, MIDI_FILE_PATH, SOUND_FONT_FILE_PATH};
+use asset_payload::runtime_io::{CACHED_WAV, MIDI_FILE_PATH, SOUND_FONT_FILE_PATH};
 
 use godot::builtin::{PackedByteArray, PackedVector3Array, Vector3};
 use godot::classes::{AudioServer, AudioStreamWav, INode, Node};

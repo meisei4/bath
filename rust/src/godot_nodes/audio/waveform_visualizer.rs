@@ -1,7 +1,7 @@
-use crate::nodes::audio::waveform_texture::WaveformTextureNode;
+use crate::godot_nodes::audio::waveform_texture::WaveformTextureNode;
 use crate::render::godot::GodotRenderer;
 use crate::render::renderer::Renderer;
-use asset_loader::runtime_io::WAVEFORM_GDSHADER;
+use asset_payload::runtime_io::WAVEFORM_GDSHADER;
 use godot::classes::{INode2D, Node, Node2D, Texture2D};
 use godot::obj::{Base, Gd, NewAlloc, WithBaseField};
 use godot::prelude::{godot_api, GodotClass};

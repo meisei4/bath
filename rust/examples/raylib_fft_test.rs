@@ -1,4 +1,4 @@
-use asset_loader::runtime_io::{CACHED_WAV_PATH, DEBUG_FRAG_PATH, DEBUG_VERT_PATH, FFT_FRAG_PATH};
+use asset_payload::runtime_io::{CACHED_WAV_PATH, DEBUG_FRAG_PATH, DEBUG_VERT_PATH, FFT_FRAG_PATH};
 use bath::render::raylib::RaylibRenderer;
 use bath::render::raylib_util::{EXPERIMENTAL_WINDOW_HEIGHT, EXPERIMENTAL_WINDOW_WIDTH};
 use bath::render::{renderer::Renderer, renderer::RendererVector2};

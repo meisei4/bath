@@ -1,6 +1,6 @@
 #![cfg(feature = "tests-only")]
 
-use asset_loader::runtime_io::{MIDI_FILE_PATH, SOUND_FONT_FILE_PATH};
+use asset_payload::runtime_io::{MIDI_FILE_PATH, SOUND_FONT_FILE_PATH};
 use midir::{MidiOutput, MidiOutputConnection, MidiOutputPort};
 use midly::{MidiMessage, Smf, TrackEventKind};
 use rdev::{Event, EventType, Key};
