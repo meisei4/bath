@@ -21,11 +21,12 @@ pub trait Renderer {
     fn init_i_resolution(&mut self) -> RendererVector2;
     fn update_mask(&mut self, i_time: f32);
     fn init_render_target(&mut self, size: RendererVector2, hdr: bool) -> Self::RenderTarget;
-    fn load_texture(&mut self, path: &str) -> Self::Texture;
+    fn load_texture_file_path(&mut self, path: &str) -> Self::Texture;
+    fn load_texture(&mut self, data: &[u8], file_ext: &str) -> Self::Texture;
     fn tweak_texture_parameters(&mut self, texture: &mut Self::Texture, repeat: bool, nearest: bool);
     fn load_shader_fragment(&mut self, frag_path: &str) -> Self::Shader;
     fn load_shader_vertex(&mut self, vert_path: &str) -> Self::Shader;
-    fn load_shader_full(&mut self, vert_path: &str, frag_path: &str) -> Self::Shader;
+    fn load_shader_full(&mut self, vert_src: &str, frag_src: &str) -> Self::Shader;
     fn set_uniform_float(&mut self, shader: &mut Self::Shader, uniform_name: &str, value: f32);
     fn set_uniform_int(&mut self, shader: &mut Self::Shader, uniform_name: &str, value: i32);
     fn set_uniform_vec2(&mut self, shader: &mut Self::Shader, uniform_name: &str, vec2: RendererVector2);

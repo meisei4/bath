@@ -1,14 +1,14 @@
 use crate::render::raylib_util::{
-    create_rgba16_render_texture, feedback_buffer_pass, flip_framebuffer, image_pass, load_shader_with_includes,
-    APPLE_DPI, ORIGIN, ORIGIN_X, ORIGIN_Y,
+    create_rgba16_render_texture, feedback_buffer_pass, flip_framebuffer, image_pass, APPLE_DPI, ORIGIN, ORIGIN_X,
+    ORIGIN_Y,
 };
 use crate::render::renderer::{FeedbackBufferContext, Renderer, RendererMatrix, RendererVector2};
 use raylib::color::Color;
 use raylib::drawing::{RaylibDraw, RaylibShaderModeExt, RaylibTextureModeExt};
 use raylib::ffi::{
-    rlActiveTextureSlot, rlEnableTexture, rlTextureParameters, LoadImage, LoadTextureFromImage, UnloadImage,
-    RL_TEXTURE_FILTER_NEAREST, RL_TEXTURE_MAG_FILTER, RL_TEXTURE_MIN_FILTER, RL_TEXTURE_WRAP_REPEAT, RL_TEXTURE_WRAP_S,
-    RL_TEXTURE_WRAP_T,
+    rlActiveTextureSlot, rlEnableTexture, rlTextureParameters, LoadImage, LoadImageFromMemory, LoadTextureFromImage,
+    UnloadImage, RL_TEXTURE_FILTER_NEAREST, RL_TEXTURE_MAG_FILTER, RL_TEXTURE_MIN_FILTER, RL_TEXTURE_WRAP_REPEAT,
+    RL_TEXTURE_WRAP_S, RL_TEXTURE_WRAP_T,
 };
 use raylib::math::{Matrix, Vector3};
 use raylib::shaders::{RaylibShader, Shader};
@@ -65,10 +65,9 @@ impl Renderer for RaylibRenderer {
         }
     }
 
-    fn load_texture(&mut self, path: &str) -> Self::Texture {
-        //TODO: I really dont like this, there has got to be a more effective way
-        let path_in_c = CString::new(path).unwrap();
+    fn load_texture_file_path(&mut self, path: &str) -> Self::Texture {
         let image_texture = unsafe {
+            let path_in_c = CString::new(format!("{}", path)).unwrap();
             let image_raw = LoadImage(path_in_c.as_ptr() as *const c_char);
             let image_texture_raw = LoadTextureFromImage(image_raw);
             UnloadImage(image_raw);
@@ -77,6 +76,17 @@ impl Renderer for RaylibRenderer {
         image_texture
         // TODO: watch it
         // self.handle.load_texture(&self.thread, path).unwrap()
+    }
+
+    fn load_texture(&mut self, data: &[u8], file_ext: &str) -> Self::Texture {
+        let image_texture = unsafe {
+            let c_ext = CString::new(format!(".{file_ext}")).unwrap();
+            let image_raw = LoadImageFromMemory(c_ext.as_ptr() as *const c_char, data.as_ptr(), data.len() as i32);
+            let image_texture_raw = LoadTextureFromImage(image_raw);
+            UnloadImage(image_raw);
+            Texture2D::from_raw(image_texture_raw)
+        };
+        image_texture
     }
 
     fn tweak_texture_parameters(&mut self, texture: &mut Self::Texture, repeat: bool, nearest: bool) {
@@ -93,23 +103,26 @@ impl Renderer for RaylibRenderer {
         }
     }
 
-    fn load_shader_fragment(&mut self, frag_path: &str) -> Self::Shader {
-        let frag_source_code = load_shader_with_includes(frag_path);
+    fn load_shader_fragment(&mut self, frag_src: &str) -> Self::Shader {
+        let frag_src_include_expansion = asset_payload::expand_includes(frag_src);
         self.handle
-            .load_shader_from_memory(&self.thread, None, Some(&frag_source_code))
+            .load_shader_from_memory(&self.thread, None, Some(frag_src_include_expansion))
     }
 
-    fn load_shader_vertex(&mut self, vert_path: &str) -> Self::Shader {
-        let vert_source_code = load_shader_with_includes(vert_path);
+    fn load_shader_vertex(&mut self, vert_src: &str) -> Self::Shader {
+        let vert_src_include_expansion = asset_payload::expand_includes(vert_src);
         self.handle
-            .load_shader_from_memory(&self.thread, Some(&vert_source_code), None)
+            .load_shader_from_memory(&self.thread, Some(vert_src_include_expansion), None)
     }
 
-    fn load_shader_full(&mut self, vert_path: &str, frag_path: &str) -> Self::Shader {
-        let vert_source_code = load_shader_with_includes(vert_path);
-        let frag_source_code = load_shader_with_includes(frag_path);
-        self.handle
-            .load_shader_from_memory(&self.thread, Some(&vert_source_code), Some(&frag_source_code))
+    fn load_shader_full(&mut self, vert_src: &str, frag_src: &str) -> Self::Shader {
+        let vert_src_include_expansion = asset_payload::expand_includes(vert_src);
+        let frag_src_include_expansion = asset_payload::expand_includes(frag_src);
+        self.handle.load_shader_from_memory(
+            &self.thread,
+            Some(vert_src_include_expansion),
+            Some(frag_src_include_expansion),
+        )
     }
 
     fn set_uniform_float(&mut self, shader: &mut Self::Shader, uniform_name: &str, value: f32) {

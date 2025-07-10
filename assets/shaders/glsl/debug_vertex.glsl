@@ -108,7 +108,7 @@ void main() {
                         0.0,  0.0,  1.0, 0.0,
                         z_x,  z_y,  0.0, 1.0);
     // clang-format on
-    float tilt  = 0.0;
+    float tilt  = 20.0;
     float t_cos = cos(radians(tilt));
     float t_sin = sin(radians(tilt));
     float t_y1  = (0.5 * iResolution.y) * (1.0 - t_cos);

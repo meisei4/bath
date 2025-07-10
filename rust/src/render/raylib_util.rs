@@ -13,8 +13,6 @@ use raylib::prelude::Shader;
 use raylib::texture::RenderTexture2D;
 use raylib::{RaylibHandle, RaylibThread};
 use std::ffi::c_char;
-use std::fs::read_to_string;
-use std::path::Path;
 
 pub const ORIGIN_X: i32 = 0;
 pub const ORIGIN_Y: i32 = 0;
@@ -97,26 +95,6 @@ pub fn create_rgba16_render_texture(width: i32, height: i32) -> RenderTexture2D 
         RenderTexture2D::from_raw(raw_render_texture)
     };
     render_texture
-}
-
-pub fn load_shader_with_includes(path: impl AsRef<Path>) -> String {
-    let path = path.as_ref().canonicalize().expect("bad shader path");
-    let parent = path.parent().unwrap();
-    let src = read_to_string(&path).unwrap_or_else(|e| panic!("Failed to read {:?}: {}", path, e));
-    let mut out = String::new();
-    for line in src.lines() {
-        let trimmed = line.trim_start();
-        if let Some(rest) = trimmed.strip_prefix("#include") {
-            if let Some(name) = rest.trim().strip_prefix('"').and_then(|s| s.strip_suffix('"')) {
-                let incl = parent.join(name);
-                out.push_str(&load_shader_with_includes(incl));
-                continue;
-            }
-        }
-        out.push_str(line);
-        out.push('\n');
-    }
-    out
 }
 
 pub fn feedback_buffer_pass(

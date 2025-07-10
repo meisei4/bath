@@ -1,9 +1,10 @@
 use bath::render::raylib_util::{
-    create_rgba16_render_texture, flip_framebuffer, load_shader_with_includes, APPLE_DPI, EXPERIMENTAL_WINDOW_HEIGHT,
-    EXPERIMENTAL_WINDOW_WIDTH, ORIGIN,
+    create_rgba16_render_texture, flip_framebuffer, APPLE_DPI, EXPERIMENTAL_WINDOW_HEIGHT, EXPERIMENTAL_WINDOW_WIDTH,
+    ORIGIN,
 };
 
-use asset_payload::runtime_io::{DREKKER_PATH, ICEBERGS_JPG_PATH, RAYLIB_DEFAULT_VERT_PATH};
+use asset_payload::payloads::{DREKKER_PATH, RAYLIB_DEFAULT_VERT_PATH};
+use asset_payload::LocalCachePaths;
 use raylib::color::Color;
 use raylib::drawing::{RaylibDraw, RaylibShaderModeExt, RaylibTextureModeExt};
 use raylib::ffi::{
@@ -15,7 +16,6 @@ use raylib::math::Vector2;
 use raylib::shaders::RaylibShader;
 use raylib::texture::Texture2D;
 use std::ffi::CString;
-use std::fs::read_to_string;
 
 fn main() {
     let (mut raylib_handle, raylib_thread) = init()
@@ -34,11 +34,10 @@ fn main() {
     println!("screen: {}x{}", screen_width, screen_height);
     println!("render:{}x{}", render_width, render_height);
     println!("dpi: {:?}", dpi);
-    let raylib_vertex_shader_src_code = read_to_string(RAYLIB_DEFAULT_VERT_PATH).unwrap();
-
-    let drekker_src = load_shader_with_includes(DREKKER_PATH);
+    let raylib_vertex_shader_src_code = RAYLIB_DEFAULT_VERT_PATH();
+    let drekker_src = asset_payload::expand_includes(DREKKER_PATH());
     let mut shader =
-        raylib_handle.load_shader_from_memory(&raylib_thread, Some(&raylib_vertex_shader_src_code), Some(&drekker_src));
+        raylib_handle.load_shader_from_memory(&raylib_thread, Some(raylib_vertex_shader_src_code), Some(drekker_src));
     let i_resolution_location = shader.get_shader_location("iResolution");
     let i_channel_1_location = shader.get_shader_location("iChannel1");
     println!(
@@ -47,7 +46,7 @@ fn main() {
     );
     let i_resolution = Vector2::new(screen_width as f32, screen_height as f32);
     shader.set_shader_value_v(i_resolution_location, &[i_resolution]);
-    let image_path = CString::new(ICEBERGS_JPG_PATH).unwrap();
+    let image_path = CString::new(LocalCachePaths::ICEBERGS_JPG_PATH).unwrap();
     let image_texture = unsafe {
         let image_raw = LoadImage(image_path.as_ptr());
         let image_texture_raw = LoadTextureFromImage(image_raw);

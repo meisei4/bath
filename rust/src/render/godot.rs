@@ -48,8 +48,12 @@ impl Renderer for GodotRenderer {
         subviewport
     }
 
-    fn load_texture(&mut self, path: &str) -> Self::Texture {
+    fn load_texture_file_path(&mut self, path: &str) -> Self::Texture {
         ResourceLoader::singleton().load(path).unwrap().cast()
+    }
+
+    fn load_texture(&mut self, _data: &[u8], _file_ext: &str) -> Self::Texture {
+        todo!()
     }
 
     fn tweak_texture_parameters(&mut self, _texture: &mut Self::Texture, _repeat: bool, _nearest: bool) {
@@ -67,6 +71,7 @@ impl Renderer for GodotRenderer {
         todo!()
     }
 
+    //TODO: GODOT IS STILL ALWAYS FILE PATHS!!!!!!!!!! FIX IT AT SOME POINT!!!!
     fn load_shader_full(&mut self, _vert_path: &str, frag_path: &str) -> Self::Shader {
         let shader = ResourceLoader::singleton().load(frag_path).unwrap().cast::<Shader>();
         let mut shader_material = ShaderMaterial::new_gd();

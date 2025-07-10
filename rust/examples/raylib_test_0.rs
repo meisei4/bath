@@ -3,10 +3,9 @@ use bath::render::raylib_util::{
     EXPERIMENTAL_WINDOW_WIDTH,
 };
 
-use asset_payload::runtime_io::{BUFFER_A_PATH, IMAGE_PATH, RAYLIB_DEFAULT_VERT_PATH};
+use asset_payload::payloads::{BUFFER_A_PATH, IMAGE_PATH, RAYLIB_DEFAULT_VERT_PATH};
 use raylib::init;
 use raylib::shaders::RaylibShader;
-use std::fs::read_to_string;
 use std::mem::swap;
 use std::time::Instant;
 
@@ -27,14 +26,14 @@ fn main() {
     println!("screen: {}x{}", screen_width, screen_height);
     println!("render:{}x{}", render_width, render_height);
     println!("dpi: {:?}", dpi);
-    let raylib_vertex_shader_src_code = read_to_string(RAYLIB_DEFAULT_VERT_PATH).unwrap();
-    let feedback_buffer_src_code = read_to_string(BUFFER_A_PATH).unwrap();
-    let image_src_code = read_to_string(IMAGE_PATH).unwrap();
+    let raylib_vertex_shader_src_code = RAYLIB_DEFAULT_VERT_PATH();
+    let feedback_buffer_src_code = BUFFER_A_PATH();
+    let image_src_code = IMAGE_PATH();
 
     let mut feedback_buffer_shader = raylib_handle.load_shader_from_memory(
         &raylib_thread,
-        Some(&raylib_vertex_shader_src_code),
-        Some(&feedback_buffer_src_code),
+        Some(raylib_vertex_shader_src_code),
+        Some(feedback_buffer_src_code),
     );
     let mut image_shader = raylib_handle.load_shader_from_memory(&raylib_thread, None, Some(&image_src_code));
 

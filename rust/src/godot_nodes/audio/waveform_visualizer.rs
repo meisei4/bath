@@ -1,7 +1,7 @@
 use crate::godot_nodes::audio::waveform_texture::WaveformTextureNode;
 use crate::render::godot::GodotRenderer;
 use crate::render::renderer::Renderer;
-use asset_payload::runtime_io::WAVEFORM_GDSHADER;
+use asset_payload::ResourcePaths;
 use godot::classes::{INode2D, Node, Node2D, Texture2D};
 use godot::obj::{Base, Gd, NewAlloc, WithBaseField};
 use godot::prelude::{godot_api, GodotClass};
@@ -22,7 +22,7 @@ impl INode2D for WaveformVisualizerRenderer {
         let mut render = render.bind_mut();
         let i_resolution = render.init_i_resolution();
         let mut buffer_a = render.init_render_target(i_resolution, true);
-        let mut shader = render.load_shader_fragment(WAVEFORM_GDSHADER);
+        let mut shader = render.load_shader_fragment(ResourcePaths::WAVEFORM_GDSHADER);
         render.set_uniform_vec2(&mut shader, "iResolution", i_resolution);
         let waveform_texture = WaveformTextureNode::new_alloc();
         self.base_mut().add_child(&waveform_texture.clone().upcast::<Node>());

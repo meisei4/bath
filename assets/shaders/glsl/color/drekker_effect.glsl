@@ -1,5 +1,5 @@
 #version 330
-#include "supersampling.glsl"
+#include "shaders/glsl/color/supersampling.glsl"
 
 uniform sampler2D iChannel1;
 uniform vec2      iResolution;

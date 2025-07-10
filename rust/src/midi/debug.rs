@@ -1,6 +1,7 @@
 #![cfg(feature = "tests-only")]
 
-use asset_payload::runtime_io::{MIDI_FILE_PATH, SOUND_FONT_FILE_PATH};
+use asset_payload::payloads::MIDI_FILE_PATH;
+use asset_payload::LocalCachePaths;
 use midir::{MidiOutput, MidiOutputConnection, MidiOutputPort};
 use midly::{MidiMessage, Smf, TrackEventKind};
 use rdev::{Event, EventType, Key};
@@ -10,8 +11,8 @@ use std::error::Error;
 use std::fs::File;
 use std::io::{stdout, BufReader, Write};
 use std::process::{exit, Child, Command};
+use std::thread;
 use std::time::Duration;
-use std::{fs, thread};
 use terminal_size::{terminal_size, Width};
 
 use crate::midi::util::{
@@ -20,7 +21,7 @@ use crate::midi::util::{
 };
 
 pub fn run_playback() -> Result<(), Box<dyn Error>> {
-    print_full_structure(SOUND_FONT_FILE_PATH, 0, 0)?;
+    print_full_structure(LocalCachePaths::SOUND_FONT_FILE_PATH, 0, 0)?;
     // TODO: the below until the next TODO is commented out to play midi file
     // let mut fluidsynth_process = launch_fluidsynth_with_font(SOUND_FONT_FILE_PATH);
     // let (midi_output, midi_port) = connect_to_first_midi_port();
@@ -31,10 +32,10 @@ pub fn run_playback() -> Result<(), Box<dyn Error>> {
     // });
     // let _ = fluidsynth_process.kill();
     //TODO: the above is all^^ for testing midi keyboard user input
-    let midi_bytes = fs::read(MIDI_FILE_PATH).unwrap();
+    let midi_bytes = MIDI_FILE_PATH();
     let _ = parse_midi_events_into_note_on_off_event_buffer_ticks_from_bytes(&midi_bytes);
     let _ = parse_midi_events_into_note_on_off_event_buffer_seconds_from_bytes(&midi_bytes);
-    play_midi(MIDI_FILE_PATH);
+    play_midi(&midi_bytes);
 
     Ok(())
 }
@@ -280,15 +281,13 @@ fn note_name_no_octave(note_number: u8) -> &'static str {
     NAMES[(note_number % 12) as usize]
 }
 
-pub fn play_midi(midi_path: &str) {
+pub fn play_midi(midi_bytes: &[u8]) {
     const MIDI_NOTE_ON: u8 = 0x90;
     const MIDI_NOTE_OFF: u8 = 0x80;
 
     let (midi_out, port) = connect_to_first_midi_port();
     let mut conn = midi_out.connect(&port, "rust-midi").unwrap();
-
-    let bytes = fs::read(midi_path).unwrap();
-    let smf = Smf::parse(&bytes).unwrap();
+    let smf = Smf::parse(&midi_bytes).unwrap();
     let events = prepare_events(&smf);
     // const TARGET_CHANNEL: u8 = 0;
     // const PROGRAM: u8 = 0;

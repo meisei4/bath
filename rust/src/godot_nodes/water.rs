@@ -1,6 +1,5 @@
 use crate::render::godot::GodotRenderer;
 use crate::render::renderer::Renderer;
-use asset_payload::runtime_io::{FINITE_APPROX_RIPPLE_GDSHADER, WATER_PROJECTED_GDSHADER};
 use asset_payload::ResourcePaths;
 use godot::classes::{INode2D, Node, Node2D, Texture2D};
 use godot::obj::{Base, Gd, NewAlloc, WithBaseField};
@@ -33,16 +32,16 @@ impl INode2D for WaterProjectedRenderer {
         let mut render = render.bind_mut();
         let i_resolution = render.init_i_resolution();
         let mut buffer_a = render.init_render_target(i_resolution, true);
-        let mut buffer_a_shader = render.load_shader_fragment(FINITE_APPROX_RIPPLE_GDSHADER);
+        let mut buffer_a_shader = render.load_shader_fragment(ResourcePaths::FINITE_APPROX_RIPPLE_GDSHADER);
         render.set_uniform_vec2(&mut buffer_a_shader, "iResolution", i_resolution);
         render.draw_shader_texture(&mut buffer_a_shader, &mut buffer_a);
         let buffer_a_texture = buffer_a.get_texture().unwrap().upcast::<Texture2D>();
 
         let mut buffer_b = render.init_render_target(i_resolution, false);
-        let mut buffer_b_shader = render.load_shader_fragment(WATER_PROJECTED_GDSHADER);
-        let i_channel0 = render.load_texture(ResourcePaths::GRAY_NOISE_SMALL_PNG_PATH);
-        let i_channel1 = render.load_texture(ResourcePaths::MOON_WATER_PNG_PATH);
-        let i_channel2 = render.load_texture(ResourcePaths::PEBBLES_PNG_PATH);
+        let mut buffer_b_shader = render.load_shader_fragment(ResourcePaths::WATER_PROJECTED_GDSHADER);
+        let i_channel0 = render.load_texture_file_path(ResourcePaths::GRAY_NOISE_SMALL_PNG_PATH);
+        let i_channel1 = render.load_texture_file_path(ResourcePaths::MOON_WATER_PNG_PATH);
+        let i_channel2 = render.load_texture_file_path(ResourcePaths::PEBBLES_PNG_PATH);
         render.set_uniform_vec2(&mut buffer_b_shader, "iResolution", i_resolution);
         render.set_uniform_sampler2d(&mut buffer_b_shader, "iChannel0", &i_channel0);
         render.set_uniform_sampler2d(&mut buffer_b_shader, "iChannel1", &i_channel1);
