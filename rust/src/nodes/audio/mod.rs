@@ -5,5 +5,6 @@ mod fft_texture;
 mod fft_visualizer;
 pub mod music_dimension_manager;
 mod pitch_dimension;
+mod rhythm_dimension;
 mod waveform_texture;
 mod waveform_visualizer;

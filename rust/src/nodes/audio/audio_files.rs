@@ -1,4 +1,4 @@
-use crate::audio_analysis::godot::{detect_bpm_aubio_ogg, detect_bpm_aubio_wav};
+use crate::audio_analysis::util::{detect_bpm_aubio_ogg, detect_bpm_aubio_wav};
 use godot::builtin::GString;
 use godot::classes::file_access::ModeFlags;
 use godot::classes::{FileAccess, Node};
