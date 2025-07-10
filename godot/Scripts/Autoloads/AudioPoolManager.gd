@@ -4,17 +4,15 @@ extends Node
 const SFX_POOL_SIZE: int = 12
 const MUSIC_POOL_SIZE: int = 5
 const INPUT_POOL_SIZE: int = 1
-
+var sfx_pool: AudioPool
+var music_pool: AudioPool
+var input_pool: AudioPool
 const bus_volumes: Dictionary[int, float] = {
     AudioBus.MASTER: 0.0,
     AudioBus.SFX: 0.0,
     AudioBus.MUSIC: 0.0,
     AudioBus.INPUT: 0.0,
 }
-
-var sfx_pool: AudioPool
-var music_pool: AudioPool
-var input_pool: AudioPool
 
 
 func _ready() -> void:

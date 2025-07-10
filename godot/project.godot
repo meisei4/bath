@@ -20,14 +20,14 @@ driver/enable_input=true
 
 [autoload]
 
-SceneManager="*res://Scripts/Autoloads/SceneManager.gd"
+ResolutionManager="*res://Scripts/Autoloads/ResolutionManager.gd"
+SpacetimeManager="*res://Scripts/Autoloads/SpacetimeManager.gd"
 ResourcePaths="*res://Scripts/Autoloads/ResourcePaths.gd"
 AudioPoolManager="*res://Scripts/Autoloads/AudioPoolManager.gd"
-MusicDimensionsManager="*res://Scripts/Autoloads/MusicDimensionsManager.gd"
-ResolutionManager="*res://Scripts/Autoloads/ResolutionManager.gd"
 AudioEffectManager="*res://Scripts/Autoloads/AudioEffectManager.gd"
-SpacetimeManager="*res://Scripts/Autoloads/SpacetimeManager.gd"
+MusicDimensionsManager="*res://Scripts/Autoloads/MusicDimensionsManager.gd"
 MaskManager="*res://Scripts/Autoloads/MaskManager.gd"
+SceneManager="*res://Scripts/Autoloads/SceneManager.gd"
 
 [debug]
 

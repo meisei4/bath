@@ -1,4 +1,4 @@
-use crate::nodes::fft_texture::FFTTextureNode;
+use crate::nodes::audio::fft_texture::FFTTextureNode;
 use crate::render::godot::GodotRenderer;
 use crate::render::renderer::Renderer;
 use asset_loader::runtime_io::FFT_GDSHADER;

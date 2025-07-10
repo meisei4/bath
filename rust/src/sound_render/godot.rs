@@ -1,5 +1,5 @@
-use crate::nodes::audio_bus::AudioBus;
-use crate::nodes::audio_bus::BUS::MUSIC;
+use crate::nodes::audio::audio_bus::AudioBus;
+use crate::nodes::audio::audio_bus::BUS::MUSIC;
 use crate::sound_render::sound_renderer::{
     FFTTexture, WaveformTexture, BUFFER_SIZE, DEAD_CHANNEL, FFT_ROW, HZ_STEP, INVERSE_DECIBEL_RANGE,
     MDN_MIN_AUDIO_DECIBEL, TEXTURE_HEIGHT,
@@ -41,13 +41,16 @@ impl FFTTexture for GodotFFTTexture {
             .try_to::<Self::AudioEffect>()
             .unwrap();
         spectrum_analyzer
-        //MusicDimensionsManagerRust::singleton().bind_mut().spectrum_instance()
-        // Engine::singleton()
-        //     .get_singleton(&StringName::from("MusicDimensionsManagerRust"))
+
+        // TODO: I need to be done with singletons, but this is sitll fucking singletons in the core godot design, im done with this, i cant deal with it, its too much
+        // let mut spectrum_analyzer_effect = AudioEffectSpectrumAnalyzer::new_gd();
+        // spectrum_analyzer_effect.set_fft_size(FftSize::SIZE_2048);
+        // AudioServer::singleton().add_bus_effect(AudioBus::get_bus_index_rust(MUSIC), &spectrum_analyzer_effect);
+        // let effect_index = AudioServer::singleton().get_bus_effect_count(AudioBus::get_bus_index_rust(MUSIC)) - 1;
+        // AudioServer::singleton()
+        //     .get_bus_effect_instance(AudioBus::get_bus_index_rust(MUSIC), effect_index)
         //     .unwrap()
-        //     .cast::<MusicDimensionsManagerRust>()
-        //     .bind_mut()
-        //     .spectrum_instance()
+        //     .cast()
     }
 
     fn update_audio_texture(&mut self, fft_data: &mut Self::FFTData, audio_texture: &mut Self::Image) {

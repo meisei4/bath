@@ -1,6 +1,0 @@
-[gd_scene load_steps=2 format=3 uid="uid://d1cfh6rdbw605"]
-
-[ext_resource type="Script" uid="uid://c52gv4uuqsq02" path="res://Scripts/Audio/PitchDimension.gd" id="1_0fl7l"]
-
-[node name="PitchDimension" type="Node" groups=["display_experimental"]]
-script = ExtResource("1_0fl7l")

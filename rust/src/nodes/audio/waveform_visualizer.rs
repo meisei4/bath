@@ -1,4 +1,4 @@
-use crate::nodes::waveform_texture::WaveformTextureNode;
+use crate::nodes::audio::waveform_texture::WaveformTextureNode;
 use crate::render::godot::GodotRenderer;
 use crate::render::renderer::Renderer;
 use asset_loader::runtime_io::WAVEFORM_GDSHADER;

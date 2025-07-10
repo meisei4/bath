@@ -1,7 +1,7 @@
-use crate::nodes::audio_bus::BUS::{INPUT, MASTER, MUSIC, SFX};
-use crate::nodes::audio_bus::{AudioBus, BUS};
+use crate::nodes::audio::audio_bus::BUS::{INPUT, MASTER, MUSIC, SFX};
+use crate::nodes::audio::audio_bus::{AudioBus, BUS};
 use godot::classes::audio_server::PlaybackType;
-use godot::classes::{AudioServer, AudioStream, AudioStreamPlayer, Engine, Node, Os};
+use godot::classes::{AudioServer, AudioStream, AudioStreamPlayer, Engine, INode, Node, Os};
 use godot::global::godot_warn;
 use godot::meta::ToGodot;
 use godot::obj::{Base, Gd, GodotClass, NewAlloc, WithBaseField};
@@ -20,11 +20,9 @@ pub struct AudioPoolRust {
     players: Vec<Gd<AudioStreamPlayer>>,
     available: Vec<Gd<AudioStreamPlayer>>,
 }
-
 #[godot_api]
-impl AudioPoolRust {
-    #[func]
-    pub fn ready(&mut self) {
+impl INode for AudioPoolRust {
+    fn ready(&mut self) {
         for _ in 0..self.pool_size {
             let mut player = AudioStreamPlayer::new_alloc();
             AudioBus::val_rust(self.bus.into());
@@ -34,16 +32,10 @@ impl AudioPoolRust {
             self.available.push(player);
         }
     }
+}
 
-    fn acquire(&mut self) -> Option<Gd<AudioStreamPlayer>> {
-        if self.available.is_empty() {
-            godot_warn!("Pool exhausted on bus {}", &AudioBus::val_rust(self.bus));
-            None
-        } else {
-            self.available.pop()
-        }
-    }
-
+#[godot_api]
+impl AudioPoolRust {
     #[func]
     pub fn play(&mut self, resource: Gd<AudioStream>, volume_db: f32) {
         if let Some(mut player) = self.acquire() {
@@ -54,6 +46,15 @@ impl AudioPoolRust {
             player.set_stream(&resource);
             player.set_volume_db(volume_db);
             player.play();
+        }
+    }
+
+    fn acquire(&mut self) -> Option<Gd<AudioStreamPlayer>> {
+        if self.available.is_empty() {
+            godot_warn!("Pool exhausted on bus {}", &AudioBus::val_rust(self.bus));
+            None
+        } else {
+            self.available.pop()
         }
     }
 }
@@ -68,24 +69,8 @@ pub struct AudioPoolManagerRust {
 }
 
 #[godot_api]
-impl AudioPoolManagerRust {
-    #[constant]
-    const SFX_POOL_SIZE: i32 = 12;
-    #[constant]
-    const MUSIC_POOL_SIZE: i32 = 5;
-    #[constant]
-    const INPUT_POOL_SIZE: i32 = 1;
-
-    pub fn singleton() -> Gd<AudioPoolManagerRust> {
-        Engine::singleton()
-            .get_singleton(&AudioPoolManagerRust::class_name().to_string_name())
-            .unwrap()
-            .cast::<AudioPoolManagerRust>()
-    }
-
-    //TODO: this is not correc tyou need to impl the base to get this to work you psycho
-    #[func]
-    pub fn ready(&mut self) {
+impl INode for AudioPoolManagerRust {
+    fn ready(&mut self) {
         self.setup_buses(&[MASTER, SFX, MUSIC, INPUT]);
         self.set_bus_volumes();
         let mut sfx = AudioPoolRust::new_alloc();
@@ -109,28 +94,23 @@ impl AudioPoolManagerRust {
         self.base_mut().add_child(&input);
         self.input_pool = Some(input);
     }
+}
+#[godot_api]
+impl AudioPoolManagerRust {
+    #[constant]
+    const SFX_POOL_SIZE: i32 = 12;
+    #[constant]
+    const MUSIC_POOL_SIZE: i32 = 5;
+    #[constant]
+    const INPUT_POOL_SIZE: i32 = 1;
 
-    fn setup_buses(&self, buses: &[BUS]) {
-        let current = AudioServer::singleton().get_bus_count();
-        for _ in current..buses.len() as i32 {
-            AudioServer::singleton().add_bus();
-        }
-        for (i, &bus) in buses.iter().enumerate() {
-            let name = AudioBus::val_rust(bus);
-            AudioServer::singleton().set_bus_name(i as i32, name.arg());
-        }
+    pub fn singleton() -> Gd<AudioPoolManagerRust> {
+        Engine::singleton()
+            .get_singleton(&AudioPoolManagerRust::class_name().to_string_name())
+            .unwrap()
+            .cast::<AudioPoolManagerRust>()
     }
 
-    fn bus_volumes(&self) -> [(BUS, f32); 4] {
-        [(MASTER, 0.0), (SFX, 0.0), (MUSIC, 0.0), (INPUT, 0.0)]
-    }
-
-    fn set_bus_volumes(&self) {
-        for (bus, vol) in &self.bus_volumes() {
-            let idx = AudioBus::get_bus_index_rust(*bus);
-            AudioServer::singleton().set_bus_volume_db(idx, *vol);
-        }
-    }
     #[func]
     pub fn play_sfx(&mut self, sound: Gd<AudioStream>, volume_db: f32) {
         let pool = self.sfx_pool.as_mut().unwrap();
@@ -147,5 +127,27 @@ impl AudioPoolManagerRust {
     pub fn play_input(&mut self, input: Gd<AudioStream>, volume_db: f32) {
         let pool = self.input_pool.as_mut().unwrap();
         pool.bind_mut().play(input, volume_db);
+    }
+
+    fn setup_buses(&self, buses: &[BUS]) {
+        let current = AudioServer::singleton().get_bus_count();
+        for _ in current..buses.len() as i32 {
+            AudioServer::singleton().add_bus();
+        }
+        for (i, &bus) in buses.iter().enumerate() {
+            let name = AudioBus::val_rust(bus);
+            AudioServer::singleton().set_bus_name(i as i32, name.arg());
+        }
+    }
+
+    fn set_bus_volumes(&self) {
+        for (bus, vol) in &self.bus_volumes() {
+            let idx = AudioBus::get_bus_index_rust(*bus);
+            AudioServer::singleton().set_bus_volume_db(idx, *vol);
+        }
+    }
+
+    fn bus_volumes(&self) -> [(BUS, f32); 4] {
+        [(MASTER, 0.0), (SFX, 0.0), (MUSIC, 0.0), (INPUT, 0.0)]
     }
 }

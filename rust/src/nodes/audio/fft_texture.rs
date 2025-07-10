@@ -37,7 +37,6 @@ impl INode2D for FFTTextureNode {
         let mut fft_data = PackedFloat32Array::new();
         render.resize_buffer(&mut fft_data);
         let image = render.init_audio_texture();
-
         self.spectrum = Some(render.fetch_spectrum_analyzer());
         self.fft_data = Some(fft_data);
         self.audio_image = Some(image.clone());
