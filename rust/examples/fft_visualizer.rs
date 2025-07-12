@@ -1,4 +1,5 @@
 use asset_payload::payloads::{DEBUG_VERT, FFT_FRAG, MIDI_FILE, SOUND_FONT_FILE};
+#[cfg(not(feature = "nasa-embed"))]
 use asset_payload::{CACHED_WAV_PATH, DEBUG_VERT_PATH, FFT_FRAG_PATH};
 use bath::midi::pitch::PitchDimension;
 use bath::render::raylib::RaylibRenderer;
@@ -25,6 +26,12 @@ use std::time::SystemTime;
 fn main() {
     let mut pitch = PitchDimension::default();
     pitch.resolve_payload_to_midi_buffer(MIDI_FILE());
+
+    #[cfg(feature = "nasa-embed")]
+    let wav_bytes =
+        pitch.resolve_payload_to_pcm_buffer(SAMPLE_RATE_HARDCODED as i32, MONO as u16, MIDI_FILE, SOUND_FONT_FILE);
+
+    #[cfg(not(feature = "nasa-embed"))]
     let wav_bytes = pitch.resolve_payload_to_pcm_buffer_cache(
         SAMPLE_RATE_HARDCODED as i32,
         MONO as u16,
@@ -32,7 +39,6 @@ fn main() {
         SOUND_FONT_FILE(),
         CACHED_WAV_PATH,
     );
-    //TODO: ^^the above just means do all the potential caching before initing raylib window even
 
     let mut render = RaylibRenderer::init(EXPERIMENTAL_WINDOW_WIDTH, EXPERIMENTAL_WINDOW_HEIGHT);
     let i_resolution = RendererVector2::new(
@@ -40,7 +46,13 @@ fn main() {
         render.handle.get_screen_height() as f32,
     );
     let mut buffer_a = render.init_render_target(i_resolution, true);
+
+    #[cfg(feature = "nasa-embed")]
+    let mut shader = render.load_shader_full(DEBUG_VERT, FFT_FRAG);
+
+    #[cfg(not(feature = "nasa-embed"))]
     let mut shader = render.load_shader_full(DEBUG_VERT(), FFT_FRAG());
+
     render.set_uniform_vec2(&mut shader, "iResolution", i_resolution);
     let fft_history_len: usize =
         (FFT_HISTORICAL_SMOOTHING_BUFFER_TIME_SECONDS as f64 / WINDOW_TIME).ceil() as usize + RING_BUFFER_PADDING;
@@ -87,8 +99,11 @@ fn main() {
     unsafe {
         PlayAudioStream(audio_stream);
     }
+    #[cfg(not(feature = "nasa-embed"))]
     let mut vert_mod_time = get_file_mod_time(DEBUG_VERT_PATH);
+    #[cfg(not(feature = "nasa-embed"))]
     let mut frag_mod_time = get_file_mod_time(FFT_FRAG_PATH);
+
     let mut song_time = 0.0f32;
 
     while !render.handle.window_should_close() {
@@ -125,8 +140,11 @@ fn main() {
         let pixels = unsafe { from_raw_parts(fft_image.data as *const u8, len) };
         //println!("FFT image bytes [0..8]: {:?}", &pixels[0..8.min(len)]);
         fft_texture.update_texture(pixels).unwrap();
+        #[cfg(not(feature = "nasa-embed"))]
         let new_vert_mod_time = get_file_mod_time(DEBUG_VERT_PATH);
+        #[cfg(not(feature = "nasa-embed"))]
         let new_frag_mod_time = get_file_mod_time(FFT_FRAG_PATH);
+        #[cfg(not(feature = "nasa-embed"))]
         if new_vert_mod_time != vert_mod_time || new_frag_mod_time != frag_mod_time {
             println!("Shader modified, reloading...");
             let vert_src = fs::read_to_string(DEBUG_VERT_PATH).unwrap();
@@ -139,6 +157,7 @@ fn main() {
             vert_mod_time = new_vert_mod_time;
             frag_mod_time = new_frag_mod_time;
         }
+
         render.draw_shader_screen_tilted_geom(&mut shader, &mut buffer_a, 0_f32);
         //render.draw_shader_screen(&mut shader, &mut buffer_a);
     }
