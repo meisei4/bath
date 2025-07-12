@@ -1,8 +1,8 @@
 extern crate alloc;
 use crate::audio_analysis::util::detect_bpm_aubio_ogg;
 use alloc::vec::Vec;
-use asset_payload::payloads::SHADERTOY_EXPERIMENT_OGG_PATH;
-use asset_payload::LocalCachePaths;
+use asset_payload::payloads::SHADERTOY_EXPERIMENT_OGG;
+use asset_payload::CACHED_RHYTHM_DATA_PATH;
 use std::fs;
 use std::fs::File;
 use std::io::Write;
@@ -91,18 +91,18 @@ pub struct RhythmDimension {
 impl RhythmDimension {
     pub fn new() -> Self {
         let mut rhythm = Self::default();
-        rhythm.rhythm_data = if Path::new(LocalCachePaths::CACHED_RHYTHM_DATA).exists() {
-            RhythmData::load_from_file(LocalCachePaths::CACHED_RHYTHM_DATA).expect("Failed to load cached RhythmData")
+        rhythm.rhythm_data = if Path::new(CACHED_RHYTHM_DATA_PATH).exists() {
+            RhythmData::load_from_file(CACHED_RHYTHM_DATA_PATH).expect("Failed to load cached RhythmData")
         } else {
             RhythmData::default()
         };
 
         if rhythm.rhythm_data.bpm <= 0.0 {
-            let audio_bytes = SHADERTOY_EXPERIMENT_OGG_PATH();
+            let audio_bytes = SHADERTOY_EXPERIMENT_OGG();
             rhythm.bpm = detect_bpm_aubio_ogg(audio_bytes);
             println!("Offline BPM detection → {}", rhythm.bpm);
             rhythm.rhythm_data.bpm = rhythm.bpm;
-            rhythm.rhythm_data.save_rhythm_data(LocalCachePaths::CACHED_RHYTHM_DATA);
+            rhythm.rhythm_data.save_rhythm_data(CACHED_RHYTHM_DATA_PATH);
         } else {
             rhythm.bpm = rhythm.rhythm_data.bpm;
             println!("Using cached BPM → {}", rhythm.bpm);

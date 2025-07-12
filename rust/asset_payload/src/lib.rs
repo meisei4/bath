@@ -1,5 +1,5 @@
 #![allow(non_snake_case)]
-
+use paste::paste;
 #[macro_export]
 macro_rules! define_payloads {
     (binary : { $( $BIN:ident => $bin_path:expr ),* $(,)? },
@@ -13,51 +13,44 @@ macro_rules! define_payloads {
         #[cfg(not(feature = "nasa-embed"))]
         pub mod payloads {
             use std::{fs, str};
+            use std::sync::OnceLock;
             fn leak(path: &str) -> &'static [u8] {
                 Box::leak(fs::read(path).unwrap_or_else(|e| panic!("read payload {path}: {e}")).into_boxed_slice())
             }
 
             $(
                 #[allow(non_upper_case_globals)]
-                mod $BIN {
-                    use super::leak;
-                    use std::sync::OnceLock;
+                pub fn $BIN() -> &'static [u8] {
                     static CELL: OnceLock<&'static [u8]> = OnceLock::new();
-                    pub fn get() -> &'static [u8] {
-                        CELL.get_or_init(|| leak(concat!("../assets/", $bin_path)))
-                    }
+                    CELL.get_or_init(|| leak(concat!("../assets/", $bin_path)))
                 }
-                pub use $BIN::get as $BIN;
             )*
 
             $(
                 #[allow(non_upper_case_globals)]
-                mod $STR {
-                    use super::leak;
-                    use std::sync::OnceLock;
+                pub fn $STR() -> &'static str {
                     static CELL: OnceLock<&'static str> = OnceLock::new();
-                    pub fn get() -> &'static str {
-                        CELL.get_or_init(|| {
-                            let bytes = leak(concat!("../assets/", $str_path));
-                            str::from_utf8(bytes).expect("utf-8 payload")
-                        })
-                    }
+                    CELL.get_or_init(|| {
+                        let bytes = leak(concat!("../assets/", $str_path));
+                        str::from_utf8(bytes).expect("utf-8 payload")
+                    })
                 }
-                pub use $STR::get as $STR;
             )*
         }
 
-        pub struct ResourcePaths;
-        pub struct LocalCachePaths;
-
-        impl ResourcePaths {
-            $( pub const $BIN: &str = concat!("res://assets/", $bin_path); )*
-            $( pub const $STR: &str = concat!("res://assets/", $str_path); )*
-        }
-
-        impl LocalCachePaths {
-            $( pub const $BIN: &str = concat!("../assets/", $bin_path); )*
-            $( pub const $STR: &str = concat!("../assets/", $str_path); )*
+        paste! {
+            $(
+                #[allow(non_upper_case_globals)]
+                pub const [<$BIN _PATH>]: &str    = concat!("../assets/", $bin_path);
+                #[allow(non_upper_case_globals)]
+                pub const [<$BIN _PATH_GD>]: &str = concat!("res://assets/", $bin_path);
+            )*
+            $(
+                #[allow(non_upper_case_globals)]
+                pub const [<$STR _PATH>]: &str    = concat!("../assets/", $str_path);
+                #[allow(non_upper_case_globals)]
+                pub const [<$STR _PATH_GD>]: &str = concat!("res://assets/", $str_path);
+            )*
         }
 
         pub fn lookup_shader_source(path: &str) -> Option<&'static str> {
@@ -95,34 +88,34 @@ define_payloads! {
     binary: {
         // https://shadertoyunofficial.wordpress.com/2019/07/23/shadertoy-media-files
         // https://www.shadertoy.com/media/a/29de534ed5e4a6a224d2dfffab240f2e19a9d95f5e39de8898e850efdb2a99de.mp3
-        SHADERTOY_WAV_PATH            => "audio/shadertoy.wav",
-        SHADERTOY_WHAT_PATH           => "audio/shadertoy_what.wav",
+        SHADERTOY_WAV            => "audio/shadertoy.wav",
+        SHADERTOY_WHAT           => "audio/shadertoy_what.wav",
         // ffmpeg -i shadertoy_music_experiment.wav -c:a libvorbis -qscale:a 0.1 -ar 12000 -ac 1 -compression_level 10 shadertoy_music_experiment_min_bitrate.ogg
-        SHADERTOY_EXPERIMENT_OGG_PATH => "audio/shadertoy_music_experiment_min_bitrate.ogg",
-        SOUND_FONT_FILE_PATH          => "audio/dsdnmoy.sf2",
-        MIDI_FILE_PATH                => "audio/fingerbib.mid",
-        CACHED_WAV_PATH               => "audio/cache/cached_wav.wav",
-        CACHED_RHYTHM_DATA            => "audio/cache/RhythmData.tres",
-        BAYER_PNG_PATH                => "textures/bayer.png",
-        GRAY_NOISE_SMALL_PNG_PATH     => "textures/gray_noise_small.png",
-        ICEBERGS_JPG_PATH             => "textures/icebergs.jpg",
-        MOON_WATER_PNG_PATH           => "textures/moon_water.png",
-        PEBBLES_PNG_PATH              => "textures/pebbles.png",
-        ROCKS_JPG_PATH                => "textures/rocks.jpg"
+        SHADERTOY_EXPERIMENT_OGG => "audio/shadertoy_music_experiment_min_bitrate.ogg",
+        SOUND_FONT_FILE          => "audio/dsdnmoy.sf2",
+        MIDI_FILE                => "audio/fingerbib.mid",
+        CACHED_WAV               => "audio/cache/cached_wav.wav",
+        CACHED_RHYTHM_DATA       => "audio/cache/RhythmData.tres",
+        BAYER_PNG                => "textures/bayer.png",
+        GRAY_NOISE_SMALL_PNG     => "textures/gray_noise_small.png",
+        ICEBERGS_JPG             => "textures/icebergs.jpg",
+        MOON_WATER_PNG           => "textures/moon_water.png",
+        PEBBLES_PNG              => "textures/pebbles.png",
+        ROCKS_JPG                => "textures/rocks.jpg"
     },
     string: {
-        RAYLIB_DEFAULT_VERT_PATH      => "shaders/glsl/raylib_default_vertex.glsl",
-        DEBUG_VERT_PATH               => "shaders/glsl/debug_vertex.glsl",
-        DEBUG_FRAG_PATH               => "shaders/glsl/debug_fragment.glsl",
-        DREKKER_PATH                  => "shaders/glsl/color/drekker_effect.glsl",
+        RAYLIB_DEFAULT_VERT      => "shaders/glsl/raylib_default_vertex.glsl",
+        DEBUG_VERT               => "shaders/glsl/debug_vertex.glsl",
+        DEBUG_FRAG               => "shaders/glsl/debug_fragment.glsl",
+        DREKKER                  => "shaders/glsl/color/drekker_effect.glsl",
         SUPERSAMPLING                 => "shaders/glsl/color/supersampling.glsl",
-        BUFFER_A_PATH                 => "shaders/glsl/buffer_a.glsl",
-        IMAGE_PATH                    => "shaders/glsl/image.glsl",
-        ICESHEETS_FRAG_DRAFT_PATH     => "shaders/glsl/ice_sheets/icesheets_fragment_drafting.glsl",
-        ICESHEETS_FRAG_PATH           => "shaders/glsl/ice_sheets/icesheets_fragment.glsl",
-        ICESHEETS_VERT_DRAFT_PATH     => "shaders/glsl/ice_sheets/icesheets_vertex_drafting.glsl",
-        ICESHEETS_VERT_PATH           => "shaders/glsl/ice_sheets/icesheets_vertex.glsl",
-        FFT_FRAG_PATH                 => "shaders/glsl/audio/fft.glsl",
+        BUFFER_A                 => "shaders/glsl/buffer_a.glsl",
+        IMAGE                    => "shaders/glsl/image.glsl",
+        ICESHEETS_FRAG_DRAFT     => "shaders/glsl/ice_sheets/icesheets_fragment_drafting.glsl",
+        ICESHEETS_FRAG           => "shaders/glsl/ice_sheets/icesheets_fragment.glsl",
+        ICESHEETS_VERT_DRAFT     => "shaders/glsl/ice_sheets/icesheets_vertex_drafting.glsl",
+        ICESHEETS_VERT           => "shaders/glsl/ice_sheets/icesheets_vertex.glsl",
+        FFT_FRAG                 => "shaders/glsl/audio/fft.glsl",
 
         BUFFER_A_GDSHADER                          => "shaders/gdshader/buffer_a.gdshader",
         MAIN_GDSHADER                              => "shaders/gdshader/main.gdshader",

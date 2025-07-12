@@ -15,9 +15,9 @@ fn main() {
 
 // cargo run --example raylib_test_0 --features tests-only
 // cargo run --example raylib_test_1 --features tests-only
-// cargo run --example raylib_test_2 --features tests-only
-// cargo run --example raylib_test_4 --features tests-only
-// cargo run --example raylib_fft_test --features tests-only
+// cargo run --example ice_sheets --features tests-only
+// cargo run --example drekker_effect --features tests-only
+// cargo run --example fft_visualizer --features tests-only
 // cargo run --example debug_space --features tests-only
 // cargo run --example audio_test --features tests-only
 // cargo run --example rlgl_test --features tests-only

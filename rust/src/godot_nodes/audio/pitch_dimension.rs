@@ -1,12 +1,14 @@
 use crate::midi::pitch::PitchDimension;
-use asset_payload::payloads::{MIDI_FILE_PATH, SOUND_FONT_FILE_PATH};
-use asset_payload::ResourcePaths;
+use asset_payload::payloads::{MIDI_FILE, SOUND_FONT_FILE};
+use asset_payload::CACHED_WAV_PATH_GD;
 
+use crate::sound_render::sound_renderer::MONO;
 use godot::builtin::{PackedByteArray, PackedVector3Array, Vector3};
 use godot::classes::{AudioServer, AudioStreamWav, INode, Node};
 use godot::global::godot_print;
 use godot::obj::{Base, Gd};
 use godot::prelude::{godot_api, GodotClass};
+
 // godot --path . --scene Scenes/Shaders/Audio/GhostShape.tscn
 #[derive(GodotClass)]
 #[class(init, base=Node)]
@@ -28,12 +30,13 @@ impl INode for PitchDimensionGodot {
 
     fn ready(&mut self) {
         let sample_rate = AudioServer::singleton().get_mix_rate() as i32;
-        self.inner.resolve_payload_to_midi_buffer(MIDI_FILE_PATH());
+        self.inner.resolve_payload_to_midi_buffer(MIDI_FILE());
         let wav_bytes = self.inner.resolve_payload_to_pcm_buffer_cache(
             sample_rate,
-            MIDI_FILE_PATH(),
-            SOUND_FONT_FILE_PATH(),
-            ResourcePaths::CACHED_WAV_PATH,
+            MONO as u16,
+            MIDI_FILE(),
+            SOUND_FONT_FILE(),
+            CACHED_WAV_PATH_GD,
         );
         let buffer = PackedByteArray::from(wav_bytes);
         let stream = AudioStreamWav::load_from_buffer(&buffer).expect("Failed to decode WAV from buffer");

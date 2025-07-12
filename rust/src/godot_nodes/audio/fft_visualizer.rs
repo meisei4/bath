@@ -1,7 +1,7 @@
 use crate::godot_nodes::audio::fft_texture::FFTTextureNode;
 use crate::render::godot::GodotRenderer;
 use crate::render::renderer::Renderer;
-use asset_payload::ResourcePaths;
+use asset_payload::FFT_GDSHADER_PATH_GD;
 use godot::classes::{INode2D, Node, Node2D, Texture2D};
 use godot::obj::{Base, Gd, NewAlloc, WithBaseField};
 use godot::register::{godot_api, GodotClass};
@@ -22,7 +22,7 @@ impl INode2D for FFTVisualizerRenderer {
         let mut render = render.bind_mut();
         let i_resolution = render.init_i_resolution();
         let mut buffer_a = render.init_render_target(i_resolution, true);
-        let mut shader = render.load_shader_fragment(ResourcePaths::FFT_GDSHADER);
+        let mut shader = render.load_shader_fragment(FFT_GDSHADER_PATH_GD);
         render.set_uniform_vec2(&mut shader, "iResolution", i_resolution);
         let fft_texture = FFTTextureNode::new_alloc();
         self.base_mut().add_child(&fft_texture.clone().upcast::<Node>());

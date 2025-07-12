@@ -1,4 +1,4 @@
-use asset_payload::payloads::{ICESHEETS_FRAG_PATH, ICESHEETS_VERT_PATH};
+use asset_payload::payloads::{ICESHEETS_FRAG, ICESHEETS_VERT};
 use bath::render::raylib::RaylibRenderer;
 use bath::render::raylib_util::{BATH_HEIGHT, BATH_WIDTH};
 use bath::render::{renderer::Renderer, renderer::RendererVector2};
@@ -12,7 +12,7 @@ fn main() {
         render.handle.get_screen_height() as f32,
     );
     let mut buffer = render.init_render_target(i_resolution, true);
-    let mut shader = render.load_shader_full(ICESHEETS_VERT_PATH(), ICESHEETS_FRAG_PATH());
+    let mut shader = render.load_shader_full(ICESHEETS_VERT(), ICESHEETS_FRAG());
     render.set_uniform_vec2(&mut shader, "iResolution", i_resolution);
     render.set_uniform_float(&mut shader, "parallaxDepth", 6.0);
     render.set_uniform_float(&mut shader, "globalCoordinateScale", 180.0);

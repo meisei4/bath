@@ -1,7 +1,7 @@
 #![cfg(feature = "tests-only")]
 
-use asset_payload::payloads::MIDI_FILE_PATH;
-use asset_payload::LocalCachePaths;
+use asset_payload::payloads::MIDI_FILE;
+use asset_payload::SOUND_FONT_FILE_PATH;
 use midir::{MidiOutput, MidiOutputConnection, MidiOutputPort};
 use midly::{MidiMessage, Smf, TrackEventKind};
 use rdev::{Event, EventType, Key};
@@ -21,9 +21,9 @@ use crate::midi::util::{
 };
 
 pub fn run_playback() -> Result<(), Box<dyn Error>> {
-    print_full_structure(LocalCachePaths::SOUND_FONT_FILE_PATH, 0, 0)?;
+    print_full_structure(SOUND_FONT_FILE_PATH, 0, 0)?;
     // TODO: the below until the next TODO is commented out to play midi file
-    // let mut fluidsynth_process = launch_fluidsynth_with_font(SOUND_FONT_FILE_PATH);
+    // let mut fluidsynth_process = launch_fluidsynth_with_font(SOUND_FONT_FILE);
     // let (midi_output, midi_port) = connect_to_first_midi_port();
     // let mut midi_connection = midi_output.connect(&midi_port, "rust-midi")?;
     // let mut pressed_keys: HashSet<Key> = HashSet::new();
@@ -32,7 +32,7 @@ pub fn run_playback() -> Result<(), Box<dyn Error>> {
     // });
     // let _ = fluidsynth_process.kill();
     //TODO: the above is all^^ for testing midi keyboard user input
-    let midi_bytes = MIDI_FILE_PATH();
+    let midi_bytes = MIDI_FILE();
     let _ = parse_midi_events_into_note_on_off_event_buffer_ticks_from_bytes(&midi_bytes);
     let _ = parse_midi_events_into_note_on_off_event_buffer_seconds_from_bytes(&midi_bytes);
     play_midi(&midi_bytes);

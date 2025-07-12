@@ -19,58 +19,25 @@ const TARGET_CHANNEL: u8 = 0;
 const PROGRAM: u8 = 0;
 
 impl PitchDimension {
-    // pub fn resolve_payload_to_midi_buffer(&mut self, midi_file_path: &str) {
-    //     let midi_bytes =
-    //         fs::read(midi_file_path).unwrap_or_else(|e| panic!("Failed to read MIDI file '{}': {}", midi_file_path, e));
-    //     self.note_buffer = parse_midi_events_into_note_on_off_event_buffer_seconds_from_bytes(&midi_bytes);
-    // }
-
     pub fn resolve_payload_to_midi_buffer(&mut self, midi_bytes: &[u8]) {
         self.note_buffer = parse_midi_events_into_note_on_off_event_buffer_seconds_from_bytes(midi_bytes);
     }
 
-    // pub fn resolve_payload_to_pcm_buffer(
-    //     &self,
-    //     sample_rate: i32,
-    //     midi_file_path: &str,
-    //     sf2_file_path: &str,
-    // ) -> Vec<u8> {
-    //     let sf2_bytes =
-    //         fs::read(sf2_file_path).unwrap_or_else(|e| panic!("Failed to read SF2 file '{}': {}", sf2_file_path, e));
-    //     let midi_bytes =
-    //         fs::read(midi_file_path).unwrap_or_else(|e| panic!("Failed to read MIDI file '{}': {}", midi_file_path, e));
-    //     render_midi_to_wav_bytes(sample_rate, &midi_bytes, &sf2_bytes, TARGET_CHANNEL, PROGRAM)
-    //         .expect("Failed to render MIDI to WAV")
-    // }
-
-    pub fn resolve_payload_to_pcm_buffer(&self, sample_rate: i32, midi_bytes: &[u8], sf2_bytes: &[u8]) -> Vec<u8> {
-        render_midi_to_wav_bytes(sample_rate, midi_bytes, sf2_bytes, TARGET_CHANNEL, PROGRAM)
+    pub fn resolve_payload_to_pcm_buffer(
+        &self,
+        sample_rate: i32,
+        channels: u16,
+        midi_bytes: &[u8],
+        sf2_bytes: &[u8],
+    ) -> Vec<u8> {
+        render_midi_to_wav_bytes(sample_rate, channels, midi_bytes, sf2_bytes, TARGET_CHANNEL, PROGRAM)
             .expect("Failed to render MIDI to WAV")
     }
-
-    // pub fn resolve_payload_to_pcm_buffer_cache(
-    //     &self,
-    //     sample_rate: i32,
-    //     midi_file_path: &str,
-    //     sf2_file_path: &str,
-    //     cache_path: &str,
-    // ) -> Vec<u8> {
-    //     match fs::read(cache_path) {
-    //         Ok(bytes) => bytes,
-    //         Err(_) => {
-    //             let bytes = self.resolve_payload_to_pcm_buffer(sample_rate, midi_file_path, sf2_file_path);
-    //             if let Some(parent_dir) = Path::new(cache_path).parent() {
-    //                 let _ = fs::create_dir_all(parent_dir);
-    //             }
-    //             fs::write(cache_path, &bytes).expect("Failed to write WAV cache");
-    //             bytes
-    //         },
-    //     }
-    // }
 
     pub fn resolve_payload_to_pcm_buffer_cache(
         &self,
         sample_rate: i32,
+        channels: u16,
         midi_bytes: &[u8],
         sf2_bytes: &[u8],
         cache_path: &str,
@@ -78,7 +45,35 @@ impl PitchDimension {
         match fs::read(cache_path) {
             Ok(bytes) => bytes,
             Err(_) => {
-                let bytes = self.resolve_payload_to_pcm_buffer(sample_rate, midi_bytes, sf2_bytes);
+                let max_time = self
+                    .note_buffer
+                    .values()
+                    .flat_map(|events| events.iter().map(|&(_on, off)| off))
+                    .fold(0.0_f32, f32::max);
+
+                let est_bytes = (max_time * sample_rate as f32 * channels as f32 * 2.0) as f64;
+                let est_mb = est_bytes / (1024.0 * 1024.0);
+
+                println!(
+                    "Generating WAV cache... \n\
+                 • midi size:            {} bytes\n\
+                 • soundfont size:       {} bytes\n\
+                 • sample rate:          {} Hz\n\
+                 • channels:             {}\n\
+                 • estimated duration:   {:.2} sec\n\
+                 • estimated WAV size:   {:.2} MB\n\
+                 → writing to:           {}\n",
+                    midi_bytes.len(),
+                    sf2_bytes.len(),
+                    sample_rate,
+                    channels,
+                    max_time,
+                    est_mb,
+                    cache_path,
+                );
+                let bytes = self.resolve_payload_to_pcm_buffer(sample_rate, channels, midi_bytes, sf2_bytes);
+                let actual_mb = bytes.len() as f64 / 1024.0 / 1024.0;
+                println!("→ actual WAV size on disk: {:.2} MB", actual_mb);
                 if let Some(parent_dir) = Path::new(cache_path).parent() {
                     let _ = fs::create_dir_all(parent_dir);
                 }

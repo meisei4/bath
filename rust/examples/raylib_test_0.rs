@@ -3,7 +3,7 @@ use bath::render::raylib_util::{
     EXPERIMENTAL_WINDOW_WIDTH,
 };
 
-use asset_payload::payloads::{BUFFER_A_PATH, IMAGE_PATH, RAYLIB_DEFAULT_VERT_PATH};
+use asset_payload::payloads::{BUFFER_A, IMAGE, RAYLIB_DEFAULT_VERT};
 use raylib::init;
 use raylib::shaders::RaylibShader;
 use std::mem::swap;
@@ -26,9 +26,9 @@ fn main() {
     println!("screen: {}x{}", screen_width, screen_height);
     println!("render:{}x{}", render_width, render_height);
     println!("dpi: {:?}", dpi);
-    let raylib_vertex_shader_src_code = RAYLIB_DEFAULT_VERT_PATH();
-    let feedback_buffer_src_code = BUFFER_A_PATH();
-    let image_src_code = IMAGE_PATH();
+    let raylib_vertex_shader_src_code = RAYLIB_DEFAULT_VERT();
+    let feedback_buffer_src_code = BUFFER_A();
+    let image_src_code = IMAGE();
 
     let mut feedback_buffer_shader = raylib_handle.load_shader_from_memory(
         &raylib_thread,

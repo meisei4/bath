@@ -1,13 +1,13 @@
-use asset_payload::payloads::{DEBUG_VERT_PATH, FFT_FRAG_PATH, MIDI_FILE_PATH, SOUND_FONT_FILE_PATH};
-use asset_payload::LocalCachePaths;
+use asset_payload::payloads::{DEBUG_VERT, FFT_FRAG, MIDI_FILE, SOUND_FONT_FILE};
+use asset_payload::{CACHED_WAV_PATH, DEBUG_VERT_PATH, FFT_FRAG_PATH};
 use bath::midi::pitch::PitchDimension;
 use bath::render::raylib::RaylibRenderer;
 use bath::render::raylib_util::{EXPERIMENTAL_WINDOW_HEIGHT, EXPERIMENTAL_WINDOW_WIDTH};
 use bath::render::{renderer::Renderer, renderer::RendererVector2};
 use bath::sound_render::raylib::RaylibFFTTexture;
 use bath::sound_render::sound_renderer::{
-    FFTTexture, AUDIO_STREAM_RING_BUFFER_SIZE, BUFFER_SIZE, CHANNELS, FFT_HISTORICAL_SMOOTHING_BUFFER_TIME_SECONDS,
-    FFT_WINDOW_SIZE, PER_SAMPLE_BIT_DEPTH_HARDCODED, RING_BUFFER_PADDING, SAMPLE_RATE_HARDCODED, WINDOW_TIME,
+    FFTTexture, AUDIO_STREAM_RING_BUFFER_SIZE, BUFFER_SIZE, FFT_HISTORICAL_SMOOTHING_BUFFER_TIME_SECONDS,
+    FFT_WINDOW_SIZE, MONO, PER_SAMPLE_BIT_DEPTH_HARDCODED, RING_BUFFER_PADDING, SAMPLE_RATE_HARDCODED, WINDOW_TIME,
 };
 use fftw2_sys::fftw_complex;
 use hound::SampleFormat::Int;
@@ -23,13 +23,24 @@ use std::slice::from_raw_parts;
 use std::time::SystemTime;
 
 fn main() {
+    let mut pitch = PitchDimension::default();
+    pitch.resolve_payload_to_midi_buffer(MIDI_FILE());
+    let wav_bytes = pitch.resolve_payload_to_pcm_buffer_cache(
+        SAMPLE_RATE_HARDCODED as i32,
+        MONO as u16,
+        MIDI_FILE(),
+        SOUND_FONT_FILE(),
+        CACHED_WAV_PATH,
+    );
+    //TODO: ^^the above just means do all the potential caching before initing raylib window even
+
     let mut render = RaylibRenderer::init(EXPERIMENTAL_WINDOW_WIDTH, EXPERIMENTAL_WINDOW_HEIGHT);
     let i_resolution = RendererVector2::new(
         render.handle.get_screen_width() as f32,
         render.handle.get_screen_height() as f32,
     );
     let mut buffer_a = render.init_render_target(i_resolution, true);
-    let mut shader = render.load_shader_full(DEBUG_VERT_PATH(), FFT_FRAG_PATH());
+    let mut shader = render.load_shader_full(DEBUG_VERT(), FFT_FRAG());
     render.set_uniform_vec2(&mut shader, "iResolution", i_resolution);
     let fft_history_len: usize =
         (FFT_HISTORICAL_SMOOTHING_BUFFER_TIME_SECONDS as f64 / WINDOW_TIME).ceil() as usize + RING_BUFFER_PADDING;
@@ -54,23 +65,14 @@ fn main() {
     unsafe {
         SetAudioStreamBufferSizeDefault(AUDIO_STREAM_RING_BUFFER_SIZE as i32);
     }
-    let audio_stream = unsafe { LoadAudioStream(SAMPLE_RATE_HARDCODED, PER_SAMPLE_BIT_DEPTH_HARDCODED, CHANNELS) };
+    let audio_stream = unsafe { LoadAudioStream(SAMPLE_RATE_HARDCODED, PER_SAMPLE_BIT_DEPTH_HARDCODED, MONO) };
     let mut chunk_samples: [i16; AUDIO_STREAM_RING_BUFFER_SIZE] = [0; AUDIO_STREAM_RING_BUFFER_SIZE];
-
-    let mut pitch = PitchDimension::default();
-    pitch.resolve_payload_to_midi_buffer(MIDI_FILE_PATH());
-    let wav_bytes = pitch.resolve_payload_to_pcm_buffer_cache(
-        SAMPLE_RATE_HARDCODED as i32,
-        MIDI_FILE_PATH(),
-        SOUND_FONT_FILE_PATH(),
-        LocalCachePaths::CACHED_WAV_PATH,
-    );
 
     let cursor = Cursor::new(wav_bytes);
     let mut wav = WavReader::new(cursor).unwrap();
 
     //TODO: WTF just happened in this: ffmpeg -i "shadertoy_music_experiment_min_bitrate.ogg" -ac 1 -sample_fmt s16 -c:a pcm_s16le shadertoy.wav
-    // let mut wav = WavReader::open(CACHED_WAV_PATH).unwrap();
+    // let mut wav = WavReader::open(CACHED_WAV).unwrap();
     let wav_spec = wav.spec();
     let mut wav_iter = wav.samples::<i16>();
     let is_stereo = wav_spec.channels == 2_u16;
@@ -85,8 +87,8 @@ fn main() {
     unsafe {
         PlayAudioStream(audio_stream);
     }
-    let mut vert_mod_time = get_file_mod_time(LocalCachePaths::DEBUG_VERT_PATH);
-    let mut frag_mod_time = get_file_mod_time(LocalCachePaths::FFT_FRAG_PATH);
+    let mut vert_mod_time = get_file_mod_time(DEBUG_VERT_PATH);
+    let mut frag_mod_time = get_file_mod_time(FFT_FRAG_PATH);
     let mut song_time = 0.0f32;
 
     while !render.handle.window_should_close() {
@@ -123,12 +125,12 @@ fn main() {
         let pixels = unsafe { from_raw_parts(fft_image.data as *const u8, len) };
         //println!("FFT image bytes [0..8]: {:?}", &pixels[0..8.min(len)]);
         fft_texture.update_texture(pixels).unwrap();
-        let new_vert_mod_time = get_file_mod_time(LocalCachePaths::DEBUG_VERT_PATH);
-        let new_frag_mod_time = get_file_mod_time(LocalCachePaths::FFT_FRAG_PATH);
+        let new_vert_mod_time = get_file_mod_time(DEBUG_VERT_PATH);
+        let new_frag_mod_time = get_file_mod_time(FFT_FRAG_PATH);
         if new_vert_mod_time != vert_mod_time || new_frag_mod_time != frag_mod_time {
             println!("Shader modified, reloading...");
-            let vert_src = fs::read_to_string(LocalCachePaths::DEBUG_VERT_PATH).unwrap();
-            let frag_src = fs::read_to_string(LocalCachePaths::FFT_FRAG_PATH).unwrap();
+            let vert_src = fs::read_to_string(DEBUG_VERT_PATH).unwrap();
+            let frag_src = fs::read_to_string(FFT_FRAG_PATH).unwrap();
             let hot_vert_leaked = Box::leak(vert_src.into_boxed_str());
             let hot_frag_leaked = Box::leak(frag_src.into_boxed_str());
             shader = render.load_shader_full(hot_vert_leaked, hot_frag_leaked);

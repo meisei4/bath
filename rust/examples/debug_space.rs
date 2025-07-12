@@ -1,5 +1,5 @@
-use asset_payload::payloads::{DEBUG_FRAG_PATH, DEBUG_VERT_PATH};
-use asset_payload::LocalCachePaths;
+use asset_payload::payloads::{DEBUG_FRAG, DEBUG_VERT};
+use asset_payload::{DEBUG_FRAG_PATH, DEBUG_VERT_PATH};
 use bath::render::raylib::RaylibRenderer;
 use bath::render::raylib_util::{BATH_HEIGHT, BATH_WIDTH};
 use bath::render::{renderer::Renderer, renderer::RendererVector2};
@@ -12,17 +12,17 @@ fn main() {
     let height = render.handle.get_screen_height() as f32;
     let i_resolution = RendererVector2::new(width, height);
     let mut buffer = render.init_render_target(i_resolution, true);
-    let mut shader = render.load_shader_full(DEBUG_VERT_PATH(), DEBUG_FRAG_PATH());
+    let mut shader = render.load_shader_full(DEBUG_VERT(), DEBUG_FRAG());
     render.set_uniform_vec2(&mut shader, "iResolution", i_resolution);
-    let mut vert_mod_time = get_file_mod_time(LocalCachePaths::DEBUG_VERT_PATH);
-    let mut frag_mod_time = get_file_mod_time(LocalCachePaths::DEBUG_FRAG_PATH);
+    let mut vert_mod_time = get_file_mod_time(DEBUG_VERT_PATH);
+    let mut frag_mod_time = get_file_mod_time(DEBUG_FRAG_PATH);
     while !render.handle.window_should_close() {
-        let new_vert_mod_time = get_file_mod_time(LocalCachePaths::DEBUG_VERT_PATH);
-        let new_frag_mod_time = get_file_mod_time(LocalCachePaths::DEBUG_FRAG_PATH);
+        let new_vert_mod_time = get_file_mod_time(DEBUG_VERT_PATH);
+        let new_frag_mod_time = get_file_mod_time(DEBUG_FRAG_PATH);
         if new_vert_mod_time != vert_mod_time || new_frag_mod_time != frag_mod_time {
             println!("Shader modified, reloading...");
-            let vert_src = fs::read_to_string(LocalCachePaths::DEBUG_VERT_PATH).unwrap();
-            let frag_src = fs::read_to_string(LocalCachePaths::DEBUG_FRAG_PATH).unwrap();
+            let vert_src = fs::read_to_string(DEBUG_VERT_PATH).unwrap();
+            let frag_src = fs::read_to_string(DEBUG_FRAG_PATH).unwrap();
             let hot_vert_leaked = Box::leak(vert_src.into_boxed_str());
             let hot_frag_leaked = Box::leak(frag_src.into_boxed_str());
             shader = render.load_shader_full(hot_vert_leaked, hot_frag_leaked);

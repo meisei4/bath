@@ -16,6 +16,7 @@ pub struct MidiNote {
 
 pub fn render_midi_to_wav_bytes(
     sample_rate: i32,
+    channels: u16,
     midi_bytes: &[u8],
     sf2_bytes: &[u8],
     target_channel: u8,
@@ -67,7 +68,7 @@ pub fn render_midi_to_wav_bytes(
         samples.push(render_one_frame(&mut synth));
         time_cursor += step_secs;
     }
-    Ok(write_samples_to_wav_bytes(sample_rate, &samples)?)
+    Ok(write_samples_to_wav_bytes(sample_rate, channels, &samples)?)
 }
 
 pub fn prepare_events(smf: &Smf) -> Vec<(u32, TrackEventKind<'static>)> {
@@ -107,18 +108,25 @@ pub fn render_one_frame(synth: &mut Synthesizer) -> (i16, i16) {
     (l_i, r_i)
 }
 
-pub fn write_samples_to_wav_bytes(sample_rate: i32, samples: &[(i16, i16)]) -> Result<Vec<u8>, hound::Error> {
+pub fn write_samples_to_wav_bytes(
+    sample_rate: i32,
+    channels: u16,
+    samples: &[(i16, i16)],
+) -> Result<Vec<u8>, hound::Error> {
     let spec = WavSpec {
-        channels: 2_u16,
+        channels,
         sample_rate: sample_rate as u32, //TODO: i3 u32 choose whose in charge, rustysynth? SynthesizerSettings, or hound WavSpec?
         bits_per_sample: 16_u16,
         sample_format: Int,
     };
+
     let mut cursor = Cursor::new(Vec::new());
     let mut writer = WavWriter::new(&mut cursor, spec)?;
     for &(left, right) in samples {
         writer.write_sample(left)?;
-        writer.write_sample(right)?;
+        if channels == 2_u16 {
+            writer.write_sample(right)?;
+        }
     }
     writer.finalize()?;
     Ok(cursor.into_inner())

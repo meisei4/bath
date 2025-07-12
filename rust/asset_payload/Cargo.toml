@@ -5,6 +5,9 @@ edition = "2021"
 
 [lib]
 
+[dependencies]
+paste = "1.0"
+
 [features]
 default = []
 nasa-embed = []
