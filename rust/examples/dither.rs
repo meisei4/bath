@@ -3,6 +3,7 @@ use bath::render::raylib::RaylibRenderer;
 use bath::render::raylib_util::{EXPERIMENTAL_WINDOW_HEIGHT, EXPERIMENTAL_WINDOW_WIDTH};
 use bath::render::{renderer::Renderer, renderer::RendererVector2};
 
+///TODO: TOMORROW Jul 13, FINALLY LOOK AT THE SHADER BRANCHING WARP STUFF WITH THE GHOST AND THIS CODE
 fn main() {
     let mut render = RaylibRenderer::init(EXPERIMENTAL_WINDOW_WIDTH, EXPERIMENTAL_WINDOW_HEIGHT);
     let i_resolution = RendererVector2::new(
