@@ -2,8 +2,8 @@ extends Node2D
 class_name GhostShape
 
 var BufferAShaderNode: ColorRect
-var BufferAShader: Shader = preload(ResourcePaths.GHOST)
-#var BufferAShader: Shader = preload(ResourcePaths.MUSIC_BALL)
+#var BufferAShader: Shader = preload(ResourcePaths.GHOST)
+var BufferAShader: Shader = preload(ResourcePaths.MUSIC_BALL)
 var BufferAShaderMaterial: ShaderMaterial
 var BufferA: SubViewport
 var MainImage: TextureRect
@@ -30,7 +30,7 @@ func _ready() -> void:
     BufferAShaderMaterial.set_shader_parameter("iResolution", iResolution)
     BufferAShaderMaterial.set_shader_parameter("iChannel0", iChannel0)
     fft_texture = FFTTextureNode.new()
-    #pitch_dimension = PitchDimensionGodot.new()
+    pitch_dimension = PitchDimensionGodot.new()
     rhythm_dimension = RhythmDimension.new()
 
     MainImage = TextureRect.new()
@@ -40,13 +40,13 @@ func _ready() -> void:
     add_child(BufferA)
     add_child(MainImage)
     add_child(fft_texture)
-    #add_child(pitch_dimension)
+    add_child(pitch_dimension)
     add_child(rhythm_dimension)
     BufferAShaderNode.owner = BufferA
     BufferA.owner = self
     MainImage.owner = self
     fft_texture.owner = self
-    #pitch_dimension.owner = self
+    pitch_dimension.owner = self
     rhythm_dimension.owner = self
 
     BufferAShaderMaterial.set_shader_parameter("bpm", rhythm_dimension.bpm)
@@ -57,12 +57,12 @@ func _ready() -> void:
     BufferAShaderMaterial.set_shader_parameter("f_onset_count", f_onsets.size())
     BufferAShaderMaterial.set_shader_parameter("j_onset_count", j_onsets.size())
 
-    #AudioPoolManager.play_music(pitch_dimension.get_wav_stream())
+    AudioPoolManager.play_music(pitch_dimension.get_wav_stream())
 
 
 func _process(delta: float) -> void:
     BufferAShaderMaterial.set_shader_parameter("song_time", MusicDimensionsManager.song_time)
     iChannel1 = fft_texture.audio_texture
     BufferAShaderMaterial.set_shader_parameter("iChannel1", iChannel1)
-    #var hsv_buffer: PackedVector3Array = pitch_dimension.get_hsv_buffer()
-    #BufferAShaderMaterial.set_shader_parameter("hsv_buffer", hsv_buffer)
+    var hsv_buffer: PackedVector3Array = pitch_dimension.get_hsv_buffer()
+    BufferAShaderMaterial.set_shader_parameter("hsv_buffer", hsv_buffer)

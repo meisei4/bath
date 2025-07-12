@@ -28,7 +28,7 @@ uniform sampler2D iChannel0;
 #define LIGHT_WAVE_AMPLITUDE_X 0.03
 #define LIGHT_WAVE_AMPLITUDE_Y 0.10
 
-#define LIGHTBALL_OUTER_RADIUS 0.40 /* ← fixed size now               */
+#define LIGHTBALL_OUTER_RADIUS 0.40
 #define LIGHTBALL_CENTER vec2(HALF, HALF)
 #define LIGHTBALL_FADE_BAND 0.025
 

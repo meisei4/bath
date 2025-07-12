@@ -10,10 +10,8 @@ use raylib::drawing::{RaylibDraw, RaylibShaderModeExt, RaylibTextureModeExt};
 use raylib::ffi::TextureFilter::TEXTURE_FILTER_POINT;
 use raylib::ffi::TextureWrap::TEXTURE_WRAP_REPEAT;
 use raylib::ffi::{
-    rlActiveTextureSlot, rlBindFramebuffer, rlBindImageTexture, rlEnableTexture, rlTextureParameters, LoadImage,
-    LoadImageFromMemory, LoadTextureFromImage, SetTextureFilter, SetTextureWrap, UnloadImage,
-    RL_TEXTURE_FILTER_NEAREST, RL_TEXTURE_MAG_FILTER, RL_TEXTURE_MIN_FILTER, RL_TEXTURE_WRAP_REPEAT, RL_TEXTURE_WRAP_S,
-    RL_TEXTURE_WRAP_T,
+    rlActiveTextureSlot, rlEnableTexture, LoadImage, LoadImageFromMemory, LoadTextureFromImage, SetTextureFilter,
+    SetTextureWrap, UnloadImage,
 };
 use raylib::math::{Matrix, Vector3};
 use raylib::shaders::{RaylibShader, Shader};
@@ -194,20 +192,28 @@ impl Renderer for RaylibRenderer {
         shader.set_shader_value_matrix(location, mat4);
     }
 
+    // fn set_uniform_sampler2d(&mut self, shader: &mut Self::Shader, uniform_name: &str, texture: &Self::Texture) {
+    //     let location = shader.get_shader_location(uniform_name);
+    //     println!("{} uniform location = {}", uniform_name, location);
+    //     unsafe {
+    //         rlActiveTextureSlot(7_i32);
+    //         rlEnableTexture(texture.id);
+    //     }
+    //     shader.set_shader_value(location, 7_i32);
+    // }
+
     fn set_uniform_sampler2d(&mut self, shader: &mut Self::Shader, uniform_name: &str, texture: &Self::Texture) {
         let location = shader.get_shader_location(uniform_name);
         println!("{} uniform location = {}", uniform_name, location);
-        //TODO someday update to use the unstable raylib-rs repo for shader.set_shader_value_texture(location, texture);
         unsafe {
-            rlActiveTextureSlot(7_i32);
-            // TODO: THIS WILL NOT WORK WHEN YOU TRY TO SET A SECOND SAMPLER IN RAYLIB I HAVE NO IDEA WHY.
-            //  FIGURE IT OUT. MAYBE JUST MOVE TO FUCKIGN RAYLIB-RS BINDINGS UNSTABLE FINALLY THIS IS RIDICULOUS
-            // rlActiveTextureSlot(self.sampler2d_count);
+            rlActiveTextureSlot(self.sampler2d_count);
             rlEnableTexture(texture.id);
         }
-        shader.set_shader_value(location, 7_i32);
-        // shader.set_shader_value(location, self.sampler2d_count);
-        // self.sampler2d_count += 1_i32;
+        shader.set_shader_value(location, self.sampler2d_count);
+        self.sampler2d_count += 1_i32;
+        unsafe {
+            rlActiveTextureSlot(0);
+        }
     }
 
     fn draw_texture(&mut self, texture: &mut Self::Texture, render_target: &mut Self::RenderTarget) {

@@ -5,8 +5,8 @@ use raylib::ffi::rlFramebufferAttachType::{RL_ATTACHMENT_COLOR_CHANNEL0, RL_ATTA
 use raylib::ffi::TraceLogLevel::{LOG_INFO, LOG_WARNING};
 use raylib::ffi::{
     rlClearColor, rlClearScreenBuffers, rlDisableColorBlend, rlDisableFramebuffer, rlEnableFramebuffer,
-    rlFramebufferAttach, rlFramebufferComplete, rlLoadFramebuffer, rlLoadTexture, rlLoadTextureDepth, rlSetTexture,
-    Texture2D, TraceLog,
+    rlFramebufferAttach, rlFramebufferComplete, rlLoadFramebuffer, rlLoadTexture, rlLoadTextureDepth, Texture2D,
+    TraceLog,
 };
 use raylib::math::{Rectangle, Vector2};
 use raylib::prelude::Shader;

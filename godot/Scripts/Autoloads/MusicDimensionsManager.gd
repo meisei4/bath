@@ -15,5 +15,5 @@ func _ready() -> void:
     var effect_index: int = AudioServer.get_bus_effect_count(bus_index) - 1
     spectrum_analyzer_instance = AudioServer.get_bus_effect_instance(bus_index, effect_index)
 
-    AudioPoolManager.play_music(audio_stream)
+    #AudioPoolManager.play_music(audio_stream)
     #AudioPoolManager.play_input(input_stream, 0.0)

@@ -108,6 +108,7 @@ define_payloads! {
         DEBUG_VERT               => "shaders/glsl/debug_vertex.glsl",
         DEBUG_FRAG               => "shaders/glsl/debug_fragment.glsl",
         GHOST_FRAG               => "shaders/glsl/audio/ghost.glsl",
+        MUSIC_BALL_FRAG          => "shaders/glsl/audio/music_ball.glsl",
         DREKKER                  => "shaders/glsl/color/drekker_effect.glsl",
         SUPERSAMPLING            => "shaders/glsl/color/supersampling.glsl",
         BUFFER_A                 => "shaders/glsl/buffer_a.glsl",

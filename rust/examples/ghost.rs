@@ -1,4 +1,4 @@
-use asset_payload::payloads::{BAYER_PNG, GHOST_FRAG, MIDI_FILE, SOUND_FONT_FILE};
+use asset_payload::payloads::{BAYER_PNG, MIDI_FILE, MUSIC_BALL_FRAG, SOUND_FONT_FILE};
 #[cfg(not(feature = "nasa-embed"))]
 use asset_payload::CACHED_WAV_PATH;
 use bath::midi::pitch::{PitchDimension, HSV_BUFFER_LEN};
@@ -48,7 +48,7 @@ fn main() {
         render.handle.get_screen_height() as f32,
     );
     let mut buffer_a = render.init_render_target(i_resolution, true);
-    let mut shader = render.load_shader_fragment(GHOST_FRAG());
+    let mut shader = render.load_shader_fragment(MUSIC_BALL_FRAG());
     render.set_uniform_vec2(&mut shader, "iResolution", i_resolution);
     let mut i_channel0 = render.load_texture(BAYER_PNG(), "png");
     render.tweak_texture_parameters(&mut i_channel0, true, true);
