@@ -2,13 +2,18 @@ use crate::render::raylib_util::{
     create_rgba16_render_texture, feedback_buffer_pass, flip_framebuffer, image_pass, APPLE_DPI, ORIGIN, ORIGIN_X,
     ORIGIN_Y,
 };
-use crate::render::renderer::{FeedbackBufferContext, Renderer, RendererMatrix, RendererVector2};
+use crate::render::renderer::{
+    FeedbackBufferContext, Renderer, RendererMatrix, RendererVector2, RendererVector3, RendererVector4,
+};
 use raylib::color::Color;
 use raylib::drawing::{RaylibDraw, RaylibShaderModeExt, RaylibTextureModeExt};
+use raylib::ffi::TextureFilter::TEXTURE_FILTER_POINT;
+use raylib::ffi::TextureWrap::TEXTURE_WRAP_REPEAT;
 use raylib::ffi::{
-    rlActiveTextureSlot, rlEnableTexture, rlTextureParameters, LoadImage, LoadImageFromMemory, LoadTextureFromImage,
-    UnloadImage, RL_TEXTURE_FILTER_NEAREST, RL_TEXTURE_MAG_FILTER, RL_TEXTURE_MIN_FILTER, RL_TEXTURE_WRAP_REPEAT,
-    RL_TEXTURE_WRAP_S, RL_TEXTURE_WRAP_T,
+    rlActiveTextureSlot, rlBindFramebuffer, rlBindImageTexture, rlEnableTexture, rlTextureParameters, LoadImage,
+    LoadImageFromMemory, LoadTextureFromImage, SetTextureFilter, SetTextureWrap, UnloadImage,
+    RL_TEXTURE_FILTER_NEAREST, RL_TEXTURE_MAG_FILTER, RL_TEXTURE_MIN_FILTER, RL_TEXTURE_WRAP_REPEAT, RL_TEXTURE_WRAP_S,
+    RL_TEXTURE_WRAP_T,
 };
 use raylib::math::{Matrix, Vector3};
 use raylib::shaders::{RaylibShader, Shader};
@@ -21,6 +26,7 @@ use std::sync::Once;
 pub struct RaylibRenderer {
     pub handle: RaylibHandle,
     pub thread: RaylibThread,
+    pub sampler2d_count: i32,
 }
 
 static LOG_ITIME_LOCATION: Once = Once::new();
@@ -44,7 +50,11 @@ impl Renderer for RaylibRenderer {
         println!("screen: {}x{}", screen_width, screen_height);
         println!("render:{}x{}", render_width, render_height);
         println!("dpi: {:?}", dpi);
-        Self { handle, thread }
+        Self {
+            handle,
+            thread,
+            sampler2d_count: 1_i32,
+        }
     }
 
     fn init_i_resolution(&mut self) -> RendererVector2 {
@@ -91,14 +101,16 @@ impl Renderer for RaylibRenderer {
 
     fn tweak_texture_parameters(&mut self, texture: &mut Self::Texture, repeat: bool, nearest: bool) {
         unsafe {
-            let id = texture.id;
+            // let id = texture.id;
             if repeat {
-                rlTextureParameters(id, RL_TEXTURE_WRAP_S as i32, RL_TEXTURE_WRAP_REPEAT as i32);
-                rlTextureParameters(id, RL_TEXTURE_WRAP_T as i32, RL_TEXTURE_WRAP_REPEAT as i32);
+                SetTextureWrap(**texture, TEXTURE_WRAP_REPEAT as i32);
+                // rlTextureParameters(id, RL_TEXTURE_WRAP_S as i32, RL_TEXTURE_WRAP_REPEAT as i32);
+                // rlTextureParameters(id, RL_TEXTURE_WRAP_T as i32, RL_TEXTURE_WRAP_REPEAT as i32);
             }
             if nearest {
-                rlTextureParameters(id, RL_TEXTURE_MAG_FILTER as i32, RL_TEXTURE_FILTER_NEAREST as i32);
-                rlTextureParameters(id, RL_TEXTURE_MIN_FILTER as i32, RL_TEXTURE_FILTER_NEAREST as i32);
+                SetTextureFilter(**texture, TEXTURE_FILTER_POINT as i32);
+                // rlTextureParameters(id, RL_TEXTURE_MAG_FILTER as i32, RL_TEXTURE_FILTER_NEAREST as i32);
+                // rlTextureParameters(id, RL_TEXTURE_MIN_FILTER as i32, RL_TEXTURE_FILTER_NEAREST as i32);
             }
         }
     }
@@ -151,6 +163,25 @@ impl Renderer for RaylibRenderer {
         shader.set_shader_value_v(location, &[value]);
     }
 
+    fn set_uniform_vec3(&mut self, _shader: &mut Self::Shader, _uniform_name: &str, _vec3: RendererVector3) {
+        todo!()
+    }
+
+    fn set_uniform_vec4(&mut self, _shader: &mut Self::Shader, _uniform_name: &str, _vec4: RendererVector4) {
+        todo!()
+    }
+
+    fn set_uniform_vec3_array(
+        &mut self,
+        shader: &mut Self::Shader,
+        uniform_name: &str,
+        vec3_array: &[RendererVector3],
+    ) {
+        let location = shader.get_shader_location(uniform_name);
+        println!("{} uniform location = {}", uniform_name, location);
+        shader.set_shader_value_v(location, vec3_array);
+    }
+
     fn set_uniform_mat2(&mut self, shader: &mut Self::Shader, uniform_name: &str, mat2: RendererMatrix) {
         let location = shader.get_shader_location(uniform_name);
         println!("{} uniform location = {}", uniform_name, location);
@@ -164,15 +195,19 @@ impl Renderer for RaylibRenderer {
     }
 
     fn set_uniform_sampler2d(&mut self, shader: &mut Self::Shader, uniform_name: &str, texture: &Self::Texture) {
-        //
         let location = shader.get_shader_location(uniform_name);
         println!("{} uniform location = {}", uniform_name, location);
-        //shader.set_shader_value_texture(location, texture);
+        //TODO someday update to use the unstable raylib-rs repo for shader.set_shader_value_texture(location, texture);
         unsafe {
             rlActiveTextureSlot(7_i32);
+            // TODO: THIS WILL NOT WORK WHEN YOU TRY TO SET A SECOND SAMPLER IN RAYLIB I HAVE NO IDEA WHY.
+            //  FIGURE IT OUT. MAYBE JUST MOVE TO FUCKIGN RAYLIB-RS BINDINGS UNSTABLE FINALLY THIS IS RIDICULOUS
+            // rlActiveTextureSlot(self.sampler2d_count);
             rlEnableTexture(texture.id);
         }
         shader.set_shader_value(location, 7_i32);
+        // shader.set_shader_value(location, self.sampler2d_count);
+        // self.sampler2d_count += 1_i32;
     }
 
     fn draw_texture(&mut self, texture: &mut Self::Texture, render_target: &mut Self::RenderTarget) {

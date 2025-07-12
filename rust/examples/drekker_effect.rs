@@ -8,7 +8,7 @@ fn main() {
     let width = render.handle.get_screen_width() as f32;
     let height = render.handle.get_screen_height() as f32;
     let i_resolution = RendererVector2::new(width, height);
-    let mut buffer_a = render.init_render_target(i_resolution, true);
+    let mut buffer_a = render.init_render_target(i_resolution, false);
     let mut texture = render.load_texture(ICEBERGS_JPG(), "jpg");
     let mut shader = render.load_shader_full(RAYLIB_DEFAULT_VERT(), DREKKER());
     render.set_uniform_vec2(&mut shader, "iResolution", i_resolution);

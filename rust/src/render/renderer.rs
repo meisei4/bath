@@ -2,16 +2,28 @@
 pub use raylib::math::Matrix as RendererMatrix;
 #[cfg(all(feature = "raylib", not(feature = "godot")))]
 pub use raylib::math::Vector2 as RendererVector2;
+#[cfg(all(feature = "raylib", not(feature = "godot")))]
+pub use raylib::math::Vector3 as RendererVector3;
+#[cfg(all(feature = "raylib", not(feature = "godot")))]
+pub use raylib::math::Vector4 as RendererVector4;
 
 #[cfg(all(feature = "godot", not(feature = "raylib")))]
 pub use godot::builtin::Variant as RendererMatrix;
 #[cfg(all(feature = "godot", not(feature = "raylib")))]
 pub use godot::builtin::Vector2 as RendererVector2;
+#[cfg(all(feature = "godot", not(feature = "raylib")))]
+pub use godot::builtin::Vector3 as RendererVector3;
+#[cfg(all(feature = "godot", not(feature = "raylib")))]
+pub use godot::builtin::Vector4 as RendererVector4;
 
 #[cfg(all(feature = "raylib", feature = "godot"))]
 pub use raylib::math::Matrix as RendererMatrix;
 #[cfg(all(feature = "raylib", feature = "godot"))]
 pub use raylib::math::Vector2 as RendererVector2;
+#[cfg(all(feature = "raylib", feature = "godot"))]
+pub use raylib::math::Vector3 as RendererVector3;
+#[cfg(all(feature = "raylib", feature = "godot"))]
+pub use raylib::math::Vector4 as RendererVector4;
 
 pub trait Renderer {
     type RenderTarget;
@@ -30,6 +42,9 @@ pub trait Renderer {
     fn set_uniform_float(&mut self, shader: &mut Self::Shader, uniform_name: &str, value: f32);
     fn set_uniform_int(&mut self, shader: &mut Self::Shader, uniform_name: &str, value: i32);
     fn set_uniform_vec2(&mut self, shader: &mut Self::Shader, uniform_name: &str, vec2: RendererVector2);
+    fn set_uniform_vec3(&mut self, shader: &mut Self::Shader, uniform_name: &str, vec3: RendererVector3);
+    fn set_uniform_vec4(&mut self, shader: &mut Self::Shader, uniform_name: &str, vec4: RendererVector4);
+    fn set_uniform_vec3_array(&mut self, shader: &mut Self::Shader, uniform_name: &str, vec3_array: &[RendererVector3]);
     fn set_uniform_mat2(&mut self, shader: &mut Self::Shader, uniform_name: &str, mat2: RendererMatrix);
     fn set_uniform_mat4(&mut self, shader: &mut Self::Shader, uniform_name: &str, mat4: RendererMatrix);
     fn set_uniform_sampler2d(&mut self, shader: &mut Self::Shader, uniform_name: &str, texture: &Self::Texture);

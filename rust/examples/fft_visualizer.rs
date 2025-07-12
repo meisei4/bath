@@ -67,7 +67,7 @@ fn main() {
     let mut fft_data = [0_f32; FFT_WINDOW_SIZE];
     let mut fft_image = fft.init_audio_texture();
     let mut fft_texture = render
-        .handle
+        .handle //TODO: UPDATE THIS TO BE PROPER RENDERER FUNCTION, NOT RAYLIB BINDINGS PLEASE, GET THESE IMAGES OUT OF HERE!!!
         .load_texture_from_image(&render.thread, &fft_image)
         .unwrap();
     render.set_uniform_sampler2d(&mut shader, "iChannel0", &fft_texture);

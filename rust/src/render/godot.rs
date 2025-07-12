@@ -1,5 +1,7 @@
 use crate::render::godot_util::create_buffer_viewport;
-use crate::render::renderer::{FeedbackBufferContext, Renderer, RendererMatrix, RendererVector2};
+use crate::render::renderer::{
+    FeedbackBufferContext, Renderer, RendererMatrix, RendererVector2, RendererVector3, RendererVector4,
+};
 use godot::builtin::{real, Vector2, Vector2i};
 use godot::classes::canvas_item::{TextureFilter, TextureRepeat};
 use godot::classes::texture_rect::StretchMode;
@@ -89,6 +91,23 @@ impl Renderer for GodotRenderer {
 
     fn set_uniform_vec2(&mut self, shader: &mut Self::Shader, uniform_name: &str, vec2: RendererVector2) {
         shader.set_shader_parameter(uniform_name, &Vector2::new(vec2.x, vec2.y).to_variant());
+    }
+
+    fn set_uniform_vec3(&mut self, _shader: &mut Self::Shader, _uniform_name: &str, _vec3: RendererVector3) {
+        todo!()
+    }
+
+    fn set_uniform_vec4(&mut self, _shader: &mut Self::Shader, _uniform_name: &str, _vec4: RendererVector4) {
+        todo!()
+    }
+
+    fn set_uniform_vec3_array(
+        &mut self,
+        _shader: &mut Self::Shader,
+        _uniform_name: &str,
+        _vec3_array: &[RendererVector3],
+    ) {
+        todo!()
     }
 
     fn set_uniform_mat2(&mut self, _shader: &mut Self::Shader, _uniform_name: &str, _mat2: RendererMatrix) {

@@ -18,6 +18,8 @@ pub struct PitchDimension {
 const TARGET_CHANNEL: u8 = 0;
 const PROGRAM: u8 = 0;
 
+pub const HSV_BUFFER_LEN: usize = 6;
+
 impl PitchDimension {
     pub fn resolve_payload_to_midi_buffer(&mut self, midi_bytes: &[u8]) {
         self.note_buffer = parse_midi_events_into_note_on_off_event_buffer_seconds_from_bytes(midi_bytes);
@@ -87,11 +89,11 @@ impl PitchDimension {
         let notes = sample_active_notes_at_time(&self.note_buffer, time);
         self.hsv_buffer.clear();
         let polyphony = notes.len();
-        for note in notes.iter().take(6) {
+        for note in notes.iter().take(HSV_BUFFER_LEN) {
             let (h, s, v) = midi_note_to_hsv(*note, polyphony);
             self.hsv_buffer.push([h, s, v]);
         }
-        while self.hsv_buffer.len() < 6 {
+        while self.hsv_buffer.len() < HSV_BUFFER_LEN {
             self.hsv_buffer.push([0.0, 0.0, 0.0]);
         }
         update_note_log_history(time, &notes, &mut self.last_active_notes, &mut self.note_log_history);
