@@ -179,6 +179,10 @@ impl Renderer for GodotRenderer {
         todo!()
     }
 
+    fn draw_fixedfunc_screen_pseudo_ortho_geom(&mut self, _texture: &Self::Texture) {
+        todo!()
+    }
+
     fn init_feedback_buffer(
         &mut self,
         resolution: RendererVector2,

@@ -11,7 +11,7 @@ use raylib::ffi::TextureFilter::TEXTURE_FILTER_POINT;
 use raylib::ffi::TextureWrap::TEXTURE_WRAP_REPEAT;
 use raylib::ffi::{
     rlActiveTextureSlot, rlEnableTexture, LoadImage, LoadImageFromMemory, LoadTextureFromImage, SetTextureFilter,
-    SetTextureWrap, UnloadImage,
+    SetTextureWrap, UnloadImage, RL_QUADS, RL_TEXTURE,
 };
 use raylib::math::{Matrix, Vector3};
 use raylib::shaders::{RaylibShader, Shader};
@@ -351,6 +351,33 @@ impl Renderer for RaylibRenderer {
             ffi::rlTexCoord2f(1.0, 1.0);
             ffi::rlVertex3f(width, height, 0.0);
             ffi::rlPopMatrix();
+        }
+    }
+
+    fn draw_fixedfunc_screen_pseudo_ortho_geom(&mut self, texture: &Self::Texture) {
+        let width = self.handle.get_screen_width() as f32;
+        let height = self.handle.get_screen_height() as f32;
+
+        let mut draw_handle = self.handle.begin_drawing(&self.thread);
+        draw_handle.clear_background(Color::BLACK);
+        unsafe {
+            ffi::rlActiveTextureSlot(0);
+            ffi::rlEnableTexture(texture.id);
+            ffi::rlMatrixMode(RL_TEXTURE as i32);
+            ffi::rlLoadIdentity();
+            ffi::rlTranslatef(-0.5, -0.5, 0.0);
+            ffi::rlScalef(4.0, 4.0, 1.0);
+
+            ffi::rlBegin(RL_QUADS as i32);
+            ffi::rlTexCoord2f(0.0, 1.0);
+            ffi::rlVertex3f(0.0, height, 0.0);
+            ffi::rlTexCoord2f(0.0, 0.0);
+            ffi::rlVertex3f(0.0, 0.0, 0.0);
+            ffi::rlTexCoord2f(1.0, 0.0);
+            ffi::rlVertex3f(width, 0.0, 0.0);
+            ffi::rlTexCoord2f(1.0, 1.0);
+            ffi::rlVertex3f(width, height, 0.0);
+            ffi::rlEnd();
         }
     }
 

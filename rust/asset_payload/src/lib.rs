@@ -109,6 +109,7 @@ define_payloads! {
         DEBUG_VERT               => "shaders/glsl/debug_vertex.glsl",
         DEBUG_FRAG               => "shaders/glsl/debug_fragment.glsl",
         GHOST_FRAG               => "shaders/glsl/audio/ghost.glsl",
+        GHOST_VERBOSE_FRAG_100   => "shaders/glsl/ghost_verbose.glsl",
         MUSIC_BALL_FRAG_100      => "shaders/glsl/audio/music_ball_100.glsl",
         MUSIC_BALL_FRAG_330      => "shaders/glsl/audio/music_ball_330.glsl",
         DREKKER                  => "shaders/glsl/color/drekker_effect.glsl",

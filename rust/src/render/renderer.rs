@@ -63,6 +63,7 @@ pub trait Renderer {
         render_target: &mut Self::RenderTarget,
         tilt: f32,
     );
+    fn draw_fixedfunc_screen_pseudo_ortho_geom(&mut self, texture: &Self::Texture);
 
     fn init_feedback_buffer(
         &mut self,
