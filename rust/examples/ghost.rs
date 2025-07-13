@@ -1,4 +1,4 @@
-use asset_payload::payloads::{BAYER_PNG, MIDI_FILE, MUSIC_BALL_FRAG, SOUND_FONT_FILE};
+use asset_payload::payloads::{BAYER_PNG, MIDI_FILE, MUSIC_BALL_FRAG_100, MUSIC_BALL_FRAG_330, SOUND_FONT_FILE};
 #[cfg(not(feature = "nasa-embed"))]
 use asset_payload::CACHED_WAV_PATH;
 use bath::midi::pitch::{PitchDimension, HSV_BUFFER_LEN};
@@ -14,9 +14,6 @@ use bath::sound_render::sound_renderer::{
 use fftw2_sys::fftw_complex;
 use hound::WavReader;
 use raylib::core::audio::RaylibAudio;
-use raylib::ffi::{
-    IsAudioStreamProcessed, LoadAudioStream, PlayAudioStream, SetAudioStreamBufferSizeDefault, UpdateAudioStream,
-};
 use raylib::texture::RaylibTexture2D;
 use std::io::Cursor;
 use std::slice::from_raw_parts;
@@ -48,7 +45,10 @@ fn main() {
         render.handle.get_screen_height() as f32,
     );
     let mut buffer_a = render.init_render_target(i_resolution, true);
-    let mut shader = render.load_shader_fragment(MUSIC_BALL_FRAG());
+    #[cfg(feature = "glsl-100")]
+    let mut shader = render.load_shader_fragment(MUSIC_BALL_FRAG_100());
+    #[cfg(not(feature = "glsl-100"))]
+    let mut shader = render.load_shader_fragment(MUSIC_BALL_FRAG_330());
     render.set_uniform_vec2(&mut shader, "iResolution", i_resolution);
     let mut i_channel0 = render.load_texture(BAYER_PNG(), "png");
     render.tweak_texture_parameters(&mut i_channel0, true, true);
@@ -74,36 +74,24 @@ fn main() {
 
     let raylib_audio = RaylibAudio::init_audio_device().unwrap();
     raylib_audio.set_audio_stream_buffer_size_default(AUDIO_STREAM_RING_BUFFER_SIZE as i32);
-    unsafe {
-        SetAudioStreamBufferSizeDefault(AUDIO_STREAM_RING_BUFFER_SIZE as i32);
-    }
-    let audio_stream = unsafe { LoadAudioStream(SAMPLE_RATE_HARDCODED, PER_SAMPLE_BIT_DEPTH_HARDCODED, MONO) };
-
-    unsafe {
-        PlayAudioStream(audio_stream);
-    }
+    let mut audio_stream = raylib_audio.new_audio_stream(SAMPLE_RATE_HARDCODED, PER_SAMPLE_BIT_DEPTH_HARDCODED, MONO);
+    audio_stream.play();
     let mut chunk_samples = [0_i16; AUDIO_STREAM_RING_BUFFER_SIZE];
 
     let cursor = Cursor::new(wav_bytes);
     let mut wav = WavReader::new(cursor).unwrap();
     let mut wav_iter = wav.samples::<i16>();
 
-    let mut song_time = 0.0_f32;
+    let mut i_time = 0.0_f32;
     while !render.handle.window_should_close() {
         let delta_time = render.handle.get_frame_time();
-        song_time += delta_time;
-        render.set_uniform_float(&mut shader, "iTime", song_time);
-        if unsafe { IsAudioStreamProcessed(audio_stream) } {
+        i_time += delta_time;
+        render.set_uniform_float(&mut shader, "iTime", i_time);
+        if audio_stream.is_processed() {
             for sample in &mut chunk_samples {
                 *sample = wav_iter.next().unwrap_or(Ok(0)).unwrap();
             }
-            unsafe {
-                UpdateAudioStream(
-                    audio_stream,
-                    chunk_samples.as_ptr() as *const _,
-                    AUDIO_STREAM_RING_BUFFER_SIZE as i32,
-                );
-            }
+            let _ = audio_stream.update(&chunk_samples);
             for (fft_sample, wav_sample) in fft_data.iter_mut().zip(chunk_samples.chunks_exact(2)) {
                 let avg = (wav_sample[0] as i32 + wav_sample[1] as i32) / 2_i32;
                 *fft_sample = avg as f32 / i16::MAX as f32;
@@ -113,12 +101,11 @@ fn main() {
         let len = fft_image.get_pixel_data_size();
         let pixels = unsafe { from_raw_parts(fft_image.data as *const u8, len) };
         //println!("FFT image bytes [0..8]: {:?}", &pixels[0..8.min(len)]);
-
         fft_texture.update_texture(pixels).unwrap();
         render.set_uniform_sampler2d(&mut shader, "iChannel1", &fft_texture);
-        pitch_dimension.update_hsv_buffer(song_time);
+        pitch_dimension.update_hsv_buffer(i_time);
         let hsv_buffer = pitch_dimension.get_hsv_buffer();
-        let mut raylib_vec3_array = [RendererVector3::zero(); HSV_BUFFER_LEN];
+        let mut raylib_vec3_array = [RendererVector3::new(0.0, 0.0, 0.0); HSV_BUFFER_LEN];
         for i in 0..hsv_buffer.len() {
             let [h, s, v] = hsv_buffer[i];
             raylib_vec3_array[i] = RendererVector3::new(h, s, v);

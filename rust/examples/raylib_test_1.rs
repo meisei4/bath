@@ -3,7 +3,7 @@ use bath::render::raylib_util::{
     ORIGIN,
 };
 
-use asset_payload::payloads::{DREKKER, RAYLIB_DEFAULT_VERT};
+use asset_payload::payloads::{DREKKER, RAYLIB_DEFAULT_VERT_330};
 use asset_payload::ICEBERGS_JPG_PATH;
 use raylib::color::Color;
 use raylib::drawing::{RaylibDraw, RaylibShaderModeExt, RaylibTextureModeExt};
@@ -34,7 +34,7 @@ fn main() {
     println!("screen: {}x{}", screen_width, screen_height);
     println!("render:{}x{}", render_width, render_height);
     println!("dpi: {:?}", dpi);
-    let raylib_vertex_shader_src_code = RAYLIB_DEFAULT_VERT();
+    let raylib_vertex_shader_src_code = RAYLIB_DEFAULT_VERT_330();
     let drekker_src = asset_payload::expand_includes(DREKKER());
     let mut shader =
         raylib_handle.load_shader_from_memory(&raylib_thread, Some(raylib_vertex_shader_src_code), Some(drekker_src));

@@ -104,11 +104,13 @@ define_payloads! {
         ROCKS_JPG                => "textures/rocks.jpg"
     },
     string: {
-        RAYLIB_DEFAULT_VERT      => "shaders/glsl/raylib_default_vertex.glsl",
+        RAYLIB_DEFAULT_VERT_100  => "shaders/glsl/raylib_base_vertex_100.glsl",
+        RAYLIB_DEFAULT_VERT_330  => "shaders/glsl/raylib_base_vertex_330.glsl",
         DEBUG_VERT               => "shaders/glsl/debug_vertex.glsl",
         DEBUG_FRAG               => "shaders/glsl/debug_fragment.glsl",
         GHOST_FRAG               => "shaders/glsl/audio/ghost.glsl",
-        MUSIC_BALL_FRAG          => "shaders/glsl/audio/music_ball.glsl",
+        MUSIC_BALL_FRAG_100      => "shaders/glsl/audio/music_ball_100.glsl",
+        MUSIC_BALL_FRAG_330      => "shaders/glsl/audio/music_ball_330.glsl",
         DREKKER                  => "shaders/glsl/color/drekker_effect.glsl",
         SUPERSAMPLING            => "shaders/glsl/color/supersampling.glsl",
         BUFFER_A                 => "shaders/glsl/buffer_a.glsl",

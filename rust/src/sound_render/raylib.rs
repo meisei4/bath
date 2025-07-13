@@ -90,7 +90,8 @@ impl RaylibFFTTexture {
             (self.history_pos as isize - 1 - frames_since_tapback).rem_euclid(self.fft_history.len() as isize) as usize;
         let spectrum_to_draw = &self.fft_history[history_position];
         for (bin, &amplitude) in spectrum_to_draw.iter().enumerate() {
-            let color = Color::color_from_normalized(Vector4::new(amplitude, DEAD_CHANNEL, DEAD_CHANNEL, DEAD_CHANNEL));
+            let color =
+                Color::color_from_normalized(Vector4::new(amplitude, DEAD_CHANNEL, DEAD_CHANNEL, DEAD_CHANNEL).into());
             texture.draw_pixel(bin as i32, FFT_ROW, color);
         }
     }

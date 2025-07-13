@@ -8,7 +8,7 @@ use raylib::drawing::RaylibDraw;
 use raylib::ffi::{
     IsAudioStreamProcessed, LoadAudioStream, PlayAudioStream, SetAudioStreamBufferSizeDefault, UpdateAudioStream,
 };
-use raylib::math::rvec2;
+use raylib::math::Vector2;
 use std::f32::consts::PI;
 // const SAMPLE_RATE_DERIVED: u32 = 22_050_u32; //TODO: derive this with some context to the human brain or other phsycis or science or some stuff
 // const PER_SAMPLE_BYTE_SIZE_DERIVED: u32 = size_of::<i16>() as u32; // Bytes
@@ -48,8 +48,8 @@ pub fn main() {
     let mut lut_read_index: usize = 0;
     let mut cycle_length_samples: usize = 1;
 
-    let mut draw_position = rvec2(0, 0);
-    let mut mouse_position = rvec2(-100.0, -100.0);
+    let mut draw_position = Vector2::new(0.0, 0.0);
+    let mut mouse_position = Vector2::new(-100.0, -100.0);
     //audio_stream.play();
     unsafe {
         PlayAudioStream(audio_stream);

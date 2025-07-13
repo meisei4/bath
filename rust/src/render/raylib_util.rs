@@ -16,7 +16,9 @@ use std::ffi::c_char;
 
 pub const ORIGIN_X: i32 = 0;
 pub const ORIGIN_Y: i32 = 0;
-pub const ORIGIN: Vector2 = Vector2::zero();
+//pub const ORIGIN: Vector2 = Vector2::zero();
+//pub const ORIGIN: Vector2 = Vector2::ZERO;
+pub const ORIGIN: Vector2 = Vector2::new(0.0, 0.0);
 pub const APPLE_DPI: i32 = 1;
 pub const EXPERIMENTAL_WINDOW_WIDTH: i32 = 850;
 pub const EXPERIMENTAL_WINDOW_HEIGHT: i32 = 480;

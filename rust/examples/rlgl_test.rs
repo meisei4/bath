@@ -3,7 +3,7 @@ use bath::render::raylib_util::{BATH_HEIGHT, BATH_WIDTH};
 use bath::render::renderer::Renderer;
 use raylib::color::Color;
 use raylib::ffi;
-use raylib::math::{rvec2, Matrix, Vector2, Vector3};
+use raylib::math::{Matrix, Vector2, Vector3};
 
 fn main() {
     let mut render = RaylibRenderer::init(BATH_WIDTH, BATH_HEIGHT);
@@ -30,8 +30,8 @@ fn main() {
             ffi::rlMatrixMode(ffi::RL_MODELVIEW as i32);
             ffi::rlLoadIdentity();
             draw_rectangle_2d(
-                rvec2(width / 4.0, height / 4.0),
-                rvec2(width / 2.0, height / 2.0),
+                Vector2::new(width / 4.0, height / 4.0),
+                Vector2::new(width / 2.0, height / 2.0),
                 Color::SKYBLUE,
             );
             ffi::rlDrawRenderBatchActive();

@@ -1,10 +1,13 @@
-#version 330
+// #version 330
+#version 100
+precision mediump float;
 
-in vec2 fragCoord;
-in vec2 fragTexCoord;
-in vec4 fragColor;
+// in vec2 fragTexCoord;
+// in vec4 fragColor;
+varying vec2 fragTexCoord;
+varying vec4 fragColor;
 
-out vec4 finalColor;
+// out vec4 finalColor;
 
 uniform float iTime;
 uniform vec2  iResolution;
@@ -128,8 +131,9 @@ vec4 add_umbral_mask(vec4 src_color, vec2 grid_coords, vec2 mask_center) {
 }
 
 vec4 add_dither(vec4 src_color, vec2 fragCoord) {
-    vec2  dither_uv      = fragCoord / DITHER_TEXTURE_SCALE;
-    float dither_sample  = texture(iChannel0, dither_uv).r;
+    vec2 dither_uv = fragCoord / DITHER_TEXTURE_SCALE;
+    // float dither_sample  = texture(iChannel0, dither_uv).r;
+    float dither_sample  = texture2D(iChannel0, dither_uv).r;
     vec4  dither_mask    = vec4(dither_sample);
     vec4  binary         = step(dither_mask, src_color);
     vec4  applied_dither = mix(src_color, binary, DITHER_BLEND_FACTOR);
@@ -152,10 +156,12 @@ float pulse_radius(float iTime) {
 
 vec2 jerk_uki_shizumi(vec2 grid_coords, float iTime) {
     // TODO: SIMD fixed uniform loop bounds, no breaks, no branching
-    float total_jerk_offset = 0.0;
-    for (int i = 0; i < MAX_CUSTOM_ONSETS * 2; ++i) {
-        int   onset_index  = i % MAX_CUSTOM_ONSETS;
-        float use_f_onsets = step(float(i), float(MAX_CUSTOM_ONSETS)); // 1.0 for f, 0.0 for j
+    float     total_jerk_offset = 0.0;
+    const int LOOPS             = MAX_CUSTOM_ONSETS * 2;
+    for (int i = 0; i < LOOPS; ++i) {
+        int onset_index = int(mod(float(i), float(MAX_CUSTOM_ONSETS)));
+        // int   onset_index  = i % MAX_CUSTOM_ONSETS;
+        float use_f_onsets = step(float(i), float(MAX_CUSTOM_ONSETS));
 
         vec2 f_pair     = f_onsets[onset_index];
         vec2 j_pair     = j_onsets[onset_index];
@@ -180,13 +186,13 @@ vec2 jerk_uki_shizumi(vec2 grid_coords, float iTime) {
 }
 
 vec4 fft_spectrum_branchless(vec2 fragCoord) {
-
     float cell_width = iResolution.x / NUM_OF_BINS;
     float bin_index  = floor(fragCoord.x / cell_width);
     float local_x    = mod(fragCoord.x, cell_width);
     float bar_width  = cell_width - 1.0;
     float sample_x   = (bin_index + 0.5) / NUM_OF_BINS;
-    float amplitude = texture(iChannel1, vec2(sample_x, FFT_ROW)).r;
+    // float amplitude  = texture(iChannel1, vec2(sample_x, FFT_ROW)).r;
+    float amplitude = texture2D(iChannel1, vec2(sample_x, FFT_ROW)).r;
     float bar_mask  = step(local_x, bar_width);
     float amp_mask  = step(fragTexCoord.y, amplitude);
     float in_bar    = bar_mask * amp_mask;
@@ -217,10 +223,11 @@ vec4 ghost(vec2 fragCoord) {
 }
 
 void main() {
-    vec2 fragCoord = fragTexCoord * iResolution;
-    finalColor     = BLACK;
-    finalColor     = fft_spectrum_branchless(fragCoord);
-    vec4 src_color = ghost(fragCoord);
-    finalColor     = max(finalColor, src_color);
-    finalColor.a   = 1.0;
+    vec2 fragCoord  = fragTexCoord * iResolution;
+    vec4 finalColor = BLACK;
+    finalColor      = fft_spectrum_branchless(fragCoord);
+    vec4 src_color  = ghost(fragCoord);
+    finalColor      = max(finalColor, src_color);
+    finalColor.a    = 1.0;
+    gl_FragColor    = finalColor;
 }
