@@ -1,10 +1,8 @@
-#version 330
+#version 100
+precision mediump float;
 
-in vec2 fragCoord;
-in vec2 fragTexCoord;
-in vec4 fragColor;
-
-out vec4 finalColor;
+varying vec2 fragTexCoord;
+varying vec4 fragColor;
 
 uniform float iTime;
 uniform vec2  iResolution;
@@ -17,7 +15,7 @@ uniform sampler2D iChannel0;
 #define GRID_SCALE 4.0
 #define GRID_CELL_SIZE (vec2(1.0) / GRID_SCALE)
 #define GRID_ORIGIN_INDEX vec2(0.0)
-#define GRID_ORIGIN_OFFSET_CELLS vec2(5.66, 2.33)
+#define GRID_ORIGIN_OFFSET_CELLS vec2(2., 2.)
 #define GRID_ORIGIN_UV_OFFSET ((GRID_ORIGIN_INDEX + GRID_ORIGIN_OFFSET_CELLS) * GRID_CELL_SIZE)
 
 #define CELL_DRIFT_AMPLITUDE 0.2
@@ -81,30 +79,22 @@ vec4 add_umbral_mask(vec4 src_color, vec2 grid_coords, vec2 mask_center) {
     return src_color * m;
 }
 
-// TODO: jesus, you MUST FIX THIS TO BE SMARTER AND DOCUMENT GODOT VS RAYLIB CONTEXTUAL STANDARD GLSL CODE
 vec4 add_dither(vec4 src) {
     vec2  pixel = fragTexCoord * iResolution;
     vec2  dUV   = fract(pixel / DITHER_TEXTURE_SCALE);
-    float th    = texture(iChannel0, dUV).r;
+    float th    = texture2D(iChannel0, dUV).r;
     float bit   = step(th, src.r);
     return mix(src, vec4(vec3(bit), 1.0), DITHER_BLEND_FACTOR);
 }
 
-vec4 ghost(vec2 fragCoord) {
-    // why use y?? i guess its important i think
-    vec2 uv          = fragCoord / vec2(iResolution.y);
-    vec2 grid_coords = uv_to_grid_space(uv);
+void main() {
+    vec2 grid_coords = uv_to_grid_space(fragTexCoord);
     vec2 grid_phase  = spatial_phase(grid_coords) + temporal_phase();
     grid_coords += add_phase(grid_phase) + warp_and_drift_cell(grid_coords);
     vec4 src_color  = light_radial_fade(grid_coords, LIGHTBALL_CENTER, LIGHTBALL_OUTER_RADIUS, LIGHTBALL_FADE_BAND);
     vec2 mask_phase = add_umbral_mask_phase();
     vec2 mask_pos = umbral_mask_position(UMBRAL_MASK_PHASE_COEFFICIENT_X, UMBRAL_MASK_PHASE_COEFFICIENT_Y, mask_phase);
     src_color     = add_umbral_mask(src_color, grid_coords, mask_pos);
-    src_color     = add_dither(src_color);
-    return src_color;
-}
-
-void main() {
-    vec2 fragCoord = fragTexCoord * iResolution;
-    finalColor     = ghost(fragCoord);
+    vec4 finalColor = add_dither(src_color);
+    gl_FragColor    = finalColor;
 }

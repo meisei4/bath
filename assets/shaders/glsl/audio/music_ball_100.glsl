@@ -1,13 +1,8 @@
-// #version 330
 #version 100
 precision mediump float;
 
-// in vec2 fragTexCoord;
-// in vec4 fragColor;
 varying vec2 fragTexCoord;
 varying vec4 fragColor;
-
-// out vec4 finalColor;
 
 uniform float iTime;
 uniform vec2  iResolution;
@@ -29,7 +24,7 @@ uniform vec3  hsv_buffer[6];
 #define GRID_SCALE 4.0
 #define GRID_CELL_SIZE (vec2(1.0) / GRID_SCALE)
 #define GRID_ORIGIN_INDEX vec2(0.0)
-#define GRID_ORIGIN_OFFSET_CELLS vec2(5.66, 2.33)
+#define GRID_ORIGIN_OFFSET_CELLS vec2(4., 2.33)
 #define GRID_ORIGIN_UV_OFFSET ((GRID_ORIGIN_INDEX + GRID_ORIGIN_OFFSET_CELLS) * GRID_CELL_SIZE)
 #define CELL_DRIFT_AMPLITUDE 0.2
 #define LIGHT_WAVE_SPATIAL_FREQ_X 8.0
@@ -131,8 +126,7 @@ vec4 add_umbral_mask(vec4 src_color, vec2 grid_coords, vec2 mask_center) {
 }
 
 vec4 add_dither(vec4 src_color, vec2 fragCoord) {
-    vec2 dither_uv = fragCoord / DITHER_TEXTURE_SCALE;
-    // float dither_sample  = texture(iChannel0, dither_uv).r;
+    vec2  dither_uv      = fragCoord / DITHER_TEXTURE_SCALE;
     float dither_sample  = texture2D(iChannel0, dither_uv).r;
     vec4  dither_mask    = vec4(dither_sample);
     vec4  binary         = step(dither_mask, src_color);
@@ -155,12 +149,10 @@ float pulse_radius(float iTime) {
 }
 
 vec2 jerk_uki_shizumi(vec2 grid_coords, float iTime) {
-    // TODO: SIMD fixed uniform loop bounds, no breaks, no branching
     float     total_jerk_offset = 0.0;
     const int LOOPS             = MAX_CUSTOM_ONSETS * 2;
     for (int i = 0; i < LOOPS; ++i) {
-        int onset_index = int(mod(float(i), float(MAX_CUSTOM_ONSETS)));
-        // int   onset_index  = i % MAX_CUSTOM_ONSETS;
+        int   onset_index  = int(mod(float(i), float(MAX_CUSTOM_ONSETS)));
         float use_f_onsets = step(float(i), float(MAX_CUSTOM_ONSETS));
 
         vec2 f_pair     = f_onsets[onset_index];
@@ -191,13 +183,12 @@ vec4 fft_spectrum_branchless(vec2 fragCoord) {
     float local_x    = mod(fragCoord.x, cell_width);
     float bar_width  = cell_width - 1.0;
     float sample_x   = (bin_index + 0.5) / NUM_OF_BINS;
-    // float amplitude  = texture(iChannel1, vec2(sample_x, FFT_ROW)).r;
-    float amplitude = texture2D(iChannel1, vec2(sample_x, FFT_ROW)).r;
-    float bar_mask  = step(local_x, bar_width);
-    float amp_mask  = step(fragTexCoord.y, amplitude);
-    float in_bar    = bar_mask * amp_mask;
-    vec3  hsv_fft   = hsv_to_rgb(hsv_buffer[0]) * 3.0;
-    vec4  fft_color = vec4(hsv_fft * in_bar, 1.0);
+    float amplitude  = texture2D(iChannel1, vec2(sample_x, FFT_ROW)).r;
+    float bar_mask   = step(local_x, bar_width);
+    float amp_mask   = step(fragTexCoord.y, amplitude);
+    float in_bar     = bar_mask * amp_mask;
+    vec3  hsv_fft    = hsv_to_rgb(hsv_buffer[0]) * 3.0;
+    vec4  fft_color  = vec4(hsv_fft * in_bar, 1.0);
     return fft_color;
 }
 

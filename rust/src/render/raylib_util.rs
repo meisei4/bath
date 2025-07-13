@@ -23,6 +23,9 @@ pub const APPLE_DPI: i32 = 1;
 pub const EXPERIMENTAL_WINDOW_WIDTH: i32 = 850;
 pub const EXPERIMENTAL_WINDOW_HEIGHT: i32 = 480;
 
+pub const N64_WIDTH: i32 = 640;
+pub const N64_HEIGHT: i32 = 480;
+
 pub const BATH_WIDTH: i32 = 256;
 pub const BATH_HEIGHT: i32 = 384;
 
