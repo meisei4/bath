@@ -7,8 +7,6 @@ use raylib::math::Vector2;
 use raylib::texture::RaylibTexture2D;
 use raylib::{color::Color, drawing::RaylibDraw, prelude::Image};
 
-//TODO: this is the fixed function pipeline version of assets/shaders/glsl/ghost_verbose.glsl
-
 // cargo run --example ghost_dither_fixed_function --features tests-only
 // cargo run --example ghost_dither --features tests-only,glsl-100
 
