@@ -12,10 +12,8 @@ uniform vec2  iResolution;
 uniform sampler2D iChannel0;
 uniform sampler2D iChannel1;
 
-const int MAX_CUSTOM_ONSETS = 128;
+const int MAX_CUSTOM_ONSETS = 16;
 
-uniform int  f_onset_count;
-uniform int  j_onset_count;
 uniform vec2 f_onsets[MAX_CUSTOM_ONSETS];
 uniform vec2 j_onsets[MAX_CUSTOM_ONSETS];
 
@@ -23,6 +21,7 @@ uniform float bpm;
 uniform vec3  hsv_buffer[6];
 
 #define TAU 6.283185307179586
+#define PI 3.141592
 #define HALF 0.5
 #define GRID_SCALE 4.0
 #define GRID_CELL_SIZE (vec2(1.0) / GRID_SCALE)
@@ -54,9 +53,10 @@ uniform vec3  hsv_buffer[6];
 #define JERK_DN_AMP 0.4
 
 #define NUM_OF_BINS 512.0
+#define FFT_ROW 0.0
+
 const vec4 BLACK = vec4(0.0, 0.0, 0.0, 1.0);
 const vec4 WHITE = vec4(1.0, 1.0, 1.0, 1.0);
-#define FFT_ROW 0.0
 
 vec2 uv_to_grid_space(vec2 uv, float iTime) {
     uv               = uv - GRID_ORIGIN_UV_OFFSET;
@@ -137,90 +137,67 @@ vec4 add_dither(vec4 src_color, vec2 fragCoord) {
 }
 
 float compute_radial_phase(float iTime) {
-    // If bpm == 0.0, then 60.0 / 0.0 → +∞ (in IEEE‐754 floating point).
     float seconds_per_beat = 60.0 / bpm;
-    // iTime / seconds_per_beat → finite_iTime / +∞ → 0.0
-    // fract(0.0) → 0.0
     return fract(iTime / seconds_per_beat);
 }
 
 float pulse_radius(float iTime) {
-    // compute_radial_phase(iTime) will be 0.0 whenever bpm == 0.0
-    float       phase     = compute_radial_phase(iTime);
-    const float PULSE_MIN = 0.8;
-    const float PULSE_MAX = 1.2;
-    // phase * 2π = 0.0 * 6.2831853 = 0.0
-    // sin(0.0) = 0.0
-    // HALF + HALF * 0.0 = 0.5
-    float blend_factor = HALF + HALF * sin(phase * TAU);
-    // mix(a, b, 0.5) always returns (a + b) / 2
-    // mix(0.8, 1.2, 0.5) = (0.8 + 1.2) / 2 = 1.0
-    float mul = mix(PULSE_MIN, PULSE_MAX, blend_factor);
-    // LIGHTBALL_OUTER_RADIUS * 1.0 = LIGHTBALL_OUTER_RADIUS
+    float       phase        = compute_radial_phase(iTime);
+    const float PULSE_MIN    = 0.8;
+    const float PULSE_MAX    = 1.2;
+    float       blend_factor = HALF + HALF * sin(phase * TAU);
+    float       mul          = mix(PULSE_MIN, PULSE_MAX, blend_factor);
     return LIGHTBALL_OUTER_RADIUS * mul;
 }
 
 vec2 jerk_uki_shizumi(vec2 grid_coords, float iTime) {
-    float jerk = 0.0;
-    for (int i = 0; i < MAX_CUSTOM_ONSETS; i++) {
-        if (i >= f_onset_count)
-            break;
-        float f_press   = f_onsets[i].x;
-        float f_release = f_onsets[i].y;
-        float du        = iTime - f_press;
-        if (du >= 0.0 && du <= JERK_WINDOW) {
-            float t = du / JERK_WINDOW;
-            jerk += sin(t * 3.141592) * JERK_UP_AMP;
-        }
-        float dr = iTime - f_release;
-        if (dr >= 0.0 && dr <= JERK_WINDOW) {
-            float t2 = dr / JERK_WINDOW;
-            jerk -= sin(t2 * 3.141592) * (JERK_UP_AMP * 0.5);
-        }
+    // TODO: SIMD fixed uniform loop bounds, no breaks, no branching
+    float total_jerk_offset = 0.0;
+    for (int i = 0; i < MAX_CUSTOM_ONSETS * 2; ++i) {
+        int   onset_index  = i % MAX_CUSTOM_ONSETS;
+        float use_f_onsets = step(float(i), float(MAX_CUSTOM_ONSETS)); // 1.0 for f, 0.0 for j
+
+        vec2 f_pair     = f_onsets[onset_index];
+        vec2 j_pair     = j_onsets[onset_index];
+        vec2 onset_pair = mix(j_pair, f_pair, use_f_onsets);
+
+        float up_amp = mix(-JERK_DN_AMP, JERK_UP_AMP, use_f_onsets);
+        float dn_amp = mix(JERK_DN_AMP * 0.5, -JERK_UP_AMP * 0.5, use_f_onsets);
+
+        float time_since_press   = iTime - onset_pair.x;
+        float time_since_release = iTime - onset_pair.y;
+
+        float press_in_window = step(0.0, time_since_press) * step(time_since_press, JERK_WINDOW);
+        float press_t         = clamp(time_since_press / JERK_WINDOW, 0.0, 1.0);
+        total_jerk_offset += press_in_window * sin(press_t * PI) * up_amp;
+
+        float release_in_window = step(0.0, time_since_release) * step(time_since_release, JERK_WINDOW);
+        float release_t         = clamp(time_since_release / JERK_WINDOW, 0.0, 1.0);
+        total_jerk_offset += release_in_window * sin(release_t * PI) * dn_amp;
     }
-    for (int i = 0; i < MAX_CUSTOM_ONSETS; i++) {
-        if (i >= j_onset_count)
-            break;
-        float j_press   = j_onsets[i].x;
-        float j_release = j_onsets[i].y;
-        float du2       = iTime - j_press;
-        if (du2 >= 0.0 && du2 <= JERK_WINDOW) {
-            float t3 = du2 / JERK_WINDOW;
-            jerk -= sin(t3 * 3.141592) * JERK_DN_AMP;
-        }
-        float dr2 = iTime - j_release;
-        if (dr2 >= 0.0 && dr2 <= JERK_WINDOW) {
-            float t4 = dr2 / JERK_WINDOW;
-            jerk += sin(t4 * 3.141592) * (JERK_DN_AMP * 0.5);
-        }
-    }
-    grid_coords.y += jerk;
+    grid_coords.y += total_jerk_offset;
     return grid_coords;
 }
 
-vec4 fft_spectrum(vec2 fragCoord) {
-    vec2  uv_full    = fragCoord / iResolution;
+vec4 fft_spectrum_branchless(vec2 fragCoord) {
+
     float cell_width = iResolution.x / NUM_OF_BINS;
     float bin_index  = floor(fragCoord.x / cell_width);
     float local_x    = mod(fragCoord.x, cell_width);
     float bar_width  = cell_width - 1.0;
-    vec4  fft_color  = BLACK;
-    if (local_x <= bar_width) {
-        float sample_x  = (bin_index + 0.5) / NUM_OF_BINS;
-        float amplitude = texture(iChannel1, vec2(sample_x, FFT_ROW)).r;
-        if (uv_full.y < amplitude) {
-            vec3 hsv_fft = hsv_to_rgb(hsv_buffer[1]);
-            hsv_fft.z *= 3.0;
-            fft_color = vec4(hsv_fft, 1.0);
-        }
-    }
+    float sample_x   = (bin_index + 0.5) / NUM_OF_BINS;
+    float amplitude = texture(iChannel1, vec2(sample_x, FFT_ROW)).r;
+    float bar_mask  = step(local_x, bar_width);
+    float amp_mask  = step(fragTexCoord.y, amplitude);
+    float in_bar    = bar_mask * amp_mask;
+    vec3  hsv_fft   = hsv_to_rgb(hsv_buffer[0]) * 3.0;
+    vec4  fft_color = vec4(hsv_fft * in_bar, 1.0);
     return fft_color;
 }
 
 vec4 ghost(vec2 fragCoord) {
-    // why use y?? i guess its important i think
-    vec2 uv          = fragCoord / vec2(iResolution.y);
-    vec2 grid_coords = uv_to_grid_space(uv, iTime);
+    vec2 uv_y_aspect = fragCoord / vec2(iResolution.y);
+    vec2 grid_coords = uv_to_grid_space(uv_y_aspect, iTime);
     grid_coords      = jerk_uki_shizumi(grid_coords, iTime);
     vec2 grid_phase  = vec2(0.0);
     grid_phase += spatial_phase(grid_coords);
@@ -242,7 +219,7 @@ vec4 ghost(vec2 fragCoord) {
 void main() {
     vec2 fragCoord = fragTexCoord * iResolution;
     finalColor     = BLACK;
-    finalColor     = fft_spectrum(fragCoord);
+    finalColor     = fft_spectrum_branchless(fragCoord);
     vec4 src_color = ghost(fragCoord);
     finalColor     = max(finalColor, src_color);
     finalColor.a   = 1.0;

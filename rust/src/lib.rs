@@ -21,7 +21,7 @@ unsafe impl ExtensionLibrary for MyExtension {
             Engine::singleton().register_singleton("AudioBus", &AudioBus::new_alloc());
             Engine::singleton().register_singleton("AudioFiles", &AudioFiles::new_alloc());
             Engine::singleton().register_singleton("Collision", &Collision::new_alloc());
-            //TODO: this all just sucks, i hate this so much, its bad design on my part idk why im doing it
+            // TODO: this all just sucks, i hate this so much, its bad design on my part idk why im doing it
             // this shouldnt be some instance singleton you should get the fucking spectrum instance everytime you make a ffttexture
             // dont try to make a singleton of it for no reason absolutely stupid wasted like 4 hours abosltu
             // Engine::singleton()

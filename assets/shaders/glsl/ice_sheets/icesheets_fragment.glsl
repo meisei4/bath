@@ -33,22 +33,35 @@ in vec2 uvNoiseStep;
 
 out vec4 finalColor;
 
-int marchDepthInProjectedNoiseSpace() {
-    vec2 sampleProj = uvNoiseOrigin;
-    for (int depthStep = 0;; depthStep++) {
-        if (perlin_noise_iq(sampleProj) < perlinSolidThreshold) {
-            return depthStep;
-        }
-        sampleProj += uvNoiseStep;
+const int DEPTH_CAP = 128;
+const int STRIDE    = 16;
+const int LOOPS     = DEPTH_CAP / STRIDE;
+
+int marchDepthSIMD(vec2 origin, vec2 noise_step) {
+    vec2  stepProj      = origin;
+    vec2  stepProjDelta = noise_step * float(STRIDE);
+    float threshold     = perlinSolidThreshold;
+    float hitDepth      = float(DEPTH_CAP);
+    float active_lane   = 1.0;
+    float depthOffset   = 0.0;
+    for (int i = 0; i < LOOPS; ++i) {
+        float sample_coord = perlin_noise_iq(stepProj);
+        float solid        = 1.0 - step(threshold, sample_coord);
+        float laneMask     = solid * active_lane;
+        hitDepth += (depthOffset - hitDepth) * laneMask;
+        active_lane *= (1.0 - solid);
+        stepProj += stepProjDelta;
+        depthOffset += float(STRIDE);
     }
+    return int(hitDepth);
 }
 
 void main() {
-    int  depthSteps = marchDepthInProjectedNoiseSpace();
-    bool isSolid    = perlin_noise_iq(uvNoiseOrigin) < perlinSolidThreshold ? true : false;
-    vec3 baseColor  = isSolid ? vec3(0.9) : pow(waterColor, vec3(float(depthSteps) / waterDepthDivision));
-    if (!isSolid && depthSteps > waterStaticThreshold) {
-        baseColor *= waterDarkenMultiplier;
-    }
-    finalColor = vec4(sqrt(baseColor), 1.0);
+    int   depthSteps = marchDepthSIMD(uvNoiseOrigin, uvNoiseStep);
+    float fSteps     = float(depthSteps);
+    float waterMask  = step(0.5, fSteps);
+    vec3  base       = mix(vec3(0.9), pow(waterColor, vec3(fSteps / waterDepthDivision)), waterMask);
+    float darkenMask = step(float(waterStaticThreshold) + 0.5, fSteps);
+    base             = mix(base, base * waterDarkenMultiplier, darkenMask);
+    finalColor       = vec4(sqrt(base), 1.0);
 }

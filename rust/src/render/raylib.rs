@@ -180,10 +180,8 @@ impl Renderer for RaylibRenderer {
         shader.set_shader_value_v(location, vec3_array);
     }
 
-    fn set_uniform_mat2(&mut self, shader: &mut Self::Shader, uniform_name: &str, mat2: RendererMatrix) {
-        let location = shader.get_shader_location(uniform_name);
-        println!("{} uniform location = {}", uniform_name, location);
-        shader.set_shader_value_matrix(location, mat2);
+    fn set_uniform_mat2(&mut self, _shader: &mut Self::Shader, _uniform_name: &str, _mat2: RendererMatrix) {
+        todo!()
     }
 
     fn set_uniform_mat4(&mut self, shader: &mut Self::Shader, uniform_name: &str, mat4: RendererMatrix) {
@@ -192,19 +190,10 @@ impl Renderer for RaylibRenderer {
         shader.set_shader_value_matrix(location, mat4);
     }
 
-    // fn set_uniform_sampler2d(&mut self, shader: &mut Self::Shader, uniform_name: &str, texture: &Self::Texture) {
-    //     let location = shader.get_shader_location(uniform_name);
-    //     println!("{} uniform location = {}", uniform_name, location);
-    //     unsafe {
-    //         rlActiveTextureSlot(7_i32);
-    //         rlEnableTexture(texture.id);
-    //     }
-    //     shader.set_shader_value(location, 7_i32);
-    // }
-
     fn set_uniform_sampler2d(&mut self, shader: &mut Self::Shader, uniform_name: &str, texture: &Self::Texture) {
         let location = shader.get_shader_location(uniform_name);
         println!("{} uniform location = {}", uniform_name, location);
+        //TODO: JUST MOVE TOI UNSTABLE BRANCH ALREADY AHHHHH!!!
         unsafe {
             rlActiveTextureSlot(self.sampler2d_count);
             rlEnableTexture(texture.id);
@@ -212,7 +201,7 @@ impl Renderer for RaylibRenderer {
         shader.set_shader_value(location, self.sampler2d_count);
         self.sampler2d_count += 1_i32;
         unsafe {
-            rlActiveTextureSlot(0);
+            rlActiveTextureSlot(0); //TODO: THIS IS VERY IMPORTANT
         }
     }
 
@@ -252,11 +241,13 @@ impl Renderer for RaylibRenderer {
     }
 
     fn draw_shader_screen(&mut self, shader: &mut Self::Shader, render_target: &mut Self::RenderTarget) {
+        let width = self.handle.get_screen_width() as f32;
+        let height = self.handle.get_screen_height() as f32;
         let mut draw_handle = self.handle.begin_drawing(&self.thread);
         draw_handle.clear_background(Color::BLACK);
         let mut shader_mode = draw_handle.begin_shader_mode(shader);
-        let width = render_target.width() as f32;
-        let height = render_target.height() as f32;
+        // let width = render_target.width() as f32;
+        // let height = render_target.height() as f32;
         shader_mode.draw_texture_rec(render_target, flip_framebuffer(width, height), ORIGIN, Color::WHITE);
     }
 

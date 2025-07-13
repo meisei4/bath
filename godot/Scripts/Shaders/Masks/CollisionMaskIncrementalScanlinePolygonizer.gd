@@ -66,21 +66,21 @@ func _on_frame_post_draw() -> void:
     var noise_vel = MaskManager.ice_sheets.BufferAShaderMaterial.get_shader_parameter(
         "noiseScrollVelocity"
     )
-    var depth = MaskManager.ice_sheets.BufferAShaderMaterial.get_shader_parameter("parallaxDepth")
+    var depth = MaskManager.ice_sheets.BufferAShaderMaterial.get_shader_parameter("parallax_depth")
     var global_coordinate_scale = MaskManager.ice_sheets.BufferAShaderMaterial.get_shader_parameter(
-        "globalCoordinateScale"
+        "global_coordinate_scale"
     )
     var uniform_stretch_correction = (
         MaskManager
         . ice_sheets
         . BufferAShaderMaterial
-        . get_shader_parameter("uniformStretchCorrection")
+        . get_shader_parameter("uniform_stretch_correction")
     )
     var stretch_scalar_y = MaskManager.ice_sheets.BufferAShaderMaterial.get_shader_parameter(
-        "stretchScalarY"
+        "stretch_scalar_y"
     )
     var parallax_near_scale = MaskManager.ice_sheets.BufferAShaderMaterial.get_shader_parameter(
-        "parallaxNearScale"
+        "parallax_near_scale"
     )
     var result: Dictionary = Collision.process_scanline_closest_1(
         prev_iTime,
