@@ -6,6 +6,9 @@ build/
 /rust/Cargo.lock
 /rust/target/
 
+rust/asset_payload/target
+rust/asset_payload/Cargo.lock
+
 assets/audio/cache/
 *.wav
 !assets/audio/metronome_click.wav
