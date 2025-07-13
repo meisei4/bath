@@ -6,6 +6,7 @@ use crate::render::renderer::{
     FeedbackBufferContext, Renderer, RendererMatrix, RendererVector2, RendererVector3, RendererVector4,
 };
 use raylib::color::Color;
+use raylib::consts::TraceLogLevel::LOG_TRACE;
 use raylib::drawing::{RaylibDraw, RaylibShaderModeExt, RaylibTextureModeExt};
 use raylib::ffi::TextureFilter::TEXTURE_FILTER_POINT;
 use raylib::ffi::TextureWrap::TEXTURE_WRAP_REPEAT;
@@ -38,6 +39,7 @@ impl Renderer for RaylibRenderer {
         let (mut handle, thread) = init()
             .size(width / APPLE_DPI, height / APPLE_DPI)
             .title("raylib renderer")
+            .log_level(LOG_TRACE)
             .build();
         handle.set_target_fps(60);
         let screen_width = handle.get_screen_width();
@@ -365,7 +367,7 @@ impl Renderer for RaylibRenderer {
             ffi::rlEnableTexture(texture.id);
             ffi::rlMatrixMode(RL_TEXTURE as i32);
             ffi::rlLoadIdentity();
-            ffi::rlTranslatef(-0.5, -0.5, 0.0);
+            ffi::rlTranslatef(-0.375, -0.375, 0.0); // 0.5 – 0.125
             ffi::rlScalef(4.0, 4.0, 1.0);
 
             ffi::rlBegin(RL_QUADS as i32);
