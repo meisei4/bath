@@ -11,15 +11,17 @@ use raylib::drawing::{RaylibDraw, RaylibShaderModeExt, RaylibTextureModeExt};
 use raylib::ffi::TextureFilter::TEXTURE_FILTER_POINT;
 use raylib::ffi::TextureWrap::TEXTURE_WRAP_REPEAT;
 use raylib::ffi::{
-    rlActiveTextureSlot, rlEnableTexture, LoadImage, LoadImageFromMemory, LoadTextureFromImage, SetTextureFilter,
-    SetTextureWrap, UnloadImage, RL_QUADS, RL_TEXTURE,
+    rlActiveTextureSlot, rlEnableTexture, LoadImage, LoadTextureFromImage, SetTextureFilter, SetTextureWrap,
+    UnloadImage, RL_QUADS, RL_TEXTURE,
 };
 use raylib::math::{Matrix, Vector3};
+use raylib::prelude::Image;
 use raylib::shaders::{RaylibShader, Shader};
 use raylib::texture::{RaylibTexture2D, RenderTexture2D, Texture2D};
 use raylib::{ffi, init, RaylibHandle, RaylibThread};
 use std::f32::consts::FRAC_PI_2;
 use std::ffi::{c_char, CString};
+use std::slice::from_raw_parts;
 use std::sync::Once;
 
 pub struct RaylibRenderer {
@@ -89,13 +91,33 @@ impl Renderer for RaylibRenderer {
     }
 
     fn load_texture(&mut self, data: &[u8], file_ext: &str) -> Self::Texture {
-        let image_texture = unsafe {
-            let c_ext = CString::new(format!(".{file_ext}")).unwrap();
-            let image_raw = LoadImageFromMemory(c_ext.as_ptr() as *const c_char, data.as_ptr(), data.len() as i32);
-            let image_texture_raw = LoadTextureFromImage(image_raw);
-            UnloadImage(image_raw);
-            Texture2D::from_raw(image_texture_raw)
-        };
+        // TODO: wtf jpgs dont work anymore???
+        let image = Image::load_image_from_mem(file_ext, data).unwrap();
+        let len = image.get_pixel_data_size();
+        let pixels = unsafe { from_raw_parts(image.data as *const u8, len) };
+        println!("image bytes [0..8]: {:?}", &pixels[0..8.min(len)]);
+        let image_texture = self.handle.load_texture_from_image(&self.thread, &image).unwrap();
+
+        // TODO: figure out if this can be done better idk
+        // let bayer_img = Image::load_image_from_mem(".png", BAYER_PNG()).unwrap();
+        // let len = bayer_img.get_pixel_data_size();
+        // let bayer_pixels = unsafe { from_raw_parts(bayer_img.data as *const u8, len) };
+        // println!("bayer png bytes [0..8]: {:?}", &bayer_pixels[0..8.min(len)]);
+        // let mut bayer_texture = render
+        //     .handle
+        //     .load_texture_from_image(&render.thread, &bayer_img)
+        //     .unwrap();
+        // bayer_texture.set_texture_filter(&render.thread, TEXTURE_FILTER_POINT);
+        // bayer_texture.set_texture_wrap(&render.thread, TEXTURE_WRAP_MIRROR_REPEAT);
+
+        // TODO: this is the old ffi stuff before moving to proper ryalib-rs dev repo, no idea why this is the only one that works for jpgs
+        // let image_texture = unsafe {
+        //     let c_ext = CString::new(format!(".{file_ext}")).unwrap();
+        //     let image_raw = LoadImageFromMemory(c_ext.as_ptr() as *const c_char, data.as_ptr(), data.len() as i32);
+        //     let image_texture_raw = LoadTextureFromImage(image_raw);
+        //     UnloadImage(image_raw);
+        //     Texture2D::from_raw(image_texture_raw)
+        // };
         image_texture
     }
 
@@ -428,14 +450,14 @@ impl Renderer for RaylibRenderer {
     fn init_feedback_buffer(
         &mut self,
         resolution: RendererVector2,
-        feedback_pass_shader_path: &str,
-        main_pass_shader_path: &str,
+        feedback_pass_shader_src: &str,
+        main_pass_shader_src: &str,
     ) -> FeedbackBufferContext<Self> {
         let buffer_a = create_rgba16_render_texture(resolution.x as i32, resolution.y as i32);
         let buffer_b = create_rgba16_render_texture(resolution.x as i32, resolution.y as i32);
 
-        let feedback_pass_shader = self.load_shader_fragment(feedback_pass_shader_path);
-        let main_pass_shader = self.load_shader_fragment(main_pass_shader_path);
+        let feedback_pass_shader = self.load_shader_fragment(feedback_pass_shader_src);
+        let main_pass_shader = self.load_shader_fragment(main_pass_shader_src);
 
         FeedbackBufferContext {
             buffer_a,

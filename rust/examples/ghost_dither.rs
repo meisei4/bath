@@ -16,7 +16,7 @@ fn main() {
     let mut shader = render.load_shader_fragment(GHOST_VERBOSE_FRAG_100());
 
     render.set_uniform_vec2(&mut shader, "iResolution", i_resolution);
-    let i_channel0 = render.load_texture(BAYER_PNG(), "png");
+    let i_channel0 = render.load_texture(BAYER_PNG(), ".png");
     render.set_uniform_sampler2d(&mut shader, "iChannel0", &i_channel0);
     let mut i_time = 0.0_f32;
     let mut frag_mod_time = get_file_mod_time(GHOST_VERBOSE_FRAG_100_PATH);

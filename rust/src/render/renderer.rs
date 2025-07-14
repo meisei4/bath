@@ -68,8 +68,8 @@ pub trait Renderer {
     fn init_feedback_buffer(
         &mut self,
         resolution: RendererVector2,
-        feedback_pass_shader_path: &str,
-        main_pass_shader_path: &str,
+        feedback_pass_shader_src: &str,
+        main_pass_shader_src: &str,
     ) -> FeedbackBufferContext<Self>
     where
         Self: Sized;
