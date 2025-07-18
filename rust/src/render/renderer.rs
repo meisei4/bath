@@ -57,6 +57,7 @@ pub trait Renderer {
         shader: &mut Self::Shader,
         render_target: &mut Self::RenderTarget,
     );
+    fn draw_screen_pseudo_ortho_geom(&mut self, render_target: &mut Self::RenderTarget);
     fn draw_shader_screen_tilted_geom(
         &mut self,
         shader: &mut Self::Shader,

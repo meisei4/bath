@@ -21,7 +21,7 @@ fn main() {
     let _i_channel0 = render.load_texture(BAYER_PNG(), ".png");
     let (bayer_data, bayer_w, bayer_h) = load_bayer_png(BAYER_PNG_PATH);
     while !render.handle.window_should_close() {
-        i_time += render.handle.get_frame_time();
+        //i_time += render.handle.get_frame_time();
         for y in 0..i_resolution.y as i32 {
             for x in 0..i_resolution.x as i32 {
                 let lum = shade(x, y, i_resolution, i_time, &bayer_data, bayer_w, bayer_h);

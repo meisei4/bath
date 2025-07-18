@@ -275,6 +275,31 @@ impl Renderer for RaylibRenderer {
         shader_mode.draw_texture_rec(render_target, flip_framebuffer(width, height), ORIGIN, Color::WHITE);
     }
 
+    fn draw_screen_pseudo_ortho_geom(&mut self, render_target: &mut Self::RenderTarget) {
+        let mut draw_handle = self.handle.begin_drawing(&self.thread);
+        draw_handle.clear_background(Color::BLACK);
+        let width = render_target.width() as f32;
+        let height = render_target.height() as f32;
+        let observer_pos = Vector3::new(width / 2.0, height / 2.0, height / 2.0);
+        let target = Vector3::new(width / 2.0, height / 2.0, 0.0);
+        let up = Vector3::Y;
+        let projection = Matrix::perspective(FRAC_PI_2, width / height, 0.01, 1000.0);
+        let view = Matrix::look_at(observer_pos, target, up);
+        unsafe {
+            ffi::rlSetMatrixModelview(view.into());
+            ffi::rlSetMatrixProjection(projection.into());
+            //PERFECT
+            ffi::rlTexCoord2f(0.0, 1.0);
+            ffi::rlVertex3f(0.0, height, 0.0);
+            ffi::rlTexCoord2f(0.0, 0.0);
+            ffi::rlVertex3f(0.0, 0.0, 0.0);
+            ffi::rlTexCoord2f(1.0, 0.0);
+            ffi::rlVertex3f(width, 0.0, 0.0);
+            ffi::rlTexCoord2f(1.0, 1.0);
+            ffi::rlVertex3f(width, height, 0.0);
+        }
+    }
+
     fn draw_shader_screen_pseudo_ortho_geom(
         &mut self,
         shader: &mut Self::Shader,
