@@ -286,7 +286,7 @@ impl Renderer for RaylibRenderer {
         let height = render_target.height() as f32;
         let observer_pos = Vector3::new(width / 2.0, height / 2.0, height / 2.0);
         let target = Vector3::new(width / 2.0, height / 2.0, 0.0);
-        let up = Vector3::new(0.0, 1.0, 0.0);
+        let up = Vector3::Y;
         let projection = Matrix::perspective(FRAC_PI_2, width / height, 0.01, 1000.0);
         let view = Matrix::look_at(observer_pos, target, up);
         let _shader = draw_handle.begin_shader_mode(shader);
@@ -337,7 +337,7 @@ impl Renderer for RaylibRenderer {
         let height = render_target.height() as f32;
         let observer_pos = Vector3::new(width / 2.0, height / 2.0, height / 2.0);
         let target = Vector3::new(width / 2.0, height / 2.0, 0.0);
-        let up = Vector3::new(0.0, 1.0, 0.0);
+        let up = Vector3::Y;
         let projection = Matrix::perspective(FRAC_PI_2, width / height, 0.01, 1000.0);
         let view = Matrix::look_at(observer_pos, target, up);
         let _shader = draw_handle.begin_shader_mode(shader);

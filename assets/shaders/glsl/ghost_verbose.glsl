@@ -143,7 +143,7 @@ vec4 add_circle_outline(vec4 src_color, vec2 grid_coords) {
 #define WIRE_ROT_SPEED 0.5
 #define WIRE_SEGMENT_COUNT 8.0
 #define WIRE_SMOOTH_EDGE 0.05
-#define USE_HORIZONTAL_ROTATE 1.0
+#define USE_HORIZONTAL_ROTATE 0.0
 
 vec4 add_wireframe_overlay(vec4 src_color, vec2 grid_coords) {
     vec2 cell_idx = floor(grid_coords);
@@ -194,8 +194,8 @@ void main() {
     vec2 umbral_mask_pos
         = umbral_mask_position(UMBRAL_MASK_PHASE_COEFFICIENT_X, UMBRAL_MASK_PHASE_COEFFICIENT_Y, umbral_mask_phase);
 
-    src_color = add_umbral_mask(src_color, grid_coords, umbral_mask_pos);
-    src_color = add_dither(src_color, fragCoord);
+    //src_color = add_umbral_mask(src_color, grid_coords, umbral_mask_pos);
+    //src_color = add_dither(src_color, fragCoord);
     // src_color    = add_contour_overlay(src_color, grid_coords);
     src_color    = add_wireframe_overlay(src_color, grid_coords);
     src_color    = add_circle_outline(src_color, grid_coords);

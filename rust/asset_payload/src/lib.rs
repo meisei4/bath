@@ -101,7 +101,10 @@ define_payloads! {
         ICEBERGS_JPG             => "textures/icebergs.jpg",
         MOON_WATER_PNG           => "textures/moon_water.png",
         PEBBLES_PNG              => "textures/pebbles.png",
-        ROCKS_JPG                => "textures/rocks.jpg"
+        ROCKS_JPG                => "textures/rocks.jpg",
+        VORO_MESH                => "meshes/voro/voro.obj",
+        VORO_MESH_CLEAN          => "meshes/voro_clean.obj",
+        SPHERE                   => "meshes/sphere_unit.obj"
     },
     string: {
         RAYLIB_DEFAULT_VERT_100  => "shaders/glsl/raylib_base_vertex_100.glsl",

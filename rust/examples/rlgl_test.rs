@@ -14,7 +14,7 @@ fn main() {
         let fovy = 90.0_f32;
         let position = Vector3::new(0.0, 6.0, 8.5);
         let target = Vector3::new(0.0, 0.0, 0.0);
-        let up = Vector3::new(0.0, 1.0, 0.0);
+        let up = Vector3::Y;
         let mat_proj = Matrix::perspective(fovy.to_radians(), width / height, 0.025, 500.0);
         let mat_view = Matrix::look_at(position, target, up);
         unsafe {
