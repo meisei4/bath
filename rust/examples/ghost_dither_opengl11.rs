@@ -4,7 +4,7 @@ use bath::fixed_func::ghost::{
     UMBRAL_MASK_OUTER_RADIUS,
 };
 use bath::render::raylib::RaylibRenderer;
-use bath::render::raylib_util::N64_WIDTH;
+use bath::render::raylib_util::{N64_HEIGHT, N64_WIDTH};
 use bath::render::renderer::Renderer;
 use raylib::camera::Camera3D;
 use raylib::color::Color;
@@ -14,7 +14,6 @@ use raylib::math::glam::Vec3;
 use raylib::math::{Vector2, Vector3};
 use raylib::models::{RaylibMesh, RaylibModel, WeakMesh};
 use raylib::prelude::Image;
-use raylib::texture::RaylibTexture2D;
 use std::f32::consts::TAU;
 use std::slice::from_raw_parts_mut;
 
@@ -86,6 +85,7 @@ fn main() {
     }
 }
 
+//TODO: somehow we can move this whole function with the warping into the GPU with GL_LUMINANCE acceleration of the phase warps??
 #[inline]
 fn generate_circle_image(width: i32, height: i32, i_time: f32) -> Image {
     let img = Image::gen_image_color(width, height, Color::BLANK);
@@ -118,7 +118,7 @@ fn generate_circle_image(width: i32, height: i32, i_time: f32) -> Image {
     img
 }
 
-pub const RADIAL_SAMPLE_COUNT: usize = 360;
+pub const RADIAL_SAMPLE_COUNT: usize = 24; //TODO: caluclate this from the poly count of the obj
 pub fn build_radial_magnitudes(source_image: &Image) -> Vec<f32> {
     let image_width_in_pixels = source_image.width();
     let image_height_in_pixels = source_image.height();
@@ -136,16 +136,6 @@ pub fn build_radial_magnitudes(source_image: &Image) -> Vec<f32> {
         loop {
             let sample_x = centre_coordinate_x + direction_unit_x * current_step_in_pixels as f32;
             let sample_y = centre_coordinate_y + direction_unit_y * current_step_in_pixels as f32;
-
-            // Stop if we run outside the image (very rare but prevents panic).
-            if sample_x < 0.0
-                || sample_x >= image_width_in_pixels as f32
-                || sample_y < 0.0
-                || sample_y >= image_height_in_pixels as f32
-            {
-                break;
-            }
-
             let texel_x = sample_x as i32 as usize;
             let texel_y = sample_y as i32 as usize;
             let pixel_index = 4 * (texel_y * image_width_in_pixels as usize + texel_x);
@@ -163,13 +153,12 @@ pub fn build_radial_magnitudes(source_image: &Image) -> Vec<f32> {
 }
 
 pub fn deform_mesh_by_radial_magnitudes(mesh: &mut WeakMesh, radial_magnitudes: &[f32]) {
-    const SAMPLE_COUNT: usize = 360;
     let verts: &mut [Vec3] = mesh.vertices_mut();
     for v in verts.iter_mut() {
         let theta = v.y.atan2(v.x).rem_euclid(TAU);
-        let idx_f = theta / TAU * SAMPLE_COUNT as f32;
-        let i0 = idx_f.floor() as usize % SAMPLE_COUNT;
-        let i1 = (i0 + 1) % SAMPLE_COUNT;
+        let idx_f = theta / TAU * RADIAL_SAMPLE_COUNT as f32;
+        let i0 = idx_f.floor() as usize % RADIAL_SAMPLE_COUNT;
+        let i1 = (i0 + 1) % RADIAL_SAMPLE_COUNT;
         let w_hi = idx_f.fract();
         let w_lo = 1.0 - w_hi;
         let r_equator = radial_magnitudes[i0] * w_lo + radial_magnitudes[i1] * w_hi;

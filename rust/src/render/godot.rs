@@ -170,7 +170,7 @@ impl Renderer for GodotRenderer {
         todo!()
     }
 
-    fn draw_screen_pseudo_ortho_geom(&mut self, render_target: &mut Self::RenderTarget) {
+    fn draw_screen_pseudo_ortho_geom(&mut self, _render_target: &mut Self::RenderTarget) {
         todo!()
     }
 
