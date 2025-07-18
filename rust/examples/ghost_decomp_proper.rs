@@ -11,7 +11,6 @@ use raylib::color::Color;
 use raylib::consts::CameraProjection;
 use raylib::drawing::{RaylibDraw, RaylibDraw3D, RaylibMode3DExt};
 use raylib::math::{Vector2, Vector3};
-use raylib::models::{RaylibMesh, RaylibModel};
 use raylib::prelude::Image;
 use raylib::texture::{RaylibTexture2D, Texture2D};
 
@@ -21,52 +20,73 @@ fn main() {
     let screen_h = render.handle.get_screen_height();
     let i_resolution = Vector2::new(screen_w as f32, screen_h as f32);
     let mut i_time = 0.0f32;
-    let mut circle_img = generate_circle_image(screen_w, screen_h, i_time);
-    let mut dithered_circle_texture = dither_image_bayer(&mut render, circle_img, screen_w, screen_h);
-    let mut model = render.handle.load_model(&render.thread, SPHERE_PATH).unwrap();
-    let model_pos = Vector3::new(-0.5, 0.25, 0.25);
+    let circle_img = generate_circle_image(screen_w, screen_h, i_time);
+    let texture = render
+        .handle
+        .load_texture_from_image(&render.thread, &circle_img)
+        .unwrap();
+    let model = render.handle.load_model(&render.thread, SPHERE_PATH).unwrap();
     let observer = Camera3D {
         position: Vector3::new(1.0, 0.0, 1.0),
         target: Vector3::ZERO,
         up: Vector3::Y,
-        fovy: 66.0,
+        fovy: 80.0,
         projection: CameraProjection::CAMERA_PERSPECTIVE,
     };
     while !render.handle.window_should_close() {
         i_time += render.handle.get_frame_time();
-        //circle_img = generate_circle_image(screen_w, screen_h, i_time);
-        //dithered_circle_texture = dither_image_bayer(&mut render, circle_img, screen_w, screen_h);
         let mut draw_handle = render.handle.begin_drawing(&render.thread);
         draw_handle.clear_background(Color::BLACK);
         draw_handle.draw_texture_rec(
-            &dithered_circle_texture,
+            &texture,
             flip_framebuffer(i_resolution.x, i_resolution.y),
             ORIGIN,
             Color::WHITE,
         );
         let mut rl3d = draw_handle.begin_mode3D(observer);
-        for mesh in model.meshes_mut() {
-            for vertex in mesh.vertices_mut() {
-                //TODO: do something in here to actually achieve the phasewaprs like the frag shader
-                vertex.y += (vertex.x * 2.0 + i_time * 2.0).sin() * 0.015;
-            }
-        }
+
         rl3d.draw_model_wires_ex(
             &model,
-            model_pos,
+            Vector3::new(0.25, 0.30, -0.25), // this is hand hacked in i dont know how to derive it otherwise to match where the circle is, in fact this just puts it on the mirrored side of the canvas acutally
             Vector3::Y,
-            i_time * 90.0,
-            Vector3::new(0.25, 0.25, 0.25),
+            0.0,
+            Vector3::new(0.25, 0.25, 0.25), //for some reason i found this to be able to make the sphere small enough, but i want to derive it from the pseudo grid space
             Color::WHITE,
         );
     }
 }
 
 #[inline]
-fn generate_circle_image(width: i32, height: i32, i_time: f32) -> Image {
+fn generate_circle_image(width: i32, height: i32, _i_time: f32) -> Image {
     let img = Image::gen_image_color(width, height, Color::BLANK);
     let total_bytes = (width * height * 4) as usize;
-    //TODO: figure out a better way to do this, the amount of ways to do this is insane there are like 5 different ways lol
+    let pixels: &mut [u8] = unsafe { std::slice::from_raw_parts_mut(img.data as *mut u8, total_bytes) };
+    for y in 0..height {
+        for x in 0..width {
+            let s = (x as f32 + 0.5) / width as f32;
+            let t = (y as f32 + 0.5) / height as f32;
+            let uv = Vector2::new(s, t);
+            let grid = uv_to_grid_space(uv);
+            let body_radius = grid.distance(UMBRAL_MASK_CENTER);
+            let lum = if body_radius <= UMBRAL_MASK_OUTER_RADIUS {
+                255u8
+            } else {
+                0u8
+            };
+            let idx = 4 * (y as usize * width as usize + x as usize);
+            pixels[idx] = lum; // R
+            pixels[idx + 1] = lum; // G
+            pixels[idx + 2] = lum; // B
+            pixels[idx + 3] = 255u8; // A
+        }
+    }
+    img
+}
+
+#[inline]
+fn generate_circle_image_fade(width: i32, height: i32, i_time: f32) -> Image {
+    let img = Image::gen_image_color(width, height, Color::BLANK);
+    let total_bytes = (width * height * 4) as usize;
     let color: &mut [u8] = unsafe { std::slice::from_raw_parts_mut(img.data as *mut u8, total_bytes) };
     for y in 0..height {
         for x in 0..width {
@@ -74,11 +94,6 @@ fn generate_circle_image(width: i32, height: i32, i_time: f32) -> Image {
             let t = (y as f32 + 0.5) / height as f32;
             let frag_tex_coord = Vector2::new(s, t);
             let mut grid_coords = uv_to_grid_space(frag_tex_coord);
-            let mut grid_phase = spatial_phase(grid_coords);
-            grid_phase += temporal_phase(i_time);
-            grid_coords += add_phase(grid_phase);
-            grid_coords += warp_and_drift_cell(grid_coords, i_time);
-
             let body_radius = grid_coords.distance(UMBRAL_MASK_CENTER);
             let fade = 1.0 - {
                 let outline_fade_radius = UMBRAL_MASK_OUTER_RADIUS - UMBRAL_MASK_FADE_BAND;

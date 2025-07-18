@@ -9,6 +9,7 @@ uniform vec2  iResolution;
 
 uniform sampler2D iChannel0;
 
+#define TAU 6.28318530718
 #define HALF 0.5
 #define GRID_SCALE 2.0
 #define GRID_CELL_SIZE (vec2(1.0) / GRID_SCALE)
@@ -101,9 +102,7 @@ vec4 add_dither(vec4 src_color, vec2 frag_coord) {
 }
 
 vec4 add_contour_overlay(vec4 src_color, vec2 grid_coords) {
-    vec2 cell_idx = floor(grid_coords);
-    if (any(notEqual(cell_idx, vec2(0.0, 0.0))))
-        return src_color;
+    vec2        cell_idx  = floor(grid_coords);
     vec2        p         = fract(grid_coords);
     float       d         = length(p - UMBRAL_MASK_CENTER) - UMBRAL_MASK_OUTER_RADIUS;
     const float spacing   = 0.08;
@@ -115,25 +114,47 @@ vec4 add_contour_overlay(vec4 src_color, vec2 grid_coords) {
     return mix(src_color, LCARS_GOLDEN_ORANGE, alpha);
 }
 
-vec4 add_grid_overlay(vec4 src_color, vec2 grid_coords) {
-    vec2        cell      = fract(grid_coords);
-    float       edge      = min(min(cell.x, 1.0 - cell.x), min(cell.y, 1.0 - cell.y));
-    const float lineWidth = 0.02;
-    float       mask      = 1.0 - smoothstep(lineWidth * 0.5, lineWidth, edge);
-    vec2        p         = fract(grid_coords);
-    float       inside    = step(length(p - UMBRAL_MASK_CENTER), UMBRAL_MASK_OUTER_RADIUS);
-    float       alpha     = mask * inside * 0.5;
+vec4 add_grid_overlay_horizontal_ribbon(vec4 src_color, vec2 grid_coords) {
+    vec2        cell   = fract(grid_coords);
+    float       distY  = abs(cell.y - 0.5);
+    const float lw     = 0.1;
+    float       mask   = 1.0 - smoothstep(lw, lw, distY);
+    float       phaseX = grid_coords.x * LIGHT_WAVE_SPATIAL_FREQ_X + iTime * LIGHT_WAVE_TEMPORAL_FREQ_X;
+    float       wave   = 0.5 + 0.5 * sin(phaseX);
+    float       alpha  = mask * wave * 0.5;
     return mix(src_color, LCARS_BLUEY, alpha);
 }
+
+vec4 add_grid_overlay_vertical_ribbon(vec4 src_color, vec2 grid_coords) {
+    vec2        cell   = fract(grid_coords);
+    float       distX  = abs(cell.x - 0.5);
+    const float lw     = 0.1;
+    float       mask   = 1.0 - smoothstep(lw, lw, distX);
+    float       phaseY = grid_coords.y * LIGHT_WAVE_SPATIAL_FREQ_Y + iTime * LIGHT_WAVE_TEMPORAL_FREQ_Y;
+    float       wave   = 0.5 + 0.5 * cos(phaseY);
+    float       alpha  = mask * wave * 0.5;
+    return mix(src_color, LCARS_GOLDEN_ORANGE, alpha);
+}
+
+vec4 add_grid_overlay_horizontal_phase(vec4 src_color, vec2 grid_coords) {
+    float phaseX = grid_coords.x * LIGHT_WAVE_SPATIAL_FREQ_X + iTime * LIGHT_WAVE_TEMPORAL_FREQ_X;
+    float wave   = 0.5 + 0.5 * sin(phaseX);
+    return mix(src_color, LCARS_BLUEY, wave);
+}
+
+vec4 add_grid_overlay_vertical_phase(vec4 src_color, vec2 grid_coords) {
+    float phaseY = grid_coords.y * LIGHT_WAVE_SPATIAL_FREQ_Y + iTime * LIGHT_WAVE_TEMPORAL_FREQ_Y;
+    float wave   = 0.5 + 0.5 * cos(phaseY);
+    return mix(src_color, LCARS_GOLDEN_ORANGE, wave);
+}
+
 #define OUTLINE_THICKNESS 0.01
 vec4 add_circle_outline(vec4 src_color, vec2 grid_coords) {
-    vec2 cell_idx = floor(grid_coords);
-    if (any(notEqual(cell_idx, vec2(0.0, 0.0))))
-        return src_color;
-    float dist  = length(fract(grid_coords) - UMBRAL_MASK_CENTER);
-    float inner = UMBRAL_MASK_OUTER_RADIUS - OUTLINE_THICKNESS;
-    float outer = UMBRAL_MASK_OUTER_RADIUS + OUTLINE_THICKNESS;
-    float mask  = smoothstep(inner, UMBRAL_MASK_OUTER_RADIUS, dist) - smoothstep(UMBRAL_MASK_OUTER_RADIUS, outer, dist);
+    vec2  cell_idx = floor(grid_coords);
+    float dist     = length(fract(grid_coords) - UMBRAL_MASK_CENTER);
+    float inner    = UMBRAL_MASK_OUTER_RADIUS - OUTLINE_THICKNESS;
+    float outer    = UMBRAL_MASK_OUTER_RADIUS + OUTLINE_THICKNESS;
+    float mask = smoothstep(inner, UMBRAL_MASK_OUTER_RADIUS, dist) - smoothstep(UMBRAL_MASK_OUTER_RADIUS, outer, dist);
     return mix(src_color, LCARS_BLUEY, mask);
 }
 
@@ -186,18 +207,22 @@ void main() {
 
     vec4 lightball
         = light_radial_fade(grid_coords, UMBRAL_MASK_CENTER, UMBRAL_MASK_OUTER_RADIUS, UMBRAL_MASK_FADE_BAND);
-    vec4 src_color = lightball;
-
-    // set up umbral mask to be drawn on top of transformed light ball
+    vec4 src_color         = lightball;
     vec2 umbral_mask_phase = vec2(0.0);
     umbral_mask_phase += add_umbral_mask_phase(time);
     vec2 umbral_mask_pos
         = umbral_mask_position(UMBRAL_MASK_PHASE_COEFFICIENT_X, UMBRAL_MASK_PHASE_COEFFICIENT_Y, umbral_mask_phase);
 
-    //src_color = add_umbral_mask(src_color, grid_coords, umbral_mask_pos);
-    //src_color = add_dither(src_color, fragCoord);
-    // src_color    = add_contour_overlay(src_color, grid_coords);
-    src_color    = add_wireframe_overlay(src_color, grid_coords);
+    // src_color = add_umbral_mask(src_color, grid_coords, umbral_mask_pos);
+    // src_color = add_dither(src_color, fragCoord);
+    src_color = add_contour_overlay(src_color, grid_coords);
+    src_color = add_grid_overlay_horizontal_ribbon(src_color, grid_coords);
+    src_color = add_grid_overlay_vertical_ribbon(src_color, grid_coords);
+
+    //    src_color = add_grid_overlay_horizontal_phase(src_color, grid_coords);
+    //    src_color = add_grid_overlay_vertical_phase(src_color, grid_coords);
+
+    // src_color    = add_wireframe_overlay(src_color, grid_coords);
     src_color    = add_circle_outline(src_color, grid_coords);
     src_color.a  = 1.0;
     gl_FragColor = src_color;
