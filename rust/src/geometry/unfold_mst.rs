@@ -7,11 +7,11 @@ use std::mem::{size_of, zeroed};
 use std::ptr::null_mut;
 
 const GORE_COUNT: usize = 8;
-const MERIDIAN_BAND_FRACTION: f32 = 0.25;
+const MERIDIAN_BAND_FRACTION: f32 = 0.1;
 const PADDING: f32 = 0.0;
-const PAGE_WIDTH: f32 = 2.0;
+const PAGE_WIDTH: f32 = 1.5;
 const AUTO_SCALE: bool = true;
-const TARGET_MAX_EXTENT: f32 = 1.5;
+const TARGET_MAX_EXTENT: f32 = 2.0;
 const RECENTER: bool = true;
 const ANGLE_LIMIT: f32 = f32::INFINITY;
 
