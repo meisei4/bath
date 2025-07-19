@@ -3,14 +3,15 @@ use bath::fixed_func::ghost::{
     add_phase, spatial_phase, temporal_phase, GRID_ORIGIN_UV_OFFSET, GRID_SCALE, UMBRAL_MASK_CENTER,
     UMBRAL_MASK_OUTER_RADIUS,
 };
+use bath::geometry::unfold_mst::unfold_sphere_like;
+use bath::geometry::weld_vertices::weld_and_index_mesh;
 use bath::render::raylib::RaylibRenderer;
-use bath::render::raylib_util::{N64_HEIGHT, N64_WIDTH};
+use bath::render::raylib_util::{flip_framebuffer, N64_WIDTH, ORIGIN};
 use bath::render::renderer::Renderer;
 use raylib::camera::Camera3D;
 use raylib::color::Color;
 use raylib::consts::CameraProjection;
 use raylib::drawing::{RaylibDraw, RaylibDraw3D, RaylibMode3DExt};
-use raylib::math::glam::Vec3;
 use raylib::math::{Vector2, Vector3};
 use raylib::models::{RaylibMesh, RaylibModel, WeakMesh};
 use raylib::prelude::Image;
@@ -23,7 +24,6 @@ fn main() {
     let screen_h = render.handle.get_screen_height();
     let i_resolution = Vector2::new(screen_w as f32, screen_h as f32);
     let mut i_time = 0.0f32;
-
     let circle_img = generate_circle_image(screen_w, screen_h, i_time);
     let total_bytes = (screen_w * screen_h * 4) as usize;
     let pixels: &mut [u8] = unsafe { from_raw_parts_mut(circle_img.data as *mut u8, total_bytes) };
@@ -43,49 +43,32 @@ fn main() {
     let model_scale = Vector3::ONE;
     let radial_magnitudes = build_radial_magnitudes(&circle_img); //just testing the initial state compared with the silhhoute at i_time = 0
     deform_mesh_by_radial_magnitudes(&mut model.meshes_mut()[0], &radial_magnitudes);
+    let mesh_slice = model.meshes_mut();
+    let mesh = &mut mesh_slice[0];
+    weld_and_index_mesh(mesh, 1e-6);
+    let unfolded_mesh = unfold_sphere_like(mesh);
+    let unfolded_model = render
+        .handle
+        .load_model_from_mesh(&render.thread, unsafe { unfolded_mesh.make_weak() })
+        .unwrap();
+
     while !render.handle.window_should_close() {
         i_time += render.handle.get_frame_time();
         let mut draw_handle = render.handle.begin_drawing(&render.thread);
         draw_handle.clear_background(Color::BLACK);
-        // for y in 0..screen_h {
-        //     for x in 0..screen_w {
-        //         let s = (x as f32 + 0.5) / screen_h as f32;
-        //         let t = (y as f32 + 0.5) / screen_w as f32;
-        //         let uv = Vector2::new(s, t);
-        //         let centre_offset = GRID_ORIGIN_UV_OFFSET - Vector2::splat(0.5 / GRID_SCALE);
-        //         let mut grid_coords = (uv - centre_offset) * GRID_SCALE;
-        //         let mut grid_phase = Vector2::ZERO;
-        //         grid_phase += spatial_phase(grid_coords);
-        //         grid_phase += temporal_phase(i_time);
-        //         grid_coords += add_phase(grid_phase);
-        //         let body_radius = grid_coords.distance(UMBRAL_MASK_CENTER);
-        //         let lum = if body_radius <= UMBRAL_MASK_OUTER_RADIUS { 255u8 } else { 0u8 };
-        //         let idx = 4 * (y as usize * screen_w as usize + x as usize);
-        //         pixels[idx] = lum; // R
-        //         pixels[idx + 1] = lum; // G
-        //         pixels[idx + 2] = lum; // B
-        //         pixels[idx + 3] = 255u8; // A
-        //     }
-        // }
-        // texture.update_texture(&pixels).unwrap();
-        // draw_handle.draw_texture_rec(
-        //     &texture,
-        //     flip_framebuffer(i_resolution.x, i_resolution.y),
-        //     ORIGIN,
-        //     Color::WHITE,
-        // );
-        let mut rl3d = draw_handle.begin_mode3D(observer);
-        rl3d.draw_model_wires_ex(&model, model_pos, Vector3::Y, -i_time * 90.0, model_scale, Color::WHITE);
+        draw_handle.draw_texture_rec(
+            &texture,
+            flip_framebuffer(screen_w as f32, screen_h as f32),
+            ORIGIN,
+            Color::WHITE,
+        );
 
-        // for mesh in model.meshes_mut() {
-        //     for vertex in mesh.vertices_mut() {
-        //         vertex.y += (vertex.x * 2.0 + i_time * 2.0).sin() * 0.015;
-        //     }
-        // }
+        let mut rl3d = draw_handle.begin_mode3D(observer);
+        rl3d.draw_model_wires_ex(&model, model_pos, Vector3::Y, i_time * 90.0, model_scale, Color::WHITE);
+        rl3d.draw_model_wires_ex(&unfolded_model, model_pos, Vector3::Y, 0.0, model_scale, Color::WHITE);
     }
 }
 
-//TODO: somehow we can move this whole function with the warping into the GPU with GL_LUMINANCE acceleration of the phase warps??
 #[inline]
 fn generate_circle_image(width: i32, height: i32, i_time: f32) -> Image {
     let img = Image::gen_image_color(width, height, Color::BLANK);
@@ -118,7 +101,7 @@ fn generate_circle_image(width: i32, height: i32, i_time: f32) -> Image {
     img
 }
 
-pub const RADIAL_SAMPLE_COUNT: usize = 24; //TODO: caluclate this from the poly count of the obj
+pub const RADIAL_SAMPLE_COUNT: usize = 24;
 pub fn build_radial_magnitudes(source_image: &Image) -> Vec<f32> {
     let image_width_in_pixels = source_image.width();
     let image_height_in_pixels = source_image.height();
@@ -153,17 +136,17 @@ pub fn build_radial_magnitudes(source_image: &Image) -> Vec<f32> {
 }
 
 pub fn deform_mesh_by_radial_magnitudes(mesh: &mut WeakMesh, radial_magnitudes: &[f32]) {
-    let verts: &mut [Vec3] = mesh.vertices_mut();
-    for v in verts.iter_mut() {
-        let theta = v.y.atan2(v.x).rem_euclid(TAU);
+    let vertices: &mut [Vector3] = mesh.vertices_mut();
+    for vertex in vertices.iter_mut() {
+        let theta = vertex.y.atan2(vertex.x).rem_euclid(TAU);
         let idx_f = theta / TAU * RADIAL_SAMPLE_COUNT as f32;
         let i0 = idx_f.floor() as usize % RADIAL_SAMPLE_COUNT;
         let i1 = (i0 + 1) % RADIAL_SAMPLE_COUNT;
         let w_hi = idx_f.fract();
         let w_lo = 1.0 - w_hi;
         let r_equator = radial_magnitudes[i0] * w_lo + radial_magnitudes[i1] * w_hi;
-        v.x *= r_equator;
-        v.y *= r_equator;
-        v.z *= r_equator;
+        vertex.x *= r_equator;
+        vertex.y *= r_equator;
+        vertex.z *= r_equator;
     }
 }

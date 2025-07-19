@@ -2,14 +2,14 @@ use asset_payload::payloads::BAYER_PNG;
 use asset_payload::BAYER_PNG_PATH;
 use bath::fixed_func::ghost::{load_bayer_png, shade};
 use bath::render::raylib::RaylibRenderer;
-use bath::render::raylib_util::{flip_framebuffer, N64_HEIGHT, N64_WIDTH, ORIGIN};
+use bath::render::raylib_util::{flip_framebuffer, N64_WIDTH, ORIGIN};
 use bath::render::renderer::Renderer;
 use raylib::math::Vector2;
 use raylib::texture::RaylibTexture2D;
 use raylib::{color::Color, drawing::RaylibDraw, prelude::Image};
 
 fn main() {
-    let mut render = RaylibRenderer::init(N64_WIDTH, N64_HEIGHT);
+    let mut render = RaylibRenderer::init(N64_WIDTH, N64_WIDTH);
     let width = render.handle.get_screen_width() as f32;
     let height = render.handle.get_screen_height() as f32;
     let i_resolution = Vector2::new(width, height);
@@ -17,11 +17,10 @@ fn main() {
     let mut texture = render.handle.load_texture_from_image(&render.thread, &img).unwrap();
     let mut pixels = vec![0u8; (i_resolution.x * i_resolution.y * 4.0) as usize];
     let mut i_time = 0.0f32;
-
-    let _i_channel0 = render.load_texture(BAYER_PNG(), ".png");
+    let i_channel0 = render.load_texture(BAYER_PNG(), ".png");
     let (bayer_data, bayer_w, bayer_h) = load_bayer_png(BAYER_PNG_PATH);
     while !render.handle.window_should_close() {
-        //i_time += render.handle.get_frame_time();
+        i_time += render.handle.get_frame_time();
         for y in 0..i_resolution.y as i32 {
             for x in 0..i_resolution.x as i32 {
                 let lum = shade(x, y, i_resolution, i_time, &bayer_data, bayer_w, bayer_h);
@@ -38,3 +37,31 @@ fn main() {
         draw_handle.draw_texture_rec(&texture, flip_framebuffer(width, height), ORIGIN, Color::WHITE);
     }
 }
+
+// for y in 0..screen_h {
+//     for x in 0..screen_w {
+//         let s = (x as f32 + 0.5) / screen_h as f32;
+//         let t = (y as f32 + 0.5) / screen_w as f32;
+//         let uv = Vector2::new(s, t);
+//         let centre_offset = GRID_ORIGIN_UV_OFFSET - Vector2::splat(0.5 / GRID_SCALE);
+//         let mut grid_coords = (uv - centre_offset) * GRID_SCALE;
+//         let mut grid_phase = Vector2::ZERO;
+//         grid_phase += spatial_phase(grid_coords);
+//         grid_phase += temporal_phase(i_time);
+//         grid_coords += add_phase(grid_phase);
+//         let body_radius = grid_coords.distance(UMBRAL_MASK_CENTER);
+//         let lum = if body_radius <= UMBRAL_MASK_OUTER_RADIUS { 255u8 } else { 0u8 };
+//         let idx = 4 * (y as usize * screen_w as usize + x as usize);
+//         pixels[idx] = lum; // R
+//         pixels[idx + 1] = lum; // G
+//         pixels[idx + 2] = lum; // B
+//         pixels[idx + 3] = 255u8; // A
+//     }
+// }
+// texture.update_texture(&pixels).unwrap();
+// draw_handle.draw_texture_rec(
+//     &texture,
+//     flip_framebuffer(i_resolution.x, i_resolution.y),
+//     ORIGIN,
+//     Color::WHITE,
+// );

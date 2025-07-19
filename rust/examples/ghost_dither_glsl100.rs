@@ -1,5 +1,5 @@
-use asset_payload::payloads::{BAYER_PNG, GHOST_FRAG, GHOST_VERBOSE_FRAG_100};
-use asset_payload::{GHOST_FRAG_PATH, GHOST_VERBOSE_FRAG_100_PATH};
+use asset_payload::payloads::{BAYER_PNG, GHOST_FRAG};
+use asset_payload::GHOST_FRAG_PATH;
 use bath::render::raylib::RaylibRenderer;
 use bath::render::raylib_util::{N64_HEIGHT, N64_WIDTH};
 use bath::render::{renderer::Renderer, renderer::RendererVector2};
