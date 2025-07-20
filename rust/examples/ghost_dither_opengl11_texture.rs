@@ -3,20 +3,17 @@ use bath::fixed_func::ghost::{
     add_phase, smoothstep, spatial_phase, temporal_phase, GRID_ORIGIN_UV_OFFSET, GRID_SCALE, UMBRAL_MASK_CENTER,
     UMBRAL_MASK_FADE_BAND, UMBRAL_MASK_OUTER_RADIUS,
 };
-use bath::geometry::weld_vertices::weld_and_index_mesh;
+use bath::geometry::deep::update_texcoords;
 use bath::render::raylib::RaylibRenderer;
 use bath::render::raylib_util::N64_WIDTH;
 use bath::render::renderer::Renderer;
 use raylib::camera::Camera3D;
 use raylib::color::Color;
-use raylib::consts::BlendMode::BLEND_ALPHA;
 use raylib::consts::CameraProjection;
 use raylib::consts::MaterialMapIndex::MATERIAL_MAP_ALBEDO;
 use raylib::consts::PixelFormat::PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
-use raylib::consts::TextureFilter::TEXTURE_FILTER_BILINEAR;
 use raylib::consts::TextureWrap::TEXTURE_WRAP_CLAMP;
-use raylib::drawing::{RaylibBlendModeExt, RaylibDraw, RaylibDraw3D, RaylibMode3DExt};
-use raylib::ffi::MemAlloc;
+use raylib::drawing::{RaylibDraw, RaylibDraw3D, RaylibMode3DExt};
 use raylib::math::{Vector2, Vector3};
 use raylib::models::{RaylibMaterial, RaylibMesh, RaylibModel, WeakMesh};
 use raylib::prelude::Image;
@@ -24,17 +21,30 @@ use raylib::texture::RaylibTexture2D;
 use std::f32::consts::TAU;
 use std::slice::from_raw_parts_mut;
 
-fn project_uvs(verts: &[Vector3], angle: f32, radius: f32) -> Vec<f32> {
-    let c = angle.cos();
-    let s = angle.sin();
-    let mut uv = Vec::<f32>::with_capacity(verts.len() * 2);
-    for v in verts {
-        let rx = c * v.x + s * v.z;
-        let ry = v.y;
-        uv.push(rx / radius * 0.5 + 0.5);
-        uv.push(ry / radius * 0.5 + 0.5);
+fn map_mesh_vertices_to_silhouette_texcoords(
+    vertices: &[Vector3],
+    radial_sampling_angle: f32,
+    radial_magnitudes: &[f32],
+) -> Vec<f32> {
+    let mut silhouette_texcoords = Vec::with_capacity(vertices.len() * 2);
+    for vertex in vertices {
+        let sample_x = radial_sampling_angle.cos() * vertex.x + radial_sampling_angle.sin() * vertex.z;
+        let sample_y = vertex.y;
+
+        let polar_theta = sample_y.atan2(sample_x).rem_euclid(TAU);
+        let radial_index = polar_theta / TAU * RADIAL_SAMPLE_COUNT as f32;
+        let lower_sample_index = radial_index.floor() as usize % RADIAL_SAMPLE_COUNT;
+        let upper_sample_index = (lower_sample_index + 1) % RADIAL_SAMPLE_COUNT;
+        let interpolation_toward_upper = radial_index.fract();
+        let lerp_radial_index = radial_magnitudes[lower_sample_index] * (1.0 - interpolation_toward_upper)
+            + radial_magnitudes[upper_sample_index] * interpolation_toward_upper;
+        let error_margin = lerp_radial_index.max(1e-6);
+        let u = sample_x / error_margin * 0.5 + 0.5;
+        let v = sample_y / error_margin * 0.5 + 0.5;
+        silhouette_texcoords.push(u);
+        silhouette_texcoords.push(v);
     }
-    uv
+    silhouette_texcoords
 }
 
 fn main() {
@@ -42,36 +52,34 @@ fn main() {
     let screen_w = render.handle.get_screen_width();
     let screen_h = render.handle.get_screen_height();
     let mut i_time = 0.0f32;
-    let circle_img = generate_circle_image(screen_w, screen_h, i_time);
-    let texture = render
-        .handle
-        .load_texture_from_image(&render.thread, &circle_img)
-        .unwrap();
+    let mut mesh_rotation = 0.0f32;
+
+    let circle_img_2d = generate_circle_image(screen_w, screen_h, i_time);
+    // let texture_2d = render.handle.load_texture_from_image(&render.thread, &circle_img).unwrap();
+    let radial_magnitudes_2d = build_radial_magnitudes(&circle_img_2d);
 
     let mut model = render.handle.load_model(&render.thread, SPHERE_PATH).unwrap();
-    let radial_magnitudes = build_radial_magnitudes(&circle_img); //just testing the initial state compared with the silhhoute at i_time = 0
-    deform_mesh_by_radial_magnitudes(&mut model.meshes_mut()[0], &radial_magnitudes);
+    deform_mesh_by_radial_magnitudes(&mut model.meshes_mut()[0], &radial_magnitudes_2d);
 
-    let mesh_slice = model.meshes_mut();
-    let mesh = &mut mesh_slice[0];
-    weld_and_index_mesh(mesh, 1e-6);
-    let deformed_verts: Vec<Vector3> = mesh.vertices().to_vec();
-    let radius = deformed_verts.iter().fold(0.0_f32, |r, v| r.max(v.length()));
-    let radial_feather_img = make_radial_gradient_face(256, &*radial_magnitudes);
-    let mesh_texture = render
+    let mut wire_model = render.handle.load_model(&render.thread, SPHERE_PATH).unwrap();
+    deform_mesh_by_radial_magnitudes(&mut wire_model.meshes_mut()[0], &radial_magnitudes_2d);
+
+    let model_pos = Vector3::new(0.0, 0.0, 0.0);
+    let model_scale = Vector3::ONE;
+    let deformed_vertices = &mut model.meshes_mut()[0].vertices().to_vec();
+
+    let circle_img_3d = make_radial_gradient_face(256, &radial_magnitudes_2d);
+    let texture_3d = render
         .handle
-        .load_texture_from_image(&render.thread, &radial_feather_img)
+        .load_texture_from_image(&render.thread, &circle_img_3d)
         .unwrap();
-    mesh_texture.set_texture_wrap(&render.thread, TEXTURE_WRAP_CLAMP);
-    mesh_texture.set_texture_filter(&render.thread, TEXTURE_FILTER_BILINEAR);
+    texture_3d.set_texture_wrap(&render.thread, TEXTURE_WRAP_CLAMP);
 
-    let init_texcoords = project_uvs(&deformed_verts, 0.0, radius);
+    let mut silhouette_uv = map_mesh_vertices_to_silhouette_texcoords(&deformed_vertices, 0.0, &radial_magnitudes_2d);
     unsafe {
-        mesh.texcoords = MemAlloc((init_texcoords.len() * 4) as u32) as *mut f32;
-        std::ptr::copy_nonoverlapping(init_texcoords.as_ptr(), mesh.texcoords, init_texcoords.len());
-        mesh.upload(true);
+        update_texcoords(&mut model.meshes_mut()[0], &silhouette_uv);
     }
-    model.materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize].texture = *mesh_texture;
+    model.materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize].texture = *texture_3d;
     let observer = Camera3D {
         position: Vector3::new(0.0, 0.0, 2.0),
         target: Vector3::ZERO,
@@ -79,53 +87,48 @@ fn main() {
         fovy: 2.0,
         projection: CameraProjection::CAMERA_ORTHOGRAPHIC,
     };
-    let mut angle = 0.0f32;
+
     while !render.handle.window_should_close() {
         i_time += render.handle.get_frame_time();
-        let dt = render.handle.get_frame_time();
-        angle += dt * TAU * 0.25;
-        {
-            let mesh = &mut model.meshes_mut()[0];
-            let dst = project_uvs(&deformed_verts, angle, radius);
-            unsafe {
-                std::ptr::copy_nonoverlapping(dst.as_ptr(), mesh.texcoords, dst.len());
-                mesh.upload(true);
-            }
+        mesh_rotation += render.handle.get_frame_time() * TAU * 0.25;
+
+        silhouette_uv =
+            map_mesh_vertices_to_silhouette_texcoords(&deformed_vertices, mesh_rotation, &radial_magnitudes_2d);
+        unsafe {
+            update_texcoords(&mut model.meshes_mut()[0], &silhouette_uv);
         }
         let mut draw_handle = render.handle.begin_drawing(&render.thread);
-        draw_handle.clear_background(Color::DARKRED);
+        draw_handle.clear_background(Color::BLACK);
         // draw_handle.draw_texture_rec(
         //     &texture,
         //     flip_framebuffer(screen_w as f32, screen_h as f32),
         //     ORIGIN,
         //     Color::WHITE,
         // );
-        let model_pos = Vector3::new(0.0, 0.0, 0.0);
-        let model_scale = Vector3::ONE;
         let mut rl3d = draw_handle.begin_mode3D(observer);
-        let mut blend_mode = rl3d.begin_blend_mode(BLEND_ALPHA);
-        //blend_mode.draw_model_wires_ex(&model, model_pos, Vector3::Y, 0.0, model_scale, Color::WHITE);
-        blend_mode.draw_model_ex(
+
+        rl3d.draw_model_ex(
             &model,
             model_pos,
             Vector3::Y,
-            angle.to_degrees(),
+            mesh_rotation.to_degrees(),
             model_scale,
             Color::WHITE,
         );
-        blend_mode.draw_model_wires_ex(
-            &model,
+
+        rl3d.draw_model_wires_ex(
+            &wire_model,
             model_pos,
             Vector3::Y,
-            angle.to_degrees(),
+            mesh_rotation.to_degrees(),
             model_scale,
-            Color::BLACK,
+            Color::WHITE,
         );
     }
 }
 
 fn make_radial_gradient_face(size: i32, mags: &[f32]) -> Image {
-    const FADE_FRAC: f32 = 0.025;
+    const FADE_FRAC: f32 = 0.4;
     let mut img = Image::gen_image_color(size, size, Color::BLANK);
     let data = unsafe { from_raw_parts_mut(img.data as *mut u8, (size * size * 4) as usize) };
     let c = (size - 1) as f32 * 0.5;
@@ -196,7 +199,7 @@ fn generate_circle_image(width: i32, height: i32, i_time: f32) -> Image {
     img
 }
 
-pub const RADIAL_SAMPLE_COUNT: usize = 24;
+pub const RADIAL_SAMPLE_COUNT: usize = 12;
 pub fn build_radial_magnitudes(source_image: &Image) -> Vec<f32> {
     let image_width_in_pixels = source_image.width();
     let image_height_in_pixels = source_image.height();
@@ -244,4 +247,5 @@ pub fn deform_mesh_by_radial_magnitudes(mesh: &mut WeakMesh, radial_magnitudes: 
         vertex.y *= r_equator;
         vertex.z *= r_equator;
     }
+    unsafe { mesh.upload(false) };
 }
