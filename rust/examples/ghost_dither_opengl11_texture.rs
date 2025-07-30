@@ -1,10 +1,10 @@
 use asset_payload::SPHERE_PATH;
 use bath::fixed_func::ghost::{
-    build_radial_magnitudes, deform_mesh_by_radial_magnitudes, generate_circle_image_no_dither,
-    map_mesh_vertices_to_silhouette_texcoords, update_texcoords, RADIAL_SAMPLE_COUNT,
+    build_radial_magnitudes, build_radial_magnitudes_fast, deform_mesh_by_radial_magnitudes_fast,
+    deform_mesh_by_silhouette_radii, generate_circle_image_no_dither_fast, generate_silhouette_image,
+    map_mesh_vertices_to_silhouette_texcoords, precompute_thetas, update_texcoords, RADIAL_SAMPLE_COUNT,
 };
-use bath::geometry::unfold_mst::unfold_sphere_like;
-use bath::geometry::weld_vertices::weld_and_index_mesh;
+
 use bath::render::raylib::RaylibRenderer;
 use bath::render::raylib_util::N64_WIDTH;
 use bath::render::renderer::Renderer;
@@ -20,7 +20,7 @@ use raylib::models::{RaylibMaterial, RaylibMesh, RaylibModel};
 use raylib::prelude::Image;
 use raylib::texture::RaylibTexture2D;
 use std::f32::consts::TAU;
-use std::slice::from_raw_parts_mut;
+use std::slice::{from_raw_parts, from_raw_parts_mut};
 
 fn main() {
     let mut render = RaylibRenderer::init(N64_WIDTH, N64_WIDTH);
@@ -29,16 +29,33 @@ fn main() {
     let mut i_time = 0.0f32;
     let mut mesh_rotation = 0.0f32;
 
-    let circle_img_2d = generate_circle_image_no_dither(screen_w, screen_h, i_time);
+    let circle_img_2d = generate_silhouette_image(screen_w, screen_h, i_time);
     // let texture_2d = render.handle.load_texture_from_image(&render.thread, &circle_img).unwrap();
     let radial_magnitudes_2d = build_radial_magnitudes(&circle_img_2d);
 
     let mut model = render.handle.load_model(&render.thread, SPHERE_PATH).unwrap();
-    weld_and_index_mesh(&mut model.meshes_mut()[0], 1e-6);
-    deform_mesh_by_radial_magnitudes(&mut model.meshes_mut()[0], &radial_magnitudes_2d);
+
+    let mut halo_tile = [0u16; 64];
+    let mut tile_img = Image::gen_image_color(8, 8, Color::BLANK);
+    tile_img.set_format(raylib::consts::PixelFormat::PIXELFORMAT_UNCOMPRESSED_GRAY_ALPHA);
+    let mut tile_texture = render
+        .handle
+        .load_texture_from_image(&render.thread, &tile_img)
+        .unwrap();
+    tile_texture.set_texture_wrap(&render.thread, TEXTURE_WRAP_CLAMP);
+    let thetas = precompute_thetas(&model.meshes()[0]);
+    generate_circle_image_no_dither_fast(i_time, &mut halo_tile);
+    let radial = build_radial_magnitudes_fast(i_time);
+    let byte_count = halo_tile.len() * size_of::<u16>();
+    let pixels = unsafe { from_raw_parts(halo_tile.as_ptr() as *const u8, byte_count) };
+    tile_texture.update_texture(pixels).unwrap();
+    deform_mesh_by_radial_magnitudes_fast(&mut model.meshes_mut()[0], &radial, &thetas);
+
+    deform_mesh_by_silhouette_radii(&mut model.meshes_mut()[0], &radial_magnitudes_2d);
 
     let mut wire_model = render.handle.load_model(&render.thread, SPHERE_PATH).unwrap();
-    deform_mesh_by_radial_magnitudes(&mut wire_model.meshes_mut()[0], &radial_magnitudes_2d);
+
+    deform_mesh_by_silhouette_radii(&mut wire_model.meshes_mut()[0], &radial_magnitudes_2d);
 
     let model_pos = Vector3::new(0.0, 0.0, 0.0);
     let model_scale = Vector3::ONE;
@@ -63,11 +80,6 @@ fn main() {
         fovy: 2.0,
         projection: CameraProjection::CAMERA_ORTHOGRAPHIC,
     };
-    let unfolded_mesh = unfold_sphere_like(&mut model.meshes_mut()[0]);
-    let unfolded_model = render
-        .handle
-        .load_model_from_mesh(&render.thread, unsafe { unfolded_mesh.make_weak() })
-        .unwrap();
     while !render.handle.window_should_close() {
         i_time += render.handle.get_frame_time();
         mesh_rotation += render.handle.get_frame_time() * TAU * 0.25;
@@ -86,16 +98,14 @@ fn main() {
         //     Color::WHITE,
         // );
         let mut rl3d = draw_handle.begin_mode3D(observer);
-        rl3d.draw_model_ex(&unfolded_model, model_pos, Vector3::Y, 0.0, model_scale, Color::WHITE);
-
-        rl3d.draw_model_ex(
-            &model,
-            model_pos,
-            Vector3::Y,
-            mesh_rotation.to_degrees(),
-            model_scale,
-            Color::WHITE,
-        );
+        // rl3d.draw_model_ex(
+        //     &model,
+        //     model_pos,
+        //     Vector3::Y,
+        //     mesh_rotation.to_degrees(),
+        //     model_scale,
+        //     Color::WHITE,
+        // );
 
         rl3d.draw_model_wires_ex(
             &wire_model,
@@ -109,7 +119,7 @@ fn main() {
 }
 
 fn make_radial_gradient_face(size: i32, mags: &[f32]) -> Image {
-    const FADE_FRAC: f32 = 0.4;
+    const FADE_FRAC: f32 = 0.1;
     let mut img = Image::gen_image_color(size, size, Color::BLANK);
     let data = unsafe { from_raw_parts_mut(img.data as *mut u8, (size * size * 4) as usize) };
     let c = (size - 1) as f32 * 0.5;
@@ -126,17 +136,17 @@ fn make_radial_gradient_face(size: i32, mags: &[f32]) -> Image {
             let w_hi = f.fract();
             let w_lo = 1.0 - w_hi;
             let edge_norm = (mags[i0] * w_lo + mags[i1] * w_hi) / mags_max; // 0‥1
-            let r_edge = edge_norm * c;
-            if r_edge <= 0.0 {
+            let radius_outer = edge_norm * c;
+            if radius_outer <= 0.0 {
                 continue;
             }
-            let r_start = r_edge * (1.0 - FADE_FRAC);
-            let alpha = if r <= r_start {
+            let radius_inner = radius_outer * (1.0 - FADE_FRAC);
+            let alpha = if r <= radius_inner {
                 1.0
-            } else if r >= r_edge {
+            } else if r >= radius_outer {
                 0.0
             } else {
-                1.0 - (r - r_start) / (r_edge - r_start)
+                1.0 - (r - radius_inner) / (radius_outer - radius_inner)
             };
 
             let px = (y * size + x) as usize * 4;
@@ -144,7 +154,6 @@ fn make_radial_gradient_face(size: i32, mags: &[f32]) -> Image {
             data[px..px + 4].copy_from_slice(&[255, 255, 255, a]);
         }
     }
-
     img.set_format(PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
     img
 }

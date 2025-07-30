@@ -37,31 +37,3 @@ fn main() {
         draw_handle.draw_texture_rec(&texture, flip_framebuffer(width, height), ORIGIN, Color::WHITE);
     }
 }
-
-// for y in 0..screen_h {
-//     for x in 0..screen_w {
-//         let s = (x as f32 + 0.5) / screen_h as f32;
-//         let t = (y as f32 + 0.5) / screen_w as f32;
-//         let uv = Vector2::new(s, t);
-//         let centre_offset = GRID_ORIGIN_UV_OFFSET - Vector2::splat(0.5 / GRID_SCALE);
-//         let mut grid_coords = (uv - centre_offset) * GRID_SCALE;
-//         let mut grid_phase = Vector2::ZERO;
-//         grid_phase += spatial_phase(grid_coords);
-//         grid_phase += temporal_phase(i_time);
-//         grid_coords += add_phase(grid_phase);
-//         let body_radius = grid_coords.distance(UMBRAL_MASK_CENTER);
-//         let lum = if body_radius <= UMBRAL_MASK_OUTER_RADIUS { 255u8 } else { 0u8 };
-//         let idx = 4 * (y as usize * screen_w as usize + x as usize);
-//         pixels[idx] = lum; // R
-//         pixels[idx + 1] = lum; // G
-//         pixels[idx + 2] = lum; // B
-//         pixels[idx + 3] = 255u8; // A
-//     }
-// }
-// texture.update_texture(&pixels).unwrap();
-// draw_handle.draw_texture_rec(
-//     &texture,
-//     flip_framebuffer(i_resolution.x, i_resolution.y),
-//     ORIGIN,
-//     Color::WHITE,
-// );

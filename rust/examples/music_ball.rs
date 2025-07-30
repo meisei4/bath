@@ -50,7 +50,7 @@ fn main() {
     #[cfg(not(feature = "glsl-100"))]
     let mut shader = render.load_shader_fragment(MUSIC_BALL_FRAG_330());
     render.set_uniform_vec2(&mut shader, "iResolution", i_resolution);
-    let mut i_channel0 = render.load_texture(BAYER_PNG(), "png");
+    let mut i_channel0 = render.load_texture(BAYER_PNG(), ".PNG");
     render.tweak_texture_parameters(&mut i_channel0, true, true);
     render.set_uniform_sampler2d(&mut shader, "iChannel0", &i_channel0);
 

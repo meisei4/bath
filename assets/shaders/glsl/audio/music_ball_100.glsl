@@ -88,7 +88,7 @@ vec4 light_radial_fade_hsv(vec2 grid_coords, vec2 center, float radius, float fe
     float distance_from_center = length(grid_coords - center);
     float fade_start           = radius - feather;
     float alpha                = 1.0 - smoothstep(fade_start, radius, distance_from_center);
-    vec3  hsv                  = hsv_buffer[0];
+    vec3  hsv                  = hsv_buffer[1];
     hsv.z *= 5.0; // Boost brightness
     vec3 rgb = hsv_to_rgb(hsv);
     return vec4(rgb * clamp(alpha, 0.0, 1.0), 1.0);
