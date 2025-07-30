@@ -6,6 +6,7 @@ use raylib::camera::Camera3D;
 use raylib::color::Color;
 use raylib::consts::CameraProjection;
 
+use bath::fixed_func::ghost::{deform_mesh_by_phase, deform_mesh_with_yaw, precompute_thetas};
 use raylib::drawing::{RaylibDraw, RaylibDraw3D, RaylibMode3DExt};
 use raylib::math::{Vector2, Vector3};
 use raylib::models::{RaylibMesh, RaylibModel, WeakMesh};
@@ -39,7 +40,7 @@ const MODEL_POS: Vector3 = Vector3::ZERO;
 const MODEL_SCALE: Vector3 = Vector3::ONE;
 
 const DT: f32 = 0.1;
-const NUM_SAMPLES: usize = 40;
+const NUM_SAMPLES: usize = 80;
 fn main() {
     let mut i_time = 0.0f32;
     let mut mesh_rotation = 0.0f32;
@@ -55,9 +56,23 @@ fn main() {
     let screen_w = render.handle.get_screen_width();
     let screen_h = render.handle.get_screen_height();
     let mut model = render.handle.load_model(&render.thread, SPHERE_PATH).unwrap();
-    // let silhouette_img = generate_silhouette_image(screen_w, screen_h, i_time);
-    // let silhouette_radii = build_radial_magnitudes(&silhouette_img);
-    // deform_mesh_by_silhouette_radii(&mut model.meshes_mut()[0], &silhouette_radii);
+    let silhouette_img = generate_silhouette_image(screen_w, screen_h, i_time);
+    let silhouette_radii = build_radial_magnitudes(&silhouette_img);
+
+    //normal deform
+    deform_mesh_by_silhouette_radii(&mut model.meshes_mut()[0], &silhouette_radii);
+
+    let r0 = build_radial_magnitudes(&silhouette_img);
+    let base_vertices = model.meshes()[0].vertices().to_vec();
+    let thetas = precompute_thetas(&model.meshes()[0]);
+    let phase = (ANGULAR_VELOCITY * i_time) % TAU;
+    model.meshes_mut()[0].vertices_mut().copy_from_slice(&base_vertices);
+    // phase deform
+    deform_mesh_by_phase(&mut model.meshes_mut()[0], &r0.try_into().unwrap(), &thetas, phase);
+
+    let yaw_rad = -i_time * 90.0f32.to_radians();
+    //yaw deform
+    deform_mesh_with_yaw(&mut model.meshes_mut()[0], &silhouette_radii, yaw_rad);
 
     let mut sample_vertices = Vec::with_capacity(NUM_SAMPLES);
     for i in 0..NUM_SAMPLES {
@@ -75,6 +90,7 @@ fn main() {
                 vertex.z = -sample_yaw.sin() * x0 + sample_yaw.cos() * z0;
             }
         }
+        //normal deform
         deform_mesh_by_silhouette_radii(&mut model_i.meshes_mut()[0], &silhouette_radii);
         let sample_vertices_i: Vec<Vector3> = model_i.meshes()[0].vertices().iter().cloned().collect();
         sample_vertices.push(sample_vertices_i);

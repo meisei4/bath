@@ -7,10 +7,10 @@ use std::ptr::copy_nonoverlapping;
 use std::slice::from_raw_parts_mut;
 
 pub const HALF: f32 = 0.5;
-pub const GRID_SCALE: f32 = 4.0;
+pub const GRID_SCALE: f32 = 3.0;
 pub const GRID_CELL_SIZE: f32 = 1.0 / GRID_SCALE;
 pub const GRID_ORIGIN_INDEX: Vector2 = Vector2::new(0.0, 0.0);
-pub const GRID_ORIGIN_OFFSET_CELLS: Vector2 = Vector2::new(2.0, 2.0);
+pub const GRID_ORIGIN_OFFSET_CELLS: Vector2 = Vector2::new(1.0, 1.0);
 pub const GRID_ORIGIN_UV_OFFSET: Vector2 = Vector2::new(
     (GRID_ORIGIN_INDEX.x + GRID_ORIGIN_OFFSET_CELLS.x) * GRID_CELL_SIZE,
     (GRID_ORIGIN_INDEX.y + GRID_ORIGIN_OFFSET_CELLS.y) * GRID_CELL_SIZE,
@@ -288,7 +288,7 @@ pub fn deform_mesh_by_phase(mesh: &mut WeakMesh, r0: &[f32; RADIAL_SAMPLE_COUNT]
         let s = r_eq / r_cur;
         v.x *= s;
         v.y *= s;
-        v.z *= s; // keep volume reasonable
+        v.z *= s;
     }
     unsafe { mesh.upload(false) };
 }
@@ -360,25 +360,19 @@ pub fn generate_circle_image_no_dither_fast(i_time: f32, out_tile: &mut [u16; 64
 }
 
 pub fn build_radial_magnitudes_fast(i_time: f32) -> [f32; RADIAL_SAMPLE_COUNT] {
-    const STEPS: usize = 64; // radial resolution
+    const STEPS: usize = 64;
     let mut mags = [0.0; RADIAL_SAMPLE_COUNT];
 
     for i in 0..RADIAL_SAMPLE_COUNT {
         let theta = TAU * i as f32 / RADIAL_SAMPLE_COUNT as f32;
         let dir = Vector2::new(theta.cos(), theta.sin());
-
-        // r̂ is already 0‥1 (0 = centre, 1 = outer radius)
         let mut r_hat = 0.0;
         for _ in 0..STEPS {
-            r_hat += 1.0 / STEPS as f32; // uniform step in *normalised* units
+            r_hat += 1.0 / STEPS as f32;
             if r_hat >= 1.0 {
                 break;
             }
-
-            // map r̂ into the *same uv* space the slow shader uses
             let uv = UMBRAL_MASK_CENTER + dir * r_hat;
-
-            // identical lighting function as the slow path
             let mut g = uv_to_grid_space(uv);
             g += add_phase(spatial_phase(g) + temporal_phase(i_time));
 
@@ -386,7 +380,7 @@ pub fn build_radial_magnitudes_fast(i_time: f32) -> [f32; RADIAL_SAMPLE_COUNT] {
                 break;
             }
         }
-        mags[i] = r_hat; // already 0‥1, ready for deform()
+        mags[i] = r_hat;
     }
     mags
 }
@@ -408,50 +402,4 @@ pub fn deform_mesh_by_radial_magnitudes_fast(mesh: &mut WeakMesh, radial_magnitu
         v.z *= radius;
     }
     unsafe { mesh.upload(false) };
-}
-
-pub fn deform_mesh_surface_of_revolution(mesh: &mut WeakMesh, radial: &[f32]) {
-    let verts: &mut [Vector3] = mesh.vertices_mut();
-    for v in verts {
-        let theta = v.y.atan2(v.x).rem_euclid(TAU);
-        let r_xy_cur = (v.x * v.x + v.y * v.y).sqrt().max(1e-6);
-        let f = theta / TAU * RADIAL_SAMPLE_COUNT as f32;
-        let i0 = f.floor() as usize & (RADIAL_SAMPLE_COUNT - 1);
-        let i1 = (i0 + 1) & (RADIAL_SAMPLE_COUNT - 1);
-        let w = f.fract();
-        let r_xy_target = radial[i0] * (1.0 - w) + radial[i1] * w;
-
-        let scale = r_xy_target / r_xy_cur;
-        v.x *= scale;
-        v.y *= scale;
-        v.z *= scale;
-        // v.z stays exactly as on the unit sphere
-    }
-    unsafe {
-        mesh.upload(false);
-    }
-}
-
-pub fn deform_mesh_surface_of_revolution_1(mesh: &mut WeakMesh, radial: &[f32]) {
-    let verts: &mut [Vector3] = mesh.vertices_mut();
-
-    for v in verts {
-        let theta = v.y.atan2(v.x).rem_euclid(TAU);
-
-        let f = theta / TAU * RADIAL_SAMPLE_COUNT as f32;
-        let i0 = f.floor() as usize & (RADIAL_SAMPLE_COUNT - 1);
-        let i1 = (i0 + 1) & (RADIAL_SAMPLE_COUNT - 1);
-        let w = f.fract();
-        let r_target = radial[i0] * (1.0 - w) + radial[i1] * w;
-
-        let r_curr = (v.x * v.x + v.y * v.y).sqrt().max(1e-6);
-        let scale = r_target / r_curr;
-
-        v.x *= scale;
-        v.y *= scale;
-        // v.z stays as on the sphere
-    }
-    unsafe {
-        mesh.upload(false);
-    }
 }
