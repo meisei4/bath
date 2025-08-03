@@ -1,6 +1,6 @@
 use asset_payload::payloads::BAYER_PNG;
 use asset_payload::BAYER_PNG_PATH;
-use bath::fixed_func::ghost::{load_bayer_png, shade};
+use bath::fixed_func::silhouette::{load_bayer_png, shade};
 use bath::render::raylib::RaylibRenderer;
 use bath::render::raylib_util::{flip_framebuffer, N64_WIDTH, ORIGIN};
 use bath::render::renderer::Renderer;

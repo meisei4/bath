@@ -1,2 +1,2 @@
 #[cfg(feature = "tests-only")]
-pub mod ghost;
+pub mod silhouette;
