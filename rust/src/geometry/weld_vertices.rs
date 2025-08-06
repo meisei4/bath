@@ -1,9 +1,10 @@
 use raylib::ffi::{MemAlloc, MemFree};
-use raylib::models::{RaylibMesh, WeakMesh};
+use raylib::models::WeakMesh;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::ptr::null_mut;
 
+//TODO: this whole fucking file is dumb and i dont understand it anymore, i forgot the purpose other than indexing for drawing only unique triangles in the unfold process
 #[derive(Eq, Clone)]
 struct QKey(i32, i32, i32);
 impl PartialEq for QKey {
@@ -33,46 +34,47 @@ fn qf(v: f32, s: f32) -> i32 {
         r as i32
     }
 }
+
 pub fn weld_and_index_mesh(mesh: &mut WeakMesh, eps: f32) {
     if !mesh.indices.is_null() {
         return;
     }
-    let vc = mesh.vertexCount as usize;
-    let pos = unsafe { std::slice::from_raw_parts(mesh.vertices, vc * 3) };
-    let tx = if mesh.texcoords.is_null() {
+    let vertex_count = mesh.vertexCount as usize;
+    let src_vertices = unsafe { std::slice::from_raw_parts(mesh.vertices, vertex_count * 3) };
+    let src_texcoords = if mesh.texcoords.is_null() {
         None
     } else {
-        Some(unsafe { std::slice::from_raw_parts(mesh.texcoords, vc * 2) })
+        Some(unsafe { std::slice::from_raw_parts(mesh.texcoords, vertex_count * 2) })
     };
-    let nm = if mesh.normals.is_null() {
+    let src_normals = if mesh.normals.is_null() {
         None
     } else {
-        Some(unsafe { std::slice::from_raw_parts(mesh.normals, vc * 3) })
+        Some(unsafe { std::slice::from_raw_parts(mesh.normals, vertex_count * 3) })
     };
     let scale = 1.0 / eps.max(1e-12);
-    let mut map: HashMap<QKey, u16> = HashMap::with_capacity(vc / 2 + 1);
-    let mut new_pos = Vec::with_capacity(vc * 3 / 2 + 3);
-    let mut new_tx = Vec::with_capacity(tx.map(|_| vc).unwrap_or(0));
-    let mut new_nm = Vec::with_capacity(nm.map(|_| vc * 3 / 2 + 3).unwrap_or(0));
-    let mut out_idx: Vec<u16> = Vec::with_capacity(vc);
-    for i in 0..vc {
-        let p = &pos[i * 3..i * 3 + 3];
+    let mut map: HashMap<QKey, u16> = HashMap::with_capacity(vertex_count / 2 + 1);
+    let mut dst_vertices = Vec::with_capacity(vertex_count * 3 / 2 + 3);
+    let mut dst_texcoords = Vec::with_capacity(src_texcoords.map(|_| vertex_count).unwrap_or(0));
+    let mut dst_normals = Vec::with_capacity(src_normals.map(|_| vertex_count * 3 / 2 + 3).unwrap_or(0));
+    let mut welded_indices: Vec<u16> = Vec::with_capacity(vertex_count);
+    for i in 0..vertex_count {
+        let p = &src_vertices[i * 3..i * 3 + 3];
         let k = QKey(qf(p[0], scale), qf(p[1], scale), qf(p[2], scale));
         let id = if let Some(&e) = map.get(&k) {
             e
         } else {
-            let nid = (new_pos.len() / 3) as u16;
-            new_pos.extend_from_slice(p);
-            if let Some(t) = tx {
-                new_tx.extend_from_slice(&t[i * 2..i * 2 + 2]);
+            let nid = (dst_vertices.len() / 3) as u16;
+            dst_vertices.extend_from_slice(p);
+            if let Some(t) = src_texcoords {
+                dst_texcoords.extend_from_slice(&t[i * 2..i * 2 + 2]);
             }
-            if let Some(n) = nm {
-                new_nm.extend_from_slice(&n[i * 3..i * 3 + 3]);
+            if let Some(n) = src_normals {
+                dst_normals.extend_from_slice(&n[i * 3..i * 3 + 3]);
             }
             map.insert(k, nid);
             nid
         };
-        out_idx.push(id);
+        welded_indices.push(id);
     }
     unsafe {
         MemFree(mesh.vertices as *mut _);
@@ -91,27 +93,26 @@ pub fn weld_and_index_mesh(mesh: &mut WeakMesh, eps: f32) {
             mesh.colors = null_mut();
         }
 
-        mesh.vertexCount = (new_pos.len() / 3) as i32;
-        mesh.triangleCount = (out_idx.len() / 3) as i32;
-        mesh.vertices = MemAlloc((new_pos.len() * size_of::<f32>()) as u32) as *mut f32;
-        std::ptr::copy_nonoverlapping(new_pos.as_ptr(), mesh.vertices, new_pos.len());
+        mesh.vertexCount = (dst_vertices.len() / 3) as i32;
+        mesh.triangleCount = (welded_indices.len() / 3) as i32;
+        mesh.vertices = MemAlloc((dst_vertices.len() * size_of::<f32>()) as u32) as *mut f32;
+        std::ptr::copy_nonoverlapping(dst_vertices.as_ptr(), mesh.vertices, dst_vertices.len());
 
-        if !new_tx.is_empty() {
-            mesh.texcoords = MemAlloc((new_tx.len() * size_of::<f32>()) as u32) as *mut f32;
-            std::ptr::copy_nonoverlapping(new_tx.as_ptr(), mesh.texcoords, new_tx.len());
+        if !dst_texcoords.is_empty() {
+            mesh.texcoords = MemAlloc((dst_texcoords.len() * size_of::<f32>()) as u32) as *mut f32;
+            std::ptr::copy_nonoverlapping(dst_texcoords.as_ptr(), mesh.texcoords, dst_texcoords.len());
         } else {
             mesh.texcoords = null_mut();
         }
 
-        if !new_nm.is_empty() {
-            mesh.normals = MemAlloc((new_nm.len() * size_of::<f32>()) as u32) as *mut f32;
-            std::ptr::copy_nonoverlapping(new_nm.as_ptr(), mesh.normals, new_nm.len());
+        if !dst_normals.is_empty() {
+            mesh.normals = MemAlloc((dst_normals.len() * size_of::<f32>()) as u32) as *mut f32;
+            std::ptr::copy_nonoverlapping(dst_normals.as_ptr(), mesh.normals, dst_normals.len());
         } else {
             mesh.normals = null_mut();
         }
 
-        mesh.indices = MemAlloc((out_idx.len() * size_of::<u16>()) as u32) as *mut u16;
-        std::ptr::copy_nonoverlapping(out_idx.as_ptr(), mesh.indices, out_idx.len());
-        mesh.upload(false);
+        mesh.indices = MemAlloc((welded_indices.len() * size_of::<u16>()) as u32) as *mut u16;
+        std::ptr::copy_nonoverlapping(welded_indices.as_ptr(), mesh.indices, welded_indices.len());
     }
 }

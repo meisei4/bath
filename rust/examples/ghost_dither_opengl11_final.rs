@@ -1,20 +1,18 @@
 use asset_payload::SPHERE_PATH;
 use bath::render::raylib::RaylibRenderer;
-use bath::render::raylib_util::N64_WIDTH;
+use bath::render::raylib_util::{MODEL_POS, MODEL_SCALE, N64_WIDTH};
 use bath::render::renderer::Renderer;
 use raylib::camera::Camera3D;
 use raylib::color::Color;
 use raylib::consts::CameraProjection;
 
-use bath::fixed_func::silhouette::{
-    bake_samples_for_single_mesh_no_rotation, blend_into_mesh, ANGULAR_VELOCITY, MODEL_POS, MODEL_SCALE,
+use bath::fixed_func::silhouette_inverse_projection_util::{
+    generate_inverse_projection_samples_from_silhouette, update_mesh_with_vertex_sample_interpolation, ANGULAR_VELOCITY,
 };
 use raylib::drawing::{RaylibDraw, RaylibDraw3D, RaylibMode3DExt};
 use raylib::math::Vector3;
 use raylib::models::RaylibModel;
 
-const DT: f32 = 0.1;
-const NUM_SAMPLES: usize = 40;
 fn main() {
     let mut i_time = 0.0f32;
     let mut mesh_rotation = 0.0f32;
@@ -28,13 +26,13 @@ fn main() {
     };
     let screen_w = render.handle.get_screen_width();
     let screen_h = render.handle.get_screen_height();
-    let sample_vertices = bake_samples_for_single_mesh_no_rotation(DT, NUM_SAMPLES, screen_w, screen_h, &mut render);
+    let per_frame_vertex_samples = generate_inverse_projection_samples_from_silhouette(screen_w, screen_h, &mut render);
     let mut model = render.handle.load_model(&render.thread, SPHERE_PATH).unwrap();
     while !render.handle.window_should_close() {
         i_time += render.handle.get_frame_time();
+        //TODO: this is so stupid, just to get the draw command to perform the rotation, we have to unrotate the fucking sampling process in
         mesh_rotation -= ANGULAR_VELOCITY * render.handle.get_frame_time();
-        // mesh_rotation = 0.0;
-        blend_into_mesh(&mut model.meshes_mut()[0], &sample_vertices, i_time, DT);
+        update_mesh_with_vertex_sample_interpolation(i_time, &per_frame_vertex_samples, &mut model.meshes_mut()[0]);
         let mut draw_handle = render.handle.begin_drawing(&render.thread);
         draw_handle.clear_background(Color::BLACK);
         let mut rl3d = draw_handle.begin_mode3D(observer);

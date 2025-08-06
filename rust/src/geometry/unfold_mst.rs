@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use std::f32::consts::PI;
 use std::mem::{size_of, zeroed};
 use std::ptr::null_mut;
+use std::slice::from_raw_parts;
 
 const GORE_COUNT: usize = 8;
 const MERIDIAN_BAND_FRACTION: f32 = 0.1;
@@ -14,6 +15,8 @@ const AUTO_SCALE: bool = true;
 const TARGET_MAX_EXTENT: f32 = 2.0;
 const RECENTER: bool = true;
 const ANGLE_LIMIT: f32 = f32::INFINITY;
+
+//TODO: THIS IS BATSHIT. FIX IT
 
 #[inline]
 fn normalize_or_zero(v: Vec3) -> Vec3 {
@@ -41,18 +44,17 @@ fn ensure_indices(mesh: &mut WeakMesh) {
 
 pub fn unfold_sphere_like(mesh: &mut WeakMesh) -> Mesh {
     ensure_indices(mesh);
-    let fc = mesh.triangleCount as usize;
-    let vc = mesh.vertexCount as usize;
-    if fc == 0 {
+    let triangle_count = mesh.triangleCount as usize;
+    let vertex_count = mesh.vertexCount as usize;
+    if triangle_count == 0 {
         return unsafe { zeroed() };
     }
+    let pos = unsafe { from_raw_parts(mesh.vertices, vertex_count * 3) };
+    let idx = unsafe { from_raw_parts(mesh.indices, triangle_count * 3) };
 
-    let pos = unsafe { std::slice::from_raw_parts(mesh.vertices, vc * 3) };
-    let idx = unsafe { std::slice::from_raw_parts(mesh.indices, fc * 3) };
-
-    let mut phi = Vec::with_capacity(vc);
-    let mut theta = Vec::with_capacity(vc);
-    for i in 0..vc {
+    let mut phi = Vec::with_capacity(vertex_count);
+    let mut theta = Vec::with_capacity(vertex_count);
+    for i in 0..vertex_count {
         let x = pos[i * 3];
         let y = pos[i * 3 + 1];
         let z = pos[i * 3 + 2];
@@ -66,12 +68,12 @@ pub fn unfold_sphere_like(mesh: &mut WeakMesh) -> Mesh {
         phi.push(p);
     }
 
-    let mut ring = vec![0usize; vc];
+    let mut ring = vec![0usize; vertex_count];
     {
         let mut uniq = theta.clone();
         uniq.sort_by(|a, b| a.partial_cmp(b).unwrap());
         uniq.dedup_by(|a, b| (*a - *b).abs() < 1e-5);
-        for i in 0..vc {
+        for i in 0..vertex_count {
             for (k, v) in uniq.iter().enumerate() {
                 if (theta[i] - v).abs() < 1e-5 {
                     ring[i] = k;
@@ -89,7 +91,7 @@ pub fn unfold_sphere_like(mesh: &mut WeakMesh) -> Mesh {
 
     let max_ring = *ring.iter().max().unwrap();
     let mut ring_min: Vec<Option<usize>> = vec![None; max_ring + 1];
-    for v in 0..vc {
+    for v in 0..vertex_count {
         let r = ring[v];
         if let Some(c) = ring_min[r] {
             if phi[v] < phi[c] {
@@ -105,8 +107,8 @@ pub fn unfold_sphere_like(mesh: &mut WeakMesh) -> Mesh {
         Vec3::new(p[i * 3], p[i * 3 + 1], p[i * 3 + 2])
     }
 
-    let mut locals = Vec::with_capacity(fc);
-    for f in 0..fc {
+    let mut locals = Vec::with_capacity(triangle_count);
+    for f in 0..triangle_count {
         let t = &idx[f * 3..f * 3 + 3];
         let (a, b, c) = (t[0] as usize, t[1] as usize, t[2] as usize);
         let pa = v3(pos, a);
@@ -126,7 +128,7 @@ pub fn unfold_sphere_like(mesh: &mut WeakMesh) -> Mesh {
     let mut edges = Vec::<(usize, usize, u16, u16, f32)>::new();
     {
         let mut owner: HashMap<(u16, u16), usize> = HashMap::new();
-        for f in 0..fc {
+        for f in 0..triangle_count {
             let t = &idx[f * 3..f * 3 + 3];
             for e in 0..3 {
                 let a = t[e];
@@ -153,10 +155,10 @@ pub fn unfold_sphere_like(mesh: &mut WeakMesh) -> Mesh {
     }
     edges.sort_by(|a, b| a.4.partial_cmp(&b.4).unwrap());
 
-    let mut parent = vec![None::<(usize, u16, u16)>; fc];
-    let mut root = vec![true; fc];
-    let mut dsu_p: Vec<usize> = (0..fc).collect();
-    let mut dsu_r: Vec<u8> = vec![0; fc];
+    let mut parent = vec![None::<(usize, u16, u16)>; triangle_count];
+    let mut root = vec![true; triangle_count];
+    let mut dsu_p: Vec<usize> = (0..triangle_count).collect();
+    let mut dsu_r: Vec<u8> = vec![0; triangle_count];
     fn dsu_find(p: &mut [usize], x: usize) -> usize {
         if p[x] == x {
             x
@@ -224,17 +226,17 @@ pub fn unfold_sphere_like(mesh: &mut WeakMesh) -> Mesh {
         dsu_union(&mut dsu_p, &mut dsu_r, ra, rb);
     }
 
-    let mut children = vec![Vec::<usize>::new(); fc];
-    for f in 0..fc {
+    let mut children = vec![Vec::<usize>::new(); triangle_count];
+    for f in 0..triangle_count {
         if let Some((p, _, _)) = parent[f] {
             children[p].push(f);
         }
     }
 
-    let mut placed = vec![[[0.0; 2]; 3]; fc];
-    let mut done = vec![false; fc];
+    let mut placed = vec![[[0.0; 2]; 3]; triangle_count];
+    let mut done = vec![false; triangle_count];
     let mut stack = Vec::new();
-    for f in 0..fc {
+    for f in 0..triangle_count {
         if root[f] {
             placed[f] = locals[f];
             done[f] = true;
@@ -295,8 +297,8 @@ pub fn unfold_sphere_like(mesh: &mut WeakMesh) -> Mesh {
         }
     }
 
-    let mut root_of = vec![usize::MAX; fc];
-    for f in 0..fc {
+    let mut root_of = vec![usize::MAX; triangle_count];
+    for f in 0..triangle_count {
         let mut r = f;
         while !root[r] {
             r = parent[r].unwrap().0;
@@ -305,7 +307,7 @@ pub fn unfold_sphere_like(mesh: &mut WeakMesh) -> Mesh {
     }
 
     let mut bounds: HashMap<usize, ([f32; 2], [f32; 2])> = HashMap::new();
-    for f in 0..fc {
+    for f in 0..triangle_count {
         let r = root_of[f];
         let e = bounds.entry(r).or_insert(([f32::MAX; 2], [f32::MIN; 2]));
         for c in 0..3 {
@@ -368,10 +370,10 @@ pub fn unfold_sphere_like(mesh: &mut WeakMesh) -> Mesh {
         }
     }
 
-    let mut out_pos = Vec::<f32>::with_capacity(fc * 9);
-    let mut out_idx = Vec::<u16>::with_capacity(fc * 3);
+    let mut out_pos = Vec::<f32>::with_capacity(triangle_count * 9);
+    let mut out_idx = Vec::<u16>::with_capacity(triangle_count * 3);
     let mut remap: HashMap<(u32, usize), u16> = HashMap::new();
-    for f in 0..fc {
+    for f in 0..triangle_count {
         let r = root_of[f];
         let off = offset[&r];
         let tri = &idx[f * 3..f * 3 + 3];

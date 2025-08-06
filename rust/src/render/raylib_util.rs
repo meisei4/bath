@@ -8,7 +8,7 @@ use raylib::ffi::{
     rlFramebufferAttach, rlFramebufferComplete, rlLoadFramebuffer, rlLoadTexture, rlLoadTextureDepth, Texture2D,
     TraceLog,
 };
-use raylib::math::{Rectangle, Vector2};
+use raylib::math::{Rectangle, Vector2, Vector3};
 use raylib::prelude::Shader;
 use raylib::texture::RenderTexture2D;
 use raylib::{RaylibHandle, RaylibThread};
@@ -16,8 +16,8 @@ use std::ffi::c_char;
 
 pub const ORIGIN_X: i32 = 0;
 pub const ORIGIN_Y: i32 = 0;
-//pub const ORIGIN: Vector2 = Vector2::zero();
-//pub const ORIGIN: Vector2 = Vector2::ZERO;
+pub const MODEL_POS: Vector3 = Vector3::ZERO;
+pub const MODEL_SCALE: Vector3 = Vector3::ONE;
 pub const ORIGIN: Vector2 = Vector2::new(0.0, 0.0);
 pub const APPLE_DPI: i32 = 1;
 pub const EXPERIMENTAL_WINDOW_WIDTH: i32 = 850;
