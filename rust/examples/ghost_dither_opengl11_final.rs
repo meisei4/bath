@@ -7,7 +7,7 @@ use raylib::color::Color;
 use raylib::consts::CameraProjection;
 
 use bath::fixed_func::silhouette_inverse_projection_util::{
-    generate_inverse_projection_samples_from_silhouette, update_mesh_with_vertex_sample_interpolation, ANGULAR_VELOCITY,
+    generate_inverse_projection_samples_from_silhouette, update_mesh_with_vertex_sample_lerp, ANGULAR_VELOCITY,
 };
 use raylib::drawing::{RaylibDraw, RaylibDraw3D, RaylibMode3DExt};
 use raylib::math::Vector3;
@@ -32,7 +32,7 @@ fn main() {
         i_time += render.handle.get_frame_time();
         //TODO: this is so stupid, just to get the draw command to perform the rotation, we have to unrotate the fucking sampling process in
         mesh_rotation -= ANGULAR_VELOCITY * render.handle.get_frame_time();
-        update_mesh_with_vertex_sample_interpolation(i_time, &per_frame_vertex_samples, &mut model.meshes_mut()[0]);
+        update_mesh_with_vertex_sample_lerp(i_time, &per_frame_vertex_samples, &mut model.meshes_mut()[0]);
         let mut draw_handle = render.handle.begin_drawing(&render.thread);
         draw_handle.clear_background(Color::BLACK);
         let mut rl3d = draw_handle.begin_mode3D(observer);

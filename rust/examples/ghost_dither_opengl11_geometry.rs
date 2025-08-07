@@ -1,7 +1,6 @@
 use asset_payload::SPHERE_PATH;
 use bath::fixed_func::silhouette_inverse_projection_util::{
-    generate_inverse_projection_samples_from_silhouette, update_mesh_with_vertex_sample_interpolation,
-    TIME_BETWEEN_SAMPLES,
+    generate_inverse_projection_samples_from_silhouette, update_mesh_with_vertex_sample_lerp, TIME_BETWEEN_SAMPLES,
 };
 use bath::geometry::unfold_mst::unfold_sphere_like;
 use bath::geometry::weld_vertices::weld_and_index_mesh;
@@ -32,7 +31,7 @@ fn main() {
     let screen_h = render.handle.get_screen_height();
     let mut wire_model = render.handle.load_model(&render.thread, SPHERE_PATH).unwrap();
     let per_frame_vertex_samples = generate_inverse_projection_samples_from_silhouette(screen_w, screen_h, &mut render);
-    update_mesh_with_vertex_sample_interpolation(i_time, &per_frame_vertex_samples, &mut wire_model.meshes_mut()[0]);
+    update_mesh_with_vertex_sample_lerp(i_time, &per_frame_vertex_samples, &mut wire_model.meshes_mut()[0]);
     weld_and_index_mesh(&mut wire_model.meshes_mut()[0], 1e-6);
     let mut unfold = unfold_sphere_like(&mut wire_model.meshes_mut()[0]);
     let mut triangle_count = unfold.triangleCount as usize;
@@ -50,7 +49,7 @@ fn main() {
         let frame = time / TIME_BETWEEN_SAMPLES;
         let current_frame = frame.floor() as usize % per_frame_vertex_samples.len();
         //TODO: no idea why but some of the unfolds just jitter like mad, and some triangles glitch back and forth
-        update_mesh_with_vertex_sample_interpolation(
+        update_mesh_with_vertex_sample_lerp(
             (current_frame as f32 * TIME_BETWEEN_SAMPLES).floor(),
             &per_frame_vertex_samples,
             &mut wire_model.meshes_mut()[0],
