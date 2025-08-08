@@ -4,8 +4,7 @@ use raylib::color::Color;
 use raylib::consts::PixelFormat::PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
 use raylib::math::{Vector2, Vector3};
 use raylib::models::{RaylibMesh, RaylibModel, WeakMesh};
-use raylib::prelude::Image;
-use raylib::texture::Texture2D;
+use raylib::texture::{Image, Texture2D};
 use std::f32::consts::TAU;
 use std::slice::{from_raw_parts, from_raw_parts_mut};
 
@@ -41,9 +40,9 @@ pub const UMBRAL_MASK_WAVE_AMPLITUDE_Y: f32 = 0.1;
 pub const DITHER_TEXTURE_SCALE: f32 = 8.0;
 pub const DITHER_BLEND_FACTOR: f32 = 0.75;
 
-pub const SILHOUETTE_RADII_RESOLUTION: usize = 128;
+pub const SILHOUETTE_RADII_RESOLUTION: usize = 64;
 
-pub const ROTATION_FREQUENCY_HZ: f32 = 0.25;
+pub const ROTATION_FREQUENCY_HZ: f32 = 0.10;
 pub const ANGULAR_VELOCITY: f32 = TAU * ROTATION_FREQUENCY_HZ;
 pub const TIME_BETWEEN_SAMPLES: f32 = 0.5;
 pub const ROTATIONAL_SAMPLES_FOR_INV_PROJ: usize = 40;
@@ -251,57 +250,40 @@ pub fn deform_vertices_from_silhouette_radii(vertices: &mut [Vector3], radii_nor
     }
 }
 
-pub fn generate_inverse_projection_samples_from_silhouette(
+pub fn generate_mesh_and_texcoord_samples_from_silhouette(
     screen_w: i32,
     screen_h: i32,
     renderer: &mut RaylibRenderer,
-) -> Vec<Vec<Vector3>> {
-    let sphere_model = renderer.handle.load_model(&renderer.thread, SPHERE_PATH).unwrap();
-    let sphere_vertices = sphere_model.meshes()[0].vertices();
-    let mut per_frame_vertex_samples = Vec::with_capacity(ROTATIONAL_SAMPLES_FOR_INV_PROJ);
+) -> (Vec<Vec<Vector3>>, Vec<Vec<f32>>) {
+    let model = renderer.handle.load_model(&renderer.thread, SPHERE_PATH).unwrap();
+    let vertices = model.meshes()[0].vertices();
+    let mut mesh_samples = Vec::with_capacity(ROTATIONAL_SAMPLES_FOR_INV_PROJ);
+    let mut texcoord_samples = Vec::with_capacity(ROTATIONAL_SAMPLES_FOR_INV_PROJ);
     for i in 0..ROTATIONAL_SAMPLES_FOR_INV_PROJ {
         let frame_time = i as f32 * TIME_BETWEEN_SAMPLES;
-        let frame_rotation = -frame_time * ANGULAR_VELOCITY;
-        let mut sphere_vertices_vector = sphere_vertices.to_vec();
-        rotate_vertices(&mut sphere_vertices_vector, frame_rotation);
+        let frame_rotation = -ANGULAR_VELOCITY * frame_time;
+        let mut mesh_sample = vertices.to_vec();
+        rotate_vertices(&mut mesh_sample, frame_rotation);
         let silhouette_img = generate_silhouette_image(screen_w, screen_h, frame_time);
         let radii_normals = build_silhouette_radii(&silhouette_img);
-        deform_vertices_from_silhouette_radii(&mut sphere_vertices_vector, &radii_normals);
-        //TODO: why do i have to rotate back i forget....
-        rotate_vertices(&mut sphere_vertices_vector, -frame_rotation);
-        per_frame_vertex_samples.push(sphere_vertices_vector);
-    }
-    per_frame_vertex_samples
-}
-pub fn generate_inverse_projection_texcoords(
-    screen_w: i32,
-    screen_h: i32,
-    per_frame_vertex_samples: &mut Vec<Vec<Vector3>>,
-) -> Vec<Vec<f32>> {
-    let mut per_frame_mesh_silhouettes = Vec::with_capacity(ROTATIONAL_SAMPLES_FOR_INV_PROJ);
-    for i in 0..ROTATIONAL_SAMPLES_FOR_INV_PROJ {
-        let mut sample_vertices = per_frame_vertex_samples.get_mut(i).unwrap();
-        let mut silhouette_texcoords = Vec::with_capacity(sample_vertices.len() * 2);
-        let frame_time = i as f32 * TIME_BETWEEN_SAMPLES;
-        let frame_rotation = -frame_time * ANGULAR_VELOCITY;
-        rotate_vertices(sample_vertices, frame_rotation);
-        let silhouette_img = generate_silhouette_image(screen_w, screen_h, frame_time);
-        let radii_normals = build_silhouette_radii(&silhouette_img);
-        for vertex in sample_vertices.clone() {
-            let sample_x = vertex.x;
-            let sample_y = vertex.y;
-            let interpolated_radial_magnitude =
-                interpolate_radial_magnitude_from_sample_xy(sample_x, sample_y, &radii_normals);
-            let error_margin = interpolated_radial_magnitude.max(1e-6);
-            let u = sample_x / error_margin * 0.5 + 0.5;
-            let v = sample_y / error_margin * 0.5 + 0.5;
-            silhouette_texcoords.push(u);
-            silhouette_texcoords.push(v);
+        deform_vertices_from_silhouette_radii(&mut mesh_sample, &radii_normals);
+
+        let mut texcoord_sample = Vec::with_capacity(mesh_sample.len() * 2);
+        for vertex in mesh_sample.clone() {
+            let x = vertex.x;
+            let y = vertex.y;
+            let interpolated_radial_magnitude = interpolate_radial_magnitude_from_sample_xy(x, y, &radii_normals);
+            let u = x / interpolated_radial_magnitude * 0.5 + 0.5;
+            let v = y / interpolated_radial_magnitude * 0.5 + 0.5;
+            texcoord_sample.push(u);
+            texcoord_sample.push(v);
         }
-        per_frame_mesh_silhouettes.push(silhouette_texcoords);
-        rotate_vertices(sample_vertices, -frame_rotation);
+        texcoord_samples.push(texcoord_sample);
+        //TODO: why do i have to rotate back i forget....
+        rotate_vertices(&mut mesh_sample, -frame_rotation);
+        mesh_samples.push(mesh_sample);
     }
-    per_frame_mesh_silhouettes
+    (mesh_samples, texcoord_samples)
 }
 
 fn rotate_vertices(sphere_vertices_vector: &mut Vec<Vector3>, rotation: f32) {
@@ -312,51 +294,39 @@ fn rotate_vertices(sphere_vertices_vector: &mut Vec<Vector3>, rotation: f32) {
     }
 }
 
-pub fn update_mesh_with_vertex_sample_lerp(
+pub fn lerp_intermediate_mesh_samples_to_single_mesh(
     i_time: f32,
-    per_frame_vertex_samples: &[Vec<Vector3>],
-    mesh: &mut WeakMesh,
+    mesh_samples: &[Vec<Vector3>],
+    texcoord_samples: &[Vec<f32>],
+    target_mesh: &mut WeakMesh,
 ) {
-    let duration = per_frame_vertex_samples.len() as f32 * TIME_BETWEEN_SAMPLES;
+    let duration = mesh_samples.len() as f32 * TIME_BETWEEN_SAMPLES;
     let time = i_time % duration;
     let frame = time / TIME_BETWEEN_SAMPLES;
-    let current_frame = frame.floor() as usize % per_frame_vertex_samples.len();
-    let next_frame = (current_frame + 1) % per_frame_vertex_samples.len();
+    let current_frame = frame.floor() as usize % mesh_samples.len();
+    let next_frame = (current_frame + 1) % mesh_samples.len();
     let weight = frame.fract();
-    let vertices = mesh.vertices_mut();
+    let vertices = target_mesh.vertices_mut();
     for ((dst_vertex, src_vertex), next_vertex) in vertices
         .iter_mut()
-        .zip(per_frame_vertex_samples[current_frame].iter())
-        .zip(per_frame_vertex_samples[next_frame].iter())
+        .zip(mesh_samples[current_frame].iter())
+        .zip(mesh_samples[next_frame].iter())
     {
         dst_vertex.x = src_vertex.x * (1.0 - weight) + next_vertex.x * weight;
         dst_vertex.y = src_vertex.y * (1.0 - weight) + next_vertex.y * weight;
         dst_vertex.z = src_vertex.z * (1.0 - weight) + next_vertex.z * weight;
     }
-}
-
-pub fn update_texcoords_with_silhouette_samples_lerp(
-    i_time: f32,
-    per_frame_silhouette_samples: &[Vec<f32>],
-    mesh: &mut WeakMesh,
-) {
-    let duration = per_frame_silhouette_samples.len() as f32 * TIME_BETWEEN_SAMPLES;
-    let time = i_time % duration;
-    let frame = time / TIME_BETWEEN_SAMPLES;
-    let current_frame = frame.floor() as usize % per_frame_silhouette_samples.len();
-    let next_frame = (current_frame + 1) % per_frame_silhouette_samples.len();
-    let weight = frame.fract();
-    let mut texcoords = unsafe { from_raw_parts_mut(mesh.as_mut().texcoords, mesh.vertices().len() * 2) };
-    //TODO: this is next, something about the texcoords not being in order or there not being enough potential for the alignment between interpolations of
+    let texcoords = unsafe { from_raw_parts_mut(target_mesh.as_mut().texcoords, target_mesh.vertices().len() * 2) };
     for ((dst_texcoord, src_texcoord), next_texcoord) in texcoords
         .iter_mut()
-        .zip(per_frame_silhouette_samples[current_frame].iter())
-        .zip(per_frame_silhouette_samples[next_frame].iter())
+        .zip(texcoord_samples[current_frame].iter())
+        .zip(texcoord_samples[next_frame].iter())
     {
         *dst_texcoord = *src_texcoord * (1.0 - weight) + *next_texcoord * weight;
     }
 }
 
+//TODO: THIS IS THE ISSUE
 pub fn generate_silhouette_texture(
     render: &mut RaylibRenderer,
     screen_w: i32,
@@ -381,8 +351,9 @@ pub fn generate_silhouette_texture(
             let sample_radius = (sample_x * sample_x + sample_y * sample_y).sqrt();
             let interpolated_radial_magnitude =
                 interpolate_radial_magnitude_from_sample_xy(sample_x, sample_y, &radii_normals);
-            let interpolated_radial_magnitude_normal = interpolated_radial_magnitude / max_radial_magnitude; // 0‥1
-            let radius_outer = interpolated_radial_magnitude_normal + center_coord_y;
+            let interpolated_radial_magnitude_normal = interpolated_radial_magnitude / max_radial_magnitude;
+            //TODO: what the fuck is happening here
+            let radius_outer = interpolated_radial_magnitude_normal + (sample_radius * 1.0) ;
             let radius_inner = radius_outer * (1.0 - TEXTURE_MAPPING_BOUNDARY_FADE);
             let alpha = if sample_radius <= radius_inner {
                 1.0

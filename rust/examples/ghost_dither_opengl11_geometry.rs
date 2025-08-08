@@ -1,6 +1,7 @@
 use asset_payload::SPHERE_PATH;
 use bath::fixed_func::silhouette_inverse_projection_util::{
-    generate_inverse_projection_samples_from_silhouette, update_mesh_with_vertex_sample_lerp, TIME_BETWEEN_SAMPLES,
+    generate_mesh_and_texcoord_samples_from_silhouette, lerp_intermediate_mesh_samples_to_single_mesh,
+    TIME_BETWEEN_SAMPLES,
 };
 use bath::geometry::unfold_mst::unfold_sphere_like;
 use bath::geometry::weld_vertices::weld_and_index_mesh;
@@ -30,8 +31,14 @@ fn main() {
     let screen_w = render.handle.get_screen_width();
     let screen_h = render.handle.get_screen_height();
     let mut wire_model = render.handle.load_model(&render.thread, SPHERE_PATH).unwrap();
-    let per_frame_vertex_samples = generate_inverse_projection_samples_from_silhouette(screen_w, screen_h, &mut render);
-    update_mesh_with_vertex_sample_lerp(i_time, &per_frame_vertex_samples, &mut wire_model.meshes_mut()[0]);
+    let (mesh_samples, texcoord_samples) =
+        generate_mesh_and_texcoord_samples_from_silhouette(screen_w, screen_h, &mut render);
+    lerp_intermediate_mesh_samples_to_single_mesh(
+        i_time,
+        &mesh_samples,
+        &texcoord_samples,
+        &mut wire_model.meshes_mut()[0],
+    );
     weld_and_index_mesh(&mut wire_model.meshes_mut()[0], 1e-6);
     let mut unfold = unfold_sphere_like(&mut wire_model.meshes_mut()[0]);
     let mut triangle_count = unfold.triangleCount as usize;
@@ -44,14 +51,15 @@ fn main() {
 
     while !render.handle.window_should_close() {
         i_time += render.handle.get_frame_time();
-        let duration = per_frame_vertex_samples.len() as f32 * TIME_BETWEEN_SAMPLES;
+        let duration = mesh_samples.len() as f32 * TIME_BETWEEN_SAMPLES;
         let time = i_time % duration;
         let frame = time / TIME_BETWEEN_SAMPLES;
-        let current_frame = frame.floor() as usize % per_frame_vertex_samples.len();
+        let current_frame = frame.floor() as usize % mesh_samples.len();
         //TODO: no idea why but some of the unfolds just jitter like mad, and some triangles glitch back and forth
-        update_mesh_with_vertex_sample_lerp(
+        lerp_intermediate_mesh_samples_to_single_mesh(
             (current_frame as f32 * TIME_BETWEEN_SAMPLES).floor(),
-            &per_frame_vertex_samples,
+            &mesh_samples,
+            &texcoord_samples,
             &mut wire_model.meshes_mut()[0],
         );
         unfold = unfold_sphere_like(&mut wire_model.meshes_mut()[0]);
