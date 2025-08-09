@@ -3,7 +3,7 @@ use asset_payload::SPHERE_PATH;
 use raylib::color::Color;
 use raylib::consts::PixelFormat::PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
 use raylib::math::{Vector2, Vector3};
-use raylib::models::{RaylibMesh, RaylibModel, WeakMesh};
+use raylib::models::{Model, RaylibMesh, RaylibModel, WeakMesh};
 use raylib::texture::{Image, Texture2D};
 use std::f32::consts::TAU;
 use std::slice::{from_raw_parts, from_raw_parts_mut};
@@ -47,7 +47,8 @@ pub const ANGULAR_VELOCITY: f32 = TAU * ROTATION_FREQUENCY_HZ;
 pub const TIME_BETWEEN_SAMPLES: f32 = 0.5;
 pub const ROTATIONAL_SAMPLES_FOR_INV_PROJ: usize = 40;
 
-const TEXTURE_MAPPING_BOUNDARY_FADE: f32 = 0.1;
+const TEXTURE_MAPPING_BOUNDARY_FADE: f32 = 0.075;
+pub const SILHOUETTE_TEXTURE_RES: i32 = 256;
 
 #[inline]
 pub fn spatial_phase(grid_coords: Vector2) -> Vector2 {
@@ -208,11 +209,11 @@ pub fn generate_silhouette_image(width: i32, height: i32, i_time: f32) -> Image 
     silhouette_img
 }
 
-pub fn build_silhouette_radii(silhouette_img: &Image) -> Vec<f32> {
+pub fn build_silhouette_radii1(silhouette_img: &Image) -> Vec<f32> {
     let center_coord_x = (silhouette_img.width as f32 - 1.0) * 0.5;
     let center_coord_y = (silhouette_img.height as f32 - 1.0) * 0.5;
     let total_bytes = (silhouette_img.width * silhouette_img.height * 4) as usize;
-    let pixel_bytes: &[u8] = unsafe { from_raw_parts(silhouette_img.data as *const u8, total_bytes) };
+    let pixel_bytes = unsafe { from_raw_parts(silhouette_img.data as *const u8, total_bytes) };
     let dummy_min_radius = UMBRAL_MASK_OUTER_RADIUS * silhouette_img.width.min(silhouette_img.height) as f32;
     let mut radii_normals = vec![0.0_f32; SILHOUETTE_RADII_RESOLUTION];
     for i in 0..SILHOUETTE_RADII_RESOLUTION {
@@ -236,6 +237,138 @@ pub fn build_silhouette_radii(silhouette_img: &Image) -> Vec<f32> {
         radii_normals[i] = normalized_radius_sample.max(0.0);
     }
     radii_normals
+}
+
+pub fn build_silhouette_radii(silhouette_img: &Image) -> Vec<f32> {
+    let width = silhouette_img.width as usize;
+    let height = silhouette_img.height as usize;
+    let center_x = (width as f32 - 1.0) * 0.5;
+    let center_y = (height as f32 - 1.0) * 0.5;
+    let total_bytes = width * height * 4;
+    let pixels: &[u8] = unsafe { from_raw_parts(silhouette_img.data as *const u8, total_bytes) };
+    let mut radii = vec![0.0_f32; SILHOUETTE_RADII_RESOLUTION];
+    let step = 0.5_f32;
+    let texture_bounds_padding = (width.max(height) as f32) * 0.75;
+    let threshold = 1u8;
+    for i in 0..SILHOUETTE_RADII_RESOLUTION {
+        let theta = (i as f32) * TAU / SILHOUETTE_RADII_RESOLUTION as f32;
+        let x_direction = theta.cos();
+        let y_direction = theta.sin();
+        let mut radial_magnitude = 0.0f32;
+        while radial_magnitude < texture_bounds_padding {
+            let sample_x = center_x + x_direction * radial_magnitude;
+            let sample_y = center_y + y_direction * radial_magnitude;
+            if sample_x < 0.0 || sample_y < 0.0 || sample_x >= (width as f32) || sample_y >= (height as f32) {
+                break;
+            }
+            let lum = sample_lum(pixels, width, sample_x as i32, sample_y as i32);
+            if lum <= threshold {
+                break;
+            }
+            radial_magnitude += step;
+        }
+        radii[i] = radial_magnitude;
+    }
+    let max_radial_magnitude = radii.iter().cloned().fold(1e-6, f32::max);
+    for radius in &mut radii {
+        *radius /= max_radial_magnitude;
+    }
+    radii
+}
+
+#[inline]
+fn sample_lum(pixels: &[u8], w: usize, x: i32, y: i32) -> u8 {
+    if x < 0 || y < 0 || x as usize >= w || y as usize >= pixels.len() / (4 * w) {
+        0
+    } else {
+        let i = 4 * (y as usize * w + x as usize);
+        pixels[i]
+    }
+}
+
+pub fn generate_silhouette_texture1(
+    render: &mut RaylibRenderer,
+    screen_w: i32,
+    screen_h: i32,
+    texture_resolution: Vec<i32>,
+    i_time: f32,
+) -> Texture2D {
+    let texture_w = texture_resolution[0];
+    let texture_h = texture_resolution[1];
+    let mut feathered_silhouette_img = Image::gen_image_color(texture_w, texture_h, Color::BLANK);
+    let silhouette_img = generate_silhouette_image(screen_w, screen_h, i_time);
+    let radii_normals = build_silhouette_radii(&silhouette_img);
+    let total_bytes = (texture_w * texture_h * 4) as usize;
+    let pixels: &mut [u8] = unsafe { from_raw_parts_mut(feathered_silhouette_img.data as *mut u8, total_bytes) };
+    let center_coord_x = (texture_w as f32 - 1.0) * 0.5;
+    let center_coord_y = (texture_h as f32 - 1.0) * 0.5;
+    let max_radial_magnitude = radii_normals.iter().cloned().fold(0.0_f32, f32::max).max(1e-6);
+    for y in 0..texture_h {
+        for x in 0..texture_w {
+            let sample_x = x as f32 - center_coord_x;
+            let sample_y = y as f32 - center_coord_y;
+            let sample_radius = (sample_x * sample_x + sample_y * sample_y).sqrt();
+            let interpolated_radial_magnitude =
+                interpolate_radial_magnitude_from_sample_xy(sample_x, sample_y, &radii_normals);
+            let interpolated_radial_magnitude_normal = interpolated_radial_magnitude / max_radial_magnitude;
+            let radius_outer = interpolated_radial_magnitude_normal + center_coord_y;
+
+            let radius_inner = radius_outer * (1.0 - TEXTURE_MAPPING_BOUNDARY_FADE);
+            let alpha = if sample_radius <= radius_inner {
+                1.0
+            } else if sample_radius >= radius_outer {
+                0.0
+            } else {
+                1.0 - (sample_radius - radius_inner) / (radius_outer - radius_inner)
+            };
+            let rgb_channel = (y * texture_w + x) as usize * 4;
+            pixels[rgb_channel..rgb_channel + 4].copy_from_slice(&[255, 255, 255, (alpha * 255.0) as u8]);
+        }
+    }
+    feathered_silhouette_img.set_format(PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
+    let silhouette_texture = render
+        .handle
+        .load_texture_from_image(&render.thread, &feathered_silhouette_img)
+        .unwrap();
+    silhouette_texture
+}
+
+pub fn generate_silhouette_texture(render: &mut RaylibRenderer, texture_resolution: Vec<i32>) -> Texture2D {
+    let texture_w = texture_resolution[0];
+    let texture_h = texture_resolution[1];
+    let padding_px: f32 = 5.0;
+    let fade_fraction: f32 = TEXTURE_MAPPING_BOUNDARY_FADE.clamp(0.0, 0.95);
+    let mut silhouette_img = Image::gen_image_color(texture_w, texture_h, Color::BLANK);
+    let total_bytes = (texture_w * texture_h * 4) as usize;
+    let pixels: &mut [u8] = unsafe { from_raw_parts_mut(silhouette_img.data as *mut u8, total_bytes) };
+    let center_coord_x = (texture_w as f32 - 1.0) * 0.5;
+    let center_coord_y = (texture_h as f32 - 1.0) * 0.5;
+    let half_minimum = (texture_w.min(texture_h) as f32 - 1.0) * 0.5;
+    let radius_outer = (half_minimum - padding_px).max(1.0);
+    let radius_inner = radius_outer * (1.0 - fade_fraction.max(0.0));
+    for y in 0..texture_h {
+        for x in 0..texture_w {
+            let sample_x = x as f32 - center_coord_x;
+            let sample_y = y as f32 - center_coord_y;
+            let radius = (sample_x * sample_x + sample_y * sample_y).sqrt();
+            let alpha = if radius <= radius_inner {
+                1.0
+            } else if radius >= radius_outer {
+                0.0
+            } else {
+                1.0 - (radius - radius_inner) / (radius_outer - radius_inner)
+            };
+            let rgb_val = (alpha * 255.0) as u8;
+            let channel = ((y * texture_w + x) * 4) as usize;
+            pixels[channel..channel + 4].copy_from_slice(&[rgb_val, rgb_val, rgb_val, (alpha * 255.0) as u8]);
+        }
+    }
+    silhouette_img.set_format(PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
+    let silhouette_texture = render
+        .handle
+        .load_texture_from_image(&render.thread, &silhouette_img)
+        .unwrap();
+    silhouette_texture
 }
 
 pub fn deform_vertices_from_silhouette_radii(vertices: &mut [Vector3], radii_normals: &[f32]) {
@@ -273,8 +406,14 @@ pub fn generate_mesh_and_texcoord_samples_from_silhouette(
             let x = vertex.x;
             let y = vertex.y;
             let interpolated_radial_magnitude = interpolate_radial_magnitude_from_sample_xy(x, y, &radii_normals);
-            let u = x / interpolated_radial_magnitude * 0.5 + 0.5;
-            let v = y / interpolated_radial_magnitude * 0.5 + 0.5;
+
+            let uv_shrink = 0.98; // try 0.98..0.995
+            let uv_bias = 0.5 * (1.0 - uv_shrink);
+            let u = uv_bias + uv_shrink * (0.5 + 0.5 * (x / interpolated_radial_magnitude));
+            let v = uv_bias + uv_shrink * (0.5 + 0.5 * (y / interpolated_radial_magnitude));
+
+            // let u = x / interpolated_radial_magnitude * 0.5 + 0.5;
+            // let v = y / interpolated_radial_magnitude * 0.5 + 0.5;
             texcoord_sample.push(u);
             texcoord_sample.push(v);
         }
@@ -292,6 +431,17 @@ fn rotate_vertices(sphere_vertices_vector: &mut Vec<Vector3>, rotation: f32) {
         vertex.x = x0 * rotation.cos() + z0 * rotation.sin();
         vertex.z = -x0 * rotation.sin() + z0 * rotation.cos();
     }
+}
+
+pub fn interpolate_mesh_and_texcoord_samples(
+    model: &mut Model,
+    i_time: f32,
+    mesh_samples: &Vec<Vec<Vector3>>,
+    texcoord_samples: &Vec<Vec<f32>>,
+) {
+    let mesh = &mut model.meshes_mut()[0];
+    lerp_intermediate_mesh_samples_to_single_mesh(i_time, mesh_samples, texcoord_samples, mesh);
+    // subdivide_tris_no_index(main_mesh, 1); //TODO: incredible graphics glitch i guess??
 }
 
 pub fn lerp_intermediate_mesh_samples_to_single_mesh(
@@ -326,54 +476,6 @@ pub fn lerp_intermediate_mesh_samples_to_single_mesh(
     }
 }
 
-//TODO: THIS IS THE ISSUE
-pub fn generate_silhouette_texture(
-    render: &mut RaylibRenderer,
-    screen_w: i32,
-    screen_h: i32,
-    texture_resolution: Vec<i32>,
-    i_time: f32,
-) -> Texture2D {
-    let texture_w = texture_resolution[0];
-    let texture_h = texture_resolution[1];
-    let mut feathered_silhouette_img = Image::gen_image_color(texture_w, texture_h, Color::BLANK);
-    let silhouette_img = generate_silhouette_image(screen_w, screen_h, i_time);
-    let radii_normals = build_silhouette_radii(&silhouette_img);
-    let total_bytes = (texture_w * texture_h * 4) as usize;
-    let pixels: &mut [u8] = unsafe { from_raw_parts_mut(feathered_silhouette_img.data as *mut u8, total_bytes) };
-    let center_coord_x = (texture_w as f32 - 1.0) * 0.5;
-    let center_coord_y = (texture_h as f32 - 1.0) * 0.5;
-    let max_radial_magnitude = radii_normals.iter().cloned().fold(0.0_f32, f32::max).max(1e-6);
-    for y in 0..texture_h {
-        for x in 0..texture_w {
-            let sample_x = x as f32 - center_coord_x;
-            let sample_y = y as f32 - center_coord_y;
-            let sample_radius = (sample_x * sample_x + sample_y * sample_y).sqrt();
-            let interpolated_radial_magnitude =
-                interpolate_radial_magnitude_from_sample_xy(sample_x, sample_y, &radii_normals);
-            let interpolated_radial_magnitude_normal = interpolated_radial_magnitude / max_radial_magnitude;
-            //TODO: what the fuck is happening here
-            let radius_outer = interpolated_radial_magnitude_normal + (sample_radius * 1.0) ;
-            let radius_inner = radius_outer * (1.0 - TEXTURE_MAPPING_BOUNDARY_FADE);
-            let alpha = if sample_radius <= radius_inner {
-                1.0
-            } else if sample_radius >= radius_outer {
-                0.0
-            } else {
-                1.0 - (sample_radius - radius_inner) / (radius_outer - radius_inner)
-            };
-            let rgb_channel = (y * texture_w + x) as usize * 4;
-            pixels[rgb_channel..rgb_channel + 4].copy_from_slice(&[255, 255, 255, (alpha * 255.0) as u8]);
-        }
-    }
-    feathered_silhouette_img.set_format(PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
-    let silhouette_texture = render
-        .handle
-        .load_texture_from_image(&render.thread, &feathered_silhouette_img)
-        .unwrap();
-    silhouette_texture
-}
-
 pub fn interpolate_radial_magnitude_from_sample_xy(sample_x: f32, sample_y: f32, radii_normals: &[f32]) -> f32 {
     let radial_disk_angle = sample_y.atan2(sample_x).rem_euclid(TAU);
     let radial_index = radial_disk_angle / TAU * SILHOUETTE_RADII_RESOLUTION as f32;
@@ -382,4 +484,85 @@ pub fn interpolate_radial_magnitude_from_sample_xy(sample_x: f32, sample_y: f32,
     let interpolation_toward_upper = radial_index.fract();
     radii_normals[lower_index] * (1.0 - interpolation_toward_upper)
         + radii_normals[upper_index] * interpolation_toward_upper
+}
+
+pub fn subdivide_tris_no_index(mesh: &mut WeakMesh, iterations: usize) {
+    for _ in 0..iterations {
+        // assume no indices: 3 vertices per tri
+        let vc = mesh.vertexCount as usize;
+        assert_eq!(vc % 3, 0);
+        let old_v = unsafe { from_raw_parts(mesh.vertices, vc * 3) };
+        let old_t = if mesh.texcoords.is_null() {
+            vec![]
+        } else {
+            unsafe { from_raw_parts(mesh.texcoords, vc * 2) }.to_vec()
+        };
+        let mut new_v: Vec<f32> = Vec::with_capacity(vc * 2 * 3);
+        let mut new_t: Vec<f32> = Vec::with_capacity(old_t.len() * 2);
+        for tri in 0..(vc / 3) {
+            let i0 = tri * 3;
+            let i1 = i0 + 1;
+            let i2 = i0 + 2;
+            let a = &old_v[i0 * 3..i0 * 3 + 3];
+            let b = &old_v[i1 * 3..i1 * 3 + 3];
+            let c = &old_v[i2 * 3..i2 * 3 + 3];
+            let ab = [(a[0] + b[0]) * 0.5, (a[1] + b[1]) * 0.5, (a[2] + b[2]) * 0.5];
+            let bc = [(b[0] + c[0]) * 0.5, (b[1] + c[1]) * 0.5, (b[2] + c[2]) * 0.5];
+            let ca = [(c[0] + a[0]) * 0.5, (c[1] + a[1]) * 0.5, (c[2] + a[2]) * 0.5];
+
+            // texcoords (if present)
+            let (ta, tb, tc, tab, tbc, tca) = if !old_t.is_empty() {
+                let ta = &old_t[i0 * 2..i0 * 2 + 2];
+                let tb = &old_t[i1 * 2..i1 * 2 + 2];
+                let tc = &old_t[i2 * 2..i2 * 2 + 2];
+                let tab = vec![(ta[0] + tb[0]) * 0.5, (ta[1] + tb[1]) * 0.5];
+                let tbc = vec![(tb[0] + tc[0]) * 0.5, (tb[1] + tc[1]) * 0.5];
+                let tca = vec![(tc[0] + ta[0]) * 0.5, (tc[1] + ta[1]) * 0.5];
+                (ta.to_vec(), tb.to_vec(), tc.to_vec(), tab, tbc, tca)
+            } else {
+                (
+                    vec![0.0, 0.0],
+                    vec![0.0, 0.0],
+                    vec![0.0, 0.0],
+                    vec![0.0, 0.0],
+                    vec![0.0, 0.0],
+                    vec![0.0, 0.0],
+                )
+            };
+            // 4 new triangles: A-AB-CA, AB-B-BC, CA-BC-C, AB-BC-CA
+            let tris = [
+                (a, &ab, &ca, &ta, &tab, &tca),
+                (&ab, <&[f32; 3]>::try_from(b).unwrap(), &bc, &tab, &tb, &tbc),
+                (&ca, &bc, <&[f32; 3]>::try_from(c).unwrap(), &tca, &tbc, &tc),
+                (&ab, &bc, &ca, &tab, &tbc, &tca),
+            ];
+
+            for (p0, p1, p2, t0, t1, t2) in tris {
+                new_v.extend_from_slice(p0);
+                new_v.extend_from_slice(p1);
+                new_v.extend_from_slice(p2);
+                if !old_t.is_empty() {
+                    new_t.extend_from_slice(t0);
+                    new_t.extend_from_slice(t1);
+                    new_t.extend_from_slice(t2);
+                }
+            }
+        }
+        unsafe {
+            // replace mesh data
+            raylib::ffi::MemFree(mesh.vertices as *mut _);
+            mesh.vertices = raylib::ffi::MemAlloc((new_v.len() * size_of::<f32>()) as u32) as *mut f32;
+            std::ptr::copy_nonoverlapping(new_v.as_ptr(), mesh.vertices, new_v.len());
+            mesh.vertexCount = (new_v.len() / 3) as i32;
+            mesh.triangleCount = (new_v.len() / 9) as i32;
+
+            if !old_t.is_empty() {
+                if !mesh.texcoords.is_null() {
+                    raylib::ffi::MemFree(mesh.texcoords as *mut _);
+                }
+                mesh.texcoords = raylib::ffi::MemAlloc((new_t.len() * std::mem::size_of::<f32>()) as u32) as *mut f32;
+                std::ptr::copy_nonoverlapping(new_t.as_ptr(), mesh.texcoords, new_t.len());
+            }
+        }
+    }
 }

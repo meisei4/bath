@@ -1,6 +1,6 @@
 #[cfg(feature = "tests-only")]
-pub mod unfold_mst;
+pub mod papercraft;
 #[cfg(feature = "tests-only")]
 pub mod unfold_uv;
 #[cfg(feature = "tests-only")]
-pub mod weld_vertices;
+pub mod welding;
