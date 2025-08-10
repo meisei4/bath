@@ -4,7 +4,7 @@ use bath::fixed_func::silhouette_inverse_projection_util::{
     lerp_intermediate_mesh_samples_to_single_mesh, TIME_BETWEEN_SAMPLES,
 };
 use bath::geometry::papercraft::unfold_sphere_like;
-use bath::geometry::welding::weld_and_index_mesh;
+use bath::geometry::welding::weld_and_index_mesh_for_unfolding;
 use bath::render::raylib::RaylibRenderer;
 use bath::render::raylib_util::{MODEL_POS, MODEL_SCALE, N64_WIDTH};
 use bath::render::renderer::Renderer;
@@ -37,7 +37,7 @@ fn main() {
         &texcoord_samples,
         &mut wire_model.meshes_mut()[0],
     );
-    weld_and_index_mesh(&mut wire_model.meshes_mut()[0], 1e-6);
+    weld_and_index_mesh_for_unfolding(&mut wire_model.meshes_mut()[0], 1e-6);
     while !render.handle.window_should_close() {
         i_time += render.handle.get_frame_time();
         let duration = mesh_samples.len() as f32 * TIME_BETWEEN_SAMPLES;
