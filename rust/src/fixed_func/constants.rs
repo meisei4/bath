@@ -1,0 +1,47 @@
+use raylib::math::{Vector2, Vector3};
+use std::f32::consts::TAU;
+
+pub const MODEL_POS: Vector3 = Vector3::ZERO;
+pub const MODEL_SCALE: Vector3 = Vector3::ONE;
+
+pub const HALF: f32 = 0.5;
+pub const GRID_SCALE: f32 = 4.0;
+pub const GRID_CELL_SIZE: f32 = 1.0 / GRID_SCALE;
+pub const GRID_ORIGIN_INDEX: Vector2 = Vector2::new(0.0, 0.0);
+pub const GRID_ORIGIN_OFFSET_CELLS: Vector2 = Vector2::new(2.0, 2.0);
+pub const GRID_ORIGIN_UV_OFFSET: Vector2 = Vector2::new(
+    (GRID_ORIGIN_INDEX.x + GRID_ORIGIN_OFFSET_CELLS.x) * GRID_CELL_SIZE,
+    (GRID_ORIGIN_INDEX.y + GRID_ORIGIN_OFFSET_CELLS.y) * GRID_CELL_SIZE,
+);
+
+pub const LIGHT_WAVE_SPATIAL_FREQ_X: f32 = 8.0;
+pub const LIGHT_WAVE_SPATIAL_FREQ_Y: f32 = 8.0;
+pub const LIGHT_WAVE_TEMPORAL_FREQ_X: f32 = 80.0;
+pub const LIGHT_WAVE_TEMPORAL_FREQ_Y: f32 = 2.3;
+pub const LIGHT_WAVE_AMPLITUDE_X: f32 = 0.0;
+pub const LIGHT_WAVE_AMPLITUDE_Y: f32 = 0.1;
+pub const UMBRAL_MASK_OUTER_RADIUS: f32 = 0.40;
+pub const UMBRAL_MASK_FADE_BAND: f32 = 0.025;
+pub const UMBRAL_MASK_CENTER: Vector2 = Vector2::new(HALF, HALF);
+
+pub const CELL_DRIFT_AMPLITUDE: f32 = 0.2;
+pub const UMBRAL_MASK_INNER_RADIUS: f32 = 0.08;
+pub const UMBRAL_MASK_OFFSET_X: f32 = -UMBRAL_MASK_OUTER_RADIUS / 1.0;
+pub const UMBRAL_MASK_OFFSET_Y: f32 = -UMBRAL_MASK_OUTER_RADIUS;
+pub const UMBRAL_MASK_PHASE_COEFFICIENT_X: f32 = 0.6;
+pub const UMBRAL_MASK_PHASE_COEFFICIENT_Y: f32 = 0.2;
+pub const UMBRAL_MASK_WAVE_AMPLITUDE_X: f32 = 0.1;
+pub const UMBRAL_MASK_WAVE_AMPLITUDE_Y: f32 = 0.1;
+
+pub const DITHER_TEXTURE_SCALE: f32 = 8.0;
+pub const DITHER_BLEND_FACTOR: f32 = 0.75;
+
+pub const SILHOUETTE_RADII_RESOLUTION: usize = 64;
+
+pub const ROTATION_FREQUENCY_HZ: f32 = 0.10;
+pub const ANGULAR_VELOCITY: f32 = TAU * ROTATION_FREQUENCY_HZ;
+pub const TIME_BETWEEN_SAMPLES: f32 = 0.5;
+pub const ROTATIONAL_SAMPLES_FOR_INV_PROJ: usize = 40;
+
+pub const TEXTURE_MAPPING_BOUNDARY_FADE: f32 = 0.075;
+pub const SILHOUETTE_TEXTURE_RES: i32 = 256;

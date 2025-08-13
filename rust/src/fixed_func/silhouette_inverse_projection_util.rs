@@ -1,6 +1,10 @@
-use crate::geometry::welding::{
-    aggregate_to_welded, weld_for_smoothing_topo, SMOOTH_OLD_TO_WELDED, SMOOTH_WELDED_NEIGHBORS,
+use crate::fixed_func::constants::{
+    ANGULAR_VELOCITY, GRID_ORIGIN_UV_OFFSET, GRID_SCALE, LIGHT_WAVE_AMPLITUDE_X, LIGHT_WAVE_AMPLITUDE_Y,
+    LIGHT_WAVE_SPATIAL_FREQ_X, LIGHT_WAVE_SPATIAL_FREQ_Y, LIGHT_WAVE_TEMPORAL_FREQ_X, LIGHT_WAVE_TEMPORAL_FREQ_Y,
+    ROTATIONAL_SAMPLES_FOR_INV_PROJ, SILHOUETTE_RADII_RESOLUTION, TEXTURE_MAPPING_BOUNDARY_FADE, TIME_BETWEEN_SAMPLES,
+    UMBRAL_MASK_CENTER, UMBRAL_MASK_FADE_BAND, UMBRAL_MASK_OUTER_RADIUS,
 };
+
 use crate::render::raylib::RaylibRenderer;
 use asset_payload::SPHERE_PATH;
 use raylib::color::Color;
@@ -10,48 +14,8 @@ use raylib::models::{Model, RaylibMesh, RaylibModel, WeakMesh};
 use raylib::texture::{Image, Texture2D};
 use std::f32::consts::TAU;
 use std::slice::{from_raw_parts, from_raw_parts_mut};
-
-const HALF: f32 = 0.5;
-const GRID_SCALE: f32 = 4.0;
-const GRID_CELL_SIZE: f32 = 1.0 / GRID_SCALE;
-const GRID_ORIGIN_INDEX: Vector2 = Vector2::new(0.0, 0.0);
-const GRID_ORIGIN_OFFSET_CELLS: Vector2 = Vector2::new(2.0, 2.0);
-const GRID_ORIGIN_UV_OFFSET: Vector2 = Vector2::new(
-    (GRID_ORIGIN_INDEX.x + GRID_ORIGIN_OFFSET_CELLS.x) * GRID_CELL_SIZE,
-    (GRID_ORIGIN_INDEX.y + GRID_ORIGIN_OFFSET_CELLS.y) * GRID_CELL_SIZE,
-);
-
-pub const LIGHT_WAVE_SPATIAL_FREQ_X: f32 = 8.0;
-pub const LIGHT_WAVE_SPATIAL_FREQ_Y: f32 = 8.0;
-pub const LIGHT_WAVE_TEMPORAL_FREQ_X: f32 = 80.0;
-pub const LIGHT_WAVE_TEMPORAL_FREQ_Y: f32 = 2.3;
-pub const LIGHT_WAVE_AMPLITUDE_X: f32 = 0.0;
-pub const LIGHT_WAVE_AMPLITUDE_Y: f32 = 0.1;
-pub const UMBRAL_MASK_OUTER_RADIUS: f32 = 0.40;
-pub const UMBRAL_MASK_FADE_BAND: f32 = 0.025;
-pub const UMBRAL_MASK_CENTER: Vector2 = Vector2::new(HALF, HALF);
-
-pub const CELL_DRIFT_AMPLITUDE: f32 = 0.2;
-pub const UMBRAL_MASK_INNER_RADIUS: f32 = 0.08;
-pub const UMBRAL_MASK_OFFSET_X: f32 = -UMBRAL_MASK_OUTER_RADIUS / 1.0;
-pub const UMBRAL_MASK_OFFSET_Y: f32 = -UMBRAL_MASK_OUTER_RADIUS;
-pub const UMBRAL_MASK_PHASE_COEFFICIENT_X: f32 = 0.6;
-pub const UMBRAL_MASK_PHASE_COEFFICIENT_Y: f32 = 0.2;
-pub const UMBRAL_MASK_WAVE_AMPLITUDE_X: f32 = 0.1;
-pub const UMBRAL_MASK_WAVE_AMPLITUDE_Y: f32 = 0.1;
-
-pub const DITHER_TEXTURE_SCALE: f32 = 8.0;
-pub const DITHER_BLEND_FACTOR: f32 = 0.75;
-
-pub const SILHOUETTE_RADII_RESOLUTION: usize = 64;
-
-pub const ROTATION_FREQUENCY_HZ: f32 = 0.10;
-pub const ANGULAR_VELOCITY: f32 = TAU * ROTATION_FREQUENCY_HZ;
-pub const TIME_BETWEEN_SAMPLES: f32 = 0.5;
-pub const ROTATIONAL_SAMPLES_FOR_INV_PROJ: usize = 40;
-
-const TEXTURE_MAPPING_BOUNDARY_FADE: f32 = 0.075;
-pub const SILHOUETTE_TEXTURE_RES: i32 = 256;
+use raylib::camera::Camera3D;
+use raylib::drawing::{RaylibDraw, RaylibDraw3D, RaylibDrawHandle, RaylibMode3DExt};
 
 #[inline]
 pub fn spatial_phase(grid_coords: Vector2) -> Vector2 {
@@ -205,210 +169,19 @@ pub fn deform_vertices_from_silhouette_radii(vertices: &mut [Vector3], radii_nor
     if vertices.is_empty() {
         return;
     }
-    let original_vertices = vertices.to_vec();
     for vertex in vertices.iter_mut() {
         let interpolated_radial_magnitude =
             interpolate_radial_magnitude_from_sample_xy(vertex.x, vertex.y, radii_normals);
         vertex.x *= interpolated_radial_magnitude;
         vertex.y *= interpolated_radial_magnitude;
     }
-    weld_for_smoothing_topo(&original_vertices);
-    let min_inside = 1e-8;
-    let target_z_per_original = compute_target_depth_from_original_radius(&original_vertices, vertices, min_inside);
-    let (old_to_welded, welded_neighbors) = unsafe {
-        (
-            SMOOTH_OLD_TO_WELDED.as_ref().unwrap(),
-            SMOOTH_WELDED_NEIGHBORS.as_ref().unwrap(),
-        )
-    };
-    let target_z_welded = aggregate_to_welded(old_to_welded, &target_z_per_original);
-    static mut SMOOTH_PREV_DEPTH_WELDED: Option<Vec<f32>> = None;
-    let prev_opt = unsafe { SMOOTH_PREV_DEPTH_WELDED.as_deref() };
-
-    let smoothness_weight: f32 = 4.0;
-    let target_weight: f32 = 6.0;
-    let temporal_weight: f32 = 2.0;
-    let max_iter: usize = 64;
-    let tol: f32 = 1e-5;
-
-    let solved_z_welded = solve_depth_for_smooth_blob(
-        welded_neighbors,
-        &target_z_welded,
-        prev_opt,
-        smoothness_weight,
-        target_weight,
-        temporal_weight,
-        max_iter,
-        tol,
-    );
-
-    for (i, v) in vertices.iter_mut().enumerate() {
-        v.z = solved_z_welded[old_to_welded[i]];
-    }
-    unsafe {
-        SMOOTH_PREV_DEPTH_WELDED = Some(solved_z_welded);
-    }
-}
-
-pub fn build_vertex_neighbors(vertex_count: usize, triangle_indices: &[u16]) -> Vec<Vec<usize>> {
-    let mut neighbors = vec![Vec::<usize>::new(); vertex_count];
-    for triangle in triangle_indices.chunks_exact(3) {
-        let a = triangle[0] as usize;
-        let b = triangle[1] as usize;
-        let c = triangle[2] as usize;
-        let edges = [(a, b), (b, c), (c, a)];
-        for (i, j) in edges {
-            if !neighbors[i].contains(&j) {
-                neighbors[i].push(j);
-            }
-            if !neighbors[j].contains(&i) {
-                neighbors[j].push(i);
-            }
-        }
-    }
-    neighbors
-}
-
-fn apply_linear_system_matrix(
-    depth_values_in: &[f32],
-    neighbors: &[Vec<usize>],
-    smoothness_weight: f32,
-    diagonal_weight: f32,
-    depth_values_out: &mut [f32],
-) {
-    for (vertex_index, neighbors) in neighbors.iter().enumerate() {
-        let mut neighbor_sum = 0.0;
-        for &i in neighbors {
-            neighbor_sum += depth_values_in[i];
-        }
-        let degree_count = neighbors.len() as f32;
-        depth_values_out[vertex_index] = smoothness_weight
-            * (degree_count * depth_values_in[vertex_index] - neighbor_sum)
-            + diagonal_weight * depth_values_in[vertex_index];
-    }
-}
-
-fn conjugate_gradient_solve_spd<F>(
-    dimension: usize,
-    mut apply_matrix: F,
-    right_hand_side: &[f32],
-    solution_depth_values: &mut [f32],
-    maximum_iterations: usize,
-    tolerance: f32,
-) where
-    F: FnMut(&[f32], &mut [f32]),
-{
-    let mut residual_vector = vec![0.0; dimension];
-    let mut search_direction_vector = vec![0.0; dimension];
-    let mut matrix_times_direction = vec![0.0; dimension];
-    apply_matrix(solution_depth_values, &mut residual_vector);
-    for i in 0..dimension {
-        residual_vector[i] = right_hand_side[i] - residual_vector[i];
-        search_direction_vector[i] = residual_vector[i];
-    }
-    let tolerance_squared = tolerance * tolerance;
-    let mut residual_norm_squared_previous: f32 = residual_vector.iter().map(|v| v * v).sum();
-    for _ in 0..maximum_iterations {
-        apply_matrix(&search_direction_vector, &mut matrix_times_direction);
-        let denominator: f32 = search_direction_vector
-            .iter()
-            .zip(matrix_times_direction.iter())
-            .map(|(p, ap)| p * ap)
-            .sum();
-        if denominator.abs() < 1e-20 {
-            break;
-        }
-        let step_size_alpha = residual_norm_squared_previous / denominator;
-        for i in 0..dimension {
-            solution_depth_values[i] += step_size_alpha * search_direction_vector[i];
-            residual_vector[i] -= step_size_alpha * matrix_times_direction[i];
-        }
-        let residual_norm_squared_current: f32 = residual_vector.iter().map(|v| v * v).sum();
-        if residual_norm_squared_current <= tolerance_squared {
-            break;
-        }
-        let conjugate_coefficient_beta = residual_norm_squared_current / residual_norm_squared_previous;
-        for i in 0..dimension {
-            search_direction_vector[i] = residual_vector[i] + conjugate_coefficient_beta * search_direction_vector[i];
-        }
-        residual_norm_squared_previous = residual_norm_squared_current;
-    }
-}
-
-pub fn compute_target_depth_from_original_radius(
-    sphere_vertices: &[Vector3],
-    xy_deformed_vertices: &[Vector3],
-    minimum_inside_value: f32,
-) -> Vec<f32> {
-    let mut target_depth_values = Vec::with_capacity(xy_deformed_vertices.len());
-    for (original, scaled_xy) in sphere_vertices.iter().zip(xy_deformed_vertices.iter()) {
-        let original_radius_squared = original.x * original.x + original.y * original.y + original.z * original.z;
-        let scaled_xy_radius_squared = scaled_xy.x * scaled_xy.x + scaled_xy.y * scaled_xy.y;
-        let inside_value = (original_radius_squared - scaled_xy_radius_squared).max(minimum_inside_value);
-        let depth_magnitude = inside_value.sqrt();
-        let sign = if original.z >= 0.0 { 1.0 } else { -1.0 };
-        target_depth_values.push(sign * depth_magnitude);
-    }
-    target_depth_values
-}
-
-pub fn solve_depth_for_smooth_blob(
-    neighbors: &[Vec<usize>],
-    target_depth_values: &[f32],
-    previous_frame_depth_values: Option<&[f32]>,
-    smoothness_weight: f32,
-    target_weight: f32,
-    temporal_weight: f32,
-    maximum_iterations: usize,
-    tolerance: f32,
-) -> Vec<f32> {
-    let vertex_count = target_depth_values.len();
-    let diagonal_weight = target_weight
-        + if previous_frame_depth_values.is_some() {
-            temporal_weight
-        } else {
-            0.0
-        };
-
-    let mut right_hand_side = vec![0.0; vertex_count];
-    for i in 0..vertex_count {
-        right_hand_side[i] = target_weight * target_depth_values[i]
-            + if let Some(prev) = previous_frame_depth_values {
-                temporal_weight * prev[i]
-            } else {
-                0.0
-            };
-    }
-    let mut solution_depth_values = if let Some(prev) = previous_frame_depth_values {
-        prev.to_vec()
-    } else {
-        vec![0.0; vertex_count]
-    };
-    let mut apply_matrix = |input: &[f32], output: &mut [f32]| {
-        apply_linear_system_matrix(input, neighbors, smoothness_weight, diagonal_weight, output);
-    };
-    conjugate_gradient_solve_spd(
-        vertex_count,
-        &mut apply_matrix,
-        &right_hand_side,
-        &mut solution_depth_values,
-        maximum_iterations,
-        tolerance,
-    );
-    solution_depth_values
-}
-
-pub fn update_z_depth(vertices: &mut [Vector3], depth_values: &[f32]) {
-    for (vertex, depth) in vertices.iter_mut().zip(depth_values.iter()) {
-        vertex.z = *depth;
-    }
 }
 
 pub fn generate_mesh_and_texcoord_samples_from_silhouette(
-    screen_w: i32,
-    screen_h: i32,
     renderer: &mut RaylibRenderer,
 ) -> (Vec<Vec<Vector3>>, Vec<Vec<f32>>) {
+    let screen_w = renderer.handle.get_screen_width();
+    let screen_h = renderer.handle.get_screen_height();
     let model = renderer.handle.load_model(&renderer.thread, SPHERE_PATH).unwrap();
     let vertices = model.meshes()[0].vertices();
     let mut mesh_samples = Vec::with_capacity(ROTATIONAL_SAMPLES_FOR_INV_PROJ);
@@ -445,8 +218,8 @@ pub fn generate_mesh_and_texcoord_samples_from_silhouette(
     (mesh_samples, texcoord_samples)
 }
 
-fn rotate_vertices(sphere_vertices_vector: &mut Vec<Vector3>, rotation: f32) {
-    for vertex in sphere_vertices_vector {
+pub fn rotate_vertices(vertices: &mut Vec<Vector3>, rotation: f32) {
+    for vertex in vertices {
         let (x0, z0) = (vertex.x, vertex.z);
         vertex.x = x0 * rotation.cos() + z0 * rotation.sin();
         vertex.z = -x0 * rotation.sin() + z0 * rotation.cos();
@@ -493,6 +266,50 @@ pub fn lerp_intermediate_mesh_samples_to_single_mesh(
         .zip(texcoord_samples[next_frame].iter())
     {
         *dst_texcoord = *src_texcoord * (1.0 - weight) + *next_texcoord * weight;
+    }
+}
+
+pub fn debug_papercraft(observer: Camera3D, draw_handle: &mut RaylibDrawHandle, mesh: &WeakMesh, rotation: f32) {
+    let triangle_count = mesh.triangleCount as usize;
+    let indices = unsafe { from_raw_parts(mesh.indices, triangle_count * 3) };
+    let vertices = unsafe { from_raw_parts(mesh.vertices, mesh.vertexCount as usize * 3) };
+    let screen_w = draw_handle.get_screen_width();
+    let screen_h = draw_handle.get_screen_height();
+    for i in 0..triangle_count {
+        let ia = indices[i * 3] as usize;
+        let ib = indices[i * 3 + 1] as usize;
+        let ic = indices[i * 3 + 2] as usize;
+
+        let mut vertex_a = Vector3::new(vertices[ia * 3], vertices[ia * 3 + 1], vertices[ia * 3 + 2]);
+        let mut vertex_b = Vector3::new(vertices[ib * 3], vertices[ib * 3 + 1], vertices[ib * 3 + 2]);
+        let mut vertex_c = Vector3::new(vertices[ic * 3], vertices[ic * 3 + 1], vertices[ic * 3 + 2]);
+
+        let (x0, z0) = (vertex_a.x, vertex_a.z);
+        vertex_a.x = x0 * rotation.cos() + z0 * rotation.sin();
+        vertex_a.z = -x0 * rotation.sin() + z0 * rotation.cos();
+
+        let (x0, z0) = (vertex_b.x, vertex_b.z);
+        vertex_b.x = x0 * rotation.cos() + z0 * rotation.sin();
+        vertex_b.z = -x0 * rotation.sin() + z0 * rotation.cos();
+
+        let (x0, z0) = (vertex_c.x, vertex_c.z);
+        vertex_c.x = x0 * rotation.cos() + z0 * rotation.sin();
+        vertex_c.z = -x0 * rotation.sin() + z0 * rotation.cos();
+
+        let color = Color::new(
+            (i.wrapping_mul(60) & 255) as u8,
+            (i.wrapping_mul(120) & 255) as u8,
+            (i.wrapping_mul(240) & 255) as u8,
+            255,
+        );
+        let centroid = (vertex_a + vertex_b + vertex_c) / 3.0;
+        let centroid_x = ((centroid.x) * 0.5 + 0.5) * screen_w as f32;
+        let centroid_y = ((-centroid.y) * 0.5 + 0.5) * screen_h as f32;
+        {
+            let mut rl3d = draw_handle.begin_mode3D(observer);
+            rl3d.draw_triangle3D(vertex_a, vertex_b, vertex_c, color);
+        }
+        draw_handle.draw_text(&i.to_string(), centroid_x as i32, centroid_y as i32, 12, Color::WHITE);
     }
 }
 
@@ -584,16 +401,5 @@ pub fn subdivide_tris_no_index(mesh: &mut WeakMesh, iterations: usize) {
                 std::ptr::copy_nonoverlapping(new_t.as_ptr(), mesh.texcoords, new_t.len());
             }
         }
-    }
-}
-pub fn deform_vertices_from_silhouette_radii1(vertices: &mut [Vector3], radii_normals: &[f32]) {
-    for vertex in vertices {
-        let sample_x = vertex.x;
-        let sample_y = vertex.y;
-        let interpolated_radial_magnitude =
-            interpolate_radial_magnitude_from_sample_xy(sample_x, sample_y, &radii_normals);
-        vertex.x *= interpolated_radial_magnitude;
-        vertex.y *= interpolated_radial_magnitude;
-        vertex.z *= interpolated_radial_magnitude;
     }
 }

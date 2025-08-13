@@ -1,11 +1,14 @@
 use asset_payload::payloads::BAYER_PNG;
 use asset_payload::BAYER_PNG_PATH;
+use bath::fixed_func::constants::{
+    CELL_DRIFT_AMPLITUDE, DITHER_BLEND_FACTOR, DITHER_TEXTURE_SCALE, LIGHT_WAVE_SPATIAL_FREQ_X,
+    LIGHT_WAVE_SPATIAL_FREQ_Y, LIGHT_WAVE_TEMPORAL_FREQ_Y, UMBRAL_MASK_CENTER, UMBRAL_MASK_FADE_BAND,
+    UMBRAL_MASK_INNER_RADIUS, UMBRAL_MASK_OFFSET_X, UMBRAL_MASK_OFFSET_Y, UMBRAL_MASK_OUTER_RADIUS,
+    UMBRAL_MASK_PHASE_COEFFICIENT_X, UMBRAL_MASK_PHASE_COEFFICIENT_Y, UMBRAL_MASK_WAVE_AMPLITUDE_X,
+    UMBRAL_MASK_WAVE_AMPLITUDE_Y,
+};
 use bath::fixed_func::silhouette_inverse_projection_util::{
-    add_phase, smoothstep, spatial_phase, temporal_phase, uv_to_grid_space, CELL_DRIFT_AMPLITUDE, DITHER_BLEND_FACTOR,
-    DITHER_TEXTURE_SCALE, LIGHT_WAVE_SPATIAL_FREQ_X, LIGHT_WAVE_SPATIAL_FREQ_Y, LIGHT_WAVE_TEMPORAL_FREQ_Y,
-    UMBRAL_MASK_CENTER, UMBRAL_MASK_FADE_BAND, UMBRAL_MASK_INNER_RADIUS, UMBRAL_MASK_OFFSET_X, UMBRAL_MASK_OFFSET_Y,
-    UMBRAL_MASK_OUTER_RADIUS, UMBRAL_MASK_PHASE_COEFFICIENT_X, UMBRAL_MASK_PHASE_COEFFICIENT_Y,
-    UMBRAL_MASK_WAVE_AMPLITUDE_X, UMBRAL_MASK_WAVE_AMPLITUDE_Y,
+    add_phase, smoothstep, spatial_phase, temporal_phase, uv_to_grid_space,
 };
 use bath::render::raylib::RaylibRenderer;
 use bath::render::raylib_util::{flip_framebuffer, N64_WIDTH, ORIGIN};
@@ -111,7 +114,7 @@ pub fn shade(
     let mut grid_phase = spatial_phase(grid_coords);
     grid_phase += temporal_phase(i_time);
     grid_coords += add_phase(grid_phase);
-    //grid_coords += warp_and_drift_cell(grid_coords, i_time);
+    grid_coords += warp_and_drift_cell(grid_coords, i_time);
     let mut src_color = light_radial_fade(
         grid_coords,
         UMBRAL_MASK_CENTER,
@@ -124,7 +127,7 @@ pub fn shade(
         UMBRAL_MASK_PHASE_COEFFICIENT_Y,
         umbral_mask_phase,
     );
-    //src_color = add_umbral_mask(src_color, grid_coords, umbral_mask_pos);
+    src_color = add_umbral_mask(src_color, grid_coords, umbral_mask_pos);
     src_color = add_dither(src_color, px, py, bayer_data, bayer_w, bayer_h);
     (src_color * 255.0).round() as u8
 }
