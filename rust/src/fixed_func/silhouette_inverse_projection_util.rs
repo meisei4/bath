@@ -7,15 +7,15 @@ use crate::fixed_func::constants::{
 
 use crate::render::raylib::RaylibRenderer;
 use asset_payload::SPHERE_PATH;
+use raylib::camera::Camera3D;
 use raylib::color::Color;
 use raylib::consts::PixelFormat::PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
+use raylib::drawing::{RaylibDraw, RaylibDraw3D, RaylibDrawHandle, RaylibMode3DExt};
 use raylib::math::{Vector2, Vector3};
 use raylib::models::{Model, RaylibMesh, RaylibModel, WeakMesh};
 use raylib::texture::{Image, Texture2D};
 use std::f32::consts::TAU;
 use std::slice::{from_raw_parts, from_raw_parts_mut};
-use raylib::camera::Camera3D;
-use raylib::drawing::{RaylibDraw, RaylibDraw3D, RaylibDrawHandle, RaylibMode3DExt};
 
 #[inline]
 pub fn spatial_phase(grid_coords: Vector2) -> Vector2 {
@@ -269,7 +269,7 @@ pub fn lerp_intermediate_mesh_samples_to_single_mesh(
     }
 }
 
-pub fn debug_papercraft(observer: Camera3D, draw_handle: &mut RaylibDrawHandle, mesh: &WeakMesh, rotation: f32) {
+pub fn debug_indices(observer: Camera3D, draw_handle: &mut RaylibDrawHandle, mesh: &WeakMesh, rotation: f32) {
     let triangle_count = mesh.triangleCount as usize;
     let indices = unsafe { from_raw_parts(mesh.indices, triangle_count * 3) };
     let vertices = unsafe { from_raw_parts(mesh.vertices, mesh.vertexCount as usize * 3) };

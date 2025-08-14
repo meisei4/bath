@@ -38,9 +38,9 @@ pub fn unfold_sphere_like(mesh: &mut WeakMesh) -> Mesh {
 
     let mut shared_edges = compute_shared_edges(src_indices, src_vertices);
 
-    let mut parent_edge_for_face: Vec<Option<(usize, u16, u16)>> = vec![None; triangle_count];
+    let mut triangle_index_edge_pairs: Vec<Option<(usize, u16, u16)>> = vec![None; triangle_count];
     let mut is_chart_root_face: Vec<bool> = vec![true; triangle_count];
-    let mut union_find_parent: Vec<usize> = (0..triangle_count).collect();
+    let mut unique_triangle_indices: Vec<usize> = (0..triangle_count).collect();
     let mut union_find_rank: Vec<u8> = vec![0; triangle_count];
 
     for edge in &mut shared_edges {
@@ -54,21 +54,19 @@ pub fn unfold_sphere_like(mesh: &mut WeakMesh) -> Mesh {
         ) {
             continue;
         }
-
-        let root_a = union_find_find(&mut union_find_parent, edge.face_a);
-        let root_b = union_find_find(&mut union_find_parent, edge.face_b);
+        let root_a = what_the_fuck(&mut unique_triangle_indices, edge.face_a);
+        let root_b = what_the_fuck(&mut unique_triangle_indices, edge.face_b);
         if root_a == root_b {
             continue;
         }
-
-        parent_edge_for_face[edge.face_b] = Some((edge.face_a, edge.vertex_a, edge.vertex_b));
+        triangle_index_edge_pairs[edge.face_b] = Some((edge.face_a, edge.edge_start_index, edge.edge_end_index));
         is_chart_root_face[edge.face_b] = false;
-        union_find_union(&mut union_find_parent, &mut union_find_rank, root_a, root_b);
+        what_the_fuck_2(&mut unique_triangle_indices, &mut union_find_rank, root_a, root_b);
     }
 
     let mut children_faces_per_face: Vec<Vec<usize>> = vec![Vec::new(); triangle_count];
     for face_index in 0..triangle_count {
-        if let Some((parent_face, _, _)) = parent_edge_for_face[face_index] {
+        if let Some((parent_face, _, _)) = triangle_index_edge_pairs[face_index] {
             children_faces_per_face[parent_face].push(face_index);
         }
     }
@@ -88,7 +86,8 @@ pub fn unfold_sphere_like(mesh: &mut WeakMesh) -> Mesh {
                     if placement_done_per_face[child_face] {
                         continue;
                     }
-                    if let Some((parent_face, shared_vertex_a, shared_vertex_b)) = parent_edge_for_face[child_face] {
+                    if let Some((parent_face, shared_vertex_a, shared_vertex_b)) = triangle_index_edge_pairs[child_face]
+                    {
                         let parent_triangle_indices = &src_indices[parent_face * 3..parent_face * 3 + 3];
                         let child_triangle_indices = &src_indices[child_face * 3..child_face * 3 + 3];
 
@@ -114,7 +113,7 @@ pub fn unfold_sphere_like(mesh: &mut WeakMesh) -> Mesh {
     for i in 0..triangle_count {
         let mut root = i;
         while !is_chart_root_face[root] {
-            root = parent_edge_for_face[root].unwrap().0;
+            root = triangle_index_edge_pairs[root].unwrap().0;
         }
         chart_root_face_of[i] = root;
     }
@@ -264,21 +263,21 @@ pub fn unfold_sphere_like(mesh: &mut WeakMesh) -> Mesh {
 }
 
 #[inline]
-fn normalize_or_zero(vector: Vec3) -> Vec3 {
-    let length = vector.length();
-    if length > 1e-12 {
-        vector / length
+fn normalize_or(vector: Vec3) -> Vec3 {
+    //TODO: this is checking if its greater than 0??
+    if vector.length() > 0.0 {
+        vector / vector.length()
     } else {
-        vector
+        Vec3::ZERO
     }
 }
 
 #[inline]
-fn read_position3(positions: &[f32], vertex_index: usize) -> Vec3 {
+fn get_vertex_from_vertex_index(vertices: &[f32], vertex_index: usize) -> Vec3 {
     Vec3::new(
-        positions[vertex_index * 3 + 0],
-        positions[vertex_index * 3 + 1],
-        positions[vertex_index * 3 + 2],
+        vertices[vertex_index * 3 + 0],
+        vertices[vertex_index * 3 + 1],
+        vertices[vertex_index * 3 + 2],
     )
 }
 
@@ -292,7 +291,7 @@ fn ensure_indices_exist(mesh: &mut WeakMesh) {
 }
 
 #[inline]
-fn wrap_0_to_2pi(mut a: f32) -> f32 {
+fn wrap_2pi(mut a: f32) -> f32 {
     if a < 0.0 {
         a += 2.0 * PI;
     }
@@ -303,15 +302,15 @@ fn wrap_0_to_2pi(mut a: f32) -> f32 {
 }
 
 #[inline]
-fn circular_mean_0_to_2pi(a: f32, b: f32) -> f32 {
-    let d = (a - b).abs();
-    if d <= PI {
-        return wrap_0_to_2pi((a + b) * 0.5);
+fn circular_mean(a: f32, b: f32) -> f32 {
+    let distance = (a - b).abs();
+    if distance <= PI {
+        return wrap_2pi((a + b) * 0.5);
     }
     if a > b {
-        wrap_0_to_2pi(((a - 2.0 * PI) + b) * 0.5)
+        wrap_2pi(((a - 2.0 * PI) + b) * 0.5)
     } else {
-        wrap_0_to_2pi((a + (b - 2.0 * PI)) * 0.5)
+        wrap_2pi((a + (b - 2.0 * PI)) * 0.5)
     }
 }
 
@@ -333,9 +332,9 @@ fn quantize_angle_for_decisions(angle: f32) -> f32 {
 struct SharedEdge {
     face_a: usize,
     face_b: usize,
-    vertex_a: u16,
-    vertex_b: u16,
-    dihedral_angle: f32,
+    edge_start_index: u16,
+    edge_end_index: u16,
+    angle_fold_over_edge: f32,
 }
 
 fn compute_spherical_angles(vertices: &[f32]) -> (Vec<f32>, Vec<f32>) {
@@ -350,7 +349,7 @@ fn compute_spherical_angles(vertices: &[f32]) -> (Vec<f32>, Vec<f32>) {
 
         let polar_angle = (y / radius).clamp(-1.0, 1.0).acos();
         let mut azimuth = z.atan2(x);
-        azimuth = wrap_0_to_2pi(azimuth);
+        azimuth = wrap_2pi(azimuth);
 
         polar_angle_per_vertex.push(polar_angle);
         azimuth_per_vertex.push(azimuth);
@@ -399,13 +398,13 @@ fn compute_local_triangle_corners(vertices: &[f32], indices: &[u16]) -> Vec<[[f3
         let b = tri[1] as usize;
         let c = tri[2] as usize;
 
-        let position_a = read_position3(vertices, a);
-        let position_b = read_position3(vertices, b);
-        let position_c = read_position3(vertices, c);
+        let position_a = get_vertex_from_vertex_index(vertices, a);
+        let position_b = get_vertex_from_vertex_index(vertices, b);
+        let position_c = get_vertex_from_vertex_index(vertices, c);
 
         let edge_ab = position_b - position_a;
-        let axis_right = normalize_or_zero(edge_ab);
-        let axis_normal = normalize_or_zero(edge_ab.cross(position_c - position_a));
+        let axis_right = edge_ab.normalize_or_zero();
+        let axis_normal = edge_ab.cross(position_c - position_a).normalize_or_zero();
         let axis_up = axis_normal.cross(axis_right);
 
         let local_a = [0.0, 0.0];
@@ -418,52 +417,62 @@ fn compute_local_triangle_corners(vertices: &[f32], indices: &[u16]) -> Vec<[[f3
     local_triangle_corners
 }
 
-fn face_normal(vertices: &[f32], tri: &[u16]) -> Vec3 {
-    let a = read_position3(vertices, tri[0] as usize);
-    let b = read_position3(vertices, tri[1] as usize);
-    let c = read_position3(vertices, tri[2] as usize);
-    normalize_or_zero((b - a).cross(c - a))
+fn face_normal(vertices: &[f32], triangle: &[u16]) -> Vec3 {
+    let vertex_a = get_vertex_from_vertex_index(vertices, triangle[0] as usize);
+    let vertex_b = get_vertex_from_vertex_index(vertices, triangle[1] as usize);
+    let vertex_c = get_vertex_from_vertex_index(vertices, triangle[2] as usize);
+    (vertex_b - vertex_a).cross(vertex_c - vertex_a).normalize_or_zero()
 }
 
 fn compute_shared_edges(indices: &[u16], vertices: &[f32]) -> Vec<SharedEdge> {
-    let triangle_count = indices.len() / 3;
+    let triangle_count = indices.len() / 3; // this is because indices is giant list of per vertex mappings to triangles
     let mut shared_edges: Vec<SharedEdge> = Vec::new();
-    let mut owner_face_for_edge: HashMap<(u16, u16), usize> = HashMap::new();
+    let mut edges_to_triangle_indices_map: HashMap<(u16, u16), usize> = HashMap::new();
 
-    for i in 0..triangle_count {
-        let tri = &indices[i * 3..i * 3 + 3];
-        for edge_corner in 0..3 {
-            let va = tri[edge_corner];
-            let vb = tri[(edge_corner + 1) % 3];
-            let key = if va < vb { (va, vb) } else { (vb, va) };
+    for index in 0..triangle_count {
+        let current_triangle = &indices[index * 3..index * 3 + 3];
+        for j in 0..3 {
+            let vertex_index_a = current_triangle[j];
+            let vertex_index_b = current_triangle[(j + 1) % 3];
+            let edge_ab = if vertex_index_a < vertex_index_b {
+                (vertex_index_a, vertex_index_b)
+            } else {
+                (vertex_index_b, vertex_index_a)
+            };
 
-            if let Some(&other_face) = owner_face_for_edge.get(&key) {
-                let tri_this = &indices[i * 3..i * 3 + 3];
-                let tri_other = &indices[other_face * 3..other_face * 3 + 3];
-                let n_this = face_normal(vertices, tri_this);
-                let n_other = face_normal(vertices, tri_other);
-                let dihedral_angle = n_this.dot(n_other).clamp(-1.0, 1.0).acos();
-
+            if let Some(&adjacent_triangle_index) = edges_to_triangle_indices_map.get(&edge_ab) {
+                let current_triangle_reget = &indices[index * 3..index * 3 + 3];
+                let adjacent_triangle = &indices[adjacent_triangle_index * 3..adjacent_triangle_index * 3 + 3];
+                let current_triangle_face_normal = face_normal(vertices, current_triangle_reget);
+                let adjacent_triangle_face_normal = face_normal(vertices, adjacent_triangle);
+                //TODO: why the fuck do we have to clamp here?
+                let angle_fold_over_edge = current_triangle_face_normal
+                    .dot(adjacent_triangle_face_normal)
+                    .clamp(-1.0, 1.0)
+                    .acos();
                 shared_edges.push(SharedEdge {
-                    face_a: other_face,
-                    face_b: i,
-                    vertex_a: key.0,
-                    vertex_b: key.1,
-                    dihedral_angle,
+                    face_a: adjacent_triangle_index,
+                    face_b: index,
+                    edge_start_index: edge_ab.0,
+                    edge_end_index: edge_ab.1,
+                    angle_fold_over_edge,
                 });
             } else {
-                owner_face_for_edge.insert(key, i);
+                edges_to_triangle_indices_map.insert(edge_ab, index);
             }
         }
     }
-    shared_edges.sort_by(|lhs, rhs| {
-        lhs.dihedral_angle
-            .partial_cmp(&rhs.dihedral_angle)
-            .unwrap()
-            .then_with(|| (lhs.vertex_a, lhs.vertex_b).cmp(&(rhs.vertex_a, rhs.vertex_b)))
-            .then(lhs.face_a.cmp(&rhs.face_a))
-            .then(lhs.face_b.cmp(&rhs.face_b))
-    });
+    // TODO: I dont like this sorting shit, i want all the triangles to be near eachother fine
+    // shared_edges.sort_by(|left, right| {
+    //     left.angle_fold_over_edge
+    //         .partial_cmp(&right.angle_fold_over_edge)
+    //         .unwrap()
+    //         .then_with(|| {
+    //             (left.edge_start_index, left.edge_end_index).cmp(&(right.edge_start_index, right.edge_end_index))
+    //         })
+    //         .then(left.face_a.cmp(&right.face_a))
+    //         .then(left.face_b.cmp(&right.face_b))
+    // });
     shared_edges
 }
 
@@ -475,21 +484,21 @@ fn should_cut_edge(
     preferred_meridian_angles: &[f32],
     half_meridian_band_angle: f32,
 ) -> bool {
-    let a = edge.vertex_a as usize;
-    let b = edge.vertex_b as usize;
-    let avg_azimuth =
-        quantize_angle_for_decisions(circular_mean_0_to_2pi(azimuth_per_vertex[a], azimuth_per_vertex[b]));
+    let vertex_index_a = edge.edge_start_index as usize;
+    let vertex_index_b = edge.edge_end_index as usize;
+    let circular_mean = circular_mean(azimuth_per_vertex[vertex_index_a], azimuth_per_vertex[vertex_index_b]);
+    let avg_azimuth = quantize_angle_for_decisions(circular_mean);
     let near_preferred_meridian = preferred_meridian_angles
         .iter()
         .any(|&m| circular_distance(avg_azimuth, quantize_angle_for_decisions(m)) < half_meridian_band_angle);
 
-    let same_ring = ring_id_per_vertex[a] == ring_id_per_vertex[b];
+    let same_ring = ring_id_per_vertex[vertex_index_a] == ring_id_per_vertex[vertex_index_b];
     let at_ring_split = same_ring
-        && min_azimuth_vertex_per_ring[ring_id_per_vertex[a]]
-            .map(|min_vertex| min_vertex == a || min_vertex == b)
+        && min_azimuth_vertex_per_ring[ring_id_per_vertex[vertex_index_a]]
+            .map(|min_vertex| min_vertex == vertex_index_a || min_vertex == vertex_index_b)
             .unwrap_or(false);
 
-    near_preferred_meridian || at_ring_split || edge.dihedral_angle > ANGLE_LIMIT
+    near_preferred_meridian || at_ring_split || edge.angle_fold_over_edge > ANGLE_LIMIT
 }
 
 fn place_child_triangle(
@@ -569,19 +578,19 @@ fn place_child_triangle(
     placed_child_corners
 }
 
-fn union_find_find(parent: &mut [usize], x: usize) -> usize {
-    if parent[x] == x {
-        x
+fn what_the_fuck(unique_triangle_indices: &mut [usize], triangle_index: usize) -> usize {
+    if unique_triangle_indices[triangle_index] == triangle_index {
+        triangle_index
     } else {
-        let r = union_find_find(parent, parent[x]);
-        parent[x] = r;
-        r
+        let next_triangle_index = what_the_fuck(unique_triangle_indices, unique_triangle_indices[triangle_index]);
+        unique_triangle_indices[triangle_index] = next_triangle_index;
+        next_triangle_index
     }
 }
 
-fn union_find_union(parent: &mut [usize], rank: &mut [u8], a: usize, b: usize) {
-    let mut root_a = union_find_find(parent, a);
-    let mut root_b = union_find_find(parent, b);
+fn what_the_fuck_2(parent: &mut [usize], rank: &mut [u8], a: usize, b: usize) {
+    let mut root_a = what_the_fuck(parent, a);
+    let mut root_b = what_the_fuck(parent, b);
     if root_a == root_b {
         return;
     }

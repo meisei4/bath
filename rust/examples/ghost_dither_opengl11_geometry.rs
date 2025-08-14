@@ -1,19 +1,20 @@
-use std::f32::consts::PI;
 use asset_payload::SPHERE_PATH;
 use bath::fixed_func::constants::{MODEL_POS, MODEL_SCALE, TIME_BETWEEN_SAMPLES};
 use bath::fixed_func::papercraft::unfold_sphere_like;
-use bath::fixed_func::silhouette_inverse_projection_util::{debug_papercraft, generate_mesh_and_texcoord_samples_from_silhouette, interpolate_mesh_and_texcoord_samples, lerp_intermediate_mesh_samples_to_single_mesh};
-use bath::fixed_func::welding::{weld_and_index_mesh_for_unfolding, weld_for_smoothing_topo};
+use bath::fixed_func::silhouette_inverse_projection_util::{
+    debug_indices, generate_mesh_and_texcoord_samples_from_silhouette, interpolate_mesh_and_texcoord_samples,
+    lerp_intermediate_mesh_samples_to_single_mesh,
+};
+use bath::fixed_func::welding::weld_and_index_mesh_for_unfolding;
 use bath::render::raylib::RaylibRenderer;
 use bath::render::raylib_util::N64_WIDTH;
 use bath::render::renderer::Renderer;
 use raylib::camera::Camera3D;
 use raylib::color::Color;
 use raylib::consts::CameraProjection;
-use raylib::drawing::{RaylibDraw, RaylibDraw3D, RaylibDrawHandle, RaylibMode3DExt};
+use raylib::drawing::{RaylibDraw, RaylibDraw3D, RaylibMode3DExt};
 use raylib::math::Vector3;
-use raylib::models::{RaylibModel, WeakMesh};
-use std::slice::from_raw_parts;
+use raylib::models::RaylibModel;
 
 fn main() {
     let mut i_time = 0.0f32;
@@ -42,11 +43,10 @@ fn main() {
         let time = i_time % duration;
         let frame = time / TIME_BETWEEN_SAMPLES;
         let current_frame = frame.floor() as usize % mesh_samples.len();
-        //TODO: no idea why but some of the unfolds just jitter like mad, and some triangles glitch back and forth
         interpolate_mesh_and_texcoord_samples(
             &mut wire_model,
-            i_time,
-            // (current_frame as f32 * TIME_BETWEEN_SAMPLES).floor(),
+            // i_time,
+            (current_frame as f32 * TIME_BETWEEN_SAMPLES).floor(),
             &mesh_samples,
             &texcoord_samples,
         );
@@ -61,8 +61,7 @@ fn main() {
             let mut rl3d = draw_handle.begin_mode3D(observer);
             rl3d.draw_model_wires_ex(&unfolded_model, MODEL_POS, Vector3::Y, 0.0, MODEL_SCALE, Color::WHITE);
         }
-        debug_papercraft(observer, &mut draw_handle, &unfolded_mesh, 0.0);
+        debug_indices(observer, &mut draw_handle, &unfolded_mesh, 0.0);
         // debug_papercraft(observer, &mut draw_handle, &unfolded_mesh, 0.0);
-
     }
 }

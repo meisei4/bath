@@ -102,6 +102,6 @@ pub fn weld_for_smoothing_topo(mesh: &mut WeakMesh) {
 
 #[inline]
 fn quantize(value: f32) -> i32 {
-    let rounded = (value * 1e6);//.round();
+    let rounded = (value * 1e6).round();
     rounded.clamp(i32::MIN as f32, i32::MAX as f32) as i32
 }
