@@ -5,6 +5,8 @@ pub mod happo_giri_observer;
 #[cfg(feature = "tests-only")]
 pub mod papercraft;
 #[cfg(feature = "tests-only")]
+pub mod papercraft_gore;
+#[cfg(feature = "tests-only")]
 pub mod silhouette_inverse_projection_util;
 #[cfg(feature = "tests-only")]
 pub mod welding;

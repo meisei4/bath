@@ -1,11 +1,9 @@
 use asset_payload::SPHERE_PATH;
 use bath::fixed_func::constants::{MODEL_POS, MODEL_SCALE, TIME_BETWEEN_SAMPLES};
-use bath::fixed_func::papercraft::unfold_sphere_like;
+use bath::fixed_func::papercraft::unfold;
 use bath::fixed_func::silhouette_inverse_projection_util::{
-    debug_indices, generate_mesh_and_texcoord_samples_from_silhouette, interpolate_mesh_and_texcoord_samples,
-    lerp_intermediate_mesh_samples_to_single_mesh,
+    debug_indices, generate_mesh_and_texcoord_samples_from_silhouette,
 };
-use bath::fixed_func::welding::weld_and_index_mesh_for_unfolding;
 use bath::render::raylib::RaylibRenderer;
 use bath::render::raylib_util::N64_WIDTH;
 use bath::render::renderer::Renderer;
@@ -28,29 +26,28 @@ fn main() {
     };
     let mut wire_model = render.handle.load_model(&render.thread, SPHERE_PATH).unwrap();
     let (mesh_samples, texcoord_samples) = generate_mesh_and_texcoord_samples_from_silhouette(&mut render);
-    lerp_intermediate_mesh_samples_to_single_mesh(
-        i_time,
-        &mesh_samples,
-        &texcoord_samples,
-        &mut wire_model.meshes_mut()[0],
-    );
-    // weld_for_smoothing_topo(&mut wire_model.meshes_mut()[0]);
-
-    weld_and_index_mesh_for_unfolding(&mut wire_model.meshes_mut()[0]);
+    // lerp_intermediate_mesh_samples_to_single_mesh(
+    //     i_time,
+    //     &mesh_samples,
+    //     &texcoord_samples,
+    //     &mut wire_model.meshes_mut()[0],
+    // );
+    // weld_and_index_mesh_for_unfolding(&mut wire_model.meshes_mut()[0]);
     while !render.handle.window_should_close() {
         i_time += render.handle.get_frame_time();
         let duration = mesh_samples.len() as f32 * TIME_BETWEEN_SAMPLES;
         let time = i_time % duration;
         let frame = time / TIME_BETWEEN_SAMPLES;
         let current_frame = frame.floor() as usize % mesh_samples.len();
-        interpolate_mesh_and_texcoord_samples(
-            &mut wire_model,
-            // i_time,
-            (current_frame as f32 * TIME_BETWEEN_SAMPLES).floor(),
-            &mesh_samples,
-            &texcoord_samples,
-        );
-        let unfolded_mesh = unsafe { unfold_sphere_like(&mut wire_model.meshes_mut()[0]).make_weak() };
+        // interpolate_mesh_and_texcoord_samples(
+        //     &mut wire_model,
+        //     // i_time,
+        //     (current_frame as f32 * TIME_BETWEEN_SAMPLES).floor(),
+        //     &mesh_samples,
+        //     &texcoord_samples,
+        // );
+        let unfolded_mesh = unsafe { unfold(&mut wire_model.meshes_mut()[0]).make_weak() };
+        // let unfolded_mesh = unsafe { unfold_gore(&mut wire_model.meshes_mut()[0]).make_weak() };
         let unfolded_model = render
             .handle
             .load_model_from_mesh(&render.thread, unfolded_mesh.clone())
@@ -62,6 +59,5 @@ fn main() {
             rl3d.draw_model_wires_ex(&unfolded_model, MODEL_POS, Vector3::Y, 0.0, MODEL_SCALE, Color::WHITE);
         }
         debug_indices(observer, &mut draw_handle, &unfolded_mesh, 0.0);
-        // debug_papercraft(observer, &mut draw_handle, &unfolded_mesh, 0.0);
     }
 }

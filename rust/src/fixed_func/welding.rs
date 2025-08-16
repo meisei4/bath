@@ -1,4 +1,4 @@
-use raylib::models::{RaylibMesh, WeakMesh};
+use raylib::models::WeakMesh;
 use std::collections::HashMap;
 use std::slice::from_raw_parts;
 
@@ -41,62 +41,6 @@ pub fn weld_and_index_mesh_for_unfolding(mesh: &mut WeakMesh) {
     mesh.triangleCount = (indices.len() / 3) as i32;
     mesh.vertices = Box::leak(welded_vertices.into_boxed_slice()).as_mut_ptr();
     mesh.texcoords = Box::leak(welded_texcoords.into_boxed_slice()).as_mut_ptr();
-    mesh.indices = Box::leak(indices.into_boxed_slice()).as_mut_ptr();
-}
-
-//TODO: no fucking idea how to get these fucking indices shit working fr a normal fucking mesh i just want all the fucking triangles fucking indexed jesus christ
-pub fn weld_for_smoothing_topo(mesh: &mut WeakMesh) {
-    let mut indices: Vec<u16> = Vec::with_capacity(mesh.vertices().len() * 3);
-    // let mut map: HashMap<(i32, i32, i32), u16> = HashMap::with_capacity(mesh.vertices().len());
-    // let mut map: HashMap<(f32, f32, f32), u16> = HashMap::with_capacity(mesh.vertices().len());
-    let mut map: HashMap<String, u16> = HashMap::with_capacity(mesh.vertices().len());
-
-    let mut next_id = 0u16;
-
-    for (i, vertex) in mesh.vertices().iter().enumerate() {
-        // let key = (quantize(vertex.x), quantize(vertex.y), quantize(vertex.z));
-        // let key = (
-        //     (vertex.x * 1e6) as i32,
-        //     (vertex.y * 1e6) as i32,
-        //     (vertex.z * 1e6) as i32,
-        // );
-        let key = format!("{}, {}, {}", vertex.x, vertex.y, vertex.z);
-        let id = next_id;
-        next_id += 1;
-        indices.push(id);
-        // let id = map.entry(key).or_insert_with(|| {
-        //     let id = next_id;
-        //     next_id += 1;
-        //     id
-        // });
-        // indices.push(*id);
-    }
-    // let welded_count = next_id;
-    // let mut neighbors: Vec<HashSet<usize>> = vec![HashSet::new(); welded_count];
-    // for tri_start in (0..vertex_count).step_by(3) {
-    //     let i0 = tri_start + 0;
-    //     let i1 = tri_start + 1;
-    //     let i2 = tri_start + 2;
-    //     if i2 >= vertex_count {
-    //         break;
-    //     }
-    //     let w0 = indices[i0] as usize;
-    //     let w1 = indices[i1] as usize;
-    //     let w2 = indices[i2] as usize;
-    //     if w0 != w1 {
-    //         neighbors[w0].insert(w1);
-    //         neighbors[w1].insert(w0);
-    //     }
-    //     if w1 != w2 {
-    //         neighbors[w1].insert(w2);
-    //         neighbors[w2].insert(w1);
-    //     }
-    //     if w2 != w0 {
-    //         neighbors[w2].insert(w0);
-    //         neighbors[w0].insert(w2);
-    //     }
-    // }
-    // let welded_neighbors: Vec<Vec<usize>> = neighbors.into_iter().map(|s| s.into_iter().collect()).collect();
     mesh.indices = Box::leak(indices.into_boxed_slice()).as_mut_ptr();
 }
 

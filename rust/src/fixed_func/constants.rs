@@ -1,5 +1,5 @@
 use raylib::math::{Vector2, Vector3};
-use std::f32::consts::TAU;
+use std::f32::consts::{PI, TAU};
 
 pub const MODEL_POS: Vector3 = Vector3::ZERO;
 pub const MODEL_SCALE: Vector3 = Vector3::ONE;
@@ -45,3 +45,5 @@ pub const ROTATIONAL_SAMPLES_FOR_INV_PROJ: usize = 40;
 
 pub const TEXTURE_MAPPING_BOUNDARY_FADE: f32 = 0.075;
 pub const SILHOUETTE_TEXTURE_RES: i32 = 256;
+
+pub const TWO_PI: f32 = 2.0 * PI;
