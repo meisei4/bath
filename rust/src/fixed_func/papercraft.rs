@@ -6,80 +6,88 @@ use std::mem::{swap, zeroed};
 use std::ptr::null_mut;
 use std::slice::from_raw_parts;
 
-// ===== tunables =====
-pub const TARGET_MAX_EXTENT: f32 = 1.9;
-const WELD_POS_EPS: f32 = 1e-5; // weld positions only, NOT UVs
-
-// ===== typed ids =====
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
-struct TopologicalVertexId(u32); // welded-by-position id
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
-struct FaceId(usize);
+pub const ZOOM_SCALE: f32 = 2.0;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
-struct Edge(TopologicalVertexId, TopologicalVertexId);
-impl Edge {
-    fn new(a: TopologicalVertexId, b: TopologicalVertexId) -> Self {
-        if a.0 <= b.0 {
-            Edge(a, b)
+struct WeldedVertex {
+    id: u32,
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+struct Face {
+    id: usize,
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+// struct WeldedEdge(WeldedVertex, WeldedVertex);
+struct WeldedEdge {
+    vertex_a: WeldedVertex,
+    vertex_b: WeldedVertex,
+}
+
+impl WeldedEdge {
+    fn new(node_0: WeldedVertex, node_1: WeldedVertex) -> Self {
+        if node_0.id <= node_1.id {
+            // WeldedEdge(a, b)
+            WeldedEdge {
+                vertex_a: node_0,
+                vertex_b: node_1,
+            }
         } else {
-            Edge(b, a)
+            // WeldedEdge(b, a)
+            WeldedEdge {
+                vertex_a: node_1,
+                vertex_b: node_0,
+            }
         }
     }
 }
 
-// ===== topological mesh built from source buffers =====
-struct TopologicalMesh {
-    // welded unique positions (by position only)
-    vertices_topological_space: Vec<Vec3>,
-    // faces using welded position ids (3 corners each)
-    faces: Vec<[TopologicalVertexId; 3]>,
-    // per-face per-corner UVs copied from source (independent of welding)
-    face_uvs: Vec<[Vec2; 3]>,
-    // original positions per corner (for exact local 2D)
-    vertices_local_space: Vec<[Vec3; 3]>,
+struct WeldedMesh {
+    original_vertices: Vec<[Vec3; 3]>,
+    welded_vertices: Vec<Vec3>, //TODO: this is never used? shouldnt we be able to use it somehow? faces welded is enough?
+    welded_faces: Vec<[WeldedVertex; 3]>,
+    texcoords: Vec<[Vec2; 3]>,
 }
 
-// ===== dual graph with dihedral weights =====
 #[derive(Copy, Clone, Debug)]
 struct DualEdge {
-    face_a: FaceId,
-    face_b: FaceId,
-    edge: Edge,
-    face_a_local_space: (u8, u8),
-    face_b_local_space: (u8, u8),
-    weight: f32, // PI - dihedral
+    face_a: Face,
+    face_b: Face,
+    face_a_local_edge: (u8, u8),
+    face_b_local_edge: (u8, u8),
+    welded_edge: WeldedEdge,
+    fold_weight: f32, //TODO: PI - dihedral angle? because PI/ 180 is a fully flat crease between two faces
 }
 
-// ===== maximum spanning tree + oriented parent links =====
-struct DSU {
-    parents: Vec<usize>,
-    rank: Vec<u8>, //TODO: rank is how many children nodes per parent. I DONT LIKE PARALLEL ARRAYS!!
+struct DisjointSetUnion {
+    disjoint_sets: Vec<usize>,
+    rank: Vec<u8>, //TODO: rank is how many nodes in already exist in a given disjoint set...? I DONT LIKE PARALLEL ARRAYS!!
 }
-impl DSU {
-    fn new(n: usize) -> Self {
+impl DisjointSetUnion {
+    fn new(nodes: usize) -> Self {
         Self {
-            parents: (0..n).collect(),
-            rank: vec![0; n],
+            disjoint_sets: (0..nodes).collect(),
+            rank: vec![0; nodes],
         }
     }
-    fn find(&mut self, x: usize) -> usize {
-        if self.parents[x] != x {
-            self.parents[x] = self.find(self.parents[x]);
+    fn find(&mut self, node: usize) -> usize {
+        if self.disjoint_sets[node] != node {
+            self.disjoint_sets[node] = self.find(self.disjoint_sets[node]);
         }
-        self.parents[x]
+        self.disjoint_sets[node]
     }
-    fn union(&mut self, a: usize, b: usize) -> bool {
-        let (mut a, mut b) = (self.find(a), self.find(b));
-        if a == b {
+    fn union(&mut self, node_a: usize, node_b: usize) -> bool {
+        let (mut a_representative, mut b_representative) = (self.find(node_a), self.find(node_b));
+        if a_representative == b_representative {
             return false;
         }
-        if self.rank[a] < self.rank[b] {
-            swap(&mut a, &mut b);
+        if self.rank[a_representative] < self.rank[b_representative] {
+            swap(&mut a_representative, &mut b_representative);
         }
-        self.parents[b] = a;
-        if self.rank[a] == self.rank[b] {
-            self.rank[a] += 1;
+        self.disjoint_sets[b_representative] = a_representative;
+        if self.rank[a_representative] == self.rank[b_representative] {
+            self.rank[a_representative] += 1;
         }
         true
     }
@@ -87,126 +95,113 @@ impl DSU {
 
 #[derive(Copy, Clone, Debug, Default)]
 struct ParentLink {
-    parent: Option<FaceId>,
-    via_edge: Option<Edge>,
-    parent_local: Option<(u8, u8)>,
-    child_local: Option<(u8, u8)>,
+    parent: Option<Face>, //TODO: why arent we using this?
+    parent_local_edge: Option<(u8, u8)>,
+    child_local_edge: Option<(u8, u8)>,
+    welded_edge_link: Option<WeldedEdge>,
 }
 
 pub fn unfold(mesh: &mut WeakMesh) -> Mesh {
-    // 1) build topological mesh from the source (do NOT mutate source buffers)
-    let topological_mesh = build_topology_from_mesh(mesh);
+    let welded_mesh = weld_mesh(mesh);
+    let face_count = welded_mesh.welded_faces.len();
 
-    // 2) dual graph + MST
-    let mut dual_graph = build_dual_edges(&topological_mesh);
-    let (parent_links, children) = build_parent_tree(topological_mesh.faces.len(), &mut dual_graph);
+    let mut dual_graph = build_dual_graph(&welded_mesh);
+    let (parent_links, children) = build_parent_tree(face_count, &mut dual_graph);
 
-    // 3) local 2D per face
-    let mut vertices_per_face_local_space = Vec::with_capacity(topological_mesh.faces.len());
-    for face_index in 0..topological_mesh.faces.len() {
-        let [vertex_a, vertex_b, vertex_c] = topological_mesh.vertices_local_space[face_index];
+    let mut vertices_per_face_local_space = Vec::with_capacity(face_count);
+    for face_index in 0..face_count {
+        let [vertex_a, vertex_b, vertex_c] = welded_mesh.original_vertices[face_index];
         vertices_per_face_local_space.push(compute_triangle_vertices_local_space(vertex_a, vertex_b, vertex_c));
     }
-
-    // 4) place faces for each connected component (pack components to avoid overlap)
-    let face_count = topological_mesh.faces.len();
     let mut faces_placed_in_draw_space = vec![[Vec2::ZERO; 3]; face_count];
-    let mut is_placed = vec![false; face_count];
+    let mut is_already_placed = vec![false; face_count];
 
-    // simple row packing if multiple components (sphere should be single component)
+    // TODO: simple row packing if multiple components (sphere should be single component)
     let mut cursor_x = 0.0f32;
-    let padding = 0.05f32;
-
-    for face in 0..face_count {
-        if is_placed[face] {
+    for id in 0..face_count {
+        if is_already_placed[id] {
             continue;
         }
+        faces_placed_in_draw_space[id] =
+            canonicalize_triangle_vertices_2d_by_ids(vertices_per_face_local_space[id], &welded_mesh.welded_faces[id]); // faces_placed_in_draw_space[id] = vertices_per_face_local_space[id];
+        is_already_placed[id] = true;
 
-        faces_placed_in_draw_space[face] = vertices_per_face_local_space[face];
-        is_placed[face] = true;
+        let mut component_faces = vec![Face { id }];
+        let mut face_stack = vec![Face { id }];
 
-        let mut component_faces = vec![FaceId(face)];
-
-        let mut face_stack = vec![FaceId(face)];
-        while let Some(face_id) = face_stack.pop() {
-            for &child_face in &children[face_id.0] {
-                if is_placed[child_face.0] {
+        while let Some(face) = face_stack.pop() {
+            for &child_face in &children[face.id] {
+                if is_already_placed[child_face.id] {
                     continue;
                 }
-                let parent_link = parent_links[child_face.0];
-
-                let placed_child = place_child_on_parent(
-                    &vertices_per_face_local_space[child_face.0],
-                    &faces_placed_in_draw_space[face_id.0],
-                    &topological_mesh.faces[face_id.0],
-                    &topological_mesh.faces[child_face.0],
-                    parent_link.parent_local.unwrap(),
-                    parent_link.child_local.unwrap(),
-                    parent_link.via_edge.unwrap(),
+                let parent_link = parent_links[child_face.id];
+                let child_vertices_aligned_to_parent_edge = align_child_face_with_parent_in_draw_space(
+                    &vertices_per_face_local_space[child_face.id],
+                    &welded_mesh.welded_faces[child_face.id],
+                    &faces_placed_in_draw_space[face.id],
+                    &welded_mesh.welded_faces[face.id],
+                    parent_link.parent_local_edge.unwrap(),
+                    parent_link.child_local_edge.unwrap(),
+                    parent_link.welded_edge_link.unwrap(),
                 );
-
-                faces_placed_in_draw_space[child_face.0] = placed_child;
-                is_placed[child_face.0] = true;
+                faces_placed_in_draw_space[child_face.id] = child_vertices_aligned_to_parent_edge;
+                is_already_placed[child_face.id] = true;
                 face_stack.push(child_face);
                 component_faces.push(child_face);
             }
         }
-
         // translate component so it doesn't overlap others if there are multiple components
-        let (mut minx, mut miny, mut maxx, mut maxy) = (f32::MAX, f32::MAX, f32::MIN, f32::MIN);
-        for &face_id in &component_faces {
-            for position_in_draw_space in &faces_placed_in_draw_space[face_id.0] {
-                minx = minx.min(position_in_draw_space.x);
-                maxx = maxx.max(position_in_draw_space.x);
-                miny = miny.min(position_in_draw_space.y);
-                maxy = maxy.max(position_in_draw_space.y);
+        let (mut min_x, mut min_y, mut max_x, mut max_y) = (f32::MAX, f32::MAX, f32::MIN, f32::MIN);
+        for &component_face in &component_faces {
+            for position_in_draw_space in &faces_placed_in_draw_space[component_face.id] {
+                min_x = min_x.min(position_in_draw_space.x);
+                max_x = max_x.max(position_in_draw_space.x);
+                min_y = min_y.min(position_in_draw_space.y);
+                max_y = max_y.max(position_in_draw_space.y);
             }
         }
-        let width = maxx - minx;
 
-        let offset = Vec2::new(cursor_x - minx, -miny);
-        for &face_id in &component_faces {
-            for position_in_draw_space in &mut faces_placed_in_draw_space[face_id.0] {
-                *position_in_draw_space += offset;
+        let step_width = max_x - min_x;
+        let offset = Vec2::new(cursor_x - min_x, -min_y);
+        for &component_face in &component_faces {
+            for face_position_in_draw_space in &mut faces_placed_in_draw_space[component_face.id] {
+                *face_position_in_draw_space += offset;
             }
         }
-        cursor_x += width + padding;
+        cursor_x += step_width;
     }
 
-    // 5) emit triangle soup with UVs
-    let mut unfolded_vertices: Vec<f32> = Vec::with_capacity(face_count * 9);
-    let mut unfolded_texcoords: Vec<f32> = Vec::with_capacity(face_count * 6);
-    let mut unfolded_indices: Vec<u16> = Vec::with_capacity(face_count * 3);
+    let mut unfolded_vertices = Vec::with_capacity(face_count * 9);
+    let mut unfolded_texcoords = Vec::with_capacity(face_count * 6);
+    let mut unfolded_indices = Vec::with_capacity(face_count * 3);
 
     for face in 0..face_count {
         let triangle = faces_placed_in_draw_space[face];
         for i in 0..3 {
             let vertex = triangle[i];
             unfolded_vertices.extend_from_slice(&[vertex.x, vertex.y, 0.0]);
-            let texcoords = topological_mesh.face_uvs[face][i];
+            let texcoords = welded_mesh.texcoords[face][i];
             unfolded_texcoords.extend_from_slice(&[texcoords.x, texcoords.y]);
             unfolded_indices.push((unfolded_vertices.len() / 3 - 1) as u16);
         }
     }
 
-    // 6) center+uniform scale to TARGET_MAX_EXTENT
-    let (mut minx, mut miny, mut maxx, mut maxy) = (f32::MAX, f32::MAX, f32::MIN, f32::MIN);
+    let (mut min_x, mut min_y, mut max_x, mut max_y) = (f32::MAX, f32::MAX, f32::MIN, f32::MIN);
     for i in (0..unfolded_vertices.len()).step_by(3) {
         let (x, y) = (unfolded_vertices[i], unfolded_vertices[i + 1]);
-        minx = minx.min(x);
-        maxx = maxx.max(x);
-        miny = miny.min(y);
-        maxy = maxy.max(y);
+        min_x = min_x.min(x);
+        max_x = max_x.max(x);
+        min_y = min_y.min(y);
+        max_y = max_y.max(y);
     }
-    let (cx, cy) = (0.5 * (minx + maxx), 0.5 * (miny + maxy));
-    let (sx, sy) = (maxx - minx, maxy - miny);
-    let s = TARGET_MAX_EXTENT / sx.max(sy).max(1e-20);
+    let (center_x, center_y) = ((min_x + max_x) * 0.5, (min_y + max_y) * 0.5);
+    let (step_size_x, step_size_y) = (max_x - min_x, max_y - min_y);
+    let step = ZOOM_SCALE / step_size_x.max(step_size_y);
     for i in (0..unfolded_vertices.len()).step_by(3) {
-        unfolded_vertices[i] = (unfolded_vertices[i] - cx) * s;
-        unfolded_vertices[i + 1] = (unfolded_vertices[i + 1] - cy) * s;
+        unfolded_vertices[i] = (unfolded_vertices[i] - center_x) * step;
+        unfolded_vertices[i + 1] = (unfolded_vertices[i + 1] - center_y) * step;
     }
 
-    // 7) build raylib Mesh (triangle soup)
     let mut unfolded_mesh: Mesh = unsafe { zeroed() };
     unfolded_mesh.vertexCount = (unfolded_vertices.len() / 3) as i32;
     unfolded_mesh.triangleCount = (unfolded_indices.len() / 3) as i32;
@@ -219,207 +214,341 @@ pub fn unfold(mesh: &mut WeakMesh) -> Mesh {
     unfolded_mesh
 }
 
-fn build_topology_from_mesh(mesh: &WeakMesh) -> TopologicalMesh {
+fn weld_mesh(mesh: &WeakMesh) -> WeldedMesh {
     let triangle_count = mesh.triangleCount as usize;
     let vertex_count = mesh.vertexCount as usize;
     let src_vertices = unsafe { from_raw_parts(mesh.vertices, 3 * vertex_count) };
     let src_texcoords = unsafe { from_raw_parts(mesh.texcoords, 2 * vertex_count) };
 
-    // if indices are null, the mesh is triangle-soup: triplets of vertices form faces
-    let src_indices: Vec<u16> = if mesh.indices.is_null() {
+    let src_indices = if mesh.indices.is_null() {
         debug_assert!(vertex_count % 3 == 0, "non-indexed mesh must be triangle soup");
         (0..vertex_count as u16).collect()
     } else {
         unsafe { from_raw_parts(mesh.indices, 3 * triangle_count) }.to_vec()
     };
 
-    // weld by POSITION ONLY to build topological vertex ids
-    let mut quantized_vertex_to_topo_vertex_id_map: HashMap<(i32, i32, i32), TopologicalVertexId> = HashMap::new();
-    let mut vertices_topological_space: Vec<Vec3> = Vec::new();
+    let use_indices_for_weld = !mesh.indices.is_null();
 
-    let mut faces: Vec<[TopologicalVertexId; 3]> = Vec::with_capacity(src_indices.len() / 3);
-    let mut face_uvs: Vec<[Vec2; 3]> = Vec::with_capacity(src_indices.len() / 3);
-    let mut vertices_local_space: Vec<[Vec3; 3]> = Vec::with_capacity(src_indices.len() / 3);
+    // keep your original map, but add an index-based one (only used if indices exist)
+    let mut quantized_vertex_to_welded_vertex_map: HashMap<(i32, i32, i32), WeldedVertex> = HashMap::new();
+    let mut index_to_welded_vertex_map: Option<HashMap<usize, WeldedVertex>> = if use_indices_for_weld {
+        Some(HashMap::new())
+    } else {
+        None
+    };
+
+    let welded_vertices = Vec::new();
+    let mut welded_vertices_count = 0;
+
+    let mut welded_faces = Vec::with_capacity(src_indices.len() / 3);
+    let mut face_texcoords = Vec::with_capacity(src_indices.len() / 3);
+    let mut face_vertices = Vec::with_capacity(src_indices.len() / 3);
 
     for face_index in 0..(src_indices.len() / 3) {
-        let mut face_topo_vertex_ids = [TopologicalVertexId(0); 3];
-        let mut face_texcoords = [Vec2::ZERO; 3];
-        let mut face_vertices = [Vec3::ZERO; 3];
+        let mut face_welded_vertices = [WeldedVertex { id: 0 }; 3];
+        let mut face_texcoord = [Vec2::ZERO; 3];
+        let mut face_vertex = [Vec3::ZERO; 3];
 
         for i in 0..3 {
             let vertex_index = src_indices[face_index * 3 + i] as usize;
-
             let vertex_x = src_vertices[vertex_index * 3 + 0];
             let vertex_y = src_vertices[vertex_index * 3 + 1];
             let vertex_z = src_vertices[vertex_index * 3 + 2];
             let vertex = Vec3::new(vertex_x, vertex_y, vertex_z);
 
-            let quantized_vertex = (
-                quantize(vertex_x, WELD_POS_EPS),
-                quantize(vertex_y, WELD_POS_EPS),
-                quantize(vertex_z, WELD_POS_EPS),
-            );
-            let topological_vertex_id = *quantized_vertex_to_topo_vertex_id_map
-                .entry(quantized_vertex)
-                .or_insert_with(|| {
-                    let id = TopologicalVertexId(vertices_topological_space.len() as u32);
-                    vertices_topological_space.push(vertex);
-                    id
-                });
+            let welded_vertex_id = if let Some(ref mut map) = index_to_welded_vertex_map {
+                *map.entry(vertex_index).or_insert_with(|| {
+                    let weld_id = WeldedVertex {
+                        id: welded_vertices_count,
+                    };
+                    welded_vertices_count += 1;
+                    weld_id
+                })
+            } else {
+                *quantized_vertex_to_welded_vertex_map
+                    .entry((quantize(vertex_x), quantize(vertex_y), quantize(vertex_z)))
+                    .or_insert_with(|| {
+                        let weld_id = WeldedVertex {
+                            id: welded_vertices_count,
+                        };
+                        welded_vertices_count += 1;
+                        weld_id
+                    })
+            };
 
-            face_topo_vertex_ids[i] = topological_vertex_id;
-            face_vertices[i] = vertex;
+            face_welded_vertices[i] = welded_vertex_id;
+            face_vertex[i] = vertex;
 
-            let u = src_texcoords[vertex_index * 2 + 0];
-            let v = src_texcoords[vertex_index * 2 + 1];
-            face_texcoords[i] = Vec2::new(u, v);
+            let s = src_texcoords[vertex_index * 2 + 0];
+            let t = src_texcoords[vertex_index * 2 + 1];
+            face_texcoord[i] = Vec2::new(s, t);
         }
-
-        faces.push(face_topo_vertex_ids);
-        face_uvs.push(face_texcoords);
-        vertices_local_space.push(face_vertices);
+        welded_faces.push(face_welded_vertices);
+        face_texcoords.push(face_texcoord);
+        face_vertices.push(face_vertex);
     }
 
-    TopologicalMesh {
-        vertices_topological_space,
-        faces,
-        face_uvs,
-        vertices_local_space,
+    WeldedMesh {
+        original_vertices: face_vertices,
+        welded_vertices,
+        welded_faces,
+        texcoords: face_texcoords,
     }
 }
 
-fn build_dual_edges(topo_mesh: &TopologicalMesh) -> Vec<DualEdge> {
-    let face_count = topo_mesh.faces.len();
-
-    // cache face normals from original positions (not welded)
-    let mut normals = Vec::with_capacity(face_count);
+fn build_dual_graph(welded_mesh: &WeldedMesh) -> Vec<DualEdge> {
+    let face_count = welded_mesh.welded_faces.len();
+    let mut face_normals = Vec::with_capacity(face_count);
     for face_index in 0..face_count {
-        let [vertex_a, vertex_b, vertex_c] = topo_mesh.vertices_local_space[face_index];
-        normals.push(face_normal(vertex_a, vertex_b, vertex_c));
+        let [vertex_a, vertex_b, vertex_c] = welded_mesh.original_vertices[face_index];
+        face_normals.push(face_normal(vertex_a, vertex_b, vertex_c));
     }
 
-    // map topological edge -> (owner face, owner local edge)
-    let mut owner: HashMap<Edge, (FaceId, (u8, u8))> = HashMap::new();
-    let mut dual = Vec::new();
+    let mut welded_edge_to_owner_face_and_owner_local_edge: HashMap<WeldedEdge, (Face, (u8, u8))> = HashMap::new();
+    let mut dual_graph = Vec::new();
 
-    for face_index in 0..face_count {
-        let face_id = FaceId(face_index);
-        let [v0, v1, v2] = topo_mesh.faces[face_index];
-        let local = [(0u8, 1u8), (1, 2), (2, 0)];
-        let vids = [v0, v1, v2];
+    for id in 0..face_count {
+        let face_id = Face { id };
+        let [welded_vertex_a, welded_vertex_b, welded_vertex_c] = welded_mesh.welded_faces[id];
+        let local_edges = [(0u8, 1u8), (1, 2), (2, 0)];
+        let face_welded_vertices = [welded_vertex_a, welded_vertex_b, welded_vertex_c];
 
-        for &(i0, i1) in &local {
-            let key = Edge::new(vids[i0 as usize], vids[i1 as usize]);
+        for &(point_a, point_b) in &local_edges {
+            let edge = WeldedEdge::new(
+                face_welded_vertices[point_a as usize],
+                face_welded_vertices[point_b as usize],
+            );
 
-            if let Some(&(of, ol)) = owner.get(&key) {
-                let na = normals[of.0];
-                let nb = normals[face_index];
-                let cos = na.dot(nb).clamp(-1.0, 1.0);
-                let dihedral = cos.acos();
-                let weight = PI - dihedral;
+            if let Some(&(owner_face, owner_face_local_edge)) =
+                welded_edge_to_owner_face_and_owner_local_edge.get(&edge)
+            {
+                let normal_face_a = face_normals[owner_face.id];
+                let normal_face_b = face_normals[id];
+                let cosine = normal_face_a.dot(normal_face_b).clamp(-1.0, 1.0);
+                let dihedral_angle = cosine.acos();
+                let fold_weight = PI - dihedral_angle;
 
-                dual.push(DualEdge {
-                    face_a: of,
+                dual_graph.push(DualEdge {
+                    face_a: owner_face,
                     face_b: face_id,
-                    edge: key,
-                    face_a_local_space: ol,
-                    face_b_local_space: (i0, i1),
-                    weight,
+                    welded_edge: edge,
+                    face_a_local_edge: owner_face_local_edge,
+                    face_b_local_edge: (point_a, point_b),
+                    fold_weight,
                 });
             } else {
-                owner.insert(key, (face_id, (i0, i1)));
+                welded_edge_to_owner_face_and_owner_local_edge.insert(edge, (face_id, (point_a, point_b)));
             }
         }
     }
-
-    dual
+    dual_graph
 }
 
-fn build_parent_tree(face_count: usize, dual: &mut [DualEdge]) -> (Vec<ParentLink>, Vec<Vec<FaceId>>) {
-    // maximum spanning tree
-    dual.sort_by(|left, right| right.weight.partial_cmp(&left.weight).unwrap());
+fn build_parent_tree(face_count: usize, dual_graph: &mut [DualEdge]) -> (Vec<ParentLink>, Vec<Vec<Face>>) {
+    // dual_graph.sort_by(|left, right| right.fold_weight.partial_cmp(&left.fold_weight).unwrap());
+    dual_graph.sort_by(|left, right| edge_sort_key(left).cmp(&edge_sort_key(right)));
+    let mut dsu = DisjointSetUnion::new(face_count);
+    let mut adjacency_list = vec![Vec::new(); face_count];
 
-    let mut dsu = DSU::new(face_count);
-    let mut adj = vec![Vec::new(); face_count];
-
-    for edge in dual.iter().copied() {
-        if dsu.union(edge.face_a.0, edge.face_b.0) {
-            adj[edge.face_a.0].push((edge.face_b, edge));
-            adj[edge.face_b.0].push((edge.face_a, edge));
+    for edge in dual_graph.iter().copied() {
+        if dsu.union(edge.face_a.id, edge.face_b.id) {
+            adjacency_list[edge.face_a.id].push((edge.face_b, edge));
+            adjacency_list[edge.face_b.id].push((edge.face_a, edge));
         }
     }
-
-    // orient from each unseen root (handle possible multiple components)
-    let mut links = vec![ParentLink::default(); face_count];
+    for neighbors in &mut adjacency_list {
+        neighbors.sort_by_key(|(f, e)| (f.id, e.welded_edge.vertex_a.id, e.welded_edge.vertex_b.id));
+    }
+    let mut parent_links = vec![ParentLink::default(); face_count];
     let mut children = vec![Vec::new(); face_count];
-    let mut seen = vec![false; face_count];
-    let mut queue = VecDeque::new();
-
-    for start in 0..face_count {
-        if seen[start] {
+    let mut seen = vec![false; face_count]; //TODO: stupid fucking parallel arrays again
+    let mut face_queue = VecDeque::new();
+    // orient from each unseen root (handle possible multiple components)
+    for id in 0..face_count {
+        if seen[id] {
             continue;
         }
-        seen[start] = true;
-        queue.push_back(FaceId(start));
-        while let Some(u) = queue.pop_front() {
-            for &(v, e) in &adj[u.0] {
-                if seen[v.0] {
+        seen[id] = true;
+        face_queue.push_back(Face { id });
+        while let Some(current_face) = face_queue.pop_front() {
+            for &(face, edge) in &adjacency_list[current_face.id] {
+                if seen[face.id] {
                     continue;
                 }
-                seen[v.0] = true;
-                // orient u -> v
-                let (pl, cl) = if u == e.face_a {
-                    (e.face_a_local_space, e.face_b_local_space)
+                seen[face.id] = true;
+                let (parent_local_edge, child_local_edge) = if current_face == edge.face_a {
+                    (edge.face_a_local_edge, edge.face_b_local_edge)
                 } else {
-                    (e.face_b_local_space, e.face_a_local_space)
+                    (edge.face_b_local_edge, edge.face_a_local_edge)
                 };
-                links[v.0] = ParentLink {
-                    parent: Some(u),
-                    via_edge: Some(e.edge),
-                    parent_local: Some(pl),
-                    child_local: Some(cl),
+                parent_links[face.id] = ParentLink {
+                    parent: Some(current_face),
+                    parent_local_edge: Some(parent_local_edge),
+                    child_local_edge: Some(child_local_edge),
+                    welded_edge_link: Some(edge.welded_edge),
                 };
-                children[u.0].push(v);
-                queue.push_back(v);
+                children[current_face.id].push(face);
+                face_queue.push_back(face);
             }
         }
     }
-
-    (links, children)
+    (parent_links, children)
 }
 
-// ===== exact per-face local 2D and rigid placement =====
+fn order_local_edge_with_welded_edge(
+    parent_face_welded_vertices: &[WeldedVertex; 3],
+    local_edge: (u8, u8),
+    welded_edge: WeldedEdge,
+) -> (u8, u8) {
+    let local_vertex_a = local_edge.0 as usize;
+    let local_vertex_b = local_edge.1 as usize;
+    let welded_vertex_a = parent_face_welded_vertices[local_vertex_a];
+    let welded_vertex_b = parent_face_welded_vertices[local_vertex_b];
+    if eq(welded_vertex_a, welded_edge.vertex_a) && eq(welded_vertex_b, welded_edge.vertex_b) {
+        (local_edge.0, local_edge.1)
+    } else if eq(welded_vertex_a, welded_edge.vertex_b) && eq(welded_vertex_b, welded_edge.vertex_a) {
+        (local_edge.1, local_edge.0)
+    } else {
+        panic!("local_edge does not match welded_edge (bad adjacency / welding).");
+    }
+}
+
+fn align_child_face_with_parent_in_draw_space(
+    child_local_space_vertices: &[Vec2; 3],
+    child_face_welded_vertices: &[WeldedVertex; 3],
+    parent_draw_space_vertices: &[Vec2; 3],
+    parent_face_welded_vertices: &[WeldedVertex; 3],
+    parent_edge_local: (u8, u8),
+    child_edge_local: (u8, u8),
+    welded_edge_link: WeldedEdge,
+) -> [Vec2; 3] {
+    // 1) reorder endpoints on BOTH faces to match the welded_edge_link order (min, max)
+    let parent_edge =
+        order_local_edge_with_welded_edge(parent_face_welded_vertices, parent_edge_local, welded_edge_link);
+    let child_edge = order_local_edge_with_welded_edge(child_face_welded_vertices, child_edge_local, welded_edge_link);
+
+    // 2) fetch endpoints in those (min,max) orders
+    let parent_vertex_a = parent_draw_space_vertices[parent_edge.0 as usize];
+    let parent_vertex_b = parent_draw_space_vertices[parent_edge.1 as usize];
+    let parent_vector_ab = parent_vertex_b - parent_vertex_a;
+
+    let child_vertex_a = child_local_space_vertices[child_edge.0 as usize];
+    let child_vertex_b = child_local_space_vertices[child_edge.1 as usize];
+    let child_vector_ab = child_vertex_b - child_vertex_a;
+
+    // 3) rotate (no scale) to align child edge direction with parent edge direction
+    let parent_edge_vector_length = parent_vector_ab.length();
+    let child_edge_vector_length = child_vector_ab.length();
+
+    // Guard against degenerate lengths
+    let parent_edge_alignment_direction = if parent_edge_vector_length > 0.0 {
+        parent_vector_ab / parent_edge_vector_length
+    } else {
+        Vec2::new(1.0, 0.0)
+    };
+    let current_child_edge_direction = if child_edge_vector_length > 0.0 {
+        child_vector_ab / child_edge_vector_length
+    } else {
+        Vec2::new(1.0, 0.0)
+    };
+
+    let cosine = current_child_edge_direction
+        .dot(parent_edge_alignment_direction)
+        .clamp(-1.0, 1.0);
+    let sine = cross_2d(current_child_edge_direction, parent_edge_alignment_direction);
+    let rotation = |direction_vector: Vec2| -> Vec2 {
+        Vec2::new(
+            cosine * direction_vector.x - sine * direction_vector.y,
+            sine * direction_vector.x + cosine * direction_vector.y,
+        )
+    };
+
+    // 4) translate so child edge lands on parent edge and then rotate around that point
+    let mut child_draw_space_vertices = [Vec2::ZERO; 3];
+    for i in 0..3 {
+        let offset = child_local_space_vertices[i] - child_vertex_a;
+        child_draw_space_vertices[i] = parent_vertex_a + rotation(offset);
+    }
+
+    // 5) Robust mirror test with epsilon (avoid signum jitter)
+    let eps = 1.0e-6_f32;
+
+    let parent_third_vertex = parent_draw_space_vertices[opposite_vertex_from_edge(parent_edge) as usize];
+    let child_third_vertex = child_draw_space_vertices[opposite_vertex_from_edge(child_edge) as usize];
+
+    let parent_side = cross_2d(parent_vector_ab, parent_third_vertex - parent_vertex_a); // signed area
+    let child_side = cross_2d(parent_vector_ab, child_third_vertex - parent_vertex_a);
+
+    // If the child is clearly on the same side as the parent's third vertex, mirror it.
+    // Ignore cases where the child is almost on the hinge line to avoid flip-flop.
+    if (parent_side * child_side) > eps {
+        let parent_edge_normal = Vec2::new(-parent_edge_alignment_direction.y, parent_edge_alignment_direction.x);
+        for vertex in &mut child_draw_space_vertices {
+            let relative = *vertex - parent_vertex_a;
+            let projection_along = relative.dot(parent_edge_alignment_direction);
+            let projection_perp = relative.dot(parent_edge_normal);
+            *vertex = parent_vertex_a + projection_along * parent_edge_alignment_direction
+                - projection_perp * parent_edge_normal;
+        }
+    }
+
+    child_draw_space_vertices
+}
+
 fn compute_triangle_vertices_local_space(vertex_a: Vec3, vertex_b: Vec3, vertex_c: Vec3) -> [Vec2; 3] {
-    let ab = vertex_b - vertex_a;
-    let ac = vertex_c - vertex_a;
-    let u = ab.normalize_or_zero();
-    let ac_u = ac.dot(u);
-    let v = (ac - ac_u * u).normalize_or_zero(); // orthonormal y-axis
+    let vector_ab = vertex_b - vertex_a;
+    let vector_ac = vertex_c - vertex_a;
+    let vector_ab_normal = vector_ab.normalize_or_zero();
+    let ac_u = vector_ac.dot(vector_ab_normal);
+    let v = (vector_ac - ac_u * vector_ab_normal).normalize_or_zero(); // orthonormal y-axis
     [
         Vec2::new(0.0, 0.0),
-        Vec2::new(ab.length(), 0.0),
-        Vec2::new(ac_u, ac.dot(v)),
+        Vec2::new(vector_ab.length(), 0.0),
+        Vec2::new(ac_u, vector_ac.dot(v)),
     ]
 }
 
-#[inline]
-fn perp_dot(a: Vec2, b: Vec2) -> f32 {
-    a.x * b.y - a.y * b.x
+fn edge_sort_key(e: &DualEdge) -> (u32, u32, usize, usize) {
+    let a = e.welded_edge.vertex_a.id;
+    let b = e.welded_edge.vertex_b.id;
+    let fa = e.face_a.id.min(e.face_b.id);
+    let fb = e.face_a.id.max(e.face_b.id);
+    (a, b, fa, fb)
 }
 
-#[inline]
-fn third_of(edge: (u8, u8)) -> u8 {
-    3 - (edge.0 + edge.1)
-}
+fn canonicalize_triangle_vertices_2d_by_ids(tri: [Vec2; 3], welded_face: &[WeldedVertex; 3]) -> [Vec2; 3] {
+    // pick base edge by stable rule: two smallest welded vertex ids in this face
+    let mut idx = [0usize, 1, 2];
+    idx.sort_by_key(|&i| welded_face[i].id); // ascending by welded id
+    let ia = idx[0];
+    let ib = idx[1];
+    let ic = idx[2];
 
-#[inline]
-fn same_vid(a: TopologicalVertexId, b: TopologicalVertexId) -> bool {
-    a.0 == b.0
-}
+    let p = tri[ia];
+    let q = tri[ib];
+    let r = tri[ic];
 
-#[inline]
-fn quantize(x: f32, eps: f32) -> i32 {
-    (x / eps).round() as i32
+    let e = q - p;
+    let len = e.length();
+    if len <= 0.0 {
+        return tri;
+    }
+    let ex = e / len;
+    let ey = Vec2::new(-ex.y, ex.x); // left-normal
+
+    let rp = r - p;
+    let r2 = Vec2::new(rp.dot(ex), rp.dot(ey));
+
+    let p2 = Vec2::new(0.0, 0.0);
+    let q2 = Vec2::new(len, 0.0);
+    let r2 = if r2.y >= 0.0 { r2 } else { Vec2::new(r2.x, -r2.y) };
+
+    // write back preserving original vertex indices 0,1,2
+    let mut out = [Vec2::ZERO; 3];
+    out[ia] = p2;
+    out[ib] = q2;
+    out[ic] = r2;
+    out
 }
 
 #[inline]
@@ -427,80 +556,24 @@ fn face_normal(vertex_a: Vec3, vertex_b: Vec3, vertex_c: Vec3) -> Vec3 {
     (vertex_b - vertex_a).cross(vertex_c - vertex_a).normalize_or_zero()
 }
 
-/// Return the local corner indices (iA, iB) **ordered to match edge_key**:
-/// index for edge_key.0 first, then index for edge_key.1.
-/// Panics if the provided local pair doesn't actually reference the edge.
-fn order_local_edge_to_key(face_vids: &[TopologicalVertexId; 3], local_edge: (u8, u8), edge_key: Edge) -> (u8, u8) {
-    let (i0, i1) = (local_edge.0 as usize, local_edge.1 as usize);
-    let a = face_vids[i0];
-    let b = face_vids[i1];
-
-    if same_vid(a, edge_key.0) && same_vid(b, edge_key.1) {
-        (local_edge.0, local_edge.1)
-    } else if same_vid(a, edge_key.1) && same_vid(b, edge_key.0) {
-        (local_edge.1, local_edge.0)
-    } else {
-        panic!("local_edge does not match edge_key (bad adjacency / welding).");
-    }
+#[inline]
+fn quantize(x: f32) -> i32 {
+    //TODO: this is to define when a vertex is identical between two faces?
+    const WELD_VERTEX_EPSILON: f32 = 1e-5; // -1 and up works, 0 goes crazy
+    (x / WELD_VERTEX_EPSILON).round() as i32
 }
 
-fn place_child_on_parent(
-    child_local: &[Vec2; 3],
-    parent_placed: &[Vec2; 3],
-    parent_face_vids: &[TopologicalVertexId; 3],
-    child_face_vids: &[TopologicalVertexId; 3],
-    parent_edge_local: (u8, u8),
-    child_edge_local: (u8, u8),
-    edge_key: Edge,
-) -> [Vec2; 3] {
-    // 1) reorder endpoints on BOTH faces to match the edge_key order (min,max)
-    let pe_local = order_local_edge_to_key(parent_face_vids, parent_edge_local, edge_key);
-    let ce_local = order_local_edge_to_key(child_face_vids, child_edge_local, edge_key);
+#[inline]
+fn cross_2d(a: Vec2, b: Vec2) -> f32 {
+    a.x * b.y - a.y * b.x
+}
 
-    // 2) fetch endpoints in those (min,max) orders
-    let pa = parent_placed[pe_local.0 as usize];
-    let pb = parent_placed[pe_local.1 as usize];
-    let pe = pb - pa;
+#[inline]
+fn opposite_vertex_from_edge(edge: (u8, u8)) -> u8 {
+    3 - (edge.0 + edge.1)
+}
 
-    let ca = child_local[ce_local.0 as usize];
-    let cb = child_local[ce_local.1 as usize];
-    let ce = cb - ca;
-
-    // 3) rotate (no scale) to align child edge direction with parent edge direction
-    let pe_len = pe.length().max(1e-20);
-    let ce_len = ce.length().max(1e-20);
-    debug_assert!(
-        ((pe_len - ce_len) / pe_len).abs() < 1e-3,
-        "shared edge lengths must match"
-    );
-
-    let u = pe / pe_len; // desired direction
-    let cu = ce / ce_len; // current child direction
-    let cos = cu.dot(u);
-    let sin = perp_dot(cu, u);
-    let rot = |p: Vec2| -> Vec2 { Vec2::new(cos * p.x - sin * p.y, sin * p.x + cos * p.y) };
-
-    // 4) translate so child 'ca' lands on 'pa', rotate around that point
-    let mut out = [Vec2::ZERO; 3];
-    for i in 0..3 {
-        let shifted = child_local[i] - ca;
-        out[i] = pa + rot(shifted); // no scale
-    }
-
-    // 5) mirror across the hinge if the child ends up on the same side as the parent's third
-    let p_third = parent_placed[third_of(pe_local) as usize];
-    let c_third = out[third_of(ce_local) as usize];
-    let side_parent = perp_dot(pe, p_third - pa).signum();
-    let side_child = perp_dot(pe, c_third - pa).signum();
-    if side_parent == side_child {
-        let n = Vec2::new(-u.y, u.x); // perp(u)
-        for v in &mut out {
-            let rel = *v - pa;
-            let along = rel.dot(u);
-            let perpv = rel.dot(n);
-            *v = pa + along * u - perpv * n;
-        }
-    }
-
-    out
+#[inline]
+fn eq(a: WeldedVertex, b: WeldedVertex) -> bool {
+    a.id == b.id
 }

@@ -36,7 +36,6 @@ fn main() {
 
     let mut main_model = render.handle.load_model(&render.thread, SPHERE_PATH).unwrap();
     let mut papercraft_model = render.handle.load_model(&render.thread, SPHERE_PATH).unwrap();
-    // weld_and_index_mesh_for_unfolding(&mut papercraft_model.meshes_mut()[0]);
 
     let (mesh_samples, texcoord_samples) = generate_mesh_and_texcoord_samples_from_silhouette(&mut render);
     interpolate_mesh_and_texcoord_samples(&mut wire_model, i_time, &mesh_samples, &texcoord_samples);
@@ -60,7 +59,8 @@ fn main() {
         let current_frame = frame.floor() as usize % mesh_samples.len();
         interpolate_mesh_and_texcoord_samples(
             &mut papercraft_model,
-            (current_frame as f32 * TIME_BETWEEN_SAMPLES).floor(),
+            i_time,
+            // (current_frame as f32 * TIME_BETWEEN_SAMPLES).floor(),
             &mesh_samples,
             &texcoord_samples,
         );
@@ -92,6 +92,7 @@ fn main() {
             //         Color::WHITE,
             //     );
             rl3d.draw_model_ex(&unfolded_model, MODEL_POS, Vector3::Y, 0.0, MODEL_SCALE, Color::WHITE);
+            rl3d.draw_model_wires_ex(&unfolded_model, MODEL_POS, Vector3::Y, 0.0, MODEL_SCALE, Color::BLACK);
         }
         // debug_indices(
         //     main_observer,
