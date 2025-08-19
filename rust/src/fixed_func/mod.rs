@@ -1,3 +1,4 @@
+mod backup;
 #[cfg(feature = "tests-only")]
 pub mod constants;
 #[cfg(feature = "tests-only")]

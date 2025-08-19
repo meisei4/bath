@@ -64,6 +64,8 @@ fn main() {
             &mesh_samples,
             &texcoord_samples,
         );
+        // let unfolded_mesh = unsafe { fold(&mut wire_model.meshes_mut()[0], i_time, true).make_weak() };
+
         let unfolded_mesh = unsafe { unfold(&mut papercraft_model.meshes_mut()[0]).make_weak() };
         let mut unfolded_model = render
             .handle
@@ -91,8 +93,15 @@ fn main() {
             //         MODEL_SCALE / 2.0,
             //         Color::WHITE,
             //     );
-            rl3d.draw_model_ex(&unfolded_model, MODEL_POS, Vector3::Y, 0.0, MODEL_SCALE, Color::WHITE);
-            rl3d.draw_model_wires_ex(&unfolded_model, MODEL_POS, Vector3::Y, 0.0, MODEL_SCALE, Color::BLACK);
+            // rl3d.draw_model_ex(&unfolded_model, MODEL_POS, Vector3::Y, 0.0, MODEL_SCALE, Color::WHITE);
+            rl3d.draw_model_wires_ex(
+                &unfolded_model,
+                MODEL_POS,
+                Vector3::Y,
+                mesh_rotation,
+                MODEL_SCALE,
+                Color::BLACK,
+            );
         }
         // debug_indices(
         //     main_observer,

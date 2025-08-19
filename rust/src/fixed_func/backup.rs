@@ -169,7 +169,7 @@ pub fn unfold(mesh: &mut WeakMesh) -> Mesh {
     }
     let (center_x, center_y) = ((min_x + max_x) * 0.5, (min_y + max_y) * 0.5);
     let (step_size_x, step_size_y) = (max_x - min_x, max_y - min_y);
-    let step = crate::fixed_func::backup::ZOOM_SCALE / step_size_x.max(step_size_y);
+    let step = ZOOM_SCALE / step_size_x.max(step_size_y);
     for i in (0..unfolded_vertices.len()).step_by(3) {
         unfolded_vertices[i] = (unfolded_vertices[i] - center_x) * step;
         unfolded_vertices[i + 1] = (unfolded_vertices[i + 1] - center_y) * step;
@@ -407,41 +407,55 @@ fn align_child_to_parent(
     let parent_a = parent_vertices[aligned_parent_edge.0 as usize];
     let parent_b = parent_vertices[aligned_parent_edge.1 as usize];
     let parent_ab = parent_b - parent_a;
-    let parent_x_axis = parent_ab.normalize();                     // local x
-    // let parent_y_axis = Vec2::new(-parent_x_axis.y, parent_x_axis.x);    // local y (left turn)
-    let perpendicular_rotation = Vec2::new((PI * 0.5).cos(), 1.0);
-    let parent_y_axis = parent_x_axis.rotate(perpendicular_rotation); //rotate PI/2
 
     let child_a = child_local_vertices[aligned_child_edge.0 as usize];
     let child_b = child_local_vertices[aligned_child_edge.1 as usize];
-    let child_x_axis = (child_b - child_a).normalize();
-    //cosine eventually derives the angle of rotation in the rotation matrix
-    let cosine_rotation = child_x_axis.dot(parent_x_axis).clamp(-1.0, 1.0);
-    //sine eventually derives the sign/direction (CW or CCW) of the rotation
-    let sine_rotation = child_x_axis.perp_dot(parent_x_axis);
-    let rotation = Vec2::new(cosine_rotation, sine_rotation);
-    let child_edge_1 = child_local_vertices[0] - child_a;
-    let child_edge_2 = child_local_vertices[1] - child_a;
-    let child_edge_3 = child_local_vertices[2] - child_a;
+    let child_ab = child_b - child_a;
 
-    let aligned_child_a = parent_a + child_edge_1.rotate(rotation);
-    let aligned_child_b = parent_a + child_edge_2.rotate(rotation);
-    let aligned_child_c = parent_a + child_edge_3.rotate(rotation);
-    let mut aligned_child_face = [aligned_child_a, aligned_child_b, aligned_child_c];
-    let parent_c = parent_vertices[edge_opposing_vertex(aligned_parent_edge) as usize];
-    let child_c = aligned_child_face[edge_opposing_vertex(aligned_child_edge) as usize];
-    let parent_sign = parent_ab.perp_dot(parent_c - parent_a);
-    let child_sign = parent_ab.perp_dot(child_c - parent_a);
+    // child_edge_direction    parent_edge_direction
+    // →                               ↑
+    // \                               │
+    //  \                              │
+    //   \                             │
+    //    \       rotate by θ ->       │
+    //     \θ                          │
+    let parent_direction = parent_ab / parent_ab.length();
+    let child_direction = child_ab / child_ab.length();
+    //cosine eventually derives the angle of rotation in the rotation matrix
+    let cosine_rotation = child_direction.dot(parent_direction).clamp(-1.0, 1.0);
+    //sine eventually derives the sign/direction (CW or CCW) of the rotation
+    let sine_rotation = child_direction.perp_dot(parent_direction);
+    let rotation_vector = Vec2::new(cosine_rotation, sine_rotation);
+    let alignment_origin = parent_a;
+    // let child_aa_transform = child_local_vertices[0] - child_a;
+    // let child_ab_transform = child_local_vertices[1] - child_a;
+    // let child_ac_transform = child_local_vertices[2] - child_a;
+    //
+    // let aligned_child_a = alignment_origin + child_aa_transform.rotate(rotation_vector);
+    // let aligned_child_b = alignment_origin + child_ab_transform.rotate(rotation_vector);
+    // let aligned_child_c = alignment_origin + child_ac_transform.rotate(rotation_vector);
+    // let mut aligned_child_vertices = [aligned_child_a, aligned_child_b, aligned_child_c];
+    let mut aligned_child_face = [Vec2::ZERO; 3];
+    for i in 0..3 {
+        let translation_offset = child_local_vertices[i] - child_a;
+        aligned_child_face[i] = alignment_origin + translation_offset.rotate(rotation_vector);
+    }
+    let parents_edge_opposing_vertex = parent_vertices[edge_opposing_vertex(aligned_parent_edge) as usize];
+    let childs_edge_opposing_vertex = aligned_child_face[edge_opposing_vertex(aligned_child_edge) as usize];
+    let parent_sign = parent_ab.perp_dot(parents_edge_opposing_vertex - alignment_origin);
+    let child_sign = parent_ab.perp_dot(childs_edge_opposing_vertex - alignment_origin);
     //cases: 0) either negative -> negative. 1) Both positive = positive -> flip the child 2) both negative = positive -> flip the child
     // if (parent_sign * child_sign).is_sign_positive() {
     if (parent_sign * child_sign) > 1e-6 {
+        // let parent_edge_normal = Vec2::new(-parent_direction.y, parent_direction.x);
+        let normal_rotation = Vec2::new((FRAC_2_PI).cos(), 1.0);
+        let parent_edge_normal = parent_direction.rotate(normal_rotation); //rotate PI/2
+
         for child_vertex in &mut aligned_child_face {
-            let parent_offset = *child_vertex - parent_a;
-            let x_aligned_magnitude = parent_offset.dot(parent_x_axis);
-            let y_aligned_magnitude = parent_offset.dot(parent_y_axis);
-            let x_aligned_component = parent_x_axis * x_aligned_magnitude;
-            let y_aligned_component = parent_y_axis * -y_aligned_magnitude;
-            *child_vertex = parent_a + x_aligned_component + y_aligned_component;
+            let edge = *child_vertex - alignment_origin;
+            let parallel_projection = edge.dot(parent_direction) * parent_direction;
+            let perpendicular_projection = edge.dot(parent_edge_normal) * parent_edge_normal;
+            *child_vertex = parent_a + parallel_projection - perpendicular_projection;
         }
     }
     aligned_child_face
@@ -458,17 +472,17 @@ fn derive_local_plane_vertices(a: Vec3, b: Vec3, c: Vec3) -> [Vec2; 3] {
     //             A------------B
     //    x_axis ---------------x---->
     let ab = b - a;
-    let ab_x_magnitude = ab.length();
+    let ab_x_component = ab.length();
     let ac = c - a;
     let x_axis_dir = ab.normalize_or_zero();
-    let ac_x_magnitude = ac.dot(x_axis_dir);
-    let ac_x_component = ac_x_magnitude * x_axis_dir;
-    let ac_y_component = ac - ac_x_component;
-    let y_axis_dir = ac_y_component.normalize_or_zero();
-    let ac_y_magnitude = ac.dot(y_axis_dir);
+    let ac_x_component = ac.dot(x_axis_dir);
+    let ac_x_vec = ac_x_component * x_axis_dir;
+    let ac_y_vec = ac - ac_x_vec;
+    let y_axis = ac_y_vec.normalize_or_zero();
+    let ac_y_component = ac.dot(y_axis);
     let a_local = Vec2::new(0.0, 0.0);
-    let b_local = Vec2::new(ab_x_magnitude, 0.0);
-    let c_local = Vec2::new(ac_x_magnitude, ac_y_magnitude);
+    let b_local = Vec2::new(ab_x_component, 0.0);
+    let c_local = Vec2::new(ac_x_component, ac_y_component);
     [a_local, b_local, c_local]
 }
 
@@ -493,23 +507,22 @@ fn anchor_welded_face(face: [Vec2; 3], welded_face: &[WeldedVertex; 3]) -> [Vec2
     let c = face[largest_index];
 
     let ab = b - a;
-    let ab_x_magnitude = ab.length();
-    if ab_x_magnitude <= 0.0 {
-        return face;
-    }
-    //TODO: why not normalize this instead???? im confused now again jesus
-    let x_axis = ab.normalize_or_zero();
-    // TODO: this is not perfect?
-    let perpendicular_rotation = Vec2::new((PI * 0.5).cos(), 1.0);
-    let y_axis = x_axis.rotate(perpendicular_rotation);
-    // let y_axis = Vec2::new(-x_axis.y, x_axis.x);
+    let ab_x_component = ab.length();
+    let ab_dir = ab / ab_x_component;
+    let left_normal_rotation = Vec2::new((FRAC_2_PI).cos(), 1.0);
+    let left_normal_ab = ab_dir.rotate(left_normal_rotation); //rotate PI/2?
     let ac = c - a;
-    let ac_x_magnitude = ac.dot(x_axis);
-    let ac_y_magnitude = ac.dot(y_axis);
+    let ac_x_component = ac.dot(ab_dir);
+    let ac_y_component = ac.dot(left_normal_ab);
 
     let stable_a = Vec2::new(0.0, 0.0);
-    let stable_b = Vec2::new(ab_x_magnitude, 0.0);
-    let stable_c = Vec2::new(ac_x_magnitude, ac_y_magnitude);
+    let stable_b = Vec2::new(ab_x_component, 0.0);
+    let stable_c = Vec2::new(ac_x_component, ac_y_component);
+    // let stable_c = if ac_y_component >= 0.0 {
+    //     Vec2::new(ac_x_component, ac_y_component)
+    // } else {
+    //     Vec2::new(ac_x_component, -ac_y_component)
+    // };
     let mut stable_welded_face = [Vec2::ZERO; 3];
     stable_welded_face[smallest_index] = stable_a;
     stable_welded_face[second_smallest_index] = stable_b;
@@ -518,13 +531,13 @@ fn anchor_welded_face(face: [Vec2; 3], welded_face: &[WeldedVertex; 3]) -> [Vec2
 }
 
 #[inline]
-fn face_normal(a: Vec3, b: Vec3, c: Vec3) -> Vec3 {
-    (b - a).cross(c - a).normalize_or_zero()
+fn face_normal(vertex_a: Vec3, vertex_b: Vec3, vertex_c: Vec3) -> Vec3 {
+    (vertex_b - vertex_a).cross(vertex_c - vertex_a).normalize_or_zero()
 }
 
 #[inline]
 fn quantize(x: f32) -> i32 {
-    const WELD_VERTEX_EPSILON: f32 = 1e-5; // -1 and up works, 0 goes crazy
+    const WELD_VERTEX_EPSILON: f32 = 1e-1; // -1 and up works, 0 goes crazy
     (x / WELD_VERTEX_EPSILON).round() as i32
 }
 
@@ -536,230 +549,4 @@ fn edge_opposing_vertex(edge: (u8, u8)) -> u8 {
 #[inline]
 fn eq(a: WeldedVertex, b: WeldedVertex) -> bool {
     a.id == b.id
-}
-
-//PROTOTYPE:
-
-const FOLD_DURATION_SEC: f32 = 5.0;
-const FOLD_UNFOLD_DURATION: f32 = FOLD_DURATION_SEC * 2.0;
-
-pub fn fold(mesh: &mut WeakMesh, i_time: f32, repeat_fold_unfold: bool) -> Mesh {
-    let fold_progress = if repeat_fold_unfold {
-        fold_unfold_time(i_time, FOLD_UNFOLD_DURATION) // 0→1→0 loop
-    } else {
-        (i_time / FOLD_DURATION_SEC).clamp(0.0, 1.0) // one-way fold, then stay folded
-    };
-    let welded_mesh = weld_mesh(mesh);
-    let face_count = welded_mesh.welded_faces.len();
-
-    let mut dual_graph = build_dual_graph(&welded_mesh);
-    let (parent_links, children) = build_parent_tree(face_count, &mut dual_graph);
-
-    let mut local_vertices_per_face = Vec::with_capacity(face_count);
-    for face_index in 0..face_count {
-        let [a, b, c] = welded_mesh.original_vertices[face_index];
-        local_vertices_per_face.push(derive_local_plane_vertices(a, b, c));
-    }
-    let mut unfolded_faces = vec![[Vec2::ZERO; 3]; face_count];
-    let mut is_already_unfolded = vec![false; face_count];
-
-    for id in 0..face_count {
-        if is_already_unfolded[id] {
-            continue;
-        }
-        unfolded_faces[id] = anchor_welded_face(local_vertices_per_face[id], &welded_mesh.welded_faces[id]);
-        // faces_placed_in_draw_space[id] = vertices_per_face_local_space[id];
-        is_already_unfolded[id] = true;
-        let mut face_stack = vec![Face { id }];
-
-        while let Some(face) = face_stack.pop() {
-            for &child_face in &children[face.id] {
-                if is_already_unfolded[child_face.id] {
-                    continue;
-                }
-                let parent_link = parent_links[child_face.id];
-                let aligned_child_face = align_child_to_parent(
-                    &local_vertices_per_face[child_face.id],
-                    &welded_mesh.welded_faces[child_face.id],
-                    &unfolded_faces[face.id],
-                    &welded_mesh.welded_faces[face.id],
-                    parent_link.parent_local_edge.unwrap(),
-                    parent_link.child_local_edge.unwrap(),
-                    parent_link.welded_edge.unwrap(),
-                );
-                unfolded_faces[child_face.id] = aligned_child_face;
-                is_already_unfolded[child_face.id] = true;
-                face_stack.push(child_face);
-            }
-        }
-    }
-    let mut lifted_faces = vec![[Vec3::ZERO; 3]; face_count];
-    for face in 0..face_count {
-        lifted_faces[face][0] = lift_dimension(unfolded_faces[face][0]);
-        lifted_faces[face][1] = lift_dimension(unfolded_faces[face][1]);
-        lifted_faces[face][2] = lift_dimension(unfolded_faces[face][2]);
-    }
-
-    let mut dihedral_angles = vec![0.0f32; face_count];
-    for child_face in 0..face_count {
-        if let Some(parent_face) = parent_links[child_face].parent {
-            let link = parent_links[child_face];
-            dihedral_angles[child_face] = signed_dihedral_between(
-                parent_face.id,
-                child_face,
-                link.parent_local_edge.unwrap(),
-                &welded_mesh,
-            );
-        }
-    }
-
-    // fold by rotating each child subtree around its parent hinge by progress*dihedral
-    let root_faces: Vec<usize> = (0..face_count)
-        .filter(|&face| parent_links[face].parent.is_none())
-        .collect();
-    for &root_face in &root_faces {
-        let mut root_face_queue = VecDeque::new();
-        root_face_queue.push_back(root_face);
-        while let Some(face) = root_face_queue.pop_front() {
-            for &child_face in &children[face] {
-                // hinge endpoints on the *current* parent triangle
-                let parent_link = parent_links[child_face.id];
-                let parent_edge = parent_link.parent_local_edge.unwrap();
-                let parent_a = lifted_faces[face][parent_edge.0 as usize];
-                let parent_b = lifted_faces[face][parent_edge.1 as usize];
-
-                let parent_ab = parent_b - parent_a;
-                if parent_ab.length() > 1e-8 {
-                    let current_fold_angle = dihedral_angles[child_face.id] * fold_progress;
-                    // rotate entire child subtree
-                    let children_subtree = collect_subtree_faces(child_face.id, &children);
-                    for child in children_subtree {
-                        for i in 0..3 {
-                            lifted_faces[child][i] = rotate_point_about_axis(
-                                lifted_faces[child][i],
-                                (parent_a, parent_b),
-                                current_fold_angle,
-                            );
-                        }
-                    }
-                }
-                root_face_queue.push_back(child_face.id);
-            }
-        }
-        align_to_original_pose(&mut lifted_faces, &welded_mesh, root_face);
-    }
-
-    let mut vertices = Vec::with_capacity(face_count * 9);
-    let mut texcoords = Vec::with_capacity(face_count * 6);
-    let mut indices = Vec::with_capacity(face_count * 3);
-
-    for face in 0..face_count {
-        for i in 0..3 {
-            let vertex = lifted_faces[face][i];
-            vertices.extend_from_slice(&[vertex.x, vertex.y, vertex.z]);
-            let texcoord = welded_mesh.texcoords[face][i];
-            texcoords.extend_from_slice(&[texcoord.x, texcoord.y]);
-            indices.push((vertices.len() / 3 - 1) as u16);
-        }
-    }
-
-    let mut folded_mesh: Mesh = unsafe { zeroed() };
-    folded_mesh.vertexCount = (vertices.len() / 3) as i32;
-    folded_mesh.triangleCount = (indices.len() / 3) as i32;
-    folded_mesh.vertices = Box::leak(vertices.into_boxed_slice()).as_mut_ptr();
-    folded_mesh.indices = Box::leak(indices.into_boxed_slice()).as_mut_ptr();
-    folded_mesh.texcoords = Box::leak(texcoords.into_boxed_slice()).as_mut_ptr();
-    folded_mesh.normals = null_mut();
-    folded_mesh.tangents = null_mut();
-    folded_mesh.colors = null_mut();
-    folded_mesh
-}
-
-fn collect_subtree_faces(root_face: usize, children: &[Vec<Face>]) -> Vec<usize> {
-    let mut subtree = Vec::new();
-    let mut face_stack = vec![root_face];
-    while let Some(face) = face_stack.pop() {
-        subtree.push(face);
-        for &child_face in &children[face] {
-            face_stack.push(child_face.id);
-        }
-    }
-    subtree
-}
-
-fn signed_dihedral_between(parent_id: usize, child_id: usize, parent_edge_local: (u8, u8), welded: &WeldedMesh) -> f32 {
-    let [parent_a_world, parent_b_world, parent_c_world] = welded.original_vertices[parent_id];
-    let [child_a, child_b, child_c] = welded.original_vertices[child_id];
-    let parent_face_normal = face_normal(parent_a_world, parent_b_world, parent_c_world);
-    let child_face_normal = face_normal(child_a, child_b, child_c);
-    let parent_face_world = [parent_a_world, parent_b_world, parent_c_world];
-    let parent_a_local = parent_face_world[parent_edge_local.0 as usize];
-    let parent_b_local = parent_face_world[parent_edge_local.1 as usize];
-    let x_axis = (parent_b_local - parent_a_local).normalize_or_zero();
-
-    let cosine = parent_face_normal.dot(child_face_normal).clamp(-1.0, 1.0);
-    let dihedral_angle = cosine.acos();
-    let sine = x_axis.dot(parent_face_normal.cross(child_face_normal));
-    // if sine >= 0.0 {
-    //     dihedral_angle
-    // } else {
-    //     -dihedral_angle
-    // }
-    dihedral_angle * sine.signum()
-
-}
-
-fn align_to_original_pose(unfolded_faces_lifted: &mut [[Vec3; 3]], welded_mesh: &WeldedMesh, root: usize) {
-    let [unfolded_a, unfolded_b, unfolded_c] = unfolded_faces_lifted[root];
-    let unfolded_x_axis = (unfolded_b - unfolded_a).normalize_or_zero();
-    let unfolded_z_axis = face_normal(unfolded_a, unfolded_b, unfolded_c);
-    let unfolded_y_axis = unfolded_z_axis.cross(unfolded_x_axis).normalize_or_zero();
-
-    let [folded_a, folded_b, folded_c] = welded_mesh.original_vertices[root];
-    let folded_x_axis = (folded_b - folded_a).normalize_or_zero();
-    let folded_z_axis = face_normal(folded_a, folded_b, folded_c);
-    let folded_y_axis = folded_z_axis.cross(folded_x_axis).normalize_or_zero();
-
-    for unfolded_face in 0..unfolded_faces_lifted.len() {
-        for i in 0..3 {
-            let unfolded_edge = unfolded_faces_lifted[unfolded_face][i] - unfolded_a;
-            let unfolded_x_magnitude = unfolded_edge.dot(unfolded_x_axis);
-            let unfolded_y_magnitude = unfolded_edge.dot(unfolded_y_axis);
-            let unfolded_z_magnitude = unfolded_edge.dot(unfolded_z_axis);
-            unfolded_faces_lifted[unfolded_face][i] =
-                folded_a + folded_x_axis * unfolded_x_magnitude + folded_y_axis * unfolded_y_magnitude + folded_z_axis * unfolded_z_magnitude;
-        }
-    }
-}
-
-#[inline]
-fn fold_unfold_time(i_time: f32, period: f32) -> f32 {
-    let u = (i_time / period).fract();
-    if u <= 0.5 {
-        u * 2.0
-    } else {
-        2.0 - 2.0 * u
-    }
-}
-
-#[inline]
-fn lift_dimension(vertex: Vec2) -> Vec3 {
-    Vec3::new(vertex.x, vertex.y, 0.0)
-}
-
-#[inline]
-fn rotate_point_about_axis(c: Vec3, axis: (Vec3, Vec3), theta: f32) -> Vec3 {
-    let (a, b) = axis;
-    let ab = b - a;
-    let ab_axis_dir = ab.normalize_or_zero();
-    let ac = c - a;
-    let ac_z_component = ab_axis_dir.dot(ac) * ab_axis_dir; //local
-    let ac_x_component = ac - ac_z_component; //local x axis of the triangles face
-    let ac_y_component = ab_axis_dir.cross(ac_x_component); //local y axis of the triangles face
-    let origin = a;
-    let rotated_x_component = ac_x_component * theta.cos();
-    let rotated_y_component = ac_y_component * theta.sin();
-    //Z does not rotate?
-    let rotated_c = ac_z_component + rotated_x_component + rotated_y_component;
-    origin + rotated_c
 }
