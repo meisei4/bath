@@ -65,7 +65,6 @@ fn main() {
             &texcoord_samples,
         );
         // let unfolded_mesh = unsafe { fold(&mut wire_model.meshes_mut()[0], i_time, true).make_weak() };
-
         let unfolded_mesh = unsafe { unfold(&mut papercraft_model.meshes_mut()[0]).make_weak() };
         let mut unfolded_model = render
             .handle

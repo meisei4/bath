@@ -1,7 +1,7 @@
 use raylib::math::glam::{Vec2, Vec3};
 use raylib::models::{Mesh, WeakMesh};
 use std::collections::{HashMap, VecDeque};
-use std::f32::consts::{FRAC_2_PI, PI};
+use std::f32::consts::PI;
 use std::mem::{swap, zeroed};
 use std::ptr::null_mut;
 use std::slice::from_raw_parts;
@@ -169,7 +169,7 @@ pub fn unfold(mesh: &mut WeakMesh) -> Mesh {
     }
     let (center_x, center_y) = ((min_x + max_x) * 0.5, (min_y + max_y) * 0.5);
     let (step_size_x, step_size_y) = (max_x - min_x, max_y - min_y);
-    let step = crate::fixed_func::backup::ZOOM_SCALE / step_size_x.max(step_size_y);
+    let step = ZOOM_SCALE / step_size_x.max(step_size_y);
     for i in (0..unfolded_vertices.len()).step_by(3) {
         unfolded_vertices[i] = (unfolded_vertices[i] - center_x) * step;
         unfolded_vertices[i + 1] = (unfolded_vertices[i + 1] - center_y) * step;
@@ -407,8 +407,8 @@ fn align_child_to_parent(
     let parent_a = parent_vertices[aligned_parent_edge.0 as usize];
     let parent_b = parent_vertices[aligned_parent_edge.1 as usize];
     let parent_ab = parent_b - parent_a;
-    let parent_x_axis = parent_ab.normalize();                     // local x
-    // let parent_y_axis = Vec2::new(-parent_x_axis.y, parent_x_axis.x);    // local y (left turn)
+    let parent_x_axis = parent_ab.normalize(); // local x
+                                               // let parent_y_axis = Vec2::new(-parent_x_axis.y, parent_x_axis.x);    // local y (left turn)
     let perpendicular_rotation = Vec2::new((PI * 0.5).cos(), 1.0);
     let parent_y_axis = parent_x_axis.rotate(perpendicular_rotation); //rotate PI/2
 
@@ -538,8 +538,6 @@ fn eq(a: WeldedVertex, b: WeldedVertex) -> bool {
     a.id == b.id
 }
 
-//PROTOTYPE:
-
 const FOLD_DURATION_SEC: f32 = 5.0;
 const FOLD_UNFOLD_DURATION: f32 = FOLD_DURATION_SEC * 2.0;
 
@@ -613,7 +611,6 @@ pub fn fold(mesh: &mut WeakMesh, i_time: f32, repeat_fold_unfold: bool) -> Mesh 
         }
     }
 
-    // fold by rotating each child subtree around its parent hinge by progress*dihedral
     let root_faces: Vec<usize> = (0..face_count)
         .filter(|&face| parent_links[face].parent.is_none())
         .collect();
@@ -706,7 +703,6 @@ fn signed_dihedral_between(parent_id: usize, child_id: usize, parent_edge_local:
     //     -dihedral_angle
     // }
     dihedral_angle * sine.signum()
-
 }
 
 fn align_to_original_pose(unfolded_faces_lifted: &mut [[Vec3; 3]], welded_mesh: &WeldedMesh, root: usize) {
@@ -726,8 +722,10 @@ fn align_to_original_pose(unfolded_faces_lifted: &mut [[Vec3; 3]], welded_mesh: 
             let unfolded_x_magnitude = unfolded_edge.dot(unfolded_x_axis);
             let unfolded_y_magnitude = unfolded_edge.dot(unfolded_y_axis);
             let unfolded_z_magnitude = unfolded_edge.dot(unfolded_z_axis);
-            unfolded_faces_lifted[unfolded_face][i] =
-                folded_a + folded_x_axis * unfolded_x_magnitude + folded_y_axis * unfolded_y_magnitude + folded_z_axis * unfolded_z_magnitude;
+            unfolded_faces_lifted[unfolded_face][i] = folded_a
+                + folded_x_axis * unfolded_x_magnitude
+                + folded_y_axis * unfolded_y_magnitude
+                + folded_z_axis * unfolded_z_magnitude;
         }
     }
 }
@@ -760,6 +758,6 @@ fn rotate_point_about_axis(c: Vec3, axis: (Vec3, Vec3), theta: f32) -> Vec3 {
     let rotated_x_component = ac_x_component * theta.cos();
     let rotated_y_component = ac_y_component * theta.sin();
     //Z does not rotate?
-    let rotated_c = ac_z_component + rotated_x_component + rotated_y_component;
+    let rotated_c = rotated_x_component + rotated_y_component + ac_z_component;
     origin + rotated_c
 }
