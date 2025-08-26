@@ -1,10 +1,11 @@
 use asset_payload::SPHERE_PATH;
-use bath::fixed_func::constants::{ANGULAR_VELOCITY, MODEL_POS, MODEL_SCALE, TIME_BETWEEN_SAMPLES};
-use bath::fixed_func::papercraft::{fold, unfold};
-use bath::fixed_func::silhouette_inverse_projection_util::{
-    debug_indices, generate_mesh_and_texcoord_samples_from_silhouette, interpolate_mesh_and_texcoord_samples,
-    lerp_intermediate_mesh_samples_to_single_mesh,
+use bath::fixed_func::papercraft::fold;
+use bath::fixed_func::silhouette::generate_mesh_and_texcoord_samples_from_silhouette;
+use bath::fixed_func::silhouette_constants::{ANGULAR_VELOCITY, MODEL_POS, MODEL_SCALE, TIME_BETWEEN_SAMPLES};
+use bath::fixed_func::silhouette_interpolation::{
+    interpolate_mesh_and_texcoord_samples, lerp_intermediate_mesh_samples_to_single_mesh,
 };
+use bath::fixed_func::silhouette_util::debug_indices;
 use bath::render::raylib::RaylibRenderer;
 use bath::render::raylib_util::N64_WIDTH;
 use bath::render::renderer::Renderer;
@@ -50,7 +51,6 @@ fn main() {
             &texcoord_samples,
         );
         let unfolded_mesh = unsafe { fold(&mut wire_model.meshes_mut()[0], i_time, true).make_weak() };
-
         // let unfolded_mesh = unsafe { unfold(&mut wire_model.meshes_mut()[0]).make_weak() };
         let unfolded_model = render
             .handle
@@ -60,7 +60,6 @@ fn main() {
         draw_handle.clear_background(Color::BLACK);
         {
             let mut rl3d = draw_handle.begin_mode3D(observer);
-            // rl3d.draw_model_wires_ex(&unfolded_model, MODEL_POS, Vector3::Y, -mesh_rotation, MODEL_SCALE, Color::WHITE);
             rl3d.draw_model_wires_ex(&unfolded_model, MODEL_POS, Vector3::Y, 0.0, MODEL_SCALE, Color::WHITE);
         }
         debug_indices(observer, &mut draw_handle, &unfolded_mesh, 0.0);

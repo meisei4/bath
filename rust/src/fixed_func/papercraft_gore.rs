@@ -1,4 +1,4 @@
-use crate::fixed_func::constants::TWO_PI;
+use crate::fixed_func::silhouette_constants::TWO_PI;
 use raylib::math::glam::Vec3;
 use raylib::models::{Mesh, WeakMesh};
 use std::collections::HashMap;

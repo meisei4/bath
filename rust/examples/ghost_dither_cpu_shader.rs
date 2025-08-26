@@ -1,15 +1,13 @@
 use asset_payload::payloads::BAYER_PNG;
 use asset_payload::BAYER_PNG_PATH;
-use bath::fixed_func::constants::{
+use bath::fixed_func::silhouette_constants::{
     CELL_DRIFT_AMPLITUDE, DITHER_BLEND_FACTOR, DITHER_TEXTURE_SCALE, LIGHT_WAVE_SPATIAL_FREQ_X,
     LIGHT_WAVE_SPATIAL_FREQ_Y, LIGHT_WAVE_TEMPORAL_FREQ_Y, UMBRAL_MASK_CENTER, UMBRAL_MASK_FADE_BAND,
     UMBRAL_MASK_INNER_RADIUS, UMBRAL_MASK_OFFSET_X, UMBRAL_MASK_OFFSET_Y, UMBRAL_MASK_OUTER_RADIUS,
     UMBRAL_MASK_PHASE_COEFFICIENT_X, UMBRAL_MASK_PHASE_COEFFICIENT_Y, UMBRAL_MASK_WAVE_AMPLITUDE_X,
     UMBRAL_MASK_WAVE_AMPLITUDE_Y,
 };
-use bath::fixed_func::silhouette_inverse_projection_util::{
-    add_phase, smoothstep, spatial_phase, temporal_phase, uv_to_grid_space,
-};
+use bath::fixed_func::silhouette_util::{add_phase, smoothstep, spatial_phase, temporal_phase, uv_to_grid_space};
 use bath::render::raylib::RaylibRenderer;
 use bath::render::raylib_util::{flip_framebuffer, N64_WIDTH, ORIGIN};
 use bath::render::renderer::Renderer;

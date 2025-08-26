@@ -42,7 +42,6 @@ impl WeldedEdge {
 
 struct WeldedMesh {
     original_vertices: Vec<[Vec3; 3]>,
-    welded_vertices: Vec<Vec3>, //TODO: this is never used? shouldnt we be able to use it somehow? faces welded is enough?
     welded_faces: Vec<[WeldedVertex; 3]>,
     texcoords: Vec<[Vec2; 3]>,
 }
@@ -54,7 +53,6 @@ struct DualEdge {
     face_a_local_edge: (u8, u8),
     face_b_local_edge: (u8, u8),
     welded_edge: WeldedEdge,
-    fold_weight: f32, //TODO: PI - dihedral angle? because PI/ 180 is a fully flat crease between two faces
 }
 
 struct DisjointSetUnion {
@@ -118,7 +116,7 @@ pub fn unfold(mesh: &mut WeakMesh) -> Mesh {
             continue;
         }
         unfolded_faces[id] = anchor_welded_face(local_vertices_per_face[id], &welded_mesh.welded_faces[id]);
-        // faces_placed_in_draw_space[id] = vertices_per_face_local_space[id];
+        // unfolded_faces[id] = local_vertices_per_face[id];
         is_already_unfolded[id] = true;
         let mut face_stack = vec![Face { id }];
 
@@ -181,6 +179,7 @@ pub fn unfold(mesh: &mut WeakMesh) -> Mesh {
     unfolded_mesh.vertices = Box::leak(unfolded_vertices.into_boxed_slice()).as_mut_ptr();
     unfolded_mesh.indices = Box::leak(unfolded_indices.into_boxed_slice()).as_mut_ptr();
     unfolded_mesh.texcoords = Box::leak(unfolded_texcoords.into_boxed_slice()).as_mut_ptr();
+    // unfolded_mesh.indices = null_mut();
     unfolded_mesh.normals = null_mut();
     unfolded_mesh.tangents = null_mut();
     unfolded_mesh.colors = null_mut();
@@ -202,7 +201,6 @@ fn weld_mesh(mesh: &WeakMesh) -> WeldedMesh {
 
     let use_indices_for_weld = !mesh.indices.is_null();
 
-    // keep your original map, but add an index-based one (only used if indices exist)
     let mut quantized_vertex_to_welded_vertex_map: HashMap<(i32, i32, i32), WeldedVertex> = HashMap::new();
     let mut index_to_welded_vertex_map: Option<HashMap<usize, WeldedVertex>> = if use_indices_for_weld {
         Some(HashMap::new())
@@ -210,7 +208,6 @@ fn weld_mesh(mesh: &WeakMesh) -> WeldedMesh {
         None
     };
 
-    let welded_vertices = Vec::new();
     let mut welded_vertices_count = 0;
 
     let mut welded_faces = Vec::with_capacity(src_indices.len() / 3);
@@ -263,7 +260,6 @@ fn weld_mesh(mesh: &WeakMesh) -> WeldedMesh {
 
     WeldedMesh {
         original_vertices: face_vertices,
-        welded_vertices,
         welded_faces,
         texcoords: face_texcoords,
     }
@@ -293,25 +289,12 @@ fn build_dual_graph(welded_mesh: &WeldedMesh) -> Vec<DualEdge> {
             );
 
             if let Some(&(parent_face, parent_face_local_edge)) = welded_edge_to_parent.get(&edge) {
-                let face_a_normal = face_normals[parent_face.id];
-                let face_b_normal = face_normals[id];
-                // vector_0 · vector_1 = cos(θ)
-                // where θ is the angle between them.
-                // Think of dot as an alignment score:
-                // +1 → same direction (θ = 0°)
-                // 0 → perpendicular (θ = 90°)
-                // −1 → opposite directions (θ = 180°)
-                let cosine_of_normals = face_a_normal.dot(face_b_normal).clamp(-1.0, 1.0);
-                let dihedral_angle_between_normals = cosine_of_normals.acos();
-                let fold_weight = PI - dihedral_angle_between_normals;
-
                 dual_graph.push(DualEdge {
                     face_a: parent_face,
                     face_b: face_id,
                     welded_edge: edge,
                     face_a_local_edge: parent_face_local_edge,
                     face_b_local_edge: (point_a, point_b),
-                    fold_weight,
                 });
             } else {
                 welded_edge_to_parent.insert(edge, (face_id, (point_a, point_b)));

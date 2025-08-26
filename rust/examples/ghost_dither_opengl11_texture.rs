@@ -1,13 +1,14 @@
 use asset_payload::SPHERE_PATH;
-use bath::fixed_func::constants::{
-    ANGULAR_VELOCITY, MODEL_POS, MODEL_SCALE, SILHOUETTE_TEXTURE_RES, TIME_BETWEEN_SAMPLES,
-};
 use bath::fixed_func::happo_giri_observer::happo_giri_setup;
 use bath::fixed_func::papercraft::unfold;
-use bath::fixed_func::silhouette_inverse_projection_util::{
-    generate_mesh_and_texcoord_samples_from_silhouette, generate_silhouette_texture,
-    interpolate_mesh_and_texcoord_samples,
+use bath::fixed_func::silhouette::{
+    generate_mesh_and_texcoord_samples_from_silhouette, generate_silhouette_texture_fast,
 };
+use bath::fixed_func::silhouette_constants::{
+    ANGULAR_VELOCITY, SILHOUETTE_RADII_RESOLUTION, TEXTURE_MAPPING_BOUNDARY_FADE, TIME_BETWEEN_SAMPLES,
+};
+use bath::fixed_func::silhouette_interpolation::interpolate_mesh_and_texcoord_samples;
+use bath::fixed_func::silhouette_util::debug_uv_seams;
 use bath::render::raylib::RaylibRenderer;
 use bath::render::raylib_util::N64_WIDTH;
 use bath::render::renderer::Renderer;
@@ -15,7 +16,7 @@ use raylib::camera::Camera3D;
 use raylib::color::Color;
 use raylib::consts::CameraProjection;
 use raylib::consts::MaterialMapIndex::MATERIAL_MAP_ALBEDO;
-use raylib::drawing::{RaylibDraw, RaylibDraw3D, RaylibMode3DExt};
+use raylib::drawing::{RaylibDraw, RaylibMode3DExt};
 use raylib::math::Vector3;
 use raylib::models::{RaylibMaterial, RaylibModel};
 
@@ -41,10 +42,12 @@ fn main() {
     interpolate_mesh_and_texcoord_samples(&mut wire_model, i_time, &mesh_samples, &texcoord_samples);
     interpolate_mesh_and_texcoord_samples(&mut main_model, i_time, &mesh_samples, &texcoord_samples);
     interpolate_mesh_and_texcoord_samples(&mut papercraft_model, i_time, &mesh_samples, &texcoord_samples);
-
-    let silhouette_texture =
-        generate_silhouette_texture(&mut render, vec![SILHOUETTE_TEXTURE_RES, SILHOUETTE_TEXTURE_RES]);
-
+    let silhouette_texture = generate_silhouette_texture_fast(
+        &mut render,
+        SILHOUETTE_RADII_RESOLUTION as i32,
+        64,
+        TEXTURE_MAPPING_BOUNDARY_FADE,
+    );
     main_model.materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize].texture = *silhouette_texture;
     papercraft_model.materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize].texture = *silhouette_texture;
 
@@ -84,39 +87,39 @@ fn main() {
             //     MODEL_SCALE,
             //     Color::WHITE,
             // );
-            //     rl3d.draw_model_wires_ex(
-            //         &wire_model,
-            //         MODEL_POS,
-            //         Vector3::Y,
-            //         mesh_rotation.to_degrees(),
-            //         MODEL_SCALE / 2.0,
-            //         Color::WHITE,
-            //     );
+            // rl3d.draw_model_wires_ex(
+            //     &wire_model,
+            //     MODEL_POS,
+            //     Vector3::Y,
+            //     mesh_rotation.to_degrees(),
+            //     MODEL_SCALE,
+            //     Color::BLACK,
+            // );
             // rl3d.draw_model_ex(&unfolded_model, MODEL_POS, Vector3::Y, 0.0, MODEL_SCALE, Color::WHITE);
-            rl3d.draw_model_wires_ex(
-                &unfolded_model,
-                MODEL_POS,
-                Vector3::Y,
-                mesh_rotation,
-                MODEL_SCALE,
-                Color::BLACK,
-            );
+            // rl3d.draw_model_wires_ex(
+            //     &unfolded_model,
+            //     MODEL_POS,
+            //     Vector3::Y,
+            //     0.0,
+            //     MODEL_SCALE,
+            //     Color::BLACK,
+            // );
         }
-        // debug_indices(
+        // debug_uv_seams(
         //     main_observer,
         //     &mut draw_handle,
-        //     &mut wire_model.meshes_mut()[0],
+        //     &wire_model.meshes()[0],
         //     mesh_rotation,
+        //     0.90,
+        //     24,
         // );
-        // happo_giri_draw(
-        //     &mut draw_handle,
-        //     &observers,
-        //     &labels,
-        //     4,
-        //     2,
-        //     &main_model,
-        //     &wire_model,
-        //     mesh_rotation,
-        // );
+        debug_uv_seams(
+            main_observer,
+            &mut draw_handle,
+            &unfolded_model.meshes()[0],
+            0.0,
+            0.96,
+            24,
+        );
     }
 }
