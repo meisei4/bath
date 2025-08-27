@@ -9,8 +9,8 @@ use std::slice::from_raw_parts;
 pub const ZOOM_SCALE: f32 = 2.0;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
-struct WeldedVertex {
-    id: u32,
+pub struct WeldedVertex {
+    pub(crate) id: u32,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
@@ -19,13 +19,13 @@ struct Face {
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
-struct WeldedEdge {
+pub struct WeldedEdge {
     vertex_a: WeldedVertex,
     vertex_b: WeldedVertex,
 }
 
 impl WeldedEdge {
-    fn new(node_a: WeldedVertex, node_b: WeldedVertex) -> Self {
+    pub(crate) fn new(node_a: WeldedVertex, node_b: WeldedVertex) -> Self {
         if node_a.id <= node_b.id {
             WeldedEdge {
                 vertex_a: node_a,
@@ -325,7 +325,6 @@ fn build_parent_tree(face_count: usize, dual_graph: &mut [DualEdge]) -> (Vec<Par
     let mut children = vec![Vec::new(); face_count];
     let mut seen = vec![false; face_count]; //TODO: stupid fucking parallel arrays again
     let mut face_queue = VecDeque::new();
-    // orient from each unseen root (handle possible multiple components)
     for id in 0..face_count {
         if seen[id] {
             continue;
@@ -398,9 +397,7 @@ fn align_child_to_parent(
     let child_a = child_local_vertices[aligned_child_edge.0 as usize];
     let child_b = child_local_vertices[aligned_child_edge.1 as usize];
     let child_x_axis = (child_b - child_a).normalize();
-    //cosine eventually derives the angle of rotation in the rotation matrix
     let cosine_rotation = child_x_axis.dot(parent_x_axis).clamp(-1.0, 1.0);
-    //sine eventually derives the sign/direction (CW or CCW) of the rotation
     let sine_rotation = child_x_axis.perp_dot(parent_x_axis);
     let rotation = Vec2::new(cosine_rotation, sine_rotation);
     let child_edge_1 = child_local_vertices[0] - child_a;
@@ -501,13 +498,13 @@ fn anchor_welded_face(face: [Vec2; 3], welded_face: &[WeldedVertex; 3]) -> [Vec2
 }
 
 #[inline]
-fn face_normal(a: Vec3, b: Vec3, c: Vec3) -> Vec3 {
+pub fn face_normal(a: Vec3, b: Vec3, c: Vec3) -> Vec3 {
     (b - a).cross(c - a).normalize_or_zero()
 }
 
 #[inline]
 fn quantize(x: f32) -> i32 {
-    const WELD_VERTEX_EPSILON: f32 = 1e-5; // -1 and up works, 0 goes crazy
+    const WELD_VERTEX_EPSILON: f32 = 1e-5; // e-1 and up works, 0 goes crazy
     (x / WELD_VERTEX_EPSILON).round() as i32
 }
 
@@ -528,7 +525,7 @@ pub fn fold(mesh: &mut WeakMesh, i_time: f32, repeat_fold_unfold: bool) -> Mesh 
     let fold_progress = if repeat_fold_unfold {
         fold_unfold_time(i_time, FOLD_UNFOLD_DURATION) // 0→1→0 loop
     } else {
-        (i_time / FOLD_DURATION_SEC).clamp(0.0, 1.0) // one-way fold, then stay folded
+        (i_time / FOLD_DURATION_SEC).clamp(0.0, 1.0) //0->1
     };
     let welded_mesh = weld_mesh(mesh);
     let face_count = welded_mesh.welded_faces.len();
@@ -734,13 +731,13 @@ fn rotate_point_about_axis(c: Vec3, axis: (Vec3, Vec3), theta: f32) -> Vec3 {
     let ab = b - a;
     let ab_axis_dir = ab.normalize_or_zero();
     let ac = c - a;
-    let ac_z_component = ab_axis_dir.dot(ac) * ab_axis_dir; //local
-    let ac_x_component = ac - ac_z_component; //local x axis of the triangles face
-    let ac_y_component = ab_axis_dir.cross(ac_x_component); //local y axis of the triangles face
+    let ac_z_component = ab_axis_dir.dot(ac) * ab_axis_dir;
+    let ac_x_component = ac - ac_z_component;
+    let ac_y_component = ab_axis_dir.cross(ac_x_component);
     let origin = a;
     let rotated_x_component = ac_x_component * theta.cos();
     let rotated_y_component = ac_y_component * theta.sin();
-    //Z does not rotate?
+    //rotate in the xy plane
     let rotated_c = rotated_x_component + rotated_y_component + ac_z_component;
     origin + rotated_c
 }

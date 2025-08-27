@@ -3,8 +3,6 @@ pub mod happo_giri_observer;
 #[cfg(feature = "tests-only")]
 pub mod papercraft;
 #[cfg(feature = "tests-only")]
-pub mod papercraft_gore;
-#[cfg(feature = "tests-only")]
 pub mod silhouette;
 #[cfg(feature = "tests-only")]
 pub mod silhouette_constants;

@@ -1,6 +1,6 @@
 use crate::fixed_func::silhouette_constants::{SILHOUETTE_RADII_RESOLUTION, TIME_BETWEEN_SAMPLES};
 use raylib::math::Vector3;
-use raylib::models::{Model, RaylibMesh, RaylibModel, WeakMesh};
+use raylib::models::{Model, RaylibMesh, RaylibModel};
 use std::f32::consts::TAU;
 use std::slice::from_raw_parts_mut;
 
