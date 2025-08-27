@@ -6,7 +6,7 @@ use bath::fixed_func::silhouette::{
 use bath::fixed_func::silhouette_constants::{
     ANGULAR_VELOCITY, SILHOUETTE_RADII_RESOLUTION, TEXTURE_MAPPING_BOUNDARY_FADE,
 };
-use bath::fixed_func::silhouette_interpolation::interpolate_mesh_and_texcoord_samples;
+use bath::fixed_func::silhouette_interpolation::interpolate_mesh_samples_and_texcoord_samples;
 use bath::render::raylib::RaylibRenderer;
 use bath::render::raylib_util::N64_WIDTH;
 use bath::render::renderer::Renderer;
@@ -35,8 +35,8 @@ fn main() {
 
     let mut main_model = render.handle.load_model(&render.thread, SPHERE_PATH).unwrap();
     let (mesh_samples, texcoord_samples) = generate_mesh_and_texcoord_samples_from_silhouette(&mut render);
-    interpolate_mesh_and_texcoord_samples(&mut wire_model, i_time, &mesh_samples, &texcoord_samples);
-    interpolate_mesh_and_texcoord_samples(&mut main_model, i_time, &mesh_samples, &texcoord_samples);
+    interpolate_mesh_samples_and_texcoord_samples(&mut wire_model, i_time, &mesh_samples, &texcoord_samples);
+    interpolate_mesh_samples_and_texcoord_samples(&mut main_model, i_time, &mesh_samples, &texcoord_samples);
     let silhouette_texture = generate_silhouette_texture_fast(
         &mut render,
         SILHOUETTE_RADII_RESOLUTION as i32,
@@ -48,8 +48,8 @@ fn main() {
     while !render.handle.window_should_close() {
         i_time += render.handle.get_frame_time();
         mesh_rotation -= ANGULAR_VELOCITY * render.handle.get_frame_time();
-        interpolate_mesh_and_texcoord_samples(&mut main_model, i_time, &mesh_samples, &texcoord_samples);
-        interpolate_mesh_and_texcoord_samples(&mut wire_model, i_time, &mesh_samples, &texcoord_samples);
+        interpolate_mesh_samples_and_texcoord_samples(&mut main_model, i_time, &mesh_samples, &texcoord_samples);
+        interpolate_mesh_samples_and_texcoord_samples(&mut wire_model, i_time, &mesh_samples, &texcoord_samples);
         let mut draw_handle = render.handle.begin_drawing(&render.thread);
         draw_handle.clear_background(Color::BLACK);
         happo_giri_draw(

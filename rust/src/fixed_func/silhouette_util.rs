@@ -115,6 +115,7 @@ pub fn silhouette_radius_at_angle(theta: f32, time_s: f32) -> f32 {
     hi
 }
 
+//TODO: this isnt that useful
 pub fn debug_uv_seams(
     observer: Camera3D,
     draw_handle: &mut RaylibDrawHandle,

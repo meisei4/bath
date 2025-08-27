@@ -7,7 +7,7 @@ use bath::fixed_func::silhouette::{
 use bath::fixed_func::silhouette_constants::{
     ANGULAR_VELOCITY, SILHOUETTE_RADII_RESOLUTION, TEXTURE_MAPPING_BOUNDARY_FADE, TIME_BETWEEN_SAMPLES,
 };
-use bath::fixed_func::silhouette_interpolation::interpolate_mesh_and_texcoord_samples;
+use bath::fixed_func::silhouette_interpolation::interpolate_mesh_samples_and_texcoord_samples;
 use bath::fixed_func::silhouette_util::debug_uv_seams;
 use bath::render::raylib::RaylibRenderer;
 use bath::render::raylib_util::N64_WIDTH;
@@ -39,9 +39,9 @@ fn main() {
     let mut papercraft_model = render.handle.load_model(&render.thread, SPHERE_PATH).unwrap();
 
     let (mesh_samples, texcoord_samples) = generate_mesh_and_texcoord_samples_from_silhouette(&mut render);
-    interpolate_mesh_and_texcoord_samples(&mut wire_model, i_time, &mesh_samples, &texcoord_samples);
-    interpolate_mesh_and_texcoord_samples(&mut main_model, i_time, &mesh_samples, &texcoord_samples);
-    interpolate_mesh_and_texcoord_samples(&mut papercraft_model, i_time, &mesh_samples, &texcoord_samples);
+    interpolate_mesh_samples_and_texcoord_samples(&mut wire_model, i_time, &mesh_samples, &texcoord_samples);
+    interpolate_mesh_samples_and_texcoord_samples(&mut main_model, i_time, &mesh_samples, &texcoord_samples);
+    interpolate_mesh_samples_and_texcoord_samples(&mut papercraft_model, i_time, &mesh_samples, &texcoord_samples);
     let silhouette_texture = generate_silhouette_texture_fast(
         &mut render,
         SILHOUETTE_RADII_RESOLUTION as i32,
@@ -54,13 +54,13 @@ fn main() {
     while !render.handle.window_should_close() {
         i_time += render.handle.get_frame_time();
         mesh_rotation -= ANGULAR_VELOCITY * render.handle.get_frame_time();
-        interpolate_mesh_and_texcoord_samples(&mut main_model, i_time, &mesh_samples, &texcoord_samples);
-        interpolate_mesh_and_texcoord_samples(&mut wire_model, i_time, &mesh_samples, &texcoord_samples);
+        interpolate_mesh_samples_and_texcoord_samples(&mut main_model, i_time, &mesh_samples, &texcoord_samples);
+        interpolate_mesh_samples_and_texcoord_samples(&mut wire_model, i_time, &mesh_samples, &texcoord_samples);
         let duration = mesh_samples.len() as f32 * TIME_BETWEEN_SAMPLES;
         let time = i_time % duration;
         let frame = time / TIME_BETWEEN_SAMPLES;
         let current_frame = frame.floor() as usize % mesh_samples.len();
-        interpolate_mesh_and_texcoord_samples(
+        interpolate_mesh_samples_and_texcoord_samples(
             &mut papercraft_model,
             i_time,
             // (current_frame as f32 * TIME_BETWEEN_SAMPLES).floor(),
@@ -105,21 +105,5 @@ fn main() {
             //     Color::BLACK,
             // );
         }
-        // debug_uv_seams(
-        //     main_observer,
-        //     &mut draw_handle,
-        //     &wire_model.meshes()[0],
-        //     mesh_rotation,
-        //     0.90,
-        //     24,
-        // );
-        debug_uv_seams(
-            main_observer,
-            &mut draw_handle,
-            &unfolded_model.meshes()[0],
-            0.0,
-            0.96,
-            24,
-        );
     }
 }

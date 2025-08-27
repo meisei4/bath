@@ -4,22 +4,13 @@ use raylib::models::{Model, RaylibMesh, RaylibModel, WeakMesh};
 use std::f32::consts::TAU;
 use std::slice::from_raw_parts_mut;
 
-pub fn interpolate_mesh_and_texcoord_samples(
+pub fn interpolate_mesh_samples_and_texcoord_samples(
     model: &mut Model,
     i_time: f32,
     mesh_samples: &Vec<Vec<Vector3>>,
     texcoord_samples: &Vec<Vec<f32>>,
 ) {
-    let mesh = &mut model.meshes_mut()[0];
-    lerp_intermediate_mesh_samples_to_single_mesh(i_time, mesh_samples, texcoord_samples, mesh);
-}
-
-pub fn lerp_intermediate_mesh_samples_to_single_mesh(
-    i_time: f32,
-    mesh_samples: &[Vec<Vector3>],
-    texcoord_samples: &[Vec<f32>],
-    target_mesh: &mut WeakMesh,
-) {
+    let target_mesh = &mut model.meshes_mut()[0];
     let duration = mesh_samples.len() as f32 * TIME_BETWEEN_SAMPLES;
     let time = i_time % duration;
     let frame = time / TIME_BETWEEN_SAMPLES;
