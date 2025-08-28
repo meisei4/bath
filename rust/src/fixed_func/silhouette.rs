@@ -1,16 +1,19 @@
+use crate::fixed_func::topology::{
+    collect_vertex_normals, rotate_point_about_axis, smooth_vertex_normals, topology_init,
+};
 use crate::render::raylib::RaylibRenderer;
 use asset_payload::SPHERE_PATH;
 use raylib::color::Color;
-use raylib::consts::PixelFormat::PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
-use raylib::math::glam::{Vec2, Vec3};
+use raylib::drawing::{RaylibDraw3D, RaylibDrawHandle, RaylibMode3D};
+use raylib::ffi::{rlDisableDepthMask, rlEnableDepthMask};
+use raylib::math::glam::Vec3;
 use raylib::math::{Vector2, Vector3};
 use raylib::models::{Model, RaylibMesh, RaylibModel};
-use raylib::texture::{Image, Texture2D};
-use std::f32::consts::PI;
 use std::f32::consts::TAU;
 use std::slice::from_raw_parts_mut;
 
 pub const MODEL_POS: Vector3 = Vector3::ZERO;
+pub const SCALE_TWEAK: f32 = 0.75;
 pub const MODEL_SCALE: Vector3 = Vector3::ONE;
 
 pub const HALF: f32 = 0.5;
@@ -47,44 +50,37 @@ pub const DITHER_BLEND_FACTOR: f32 = 0.75;
 
 pub const SILHOUETTE_RADII_RESOLUTION: usize = 64;
 
-pub const ROTATION_FREQUENCY_HZ: f32 = 0.10;
+pub const ROTATION_FREQUENCY_HZ: f32 = 0.05;
 pub const ANGULAR_VELOCITY: f32 = TAU * ROTATION_FREQUENCY_HZ;
 pub const TIME_BETWEEN_SAMPLES: f32 = 0.5;
 pub const ROTATIONAL_SAMPLES_FOR_INV_PROJ: usize = 40;
 
-pub const TEXTURE_MAPPING_BOUNDARY_FADE: f32 = 0.075;
-pub const SILHOUETTE_TEXTURE_RES: i32 = 256;
+pub const TEXTURE_MAPPING_BOUNDARY_FADE: f32 = 0.05;
+pub const SILHOUETTE_TEXTURE_RES: i32 = 256 / 2;
 
-pub const TWO_PI: f32 = 2.0 * PI;
+pub const INVERTED_HULL_EXPANSION_SCALAR: f32 = 0.15;
+pub const ALPHA_FADE_RAMP_MIN: f32 = 0.0;
+pub const ALPHA_FADE_RAMP_MAX: f32 = 1.0;
+pub const ALPHA_FADE_RAMP_SCALE: f32 = 1.0;
 
-pub fn generate_mesh_and_texcoord_samples_from_silhouette(
-    renderer: &mut RaylibRenderer,
-) -> (Vec<Vec<Vector3>>, Vec<Vec<f32>>) {
+pub fn collect_deformed_mesh_samples(renderer: &mut RaylibRenderer) -> Vec<Vec<Vector3>> {
     let model = renderer.handle.load_model(&renderer.thread, SPHERE_PATH).unwrap();
     let vertices = model.meshes()[0].vertices();
     let mut mesh_samples = Vec::with_capacity(ROTATIONAL_SAMPLES_FOR_INV_PROJ);
-    let mut texcoord_samples = Vec::with_capacity(ROTATIONAL_SAMPLES_FOR_INV_PROJ);
     for i in 0..ROTATIONAL_SAMPLES_FOR_INV_PROJ {
         let frame_time = i as f32 * TIME_BETWEEN_SAMPLES;
         let frame_rotation = -ANGULAR_VELOCITY * frame_time;
         let mut mesh_sample = vertices.to_vec();
         rotate_vertices(&mut mesh_sample, frame_rotation);
-        let radii_normals = build_silhouette_radii_fast(frame_time);
-        deform_vertices_from_silhouette_radii(&mut mesh_sample, &radii_normals);
-        let mut texcoord_sample = Vec::with_capacity(mesh_sample.len() * 2);
-        for vertex in mesh_sample.clone() {
-            let (u, v) = silhouette_uvs_polar(vertex.x, vertex.y, &radii_normals);
-            texcoord_sample.push(u);
-            texcoord_sample.push(v);
-        }
-        texcoord_samples.push(texcoord_sample);
+        let radial_field = generate_silhouette_radial_field(frame_time);
+        deform_vertices_from_radial_field(&mut mesh_sample, &radial_field);
         rotate_vertices(&mut mesh_sample, -frame_rotation);
         mesh_samples.push(mesh_sample);
     }
-    (mesh_samples, texcoord_samples)
+    mesh_samples
 }
 
-pub fn build_silhouette_radii_fast(time: f32) -> Vec<f32> {
+pub fn generate_silhouette_radial_field(time: f32) -> Vec<f32> {
     let mut radii = Vec::with_capacity(SILHOUETTE_RADII_RESOLUTION);
     for i in 0..SILHOUETTE_RADII_RESOLUTION {
         let theta = (i as f32) * TAU / (SILHOUETTE_RADII_RESOLUTION as f32);
@@ -97,53 +93,18 @@ pub fn build_silhouette_radii_fast(time: f32) -> Vec<f32> {
     radii
 }
 
-pub fn deform_vertices_from_silhouette_radii(vertices: &mut [Vector3], radii_normals: &[f32]) {
+pub fn deform_vertices_from_radial_field(vertices: &mut [Vector3], radial_field: &[f32]) {
     if vertices.is_empty() {
         return;
     }
     for vertex in vertices.iter_mut() {
-        let interpolated_radial_magnitude =
-            interpolate_radial_magnitude_from_sample_xy(vertex.x, vertex.y, radii_normals);
+        let interpolated_radial_magnitude = interpolate_between_radial_field_elements(vertex.x, vertex.y, radial_field);
         vertex.x *= interpolated_radial_magnitude;
         vertex.y *= interpolated_radial_magnitude;
     }
 }
 
-pub fn generate_silhouette_texture_fast(
-    render: &mut RaylibRenderer,
-    width: i32,
-    height: i32,
-    fade_frac: f32,
-) -> Texture2D {
-    let mut img = Image::gen_image_color(width, height, Color::BLANK);
-    let data = unsafe { from_raw_parts_mut(img.data as *mut u8, (width * height * 4) as usize) };
-
-    let v_fade_start = (1.0 - fade_frac.clamp(0.0, 0.95)) * (height as f32 - 1.0);
-    for y in 0..height {
-        let v = y as f32;
-        let alpha = if v < v_fade_start {
-            1.0
-        } else {
-            1.0 - (v - v_fade_start) / ((height as f32 - 1.0) - v_fade_start + 1e-6)
-        }
-        .clamp(0.0, 1.0);
-
-        let a = (alpha * 255.0) as u8;
-        for x in 0..width {
-            let i = 4 * (y as usize * width as usize + x as usize);
-            data[i..i + 4].copy_from_slice(&[255, 255, 255, a]);
-        }
-    }
-    img.set_format(PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
-    render.handle.load_texture_from_image(&render.thread, &img).unwrap()
-}
-
-pub fn interpolate_mesh_samples_and_texcoord_samples(
-    model: &mut Model,
-    i_time: f32,
-    mesh_samples: &Vec<Vec<Vector3>>,
-    texcoord_samples: &Vec<Vec<f32>>,
-) {
+pub fn interpolate_between_deformed_meshes(model: &mut Model, i_time: f32, mesh_samples: &Vec<Vec<Vector3>>) {
     let target_mesh = &mut model.meshes_mut()[0];
     let duration = mesh_samples.len() as f32 * TIME_BETWEEN_SAMPLES;
     let time = i_time % duration;
@@ -161,24 +122,93 @@ pub fn interpolate_mesh_samples_and_texcoord_samples(
         dst_vertex.y = src_vertex.y * (1.0 - weight) + next_vertex.y * weight;
         dst_vertex.z = src_vertex.z * (1.0 - weight) + next_vertex.z * weight;
     }
-    let texcoords = unsafe { from_raw_parts_mut(target_mesh.as_mut().texcoords, target_mesh.vertices().len() * 2) };
-    for ((dst_texcoord, src_texcoord), next_texcoord) in texcoords
-        .iter_mut()
-        .zip(texcoord_samples[current_frame].iter())
-        .zip(texcoord_samples[next_frame].iter())
-    {
-        *dst_texcoord = *src_texcoord * (1.0 - weight) + *next_texcoord * weight;
-    }
 }
 
-pub fn interpolate_radial_magnitude_from_sample_xy(sample_x: f32, sample_y: f32, radii_normals: &[f32]) -> f32 {
+pub fn interpolate_between_radial_field_elements(sample_x: f32, sample_y: f32, radial_field: &[f32]) -> f32 {
     let radial_disk_angle = sample_y.atan2(sample_x).rem_euclid(TAU);
     let radial_index = radial_disk_angle / TAU * SILHOUETTE_RADII_RESOLUTION as f32;
     let lower_index = radial_index.floor() as usize % SILHOUETTE_RADII_RESOLUTION;
     let upper_index = (lower_index + 1) % SILHOUETTE_RADII_RESOLUTION;
     let interpolation_toward_upper = radial_index.fract();
-    radii_normals[lower_index] * (1.0 - interpolation_toward_upper)
-        + radii_normals[upper_index] * interpolation_toward_upper
+    radial_field[lower_index] * (1.0 - interpolation_toward_upper)
+        + radial_field[upper_index] * interpolation_toward_upper
+}
+
+pub fn update_inverted_hull(
+    model: &Model,
+    inverted_hull: &mut Model,
+    observed_line_of_sight: Vec3,
+    mesh_rotation: f32,
+) {
+    let model_face_line_of_sight = rotate_point_about_axis(
+        -observed_line_of_sight.normalize_or_zero(),
+        (Vector3::ZERO, Vector3::Y),
+        -mesh_rotation,
+    );
+    let mesh = &model.meshes()[0];
+    let inverted_hull_mesh = &mut inverted_hull.meshes_mut()[0];
+    let vertex_count = mesh.vertexCount as usize;
+    // let per_vertex_face_normals = per_vertex_face_normals(&model.meshes()[0]);
+    let mut topology = topology_init(mesh);
+    collect_vertex_normals(&mut topology, &model.meshes()[0]);
+    let welded_vertex_normals = smooth_vertex_normals(&topology);
+    if inverted_hull_mesh.colors.is_null() {
+        let colors = vec![255u8; vertex_count * 4];
+        inverted_hull_mesh.colors = Box::leak(colors.into_boxed_slice()).as_mut_ptr();
+    }
+    let inverted_hull_colors = unsafe { from_raw_parts_mut(inverted_hull_mesh.colors, vertex_count * 4) };
+    let (ramp_min, ramp_max) = if ALPHA_FADE_RAMP_MIN <= ALPHA_FADE_RAMP_MAX {
+        (ALPHA_FADE_RAMP_MIN.clamp(0.0, 1.0), ALPHA_FADE_RAMP_MAX.clamp(0.0, 1.0))
+    } else {
+        (ALPHA_FADE_RAMP_MAX.clamp(0.0, 1.0), ALPHA_FADE_RAMP_MIN.clamp(0.0, 1.0))
+    };
+    let vertices = mesh.vertices();
+    let inverted_hull_vertices = inverted_hull_mesh.vertices_mut();
+    for i in 0..vertex_count {
+        let vertex = vertices[i];
+        let face_normal = welded_vertex_normals.get(i).copied().unwrap_or(Vec3::Z);
+        let expanded_vertex = vertex + face_normal * INVERTED_HULL_EXPANSION_SCALAR;
+        inverted_hull_vertices[i] = expanded_vertex;
+        let view_alignment_magnitude = face_normal.dot(model_face_line_of_sight).abs();
+        let edge_weight = 1.0 - smoothstep(ramp_min, ramp_max, view_alignment_magnitude);
+        let alpha_1_to_0 = (1.0 - edge_weight * ALPHA_FADE_RAMP_SCALE).clamp(0.0, 1.0);
+        let j = i * 4;
+        inverted_hull_colors[j + 0] = 255;
+        inverted_hull_colors[j + 1] = 255;
+        inverted_hull_colors[j + 2] = 255;
+        inverted_hull_colors[j + 3] = (alpha_1_to_0 * 255.0).round() as u8;
+    }
+}
+
+pub fn draw_inverted_hull_guassian_multipass(
+    rl3d: &mut RaylibMode3D<RaylibDrawHandle>,
+    inverted_hull_model: &Model,
+    mesh_rotation: f32,
+) {
+    const GAUSSIAN_STACK: &[(f32, u8)] = &[
+        (1.010, 90),
+        (1.018, 72),
+        (1.026, 56),
+        (1.036, 42),
+        (1.048, 30),
+        (1.062, 20),
+    ];
+    unsafe {
+        rlDisableDepthMask();
+    }
+    for &(scale, alpha) in GAUSSIAN_STACK {
+        rl3d.draw_model_ex(
+            inverted_hull_model,
+            MODEL_POS,
+            Vector3::Y,
+            mesh_rotation.to_degrees(),
+            MODEL_SCALE * SCALE_TWEAK * scale,
+            Color::new(255, 255, 255, alpha),
+        );
+    }
+    unsafe {
+        rlEnableDepthMask();
+    }
 }
 
 #[inline]
@@ -266,26 +296,4 @@ pub fn silhouette_radius_at_angle(theta: f32, time_s: f32) -> f32 {
         }
     }
     hi
-}
-
-#[inline]
-pub fn lift_dimension(vertex: Vec2) -> Vec3 {
-    Vec3::new(vertex.x, vertex.y, 0.0)
-}
-
-#[inline]
-pub fn rotate_point_about_axis(c: Vec3, axis: (Vec3, Vec3), theta: f32) -> Vec3 {
-    let (a, b) = axis;
-    let ab = b - a;
-    let ab_axis_dir = ab.normalize_or_zero();
-    let ac = c - a;
-    let ac_z_component = ab_axis_dir.dot(ac) * ab_axis_dir;
-    let ac_x_component = ac - ac_z_component;
-    let ac_y_component = ab_axis_dir.cross(ac_x_component);
-    let origin = a;
-    let rotated_x_component = ac_x_component * theta.cos();
-    let rotated_y_component = ac_y_component * theta.sin();
-    //rotate in the xy plane
-    let rotated_c = rotated_x_component + rotated_y_component + ac_z_component;
-    origin + rotated_c
 }

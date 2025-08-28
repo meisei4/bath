@@ -6,7 +6,7 @@ use raylib::math::glam::{Vec2, Vec3};
 use raylib::math::Vector3;
 use raylib::models::{RaylibMesh, WeakMesh};
 use std::collections::{HashMap, HashSet};
-use std::slice::from_raw_parts;
+use std::slice::{from_raw_parts, from_raw_parts_mut};
 
 pub struct Topology {
     pub all_faces: Vec<[u32; 3]>,
@@ -18,6 +18,8 @@ pub struct Topology {
     pub neighbors_per_face: Option<Vec<[Option<usize>; 3]>>,
     pub face_vertex_positions_model: Option<Vec<[Vec3; 3]>>,
     pub face_texcoords: Option<Vec<[Vec2; 3]>>,
+    pub vertex_normals: Option<Vec<Vec3>>,
+    pub corner_angles_per_face: Option<Vec<[f32; 3]>>,
 }
 
 pub fn topology_init(mesh: &WeakMesh) -> Topology {
@@ -39,6 +41,8 @@ pub fn topology_init(mesh: &WeakMesh) -> Topology {
         back_faces: None,
         silhouette_faces: None,
         face_texcoords: None,
+        vertex_normals: None,
+        corner_angles_per_face: None,
     }
 }
 
@@ -135,7 +139,10 @@ pub fn collect_front_faces(topology: &mut Topology, mesh: &WeakMesh, rotation: f
         for (face_id, [vertex_a, vertex_b, vertex_c]) in face_positions_model.iter().copied().enumerate() {
             let mut triangle = vec![vertex_a, vertex_b, vertex_c];
             rotate_vertices(&mut triangle, rotation);
+
             let normal = face_normal(triangle[0], triangle[1], triangle[2]);
+            // const SILHOUETTE_FACE_BIAS: f32 = 0.1; // try 0.02..0.08
+            // if normal.dot(line_of_sight) <= -SILHOUETTE_FACE_BIAS { front_faces.insert(face_id); }
             if normal.dot(line_of_sight) <= 0.0 {
                 front_faces.insert(face_id);
             }
@@ -364,6 +371,33 @@ pub fn face_normal(a: Vec3, b: Vec3, c: Vec3) -> Vec3 {
 }
 
 #[inline]
+pub fn face_normal_area_weighted(a: Vec3, b: Vec3, c: Vec3) -> Vec3 {
+    (b - a).cross(c - a)
+}
+
+#[inline]
+pub fn lift_dimension(vertex: Vec2) -> Vec3 {
+    Vec3::new(vertex.x, vertex.y, 0.0)
+}
+
+#[inline]
+pub fn rotate_point_about_axis(c: Vec3, axis: (Vec3, Vec3), theta: f32) -> Vec3 {
+    let (a, b) = axis;
+    let ab = b - a;
+    let ab_axis_dir = ab.normalize_or_zero();
+    let ac = c - a;
+    let ac_z_component = ab_axis_dir.dot(ac) * ab_axis_dir;
+    let ac_x_component = ac - ac_z_component;
+    let ac_y_component = ab_axis_dir.cross(ac_x_component);
+    let origin = a;
+    let rotated_x_component = ac_x_component * theta.cos();
+    let rotated_y_component = ac_y_component * theta.sin();
+    //rotate in the xy plane
+    let rotated_c = rotated_x_component + rotated_y_component + ac_z_component;
+    origin + rotated_c
+}
+
+#[inline]
 pub fn observed_line_of_sight(observer: &Camera3D) -> Vec3 {
     Vec3::new(
         observer.target.x - observer.position.x,
@@ -396,6 +430,119 @@ fn ensure_texcoords(mesh: &mut WeakMesh) {
         let vertex_count = mesh.vertexCount as usize;
         let texcoords = vec![0.0f32; vertex_count * 2];
         mesh.texcoords = Box::leak(texcoords.into_boxed_slice()).as_mut_ptr();
+    }
+}
+
+pub fn vertex_normals(mesh: &WeakMesh) -> Vec<Vec3> {
+    let vertices = mesh.vertices();
+    let vertex_count = vertices.len();
+    let mut accum = vec![Vec3::ZERO; vertex_count];
+    // TODO: guaranteed by ensure_drawable()????
+    let indices: Vec<u16> = if mesh.indices.is_null() {
+        (0..vertex_count as u16).collect()
+    } else {
+        unsafe { from_raw_parts(mesh.indices, (mesh.triangleCount as usize) * 3) }.to_vec()
+    };
+    for face in indices.chunks_exact(3) {
+        let vertex_a_index = face[0] as usize;
+        let vertex_b_index = face[1] as usize;
+        let vertex_c_index = face[2] as usize;
+        let vertex_a = vertices[vertex_a_index];
+        let vertex_b = vertices[vertex_b_index];
+        let vertex_c = vertices[vertex_c_index];
+        let face_normal = face_normal(vertex_a, vertex_b, vertex_c);
+        accum[vertex_a_index] += face_normal;
+        accum[vertex_b_index] += face_normal;
+        accum[vertex_c_index] += face_normal;
+    }
+    // accum.into_iter().map(|face_normal| face_normal).collect()
+    accum
+}
+
+pub fn collect_vertex_normals(topology: &mut Topology, mesh: &WeakMesh) {
+    let vertices = mesh.vertices();
+    let vertex_count = vertices.len();
+    let mut accumulated_vertex_normals = vec![Vec3::ZERO; vertex_count];
+    let mut corner_angles: Vec<[f32; 3]> = Vec::with_capacity(topology.all_faces.len());
+    // TODO: guaranteed by ensure_drawable()????
+    let indices: Vec<u16> = if mesh.indices.is_null() {
+        (0..vertex_count as u16).collect()
+    } else {
+        unsafe { from_raw_parts(mesh.indices, (mesh.triangleCount as usize) * 3) }.to_vec()
+    };
+    for face in indices.chunks_exact(3) {
+        let vertex_a_index = face[0] as usize;
+        let vertex_b_index = face[1] as usize;
+        let vertex_c_index = face[2] as usize;
+        let vertex_a = vertices[vertex_a_index];
+        let vertex_b = vertices[vertex_b_index];
+        let vertex_c = vertices[vertex_c_index];
+        let ab = vertex_b - vertex_a;
+        let ac = vertex_c - vertex_a;
+        let ba = vertex_a - vertex_b;
+        let bc = vertex_c - vertex_b;
+        let ca = vertex_a - vertex_c;
+        let cb = vertex_b - vertex_c;
+        let angle_a = angle_between(ab, ac);
+        let angle_b = angle_between(ba, bc);
+        let angle_c = angle_between(ca, cb);
+        corner_angles.push([angle_a, angle_b, angle_c]);
+        let face_normal = face_normal_area_weighted(vertex_a, vertex_b, vertex_c); // area-weighted direction
+        accumulated_vertex_normals[vertex_a_index] += face_normal * angle_a;
+        accumulated_vertex_normals[vertex_b_index] += face_normal * angle_b;
+        accumulated_vertex_normals[vertex_c_index] += face_normal * angle_c;
+    }
+    topology.corner_angles_per_face = Some(corner_angles);
+    topology.vertex_normals = Some(
+        accumulated_vertex_normals
+            .into_iter()
+            .map(|n| n.normalize_or_zero())
+            .collect(),
+    );
+}
+
+pub fn smooth_vertex_normals(topology: &Topology) -> Vec<Vec3> {
+    let vertex_normals = topology
+        .vertex_normals
+        .as_ref()
+        .expect("smooth_vertex_normals: topology.vertex_normals missing");
+    let welded_vertices = &topology.welded_vertices;
+    let vertex_count = vertex_normals.len();
+    let welded_count = (welded_vertices.iter().copied().max().unwrap_or(0) as usize) + 1;
+    let mut welded_vertex_normals_accumulator = vec![Vec3::ZERO; welded_count];
+    for i in 0..vertex_count {
+        let welded_vertex = welded_vertices[i] as usize;
+        welded_vertex_normals_accumulator[welded_vertex] += vertex_normals[i];
+    }
+    let normalized_accumulation: Vec<Vec3> = welded_vertex_normals_accumulator
+        .into_iter()
+        .map(|normal| normal.normalize_or_zero())
+        .collect();
+    let mut smoothed_vertex_normals = vec![Vec3::ZERO; vertex_count];
+    for i in 0..vertex_count {
+        smoothed_vertex_normals[i] = normalized_accumulation[welded_vertices[i] as usize];
+    }
+    smoothed_vertex_normals
+}
+
+#[inline]
+fn angle_between(a: Vec3, b: Vec3) -> f32 {
+    let a_magnitude = a.length();
+    let b_magnitude = b.length();
+    if a_magnitude <= 0.0 || b_magnitude <= 0.0 {
+        return 0.0;
+    }
+    (a.dot(b) / (a_magnitude * b_magnitude)).clamp(-1.0, 1.0).acos()
+}
+
+pub fn reverse_vertex_winding(mesh: &mut WeakMesh) {
+    if mesh.indices.is_null() {
+        return;
+    }
+    let triangle_count = mesh.triangleCount as usize;
+    let indices = unsafe { from_raw_parts_mut(mesh.indices, triangle_count * 3) };
+    for face in 0..triangle_count {
+        indices.swap(face * 3 + 1, face * 3 + 2);
     }
 }
 

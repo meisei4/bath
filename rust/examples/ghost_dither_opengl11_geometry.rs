@@ -3,8 +3,8 @@ use asset_payload::SPHERE_PATH;
 use bath::fixed_func::papercraft::{
     billow_unfolded, BillowWaveParameters, PeriodicWhipParameters, WhipPulseParameters,
 };
-use bath::fixed_func::silhouette::generate_mesh_and_texcoord_samples_from_silhouette;
-use bath::fixed_func::silhouette::interpolate_mesh_samples_and_texcoord_samples;
+use bath::fixed_func::silhouette::collect_deformed_mesh_samples;
+use bath::fixed_func::silhouette::interpolate_between_deformed_meshes;
 use bath::fixed_func::silhouette::{ANGULAR_VELOCITY, MODEL_POS, MODEL_SCALE, TIME_BETWEEN_SAMPLES};
 use bath::fixed_func::topology::{debug_draw_faces, ensure_drawable};
 use bath::render::raylib::RaylibRenderer;
@@ -39,8 +39,8 @@ fn main() {
     // };
     let mut wire_model = render.handle.load_model(&render.thread, SPHERE_PATH).unwrap();
     ensure_drawable(&mut wire_model.meshes_mut()[0]);
-    let (mesh_samples, texcoord_samples) = generate_mesh_and_texcoord_samples_from_silhouette(&mut render);
-    interpolate_mesh_samples_and_texcoord_samples(&mut wire_model, i_time, &mesh_samples, &texcoord_samples);
+    let mesh_samples = collect_deformed_mesh_samples(&mut render);
+    interpolate_between_deformed_meshes(&mut wire_model, i_time, &mesh_samples);
     let billow_params = BillowWaveParameters {
         amplitude_radians: 0.15,
         wavelength_in_unfolded_space: 2.0,
@@ -79,12 +79,11 @@ fn main() {
         let time = i_time % duration;
         let frame = time / TIME_BETWEEN_SAMPLES;
         let current_frame = frame.floor() as usize % mesh_samples.len();
-        interpolate_mesh_samples_and_texcoord_samples(
+        interpolate_between_deformed_meshes(
             &mut wire_model,
             i_time,
             // (current_frame as f32 * TIME_BETWEEN_SAMPLES).floor(),
             &mesh_samples,
-            &texcoord_samples,
         );
         // let unfolded_mesh = unsafe { fold(&mut wire_model.meshes_mut()[0], i_time, true).make_weak() };
         // let unfolded_mesh = unsafe { unfold(&mut wire_model.meshes_mut()[0]).make_weak() };

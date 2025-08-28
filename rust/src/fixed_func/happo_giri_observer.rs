@@ -69,14 +69,14 @@ pub fn happo_giri_draw(
                 MODEL_SCALE,
                 Color::WHITE,
             );
-            rl3d.draw_model_wires_ex(
-                wire_model,
-                MODEL_POS,
-                Vector3::Y,
-                mesh_rotation.to_degrees(),
-                MODEL_SCALE,
-                Color::WHITE,
-            );
+            // rl3d.draw_model_wires_ex(
+            //     wire_model,
+            //     MODEL_POS,
+            //     Vector3::Y,
+            //     mesh_rotation.to_degrees(),
+            //     MODEL_SCALE,
+            //     Color::WHITE,
+            // );
         }
 
         unsafe {

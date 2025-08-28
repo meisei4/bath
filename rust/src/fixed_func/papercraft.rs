@@ -1,7 +1,6 @@
-use crate::fixed_func::silhouette::{lift_dimension, rotate_point_about_axis};
 use crate::fixed_func::topology::{
-    build_weld_view, collect_neighbors, collect_welded_faces, edge_opposing_vertex, face_normal, topology_init,
-    welded_eq, WeldedEdge, WeldedMesh, WeldedVertex,
+    build_weld_view, collect_neighbors, collect_welded_faces, edge_opposing_vertex, face_normal, lift_dimension,
+    rotate_point_about_axis, topology_init, welded_eq, WeldedEdge, WeldedMesh, WeldedVertex,
 };
 use raylib::math::glam::{Vec2, Vec3};
 use raylib::models::{Mesh, WeakMesh};
