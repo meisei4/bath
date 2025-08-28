@@ -1,12 +1,10 @@
 use asset_payload::SPHERE_PATH;
 use bath::fixed_func::happo_giri_observer::{happo_giri_draw, happo_giri_setup};
+use bath::fixed_func::silhouette::interpolate_mesh_samples_and_texcoord_samples;
 use bath::fixed_func::silhouette::{
     generate_mesh_and_texcoord_samples_from_silhouette, generate_silhouette_texture_fast,
 };
-use bath::fixed_func::silhouette_constants::{
-    ANGULAR_VELOCITY, SILHOUETTE_RADII_RESOLUTION, TEXTURE_MAPPING_BOUNDARY_FADE,
-};
-use bath::fixed_func::silhouette_interpolation::interpolate_mesh_samples_and_texcoord_samples;
+use bath::fixed_func::silhouette::{ANGULAR_VELOCITY, SILHOUETTE_RADII_RESOLUTION, TEXTURE_MAPPING_BOUNDARY_FADE};
 use bath::render::raylib::RaylibRenderer;
 use bath::render::raylib_util::N64_WIDTH;
 use bath::render::renderer::Renderer;

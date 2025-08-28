@@ -1,4 +1,4 @@
-use crate::fixed_func::silhouette_constants::{MODEL_POS, MODEL_SCALE};
+use crate::fixed_func::silhouette::{MODEL_POS, MODEL_SCALE};
 use raylib::camera::Camera3D;
 use raylib::color::Color;
 use raylib::consts::CameraProjection;
