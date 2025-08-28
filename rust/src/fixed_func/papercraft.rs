@@ -1,50 +1,15 @@
+use crate::fixed_func::silhouette_geometry_util::{lift_dimension, rotate_point_about_axis};
+use crate::fixed_func::welding::{
+    edge_opposing_vertex, face_normal, weld_mesh, welded_eq, Face, WeldedEdge, WeldedMesh, WeldedVertex,
+};
 use raylib::math::glam::{Vec2, Vec3};
 use raylib::models::{Mesh, WeakMesh};
 use std::collections::{HashMap, VecDeque};
 use std::f32::consts::PI;
 use std::mem::{swap, zeroed};
 use std::ptr::null_mut;
-use std::slice::from_raw_parts;
 
 pub const ZOOM_SCALE: f32 = 2.0;
-
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
-pub struct WeldedVertex {
-    pub(crate) id: u32,
-}
-
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
-struct Face {
-    id: usize,
-}
-
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
-pub struct WeldedEdge {
-    vertex_a: WeldedVertex,
-    vertex_b: WeldedVertex,
-}
-
-impl WeldedEdge {
-    pub(crate) fn new(node_a: WeldedVertex, node_b: WeldedVertex) -> Self {
-        if node_a.id <= node_b.id {
-            WeldedEdge {
-                vertex_a: node_a,
-                vertex_b: node_b,
-            }
-        } else {
-            WeldedEdge {
-                vertex_a: node_b,
-                vertex_b: node_a,
-            }
-        }
-    }
-}
-
-struct WeldedMesh {
-    original_vertices: Vec<[Vec3; 3]>,
-    welded_faces: Vec<[WeldedVertex; 3]>,
-    texcoords: Vec<[Vec2; 3]>,
-}
 
 #[derive(Copy, Clone, Debug)]
 struct DualEdge {
@@ -186,85 +151,6 @@ pub fn unfold(mesh: &mut WeakMesh) -> Mesh {
     unfolded_mesh
 }
 
-fn weld_mesh(mesh: &WeakMesh) -> WeldedMesh {
-    let triangle_count = mesh.triangleCount as usize;
-    let vertex_count = mesh.vertexCount as usize;
-    let src_vertices = unsafe { from_raw_parts(mesh.vertices, 3 * vertex_count) };
-    let src_texcoords = unsafe { from_raw_parts(mesh.texcoords, 2 * vertex_count) };
-
-    let src_indices = if mesh.indices.is_null() {
-        debug_assert!(vertex_count % 3 == 0, "non-indexed mesh must be triangle soup");
-        (0..vertex_count as u16).collect()
-    } else {
-        unsafe { from_raw_parts(mesh.indices, 3 * triangle_count) }.to_vec()
-    };
-
-    let use_indices_for_weld = !mesh.indices.is_null();
-
-    let mut quantized_vertex_to_welded_vertex_map: HashMap<(i32, i32, i32), WeldedVertex> = HashMap::new();
-    let mut index_to_welded_vertex_map: Option<HashMap<usize, WeldedVertex>> = if use_indices_for_weld {
-        Some(HashMap::new())
-    } else {
-        None
-    };
-
-    let mut welded_vertices_count = 0;
-
-    let mut welded_faces = Vec::with_capacity(src_indices.len() / 3);
-    let mut face_texcoords = Vec::with_capacity(src_indices.len() / 3);
-    let mut face_vertices = Vec::with_capacity(src_indices.len() / 3);
-
-    for face_index in 0..(src_indices.len() / 3) {
-        let mut face_welded_vertices = [WeldedVertex { id: 0 }; 3];
-        let mut face_texcoord = [Vec2::ZERO; 3];
-        let mut face_vertex = [Vec3::ZERO; 3];
-
-        for i in 0..3 {
-            let vertex_index = src_indices[face_index * 3 + i] as usize;
-            let vertex_x = src_vertices[vertex_index * 3 + 0];
-            let vertex_y = src_vertices[vertex_index * 3 + 1];
-            let vertex_z = src_vertices[vertex_index * 3 + 2];
-            let vertex = Vec3::new(vertex_x, vertex_y, vertex_z);
-
-            let welded_vertex_id = if let Some(ref mut map) = index_to_welded_vertex_map {
-                *map.entry(vertex_index).or_insert_with(|| {
-                    let weld_id = WeldedVertex {
-                        id: welded_vertices_count,
-                    };
-                    welded_vertices_count += 1;
-                    weld_id
-                })
-            } else {
-                *quantized_vertex_to_welded_vertex_map
-                    .entry((quantize(vertex_x), quantize(vertex_y), quantize(vertex_z)))
-                    .or_insert_with(|| {
-                        let weld_id = WeldedVertex {
-                            id: welded_vertices_count,
-                        };
-                        welded_vertices_count += 1;
-                        weld_id
-                    })
-            };
-
-            face_welded_vertices[i] = welded_vertex_id;
-            face_vertex[i] = vertex;
-
-            let s = src_texcoords[vertex_index * 2 + 0];
-            let t = src_texcoords[vertex_index * 2 + 1];
-            face_texcoord[i] = Vec2::new(s, t);
-        }
-        welded_faces.push(face_welded_vertices);
-        face_texcoords.push(face_texcoord);
-        face_vertices.push(face_vertex);
-    }
-
-    WeldedMesh {
-        original_vertices: face_vertices,
-        welded_faces,
-        texcoords: face_texcoords,
-    }
-}
-
 fn build_dual_graph(welded_mesh: &WeldedMesh) -> Vec<DualEdge> {
     let face_count = welded_mesh.welded_faces.len();
     let mut face_normals = Vec::with_capacity(face_count);
@@ -277,27 +163,24 @@ fn build_dual_graph(welded_mesh: &WeldedMesh) -> Vec<DualEdge> {
     let mut dual_graph = Vec::new();
 
     for id in 0..face_count {
-        let face_id = Face { id };
+        let face = Face { id };
         let [welded_vertex_a, welded_vertex_b, welded_vertex_c] = welded_mesh.welded_faces[id];
         let local_edges = [(0u8, 1u8), (1, 2), (2, 0)];
-        let face_welded_vertices = [welded_vertex_a, welded_vertex_b, welded_vertex_c];
+        let welded_vertices = [welded_vertex_a, welded_vertex_b, welded_vertex_c];
 
         for &(point_a, point_b) in &local_edges {
-            let edge = WeldedEdge::new(
-                face_welded_vertices[point_a as usize],
-                face_welded_vertices[point_b as usize],
-            );
+            let edge = WeldedEdge::new(welded_vertices[point_a as usize], welded_vertices[point_b as usize]);
 
             if let Some(&(parent_face, parent_face_local_edge)) = welded_edge_to_parent.get(&edge) {
                 dual_graph.push(DualEdge {
                     face_a: parent_face,
-                    face_b: face_id,
+                    face_b: face,
                     welded_edge: edge,
                     face_a_local_edge: parent_face_local_edge,
                     face_b_local_edge: (point_a, point_b),
                 });
             } else {
-                welded_edge_to_parent.insert(edge, (face_id, (point_a, point_b)));
+                welded_edge_to_parent.insert(edge, (face, (point_a, point_b)));
             }
         }
     }
@@ -365,9 +248,9 @@ fn align_to_welded_edge(
     let local_vertex_b = local_edge.1 as usize;
     let welded_vertex_a = parent_face_welded_vertices[local_vertex_a];
     let welded_vertex_b = parent_face_welded_vertices[local_vertex_b];
-    if eq(welded_vertex_a, welded_edge.vertex_a) && eq(welded_vertex_b, welded_edge.vertex_b) {
+    if welded_eq(welded_vertex_a, welded_edge.vertex_a) && welded_eq(welded_vertex_b, welded_edge.vertex_b) {
         (local_edge.0, local_edge.1)
-    } else if eq(welded_vertex_a, welded_edge.vertex_b) && eq(welded_vertex_b, welded_edge.vertex_a) {
+    } else if welded_eq(welded_vertex_a, welded_edge.vertex_b) && welded_eq(welded_vertex_b, welded_edge.vertex_a) {
         (local_edge.1, local_edge.0)
     } else {
         panic!("local_edge does not match welded_edge (bad adjacency / welding).");
@@ -495,27 +378,6 @@ fn anchor_welded_face(face: [Vec2; 3], welded_face: &[WeldedVertex; 3]) -> [Vec2
     stable_welded_face[second_smallest_index] = stable_b;
     stable_welded_face[largest_index] = stable_c;
     stable_welded_face
-}
-
-#[inline]
-pub fn face_normal(a: Vec3, b: Vec3, c: Vec3) -> Vec3 {
-    (b - a).cross(c - a).normalize_or_zero()
-}
-
-#[inline]
-fn quantize(x: f32) -> i32 {
-    const WELD_VERTEX_EPSILON: f32 = 1e-5; // e-1 and up works, 0 goes crazy
-    (x / WELD_VERTEX_EPSILON).round() as i32
-}
-
-#[inline]
-fn edge_opposing_vertex(edge: (u8, u8)) -> u8 {
-    3 - (edge.0 + edge.1)
-}
-
-#[inline]
-fn eq(a: WeldedVertex, b: WeldedVertex) -> bool {
-    a.id == b.id
 }
 
 const FOLD_DURATION_SEC: f32 = 5.0;
@@ -718,26 +580,4 @@ fn fold_unfold_time(i_time: f32, period: f32) -> f32 {
     } else {
         2.0 - 2.0 * u
     }
-}
-
-#[inline]
-fn lift_dimension(vertex: Vec2) -> Vec3 {
-    Vec3::new(vertex.x, vertex.y, 0.0)
-}
-
-#[inline]
-fn rotate_point_about_axis(c: Vec3, axis: (Vec3, Vec3), theta: f32) -> Vec3 {
-    let (a, b) = axis;
-    let ab = b - a;
-    let ab_axis_dir = ab.normalize_or_zero();
-    let ac = c - a;
-    let ac_z_component = ab_axis_dir.dot(ac) * ab_axis_dir;
-    let ac_x_component = ac - ac_z_component;
-    let ac_y_component = ab_axis_dir.cross(ac_x_component);
-    let origin = a;
-    let rotated_x_component = ac_x_component * theta.cos();
-    let rotated_y_component = ac_y_component * theta.sin();
-    //rotate in the xy plane
-    let rotated_c = rotated_x_component + rotated_y_component + ac_z_component;
-    origin + rotated_c
 }

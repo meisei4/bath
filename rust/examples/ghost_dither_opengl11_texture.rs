@@ -1,9 +1,9 @@
 use asset_payload::SPHERE_PATH;
+use bath::fixed_func::faces::{collect_silhouette_faces, debug_draw_faces, ensure_drawable_with_texture};
 use bath::fixed_func::happo_giri_observer::happo_giri_setup;
 use bath::fixed_func::papercraft::unfold;
 use bath::fixed_func::silhouette::{
-    compute_silhouette_feather_ortho, generate_mesh_and_texcoord_samples_from_silhouette,
-    generate_silhouette_texture_fast,
+    generate_mesh_and_texcoord_samples_from_silhouette, generate_silhouette_texture_fast,
 };
 use bath::fixed_func::silhouette_constants::{
     ANGULAR_VELOCITY, MODEL_POS, MODEL_SCALE, SILHOUETTE_RADII_RESOLUTION, TEXTURE_MAPPING_BOUNDARY_FADE,
@@ -49,6 +49,7 @@ fn main() {
         64,
         TEXTURE_MAPPING_BOUNDARY_FADE,
     );
+
     main_model.materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize].texture = *silhouette_texture;
     papercraft_model.materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize].texture = *silhouette_texture;
 
@@ -57,14 +58,6 @@ fn main() {
         mesh_rotation -= ANGULAR_VELOCITY * render.handle.get_frame_time();
         interpolate_mesh_samples_and_texcoord_samples(&mut main_model, i_time, &mesh_samples, &texcoord_samples);
         interpolate_mesh_samples_and_texcoord_samples(&mut wire_model, i_time, &mesh_samples, &texcoord_samples);
-        compute_silhouette_feather_ortho(
-            &mut main_model,
-            &main_observer,
-            render.handle.get_screen_width(),
-            render.handle.get_screen_height(),
-            8.0,
-        );
-
         let duration = mesh_samples.len() as f32 * TIME_BETWEEN_SAMPLES;
         let time = i_time % duration;
         let frame = time / TIME_BETWEEN_SAMPLES;
@@ -76,6 +69,10 @@ fn main() {
             &mesh_samples,
             &texcoord_samples,
         );
+        ensure_drawable_with_texture(&mut main_model.meshes_mut()[0]);
+        ensure_drawable_with_texture(&mut papercraft_model.meshes_mut()[0]);
+        ensure_drawable_with_texture(&mut main_model.meshes_mut()[0]);
+
         // let unfolded_mesh = unsafe { fold(&mut wire_model.meshes_mut()[0], i_time, true).make_weak() };
         let unfolded_mesh = unsafe { unfold(&mut papercraft_model.meshes_mut()[0]).make_weak() };
         let mut unfolded_model = render
@@ -88,23 +85,23 @@ fn main() {
         draw_handle.clear_background(Color::BLACK);
         {
             let mut rl3d = draw_handle.begin_mode3D(main_observer);
-            // rl3d.draw_model_ex(
-            //     &main_model,
-            //     MODEL_POS,
-            //     Vector3::Y,
-            //     mesh_rotation.to_degrees(),
-            //     MODEL_SCALE,
-            //     Color::WHITE,
-            // );
-            // rl3d.draw_model_wires_ex(
-            //     &wire_model,
-            //     MODEL_POS,
-            //     Vector3::Y,
-            //     mesh_rotation.to_degrees(),
-            //     MODEL_SCALE,
-            //     Color::BLACK,
-            // );
-            rl3d.draw_model_ex(&unfolded_model, MODEL_POS, Vector3::Y, 0.0, MODEL_SCALE, Color::WHITE);
+            rl3d.draw_model_ex(
+                &main_model,
+                MODEL_POS,
+                Vector3::Y,
+                mesh_rotation.to_degrees(),
+                MODEL_SCALE,
+                Color::WHITE,
+            );
+            rl3d.draw_model_wires_ex(
+                &wire_model,
+                MODEL_POS,
+                Vector3::Y,
+                mesh_rotation.to_degrees(),
+                MODEL_SCALE,
+                Color::BLACK,
+            );
+            // rl3d.draw_model_ex(&unfolded_model, MODEL_POS, Vector3::Y, 0.0, MODEL_SCALE, Color::WHITE);
             // rl3d.draw_model_wires_ex(
             //     &unfolded_model,
             //     MODEL_POS,
@@ -114,5 +111,15 @@ fn main() {
             //     Color::BLACK,
             // );
         }
+        let silhouette_faces = collect_silhouette_faces(&main_model, mesh_rotation, &main_observer);
+        debug_draw_faces(
+            main_observer,
+            &mut draw_handle,
+            &main_model.meshes_mut()[0],
+            mesh_rotation,
+            &silhouette_faces,
+            Some(Color::new(255, 32, 32, 90)),
+            true,
+        );
     }
 }

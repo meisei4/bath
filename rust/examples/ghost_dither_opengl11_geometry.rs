@@ -1,9 +1,9 @@
 use asset_payload::SPHERE_PATH;
+use bath::fixed_func::faces::debug_draw_faces;
 use bath::fixed_func::papercraft::fold;
 use bath::fixed_func::silhouette::generate_mesh_and_texcoord_samples_from_silhouette;
 use bath::fixed_func::silhouette_constants::{ANGULAR_VELOCITY, MODEL_POS, MODEL_SCALE, TIME_BETWEEN_SAMPLES};
 use bath::fixed_func::silhouette_interpolation::interpolate_mesh_samples_and_texcoord_samples;
-use bath::fixed_func::silhouette_util::debug_indices;
 use bath::render::raylib::RaylibRenderer;
 use bath::render::raylib_util::N64_WIDTH;
 use bath::render::renderer::Renderer;
@@ -55,6 +55,15 @@ fn main() {
             let mut rl3d = draw_handle.begin_mode3D(observer);
             rl3d.draw_model_wires_ex(&unfolded_model, MODEL_POS, Vector3::Y, 0.0, MODEL_SCALE, Color::WHITE);
         }
-        debug_indices(observer, &mut draw_handle, &unfolded_mesh, 0.0);
+        let all_faces: Vec<usize> = (0..unfolded_mesh.triangleCount as usize).collect();
+        debug_draw_faces(
+            observer,
+            &mut draw_handle,
+            &unfolded_mesh,
+            0.0,
+            &*all_faces,
+            None,
+            false,
+        );
     }
 }

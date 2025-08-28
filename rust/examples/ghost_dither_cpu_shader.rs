@@ -7,7 +7,9 @@ use bath::fixed_func::silhouette_constants::{
     UMBRAL_MASK_PHASE_COEFFICIENT_X, UMBRAL_MASK_PHASE_COEFFICIENT_Y, UMBRAL_MASK_WAVE_AMPLITUDE_X,
     UMBRAL_MASK_WAVE_AMPLITUDE_Y,
 };
-use bath::fixed_func::silhouette_util::{add_phase, smoothstep, spatial_phase, temporal_phase, uv_to_grid_space};
+use bath::fixed_func::silhouette_geometry_util::{
+    add_phase, smoothstep, spatial_phase, temporal_phase, uv_to_grid_space,
+};
 use bath::render::raylib::RaylibRenderer;
 use bath::render::raylib_util::{flip_framebuffer, N64_WIDTH, ORIGIN};
 use bath::render::renderer::Renderer;
