@@ -50,8 +50,8 @@ pub const UMBRAL_MASK_PHASE_COEFFICIENT_Y: f32 = 0.2;
 pub const UMBRAL_MASK_WAVE_AMPLITUDE_X: f32 = 0.1;
 pub const UMBRAL_MASK_WAVE_AMPLITUDE_Y: f32 = 0.1;
 
-pub const DITHER_TEXTURE_SCALE: f32 = 16.0;
-pub const DITHER_BLEND_FACTOR: f32 = 1.0;
+pub const DITHER_TEXTURE_SCALE: f32 = 8.0;
+pub const DITHER_BLEND_FACTOR: f32 = 0.75;
 
 pub const RADIAL_FIELD_SIZE: usize = 64;
 
