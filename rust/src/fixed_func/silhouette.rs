@@ -520,3 +520,80 @@ pub fn dither_byte_level(pixels_rgba8: &mut [u8], width_pixels: i32, height_pixe
 fn luminance(r: u8, g: u8, b: u8) -> f32 {
     (0.299 * r as f32 + 0.587 * g as f32 + 0.114 * b as f32) / 255.0
 }
+
+// --- tiny 4x4 PS1-ish Bayer ranks (binary mask) ---
+const N: i32 = 4;
+const BAYER4: [[u8; 4]; 4] = [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]];
+
+/// How many discrete coverage levels to approximate (more = smoother fade, still cheap)
+pub const STIPPLE_LEVELS: i32 = 17; // 0..16 ≈ 5-bit like PS1 feel
+
+pub fn build_stipple_atlas_rgba() -> Image {
+    // Atlas is Nx(N*L) where each NxN slice is the mask for one level
+    let w = N;
+    let h = N * STIPPLE_LEVELS;
+    let mut img = Image::gen_image_color(w, h, Color::BLANK);
+    let total_bytes: usize = (w * h * 4) as usize;
+    let px: &mut [u8] = unsafe { from_raw_parts_mut(img.data as *mut u8, total_bytes) };
+
+    for level in 0..STIPPLE_LEVELS {
+        // Threshold is the number of "on" ranks we allow for this level
+        // level==0 -> nothing on (fully transparent), level==16 -> mostly on
+        for y in 0..N {
+            for x in 0..N {
+                let idx = 4 * (((level * N + y) * w + x) as usize);
+                let on = (BAYER4[y as usize][x as usize] as i32) < level;
+                // White color, alpha 0/255 as ON/OFF mask
+                px[idx + 0] = 255;
+                px[idx + 1] = 255;
+                px[idx + 2] = 255;
+                px[idx + 3] = if on { 255 } else { 0 };
+            }
+        }
+    }
+    img.set_format(PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
+    img
+}
+pub fn rotate_silhouette_texture_stipple_screen_locked(
+    model: &mut Model,
+    observer: &Camera3D,
+    mesh_rotation: f32,
+    screen_w: i32,
+    screen_h: i32,
+) {
+    let mesh = &mut model.meshes_mut()[0];
+    let mut vertices = mesh.vertices_mut().to_vec();
+    let mut smooth_vertex_normals = {
+        let mut topo = topology_init(mesh);
+        collect_vertex_normals(&mut topo, mesh);
+        smooth_vertex_normals(&topo)
+    };
+    rotate_vertices(&mut vertices, mesh_rotation);
+    rotate_vertices(&mut smooth_vertex_normals, mesh_rotation);
+    let los = observed_line_of_sight(observer);
+    let vertex_count = mesh.vertexCount as usize;
+    if mesh.as_mut().texcoords.is_null() {
+        let tex = vec![0.0f32; vertex_count * 2];
+        mesh.as_mut().texcoords = Box::leak(tex.into_boxed_slice()).as_mut_ptr();
+    }
+    let texcoords = unsafe { from_raw_parts_mut(mesh.as_mut().texcoords, vertex_count * 2) };
+    let world_to_px = (screen_h as f32) / FOVY;
+    let half_w = (screen_w as f32) * 0.5;
+    let half_h = (screen_h as f32) * 0.5;
+
+    for i in 0..vertex_count {
+        let vtx = vertices[i];
+        let x_px = (vtx.x * world_to_px + half_w).floor() as i32;
+        let y_px = (vtx.y * world_to_px + half_h).floor() as i32;
+        let n = smooth_vertex_normals[i];
+        let align = n.dot(los).abs();
+        let t = 1.0 - smoothstep(ALPHA_FADE_RAMP_MIN, ALPHA_FADE_RAMP_MAX, align);
+        let coverage = (1.0 - t).clamp(0.0, 1.0);
+        let level_f = (coverage * (STIPPLE_LEVELS as f32 - 1.0)).round();
+        let level = level_f as i32;
+        let u = ((x_px & (N - 1)) as f32 + 0.5) / (N as f32);
+        let v = ((level * N + (y_px & (N - 1))) as f32 + 0.5) / ((STIPPLE_LEVELS * N) as f32);
+        texcoords[i * 2 + 0] = u;
+        texcoords[i * 2 + 1] = v;
+    }
+}
