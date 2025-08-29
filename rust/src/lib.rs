@@ -1,3 +1,5 @@
+extern crate core;
+
 use crate::godot_nodes::audio::audio_files::AudioFiles;
 use crate::godot_nodes::collision::Collision;
 use godot::classes::Engine;

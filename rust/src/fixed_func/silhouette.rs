@@ -6,17 +6,19 @@ use asset_payload::SPHERE_PATH;
 use raylib::camera::Camera3D;
 use raylib::color::Color;
 use raylib::consts::PixelFormat::PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
-use raylib::drawing::{RaylibDraw3D, RaylibDrawHandle, RaylibMode3D};
-use raylib::ffi::{rlDisableDepthMask, rlEnableDepthMask};
+use raylib::drawing::{RaylibDraw, RaylibDraw3D, RaylibDrawHandle, RaylibMode3D};
+use raylib::ffi::{rlDisableDepthMask, rlEnableDepthMask, rlReadScreenPixels, MemFree};
 use raylib::math::glam::Vec3;
-use raylib::math::{Vector2, Vector3};
+use raylib::math::{Rectangle, Vector2, Vector3};
 use raylib::models::{Model, RaylibMesh, RaylibModel, WeakMesh};
-use raylib::texture::Image;
+use raylib::texture::{Image, RaylibTexture2D, WeakTexture2D};
 use std::f32::consts::TAU;
+use std::ffi::c_void;
+use std::ptr::copy_nonoverlapping;
 use std::slice::from_raw_parts_mut;
 
 pub const MODEL_POS: Vector3 = Vector3::ZERO;
-pub const SCALE_TWEAK: f32 = 0.75;
+pub const SCALE_TWEAK: f32 = 0.66;
 pub const MODEL_SCALE: Vector3 = Vector3::ONE;
 
 pub const HALF: f32 = 0.5;
@@ -48,8 +50,8 @@ pub const UMBRAL_MASK_PHASE_COEFFICIENT_Y: f32 = 0.2;
 pub const UMBRAL_MASK_WAVE_AMPLITUDE_X: f32 = 0.1;
 pub const UMBRAL_MASK_WAVE_AMPLITUDE_Y: f32 = 0.1;
 
-pub const DITHER_TEXTURE_SCALE: f32 = 8.0;
-pub const DITHER_BLEND_FACTOR: f32 = 0.8;
+pub const DITHER_TEXTURE_SCALE: f32 = 16.0;
+pub const DITHER_BLEND_FACTOR: f32 = 1.0;
 
 pub const RADIAL_FIELD_SIZE: usize = 64;
 
@@ -330,35 +332,31 @@ pub fn deformed_silhouette_radius_at_angle(radial_field_angle: f32, i_time: f32)
     upper_phase_radius
 }
 
-const BAYER8X8: [[f32; 8]; 8] = {
-    const fn n(v: i32) -> f32 {
-        0.85 + (v as f32 / 63.0) * 0.15
-    }
-    [
-        [n(0), n(48), n(12), n(60), n(3), n(51), n(15), n(63)],
-        [n(32), n(16), n(44), n(28), n(35), n(19), n(47), n(31)],
-        [n(8), n(56), n(4), n(52), n(11), n(59), n(7), n(55)],
-        [n(40), n(24), n(36), n(20), n(43), n(27), n(39), n(23)],
-        [n(2), n(50), n(14), n(62), n(1), n(49), n(13), n(61)],
-        [n(34), n(18), n(46), n(30), n(33), n(17), n(45), n(29)],
-        [n(10), n(58), n(6), n(54), n(9), n(57), n(5), n(53)],
-        [n(42), n(26), n(38), n(22), n(41), n(25), n(37), n(21)],
-    ]
-};
+const BAYER_SIZE: usize = 8;
+const BAYER_8X8_RANKS: [[u8; BAYER_SIZE]; BAYER_SIZE] = [
+    [0, 32, 8, 40, 2, 34, 10, 42],
+    [48, 16, 56, 24, 50, 18, 58, 26],
+    [12, 44, 4, 36, 14, 46, 6, 38],
+    [60, 28, 52, 20, 62, 30, 54, 22],
+    [3, 35, 11, 43, 1, 33, 9, 41],
+    [51, 19, 59, 27, 49, 17, 57, 25],
+    [15, 47, 7, 39, 13, 45, 5, 37],
+    [63, 31, 55, 23, 61, 29, 53, 21],
+];
 
 pub fn generate_silhouette_texture(texture_w: i32, texture_h: i32) -> Image {
     let mut image = Image::gen_image_color(texture_w, texture_h, Color::BLANK);
-    let total_byte_count: usize = (texture_w * texture_h * 4) as usize;
-    let pixel_data_bytes: &mut [u8] = unsafe { from_raw_parts_mut(image.data as *mut u8, total_byte_count) };
+    let total_byte_count = (texture_w * texture_h * 4) as usize;
+    let pixel_data_bytes = unsafe { from_raw_parts_mut(image.data as *mut u8, total_byte_count) };
     for texel_y in 0..texture_h {
-        let row_normalized: f32 = texel_y as f32 / (texture_h as f32 - 1.0);
-        let alpha_1_to_0: f32 = (1.0 - smoothstep(0.0, 1.0, row_normalized)).clamp(0.0, 1.0);
-        let alpha_0_to_255: u8 = (alpha_1_to_0 * 255.0).round() as u8;
+        let row_normalized = texel_y as f32 / (texture_h as f32 - 1.0);
+        let alpha_1_to_0 = (1.0 - smoothstep(0.0, 1.0, row_normalized)).clamp(0.0, 1.0);
+        let alpha_0_to_255 = (alpha_1_to_0 * 255.0).round() as u8;
         for texel_x in 0..texture_w {
-            let pixel_index: usize = 4 * (texel_y as usize * texture_w as usize + texel_x as usize);
-            pixel_data_bytes[pixel_index + 0] = 255; // red
-            pixel_data_bytes[pixel_index + 1] = 255; // green
-            pixel_data_bytes[pixel_index + 2] = 255; // blue
+            let pixel_index = 4 * (texel_y as usize * texture_w as usize + texel_x as usize);
+            pixel_data_bytes[pixel_index + 0] = 255;
+            pixel_data_bytes[pixel_index + 1] = 255;
+            pixel_data_bytes[pixel_index + 2] = 255;
             pixel_data_bytes[pixel_index + 3] = alpha_0_to_255;
         }
     }
@@ -367,36 +365,24 @@ pub fn generate_silhouette_texture(texture_w: i32, texture_h: i32) -> Image {
 }
 
 pub fn dither(silhouette_image: &mut Image) {
-    const BAYER_SIZE: usize = 8;
-    const BAYER_8X8: [[u8; BAYER_SIZE]; BAYER_SIZE] = [
-        [0, 32, 8, 40, 2, 34, 10, 42],
-        [48, 16, 56, 24, 50, 18, 58, 26],
-        [12, 44, 4, 36, 14, 46, 6, 38],
-        [60, 28, 52, 20, 62, 30, 54, 22],
-        [3, 35, 11, 43, 1, 33, 9, 41],
-        [51, 19, 59, 27, 49, 17, 57, 25],
-        [15, 47, 7, 39, 13, 45, 5, 37],
-        [63, 31, 55, 23, 61, 29, 53, 21],
-    ];
-
-    let total_bytes: usize = (silhouette_image.width * silhouette_image.height * 4) as usize;
+    let total_bytes = (silhouette_image.width * silhouette_image.height * 4) as usize;
     let pixel_data = unsafe { from_raw_parts_mut(silhouette_image.data as *mut u8, total_bytes) };
     let bayer_blend = DITHER_BLEND_FACTOR.clamp(0.0, 1.0);
     for y in 0..silhouette_image.height as usize {
         for x in 0..silhouette_image.width as usize {
-            let pixel_index: usize = 4 * (y * silhouette_image.width as usize + x);
+            let pixel_index = 4 * (y * silhouette_image.width as usize + x);
             let alpha_1_to_0 = (pixel_data[pixel_index + 3] as f32) / 255.0;
             let bayer_x = x % BAYER_SIZE;
             let bayer_y = y % BAYER_SIZE;
-            let threshold_0_to_1 = (BAYER_8X8[bayer_y][bayer_x] as f32) / 64.0;
+            let threshold_0_to_1 = (BAYER_8X8_RANKS[bayer_y][bayer_x] as f32) / 64.0;
             let bayer_check = if alpha_1_to_0 > threshold_0_to_1 { 1.0 } else { 0.0 };
-            let bayer_alpha_1_to_0: f32 = alpha_1_to_0 * (1.0 - bayer_blend) + bayer_check * bayer_blend;
+            let bayer_alpha_1_to_0 = alpha_1_to_0 * (1.0 - bayer_blend) + bayer_check * bayer_blend;
             pixel_data[pixel_index + 3] = (bayer_alpha_1_to_0 * 255.0).round() as u8;
         }
     }
 }
 
-pub fn rotate_dithered_texture_screen_locked(
+pub fn rotate_silhouette_texture_dither(
     model: &mut Model,
     observer: &Camera3D,
     mesh_rotation: f32,
@@ -426,6 +412,7 @@ pub fn rotate_dithered_texture_screen_locked(
         let x_component = vertex.x * world_to_pixels + (screen_w as f32) * 0.5;
         let s = x_component / DITHER_TEXTURE_SCALE;
         let alignment_magnitude = vertex_normal.dot(observed_line_of_sight).abs();
+        // let t = smoothstep(ALPHA_FADE_RAMP_MIN, ALPHA_FADE_RAMP_MAX, alignment_magnitude);
         let t = 1.0 - smoothstep(ALPHA_FADE_RAMP_MIN, ALPHA_FADE_RAMP_MAX, alignment_magnitude);
         texcoords[i * 2 + 0] = s;
         texcoords[i * 2 + 1] = t;
@@ -461,4 +448,75 @@ pub fn rotate_silhouette_texture(model: &mut Model, observer: &Camera3D, mesh_ro
         texcoords[vertex_index * 2 + 0] = s;
         texcoords[vertex_index * 2 + 1] = t;
     }
+}
+
+pub struct DitherStaging {
+    pub blit_texture: WeakTexture2D,
+    pub is_initialized: bool,
+    pub staging_rgba_bytes: Vec<u8>,
+}
+
+pub fn screen_pass_dither(draw_handle: &mut RaylibDrawHandle, dither_staging: &mut DitherStaging) {
+    let screen_w = draw_handle.get_screen_width();
+    let screen_h = draw_handle.get_screen_height();
+    let byte_count = (screen_w * screen_h * 4) as usize;
+    if dither_staging.staging_rgba_bytes.len() != byte_count {
+        dither_staging.staging_rgba_bytes.resize(byte_count, 0);
+    }
+    unsafe {
+        let screen_pixels = rlReadScreenPixels(screen_w, screen_h);
+        copy_nonoverlapping(
+            screen_pixels,
+            dither_staging.staging_rgba_bytes.as_mut_ptr(),
+            byte_count,
+        );
+        MemFree(screen_pixels as *mut c_void);
+    }
+
+    dither_byte_level(&mut dither_staging.staging_rgba_bytes, screen_w, screen_h);
+    dither_staging
+        .blit_texture
+        .update_texture(&dither_staging.staging_rgba_bytes)
+        .unwrap();
+    let src = Rectangle {
+        x: 0.0,
+        y: 0.0,
+        width: screen_w as f32,
+        height: screen_h as f32,
+    };
+    let dst = Rectangle {
+        x: 0.0,
+        y: 0.0,
+        width: screen_w as f32,
+        height: screen_h as f32,
+    };
+    draw_handle.draw_texture_pro(&dither_staging.blit_texture, src, dst, Vector2::ZERO, 0.0, Color::WHITE);
+}
+
+pub fn dither_byte_level(pixels_rgba8: &mut [u8], width_pixels: i32, height_pixels: i32) {
+    let blend_lambda = DITHER_BLEND_FACTOR.clamp(0.0, 1.0);
+    for screen_y in 0..height_pixels {
+        for screen_x in 0..width_pixels {
+            let pixel_index = 4 * (screen_y as usize * width_pixels as usize + screen_x as usize);
+            let r = pixels_rgba8[pixel_index + 0];
+            let g = pixels_rgba8[pixel_index + 1];
+            let b = pixels_rgba8[pixel_index + 2];
+            let lum = luminance(r, g, b);
+            let cell_x_index = (screen_x as usize) & 7;
+            let cell_y_index = (screen_y as usize) & 7;
+            let threshold_0_to_1 = (BAYER_8X8_RANKS[cell_y_index][cell_x_index] as f32) / 64.0;
+            let on = if lum > threshold_0_to_1 { 1.0 } else { 0.0 };
+            let dither_normal = lum * (1.0 - blend_lambda) + on * blend_lambda;
+            let dither = (dither_normal * 255.0).round() as u8;
+            pixels_rgba8[pixel_index + 0] = dither;
+            pixels_rgba8[pixel_index + 1] = dither;
+            pixels_rgba8[pixel_index + 2] = dither;
+            pixels_rgba8[pixel_index + 3] = 255;
+        }
+    }
+}
+
+#[inline]
+fn luminance(r: u8, g: u8, b: u8) -> f32 {
+    (0.299 * r as f32 + 0.587 * g as f32 + 0.114 * b as f32) / 255.0
 }
