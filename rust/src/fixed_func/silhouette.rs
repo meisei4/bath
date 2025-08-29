@@ -18,7 +18,8 @@ use std::ptr::copy_nonoverlapping;
 use std::slice::from_raw_parts_mut;
 
 pub const MODEL_POS: Vector3 = Vector3::ZERO;
-pub const SCALE_TWEAK: f32 = 0.66;
+// pub const SCALE_TWEAK: f32 = 0.66;
+pub const SCALE_TWEAK: f32 = 1.0;
 pub const MODEL_SCALE: Vector3 = Vector3::ONE;
 
 pub const HALF: f32 = 0.5;

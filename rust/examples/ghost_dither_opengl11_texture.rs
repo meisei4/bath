@@ -1,11 +1,7 @@
 use asset_payload::SPHERE_PATH;
-use bath::fixed_func::silhouette::{
-    build_stipple_atlas_rgba, collect_deformed_mesh_samples, dither, generate_silhouette_texture,
-    interpolate_between_deformed_meshes, rotate_silhouette_texture_dither,
-    rotate_silhouette_texture_stipple_screen_locked, DitherStaging, FOVY,
-};
+use bath::fixed_func::silhouette::{build_stipple_atlas_rgba, collect_deformed_mesh_samples, dither, generate_silhouette_texture, interpolate_between_deformed_meshes, rotate_silhouette_texture_dither, rotate_silhouette_texture_stipple_screen_locked, screen_pass_dither, DitherStaging, FOVY};
 use bath::fixed_func::silhouette::{ANGULAR_VELOCITY, MODEL_POS, MODEL_SCALE, SCALE_TWEAK};
-use bath::fixed_func::topology::{ensure_drawable, observed_line_of_sight};
+use bath::fixed_func::topology::{collect_back_faces, collect_front_faces, collect_neighbors, collect_silhouette_faces, collect_welded_faces, debug_draw_faces, ensure_drawable, observed_line_of_sight, topology_init};
 use bath::render::raylib::RaylibRenderer;
 use bath::render::raylib_util::N64_WIDTH;
 use bath::render::renderer::Renderer;
@@ -106,7 +102,39 @@ fn main() {
                 MODEL_SCALE * SCALE_TWEAK,
                 Color::WHITE,
             );
+            rl3d.draw_model_wires_ex(
+                &wire_model,
+                MODEL_POS,
+                Vector3::Y,
+                mesh_rotation.to_degrees(),
+                MODEL_SCALE * SCALE_TWEAK,
+                Color::BLACK,
+            );
         }
-        // screen_pass_dither(&mut draw_handle, &mut dither_staging);
+        let mut topology = topology_init(&main_model.meshes_mut()[0]);
+        collect_welded_faces(&mut topology);
+        collect_neighbors(&mut topology);
+        collect_front_faces(
+            &mut topology,
+            &wire_model.meshes_mut()[0],
+            mesh_rotation,
+            &main_observer,
+        );
+        collect_back_faces(&mut topology);
+        collect_silhouette_faces(&mut topology);
+        if let Some(silhouette_faces) = &topology.silhouette_faces {
+            debug_draw_faces(
+                main_observer,
+                &mut draw_handle,
+                &wire_model.meshes_mut()[0],
+                mesh_rotation,
+                silhouette_faces,
+                Some(Color::new(255, 32, 32, 90)),
+                true,
+            );
+        }
+        screen_pass_dither(&mut draw_handle, &mut dither_staging);
+
     }
+
 }
