@@ -1,6 +1,6 @@
 use crate::fixed_func::silhouette::{
-    deform_vertices_from_radial_field, generate_silhouette_radial_field, rotate_vertices, silhouette_uvs_polar,
-    ANGULAR_VELOCITY, ROTATIONAL_SAMPLES_FOR_INV_PROJ, TIME_BETWEEN_SAMPLES,
+    deform_vertices_with_radial_field, generate_silhouette_radial_field, interpolate_between_radial_field_elements,
+    rotate_vertices, ANGULAR_VELOCITY, RADIAL_FIELD_SIZE, ROTATIONAL_SAMPLES_FOR_INV_PROJ, TIME_BETWEEN_SAMPLES,
 };
 use crate::fixed_func::topology::{Topology, WeldedEdge, WeldedVertex};
 use crate::render::raylib::RaylibRenderer;
@@ -8,34 +8,32 @@ use asset_payload::SPHERE_PATH;
 use raylib::color::Color;
 use raylib::consts::PixelFormat::PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
 use raylib::math::glam::Vec2;
-use raylib::math::Vector3;
 use raylib::models::{Model, RaylibMesh, RaylibModel};
 use raylib::prelude::{Image, Texture2D};
+use std::f32::consts::TAU;
 use std::slice::from_raw_parts_mut;
 
-pub fn collect_deformed_mesh_and_texture_samples(renderer: &mut RaylibRenderer) -> (Vec<Vec<Vector3>>, Vec<Vec<f32>>) {
+pub fn collect_software_render_texture_samples(renderer: &mut RaylibRenderer) -> Vec<Vec<f32>> {
     let model = renderer.handle.load_model(&renderer.thread, SPHERE_PATH).unwrap();
     let vertices = model.meshes()[0].vertices();
-    let mut mesh_samples = Vec::with_capacity(ROTATIONAL_SAMPLES_FOR_INV_PROJ);
     let mut texcoord_samples = Vec::with_capacity(ROTATIONAL_SAMPLES_FOR_INV_PROJ);
     for i in 0..ROTATIONAL_SAMPLES_FOR_INV_PROJ {
-        let frame_time = i as f32 * TIME_BETWEEN_SAMPLES;
-        let frame_rotation = -ANGULAR_VELOCITY * frame_time;
+        let sample_time = i as f32 * TIME_BETWEEN_SAMPLES;
+        let sample_rotation = -ANGULAR_VELOCITY * sample_time;
         let mut mesh_sample = vertices.to_vec();
-        rotate_vertices(&mut mesh_sample, frame_rotation);
-        let radial_field = generate_silhouette_radial_field(frame_time);
-        deform_vertices_from_radial_field(&mut mesh_sample, &radial_field);
+        rotate_vertices(&mut mesh_sample, sample_rotation);
+        let radial_field = generate_silhouette_radial_field(sample_time);
+        deform_vertices_with_radial_field(&mut mesh_sample, &radial_field);
         let mut texcoord_sample = Vec::with_capacity(mesh_sample.len() * 2);
         for vertex in mesh_sample.clone() {
-            let (u, v) = silhouette_uvs_polar(vertex.x, vertex.y, &radial_field);
-            texcoord_sample.push(u);
-            texcoord_sample.push(v);
+            let (s, t) = texcoords_at_radial_field_element(vertex.x, vertex.y, &radial_field);
+            texcoord_sample.push(s);
+            texcoord_sample.push(t);
         }
         texcoord_samples.push(texcoord_sample);
-        rotate_vertices(&mut mesh_sample, -frame_rotation);
-        mesh_samples.push(mesh_sample);
+        rotate_vertices(&mut mesh_sample, -sample_rotation);
     }
-    (mesh_samples, texcoord_samples)
+    texcoord_samples
 }
 
 pub fn generate_silhouette_texture(render: &mut RaylibRenderer, width: i32, height: i32, fade_frac: f32) -> Texture2D {
@@ -62,29 +60,14 @@ pub fn generate_silhouette_texture(render: &mut RaylibRenderer, width: i32, heig
     render.handle.load_texture_from_image(&render.thread, &img).unwrap()
 }
 
-pub fn interpolate_between_deformed_meshes_and_textures(
-    model: &mut Model,
-    i_time: f32,
-    mesh_samples: &Vec<Vec<Vector3>>,
-    texcoord_samples: &Vec<Vec<f32>>,
-) {
+pub fn interpolate_between_texture_samples(model: &mut Model, i_time: f32, texcoord_samples: &Vec<Vec<f32>>) {
     let target_mesh = &mut model.meshes_mut()[0];
-    let duration = mesh_samples.len() as f32 * TIME_BETWEEN_SAMPLES;
+    let duration = texcoord_samples.len() as f32 * TIME_BETWEEN_SAMPLES;
     let time = i_time % duration;
     let frame = time / TIME_BETWEEN_SAMPLES;
-    let current_frame = frame.floor() as usize % mesh_samples.len();
-    let next_frame = (current_frame + 1) % mesh_samples.len();
+    let current_frame = frame.floor() as usize % texcoord_samples.len();
+    let next_frame = (current_frame + 1) % texcoord_samples.len();
     let weight = frame.fract();
-    let vertices = target_mesh.vertices_mut();
-    for ((dst_vertex, src_vertex), next_vertex) in vertices
-        .iter_mut()
-        .zip(mesh_samples[current_frame].iter())
-        .zip(mesh_samples[next_frame].iter())
-    {
-        dst_vertex.x = src_vertex.x * (1.0 - weight) + next_vertex.x * weight;
-        dst_vertex.y = src_vertex.y * (1.0 - weight) + next_vertex.y * weight;
-        dst_vertex.z = src_vertex.z * (1.0 - weight) + next_vertex.z * weight;
-    }
     let texcoords = unsafe { from_raw_parts_mut(target_mesh.as_mut().texcoords, target_mesh.vertices().len() * 2) };
     for ((dst_texcoord, src_texcoord), next_texcoord) in texcoords
         .iter_mut()
@@ -95,7 +78,20 @@ pub fn interpolate_between_deformed_meshes_and_textures(
     }
 }
 
-pub fn generate_view_silhouette_texture_uvspace(
+pub fn texcoords_at_radial_field_element(element_x: f32, element_y: f32, radial_field: &[f32]) -> (f32, f32) {
+    let radial_field_element = element_y.atan2(element_x).rem_euclid(TAU);
+    let radial_field_index = radial_field_element / TAU * RADIAL_FIELD_SIZE as f32;
+    let lower_index = radial_field_index.floor() as usize % RADIAL_FIELD_SIZE;
+    let s = lower_index as f32 / (RADIAL_FIELD_SIZE as f32);
+
+    let radius = (element_x * element_x + element_y * element_y).sqrt();
+    let interpolated_radius = interpolate_between_radial_field_elements(element_x, element_y, radial_field);
+    let t = (radius / (interpolated_radius + 1e-6)).clamp(0.0, 1.0);
+
+    (s, t)
+}
+
+pub fn generate_silhouette_texture_view_aware(
     render: &mut RaylibRenderer,
     topology: &Topology,
     texture_width: i32,

@@ -6,6 +6,7 @@ use raylib::math::glam::{Vec2, Vec3};
 use raylib::math::Vector3;
 use raylib::models::{RaylibMesh, WeakMesh};
 use std::collections::{HashMap, HashSet};
+use std::ptr::null_mut;
 use std::slice::{from_raw_parts, from_raw_parts_mut};
 
 pub struct Topology {
@@ -407,32 +408,6 @@ pub fn observed_line_of_sight(observer: &Camera3D) -> Vec3 {
     .normalize_or_zero()
 }
 
-#[inline]
-pub fn ensure_drawable(mesh: &mut WeakMesh) {
-    ensure_indices(mesh);
-    ensure_texcoords(mesh);
-}
-
-#[inline]
-fn ensure_indices(mesh: &mut WeakMesh) {
-    if mesh.indices.is_null() {
-        let vertex_count = mesh.vertexCount as usize;
-        debug_assert!(vertex_count % 3 == 0, "triangle soup must be multiple of 3");
-        let indices: Vec<u16> = (0..vertex_count as u16).collect();
-        mesh.indices = Box::leak(indices.into_boxed_slice()).as_mut_ptr();
-        mesh.triangleCount = (vertex_count / 3) as i32;
-    }
-}
-
-#[inline]
-fn ensure_texcoords(mesh: &mut WeakMesh) {
-    if mesh.texcoords.is_null() {
-        let vertex_count = mesh.vertexCount as usize;
-        let texcoords = vec![0.0f32; vertex_count * 2];
-        mesh.texcoords = Box::leak(texcoords.into_boxed_slice()).as_mut_ptr();
-    }
-}
-
 pub fn vertex_normals(mesh: &WeakMesh) -> Vec<Vec3> {
     let vertices = mesh.vertices();
     let vertex_count = vertices.len();
@@ -595,5 +570,32 @@ pub fn debug_draw_faces(
             let sy = ((-centroid.y) * 0.5 + 0.5) * screen_h;
             draw_handle.draw_text(&face_id.to_string(), sx as i32, sy as i32, 14, Color::WHITE);
         }
+    }
+}
+
+#[inline]
+pub fn ensure_drawable(mesh: &mut WeakMesh) {
+    ensure_indices(mesh);
+    mesh.colors = null_mut();
+    ensure_texcoords(mesh);
+}
+
+#[inline]
+fn ensure_indices(mesh: &mut WeakMesh) {
+    if mesh.indices.is_null() {
+        let vertex_count = mesh.vertexCount as usize;
+        debug_assert!(vertex_count % 3 == 0, "triangle soup must be multiple of 3");
+        let indices: Vec<u16> = (0..vertex_count as u16).collect();
+        mesh.indices = Box::leak(indices.into_boxed_slice()).as_mut_ptr();
+        mesh.triangleCount = (vertex_count / 3) as i32;
+    }
+}
+
+#[inline]
+fn ensure_texcoords(mesh: &mut WeakMesh) {
+    if mesh.texcoords.is_null() {
+        let vertex_count = mesh.vertexCount as usize;
+        let texcoords = vec![0.0f32; vertex_count * 2];
+        mesh.texcoords = Box::leak(texcoords.into_boxed_slice()).as_mut_ptr();
     }
 }

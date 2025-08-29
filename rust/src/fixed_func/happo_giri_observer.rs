@@ -1,4 +1,4 @@
-use crate::fixed_func::silhouette::{MODEL_POS, MODEL_SCALE};
+use crate::fixed_func::silhouette::{FOVY, MODEL_POS, MODEL_SCALE};
 use raylib::camera::Camera3D;
 use raylib::color::Color;
 use raylib::consts::CameraProjection;
@@ -55,7 +55,6 @@ pub fn happo_giri_draw(
         let viewport_y = row_index_inverse * grid_h;
         let viewport_w = grid_w;
         let viewport_h = grid_h;
-
         unsafe {
             rlViewport(viewport_x, viewport_y, viewport_w, viewport_h);
         }
@@ -66,23 +65,21 @@ pub fn happo_giri_draw(
                 MODEL_POS,
                 Vector3::Y,
                 mesh_rotation.to_degrees(),
-                MODEL_SCALE,
+                MODEL_SCALE * 0.75,
                 Color::WHITE,
             );
-            // rl3d.draw_model_wires_ex(
-            //     wire_model,
-            //     MODEL_POS,
-            //     Vector3::Y,
-            //     mesh_rotation.to_degrees(),
-            //     MODEL_SCALE,
-            //     Color::WHITE,
-            // );
+            rl3d.draw_model_wires_ex(
+                wire_model,
+                MODEL_POS,
+                Vector3::Y,
+                mesh_rotation.to_degrees(),
+                MODEL_SCALE * 0.75,
+                Color::BLACK,
+            );
         }
-
         unsafe {
             rlViewport(0, 0, screen_w, screen_h);
         }
-
         let label_pos_x = column_index * grid_w;
         let label_pos_y = row_index * grid_h;
         draw_handle.draw_text(labels[view_index], label_pos_x, label_pos_y, 14, Color::WHITE);
@@ -94,7 +91,7 @@ pub fn create_camera(x: f32, y: f32, z: f32) -> Camera3D {
         position: Vector3::new(x, y, z),
         target: Vector3::ZERO,
         up: Vector3::Y,
-        fovy: 2.0,
+        fovy: FOVY,
         projection: CameraProjection::CAMERA_ORTHOGRAPHIC,
     }
 }

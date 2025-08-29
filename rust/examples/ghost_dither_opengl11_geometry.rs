@@ -34,7 +34,7 @@ fn main() {
     //     position: Vector3::new(0.0, 0.0, 2.0),
     //     target: Vector3::ZERO,
     //     up: Vector3::Y,
-    //     fovy: 2.0,
+    //     fovy: FOVY,
     //     projection: CameraProjection::CAMERA_ORTHOGRAPHIC,
     // };
     let mut wire_model = render.handle.load_model(&render.thread, SPHERE_PATH).unwrap();
@@ -64,8 +64,8 @@ fn main() {
         wavelength_in_unfolded_space: 1.0,
         speed_cycles_per_second: 1.2,
         phase_offset_radians: 0.0,
-        front_sharpness_exponent: 2.2,     // sharper “crack”
-        use_half_wave_rectification: true, // scrunch→relax only
+        front_sharpness_exponent: 2.2,
+        use_half_wave_rectification: true,
         depth_attenuation_per_breadth_first_step: 0.03,
         hinge_length_weight: 0.15,
         launch_delay_seconds: 0.0,

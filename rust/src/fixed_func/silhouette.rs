@@ -1,14 +1,17 @@
 use crate::fixed_func::topology::{
-    collect_vertex_normals, rotate_point_about_axis, smooth_vertex_normals, topology_init,
+    collect_vertex_normals, observed_line_of_sight, rotate_point_about_axis, smooth_vertex_normals, topology_init,
 };
 use crate::render::raylib::RaylibRenderer;
 use asset_payload::SPHERE_PATH;
+use raylib::camera::Camera3D;
 use raylib::color::Color;
+use raylib::consts::PixelFormat::PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
 use raylib::drawing::{RaylibDraw3D, RaylibDrawHandle, RaylibMode3D};
 use raylib::ffi::{rlDisableDepthMask, rlEnableDepthMask};
 use raylib::math::glam::Vec3;
 use raylib::math::{Vector2, Vector3};
-use raylib::models::{Model, RaylibMesh, RaylibModel};
+use raylib::models::{Model, RaylibMesh, RaylibModel, WeakMesh};
+use raylib::texture::Image;
 use std::f32::consts::TAU;
 use std::slice::from_raw_parts_mut;
 
@@ -46,9 +49,9 @@ pub const UMBRAL_MASK_WAVE_AMPLITUDE_X: f32 = 0.1;
 pub const UMBRAL_MASK_WAVE_AMPLITUDE_Y: f32 = 0.1;
 
 pub const DITHER_TEXTURE_SCALE: f32 = 8.0;
-pub const DITHER_BLEND_FACTOR: f32 = 0.75;
+pub const DITHER_BLEND_FACTOR: f32 = 0.8;
 
-pub const SILHOUETTE_RADII_RESOLUTION: usize = 64;
+pub const RADIAL_FIELD_SIZE: usize = 64;
 
 pub const ROTATION_FREQUENCY_HZ: f32 = 0.05;
 pub const ANGULAR_VELOCITY: f32 = TAU * ROTATION_FREQUENCY_HZ;
@@ -60,40 +63,55 @@ pub const SILHOUETTE_TEXTURE_RES: i32 = 256 / 2;
 
 pub const INVERTED_HULL_EXPANSION_SCALAR: f32 = 0.15;
 pub const ALPHA_FADE_RAMP_MIN: f32 = 0.0;
-pub const ALPHA_FADE_RAMP_MAX: f32 = 1.0;
-pub const ALPHA_FADE_RAMP_SCALE: f32 = 1.0;
+pub const ALPHA_FADE_RAMP_MAX: f32 = 0.5;
+pub const ALPHA_FADE_RAMP_STRENGTH: f32 = 1.0;
+
+pub const FOVY: f32 = 2.0;
+
+pub const GAUSSIAN_ALPHA_FADE_THICKNESS_IN_PIXELS: f32 = 24.0;
+pub const GAUSSIAN_STACK_SIZE: usize = 2;
+fn pascal_pass(passes: usize) -> &'static [u32] {
+    match passes {
+        2 => &[1, 1],          // super cheap, very hard falloff
+        3 => &[1, 2, 1],       // good + still cheap
+        4 => &[1, 3, 3, 1],    // smoother; still inexpensive
+        5 => &[1, 4, 6, 4, 1], // nicer; may be OK if you have headroom
+        _ => &[1, 2, 1],       // default to 3 passes if someone asks for too many
+    }
+}
+pub const GAUSSIAN_MAX_ALPHA: u8 = 120u8;
 
 pub fn collect_deformed_mesh_samples(renderer: &mut RaylibRenderer) -> Vec<Vec<Vector3>> {
     let model = renderer.handle.load_model(&renderer.thread, SPHERE_PATH).unwrap();
     let vertices = model.meshes()[0].vertices();
     let mut mesh_samples = Vec::with_capacity(ROTATIONAL_SAMPLES_FOR_INV_PROJ);
     for i in 0..ROTATIONAL_SAMPLES_FOR_INV_PROJ {
-        let frame_time = i as f32 * TIME_BETWEEN_SAMPLES;
-        let frame_rotation = -ANGULAR_VELOCITY * frame_time;
+        let sample_time = i as f32 * TIME_BETWEEN_SAMPLES;
+        let sample_rotation = -ANGULAR_VELOCITY * sample_time;
         let mut mesh_sample = vertices.to_vec();
-        rotate_vertices(&mut mesh_sample, frame_rotation);
-        let radial_field = generate_silhouette_radial_field(frame_time);
-        deform_vertices_from_radial_field(&mut mesh_sample, &radial_field);
-        rotate_vertices(&mut mesh_sample, -frame_rotation);
+        rotate_vertices(&mut mesh_sample, sample_rotation);
+        let radial_field = generate_silhouette_radial_field(sample_time);
+        deform_vertices_with_radial_field(&mut mesh_sample, &radial_field);
+        rotate_vertices(&mut mesh_sample, -sample_rotation);
         mesh_samples.push(mesh_sample);
     }
     mesh_samples
 }
 
-pub fn generate_silhouette_radial_field(time: f32) -> Vec<f32> {
-    let mut radii = Vec::with_capacity(SILHOUETTE_RADII_RESOLUTION);
-    for i in 0..SILHOUETTE_RADII_RESOLUTION {
-        let theta = (i as f32) * TAU / (SILHOUETTE_RADII_RESOLUTION as f32);
-        radii.push(silhouette_radius_at_angle(theta, time));
+pub fn generate_silhouette_radial_field(i_time: f32) -> Vec<f32> {
+    let mut radial_field = Vec::with_capacity(RADIAL_FIELD_SIZE);
+    for i in 0..RADIAL_FIELD_SIZE {
+        let radial_field_angle = (i as f32) * TAU / (RADIAL_FIELD_SIZE as f32);
+        radial_field.push(deformed_silhouette_radius_at_angle(radial_field_angle, i_time));
     }
-    let max_radius = radii.iter().cloned().fold(1e-6, f32::max);
-    for radius in &mut radii {
+    let max_radius = radial_field.iter().cloned().fold(1e-6, f32::max);
+    for radius in &mut radial_field {
         *radius /= max_radius;
     }
-    radii
+    radial_field
 }
 
-pub fn deform_vertices_from_radial_field(vertices: &mut [Vector3], radial_field: &[f32]) {
+pub fn deform_vertices_with_radial_field(vertices: &mut [Vector3], radial_field: &[f32]) {
     if vertices.is_empty() {
         return;
     }
@@ -126,29 +144,24 @@ pub fn interpolate_between_deformed_meshes(model: &mut Model, i_time: f32, mesh_
 
 pub fn interpolate_between_radial_field_elements(sample_x: f32, sample_y: f32, radial_field: &[f32]) -> f32 {
     let radial_disk_angle = sample_y.atan2(sample_x).rem_euclid(TAU);
-    let radial_index = radial_disk_angle / TAU * SILHOUETTE_RADII_RESOLUTION as f32;
-    let lower_index = radial_index.floor() as usize % SILHOUETTE_RADII_RESOLUTION;
-    let upper_index = (lower_index + 1) % SILHOUETTE_RADII_RESOLUTION;
+    let radial_index = radial_disk_angle / TAU * RADIAL_FIELD_SIZE as f32;
+    let lower_index = radial_index.floor() as usize % RADIAL_FIELD_SIZE;
+    let upper_index = (lower_index + 1) % RADIAL_FIELD_SIZE;
     let interpolation_toward_upper = radial_index.fract();
     radial_field[lower_index] * (1.0 - interpolation_toward_upper)
         + radial_field[upper_index] * interpolation_toward_upper
 }
 
-pub fn update_inverted_hull(
+pub fn rotate_inverted_hull(
     model: &Model,
     inverted_hull: &mut Model,
     observed_line_of_sight: Vec3,
     mesh_rotation: f32,
 ) {
-    let model_face_line_of_sight = rotate_point_about_axis(
-        -observed_line_of_sight.normalize_or_zero(),
-        (Vector3::ZERO, Vector3::Y),
-        -mesh_rotation,
-    );
+    let line_of_sight = rotate_point_about_axis(-observed_line_of_sight, (Vector3::ZERO, Vector3::Y), -mesh_rotation);
     let mesh = &model.meshes()[0];
     let inverted_hull_mesh = &mut inverted_hull.meshes_mut()[0];
     let vertex_count = mesh.vertexCount as usize;
-    // let per_vertex_face_normals = per_vertex_face_normals(&model.meshes()[0]);
     let mut topology = topology_init(mesh);
     collect_vertex_normals(&mut topology, &model.meshes()[0]);
     let welded_vertex_normals = smooth_vertex_normals(&topology);
@@ -157,11 +170,6 @@ pub fn update_inverted_hull(
         inverted_hull_mesh.colors = Box::leak(colors.into_boxed_slice()).as_mut_ptr();
     }
     let inverted_hull_colors = unsafe { from_raw_parts_mut(inverted_hull_mesh.colors, vertex_count * 4) };
-    let (ramp_min, ramp_max) = if ALPHA_FADE_RAMP_MIN <= ALPHA_FADE_RAMP_MAX {
-        (ALPHA_FADE_RAMP_MIN.clamp(0.0, 1.0), ALPHA_FADE_RAMP_MAX.clamp(0.0, 1.0))
-    } else {
-        (ALPHA_FADE_RAMP_MAX.clamp(0.0, 1.0), ALPHA_FADE_RAMP_MIN.clamp(0.0, 1.0))
-    };
     let vertices = mesh.vertices();
     let inverted_hull_vertices = inverted_hull_mesh.vertices_mut();
     for i in 0..vertex_count {
@@ -169,9 +177,9 @@ pub fn update_inverted_hull(
         let face_normal = welded_vertex_normals.get(i).copied().unwrap_or(Vec3::Z);
         let expanded_vertex = vertex + face_normal * INVERTED_HULL_EXPANSION_SCALAR;
         inverted_hull_vertices[i] = expanded_vertex;
-        let view_alignment_magnitude = face_normal.dot(model_face_line_of_sight).abs();
-        let edge_weight = 1.0 - smoothstep(ramp_min, ramp_max, view_alignment_magnitude);
-        let alpha_1_to_0 = (1.0 - edge_weight * ALPHA_FADE_RAMP_SCALE).clamp(0.0, 1.0);
+        let view_alignment_magnitude = face_normal.dot(line_of_sight).abs();
+        let edge_weight = 1.0 - smoothstep(ALPHA_FADE_RAMP_MIN, ALPHA_FADE_RAMP_MAX, view_alignment_magnitude);
+        let alpha_1_to_0 = (1.0 - edge_weight * ALPHA_FADE_RAMP_STRENGTH).clamp(0.0, 1.0);
         let j = i * 4;
         inverted_hull_colors[j + 0] = 255;
         inverted_hull_colors[j + 1] = 255;
@@ -180,23 +188,18 @@ pub fn update_inverted_hull(
     }
 }
 
-pub fn draw_inverted_hull_guassian_multipass(
+pub fn draw_inverted_hull_guassian_silhouette_stack(
     rl3d: &mut RaylibMode3D<RaylibDrawHandle>,
     inverted_hull_model: &Model,
     mesh_rotation: f32,
 ) {
-    const GAUSSIAN_STACK: &[(f32, u8)] = &[
-        (1.010, 90),
-        (1.018, 72),
-        (1.026, 56),
-        (1.036, 42),
-        (1.048, 30),
-        (1.062, 20),
-    ];
+    let screen_h = rl3d.get_screen_height();
+    let max_silhouette_radius = max_silhouette_radius(&inverted_hull_model.meshes()[0], MODEL_SCALE * SCALE_TWEAK);
+    let gaussian_stack = build_gaussian_silhouette_stack(screen_h, max_silhouette_radius);
     unsafe {
         rlDisableDepthMask();
     }
-    for &(scale, alpha) in GAUSSIAN_STACK {
+    for (scale, alpha) in gaussian_stack {
         rl3d.draw_model_ex(
             inverted_hull_model,
             MODEL_POS,
@@ -209,6 +212,44 @@ pub fn draw_inverted_hull_guassian_multipass(
     unsafe {
         rlEnableDepthMask();
     }
+}
+
+pub fn build_gaussian_silhouette_stack(screen_h: i32, max_silhouette_radius: f32) -> Vec<(f32, u8)> {
+    if GAUSSIAN_STACK_SIZE == 0 {
+        return Vec::new();
+    }
+    let pixels_to_world = FOVY / screen_h as f32;
+    let alpha_feather_thickness_in_world = GAUSSIAN_ALPHA_FADE_THICKNESS_IN_PIXELS * pixels_to_world;
+    let step_world = alpha_feather_thickness_in_world / GAUSSIAN_STACK_SIZE as f32;
+    let pascal = pascal_pass(GAUSSIAN_STACK_SIZE);
+    let weight_sum: u32 = pascal.iter().copied().sum();
+    let inverse_sum = if weight_sum > 0 { 1.0 / weight_sum as f32 } else { 0.0 };
+    let mut scale_alpha_pairs: Vec<(f32, u8)> = Vec::with_capacity(GAUSSIAN_STACK_SIZE);
+    for pass in 1..=GAUSSIAN_STACK_SIZE {
+        let outward_offset = pass as f32 * step_world;
+        let silhouette_scale = 1.0 + outward_offset / max_silhouette_radius.max(1e-6);
+        let weight = pascal[pass - 1] as f32 * inverse_sum;
+        let alpha = (weight * GAUSSIAN_MAX_ALPHA as f32).round().clamp(0.0, 255.0) as u8;
+        scale_alpha_pairs.push((silhouette_scale, alpha));
+    }
+    scale_alpha_pairs
+}
+
+pub fn max_silhouette_radius(mesh: &WeakMesh, model_scale: Vector3) -> f32 {
+    let vertices = mesh.vertices();
+    if vertices.is_empty() {
+        return 1.0;
+    }
+    let mut max_silhouette_radius = 0.0f32;
+    for vertex in vertices {
+        let x = vertex.x * model_scale.x;
+        let y = vertex.y * model_scale.y;
+        let radius = (x * x + y * y).sqrt();
+        if radius > max_silhouette_radius {
+            max_silhouette_radius = radius;
+        }
+    }
+    max_silhouette_radius.max(1e-6)
 }
 
 #[inline]
@@ -253,47 +294,171 @@ pub fn rotate_vertices(vertices: &mut Vec<Vector3>, rotation: f32) {
 }
 
 #[inline]
-pub fn warped_distance_from_mask_center_in_grid(grid_point: &mut Vector2, time_seconds: f32) -> f32 {
-    let mut grid_phase = spatial_phase(*grid_point);
-    grid_phase += temporal_phase(time_seconds);
-    *grid_point += add_phase(grid_phase);
-    grid_point.distance(UMBRAL_MASK_CENTER)
-}
-
-pub fn silhouette_uvs_polar(x: f32, y: f32, radii: &[f32]) -> (f32, f32) {
-    let angle = y.atan2(x).rem_euclid(TAU);
-    let sample_index = angle / TAU * (SILHOUETTE_RADII_RESOLUTION as f32);
-    let i0 = sample_index.floor() as usize % SILHOUETTE_RADII_RESOLUTION;
-    let i1 = (i0 + 1) % SILHOUETTE_RADII_RESOLUTION;
-    let lerp_t = sample_index.fract();
-    let edge_radius = radii[i0] * (1.0 - lerp_t) + radii[i1] * lerp_t;
-    let distance_from_center = (x * x + y * y).sqrt();
-    let u = sample_index / (SILHOUETTE_RADII_RESOLUTION as f32);
-    let v = (distance_from_center / (edge_radius + 1e-6)).clamp(0.0, 1.0);
-    (u, v)
+pub fn grid_phase_magnitude(grid_coord: &mut Vector2, i_time: f32) -> f32 {
+    let mut grid_phase = spatial_phase(*grid_coord);
+    grid_phase += temporal_phase(i_time);
+    *grid_coord += add_phase(grid_phase);
+    grid_coord.distance(UMBRAL_MASK_CENTER)
 }
 
 #[inline]
-pub fn silhouette_radius_at_angle(theta: f32, time_s: f32) -> f32 {
-    let dir = Vector2::new(theta.cos(), theta.sin());
-    let wiggle = LIGHT_WAVE_AMPLITUDE_X.hypot(LIGHT_WAVE_AMPLITUDE_Y) + 2.0;
-    let mut lo = 0.0_f32;
-    let mut hi = UMBRAL_MASK_OUTER_RADIUS + wiggle;
+pub fn deformed_silhouette_radius_at_angle(radial_field_angle: f32, i_time: f32) -> f32 {
+    let direction_vector = Vector2::new(radial_field_angle.cos(), radial_field_angle.sin());
+    let phase = LIGHT_WAVE_AMPLITUDE_X.hypot(LIGHT_WAVE_AMPLITUDE_Y) + 2.0;
+    let mut lower_phase_radius = 0.0_f32;
+    let mut upper_phase_radius = UMBRAL_MASK_OUTER_RADIUS + phase;
     for _ in 0..8 {
-        let d = warped_distance_from_mask_center_in_grid(&mut (UMBRAL_MASK_CENTER + dir * hi), time_s);
-        if d >= UMBRAL_MASK_OUTER_RADIUS {
+        let current_radius = grid_phase_magnitude(
+            &mut (UMBRAL_MASK_CENTER + direction_vector * upper_phase_radius),
+            i_time,
+        );
+        if current_radius >= UMBRAL_MASK_OUTER_RADIUS {
             break;
         }
-        hi *= 1.5;
+        upper_phase_radius *= 1.5;
     }
     for _ in 0..20 {
-        let mid = 0.5 * (lo + hi);
-        let d = warped_distance_from_mask_center_in_grid(&mut (UMBRAL_MASK_CENTER + dir * mid), time_s);
-        if d >= UMBRAL_MASK_OUTER_RADIUS {
-            hi = mid;
+        let mid_phase_radius = 0.5 * (lower_phase_radius + upper_phase_radius);
+        let current_radius =
+            grid_phase_magnitude(&mut (UMBRAL_MASK_CENTER + direction_vector * mid_phase_radius), i_time);
+        if current_radius >= UMBRAL_MASK_OUTER_RADIUS {
+            upper_phase_radius = mid_phase_radius;
         } else {
-            lo = mid;
+            lower_phase_radius = mid_phase_radius;
         }
     }
-    hi
+    upper_phase_radius
+}
+
+const BAYER8X8: [[f32; 8]; 8] = {
+    const fn n(v: i32) -> f32 {
+        0.85 + (v as f32 / 63.0) * 0.15
+    }
+    [
+        [n(0), n(48), n(12), n(60), n(3), n(51), n(15), n(63)],
+        [n(32), n(16), n(44), n(28), n(35), n(19), n(47), n(31)],
+        [n(8), n(56), n(4), n(52), n(11), n(59), n(7), n(55)],
+        [n(40), n(24), n(36), n(20), n(43), n(27), n(39), n(23)],
+        [n(2), n(50), n(14), n(62), n(1), n(49), n(13), n(61)],
+        [n(34), n(18), n(46), n(30), n(33), n(17), n(45), n(29)],
+        [n(10), n(58), n(6), n(54), n(9), n(57), n(5), n(53)],
+        [n(42), n(26), n(38), n(22), n(41), n(25), n(37), n(21)],
+    ]
+};
+
+pub fn generate_silhouette_texture(texture_w: i32, texture_h: i32) -> Image {
+    let mut image = Image::gen_image_color(texture_w, texture_h, Color::BLANK);
+    let total_byte_count: usize = (texture_w * texture_h * 4) as usize;
+    let pixel_data_bytes: &mut [u8] = unsafe { from_raw_parts_mut(image.data as *mut u8, total_byte_count) };
+    for texel_y in 0..texture_h {
+        let row_normalized: f32 = texel_y as f32 / (texture_h as f32 - 1.0);
+        let alpha_1_to_0: f32 = (1.0 - smoothstep(0.0, 1.0, row_normalized)).clamp(0.0, 1.0);
+        let alpha_0_to_255: u8 = (alpha_1_to_0 * 255.0).round() as u8;
+        for texel_x in 0..texture_w {
+            let pixel_index: usize = 4 * (texel_y as usize * texture_w as usize + texel_x as usize);
+            pixel_data_bytes[pixel_index + 0] = 255; // red
+            pixel_data_bytes[pixel_index + 1] = 255; // green
+            pixel_data_bytes[pixel_index + 2] = 255; // blue
+            pixel_data_bytes[pixel_index + 3] = alpha_0_to_255;
+        }
+    }
+    image.set_format(PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
+    image
+}
+
+pub fn dither(silhouette_image: &mut Image) {
+    const BAYER_SIZE: usize = 8;
+    const BAYER_8X8: [[u8; BAYER_SIZE]; BAYER_SIZE] = [
+        [0, 32, 8, 40, 2, 34, 10, 42],
+        [48, 16, 56, 24, 50, 18, 58, 26],
+        [12, 44, 4, 36, 14, 46, 6, 38],
+        [60, 28, 52, 20, 62, 30, 54, 22],
+        [3, 35, 11, 43, 1, 33, 9, 41],
+        [51, 19, 59, 27, 49, 17, 57, 25],
+        [15, 47, 7, 39, 13, 45, 5, 37],
+        [63, 31, 55, 23, 61, 29, 53, 21],
+    ];
+
+    let total_bytes: usize = (silhouette_image.width * silhouette_image.height * 4) as usize;
+    let pixel_data = unsafe { from_raw_parts_mut(silhouette_image.data as *mut u8, total_bytes) };
+    let bayer_blend = DITHER_BLEND_FACTOR.clamp(0.0, 1.0);
+    for y in 0..silhouette_image.height as usize {
+        for x in 0..silhouette_image.width as usize {
+            let pixel_index: usize = 4 * (y * silhouette_image.width as usize + x);
+            let alpha_1_to_0 = (pixel_data[pixel_index + 3] as f32) / 255.0;
+            let bayer_x = x % BAYER_SIZE;
+            let bayer_y = y % BAYER_SIZE;
+            let threshold_0_to_1 = (BAYER_8X8[bayer_y][bayer_x] as f32) / 64.0;
+            let bayer_check = if alpha_1_to_0 > threshold_0_to_1 { 1.0 } else { 0.0 };
+            let bayer_alpha_1_to_0: f32 = alpha_1_to_0 * (1.0 - bayer_blend) + bayer_check * bayer_blend;
+            pixel_data[pixel_index + 3] = (bayer_alpha_1_to_0 * 255.0).round() as u8;
+        }
+    }
+}
+
+pub fn rotate_dithered_texture_screen_locked(
+    model: &mut Model,
+    observer: &Camera3D,
+    mesh_rotation: f32,
+    screen_w: i32,
+    screen_h: i32,
+) {
+    let mesh = &mut model.meshes_mut()[0];
+    let mut vertices = mesh.vertices_mut().to_vec();
+    let mut smooth_vertex_normals = {
+        let mut topology = topology_init(mesh);
+        collect_vertex_normals(&mut topology, mesh);
+        smooth_vertex_normals(&topology)
+    };
+    rotate_vertices(&mut vertices, mesh_rotation);
+    rotate_vertices(&mut smooth_vertex_normals, mesh_rotation);
+    let observed_line_of_sight = observed_line_of_sight(observer);
+    let vertex_count = mesh.vertexCount as usize;
+    if mesh.as_mut().texcoords.is_null() {
+        let texcoords = vec![0.0f32; vertex_count * 2];
+        mesh.as_mut().texcoords = Box::leak(texcoords.into_boxed_slice()).as_mut_ptr();
+    }
+    let texcoords = unsafe { from_raw_parts_mut(mesh.as_mut().texcoords, vertex_count * 2) };
+    let world_to_pixels = screen_h as f32 / FOVY;
+    for i in 0..vertex_count {
+        let vertex = vertices[i];
+        let vertex_normal = smooth_vertex_normals[i];
+        let x_component = vertex.x * world_to_pixels + (screen_w as f32) * 0.5;
+        let s = x_component / DITHER_TEXTURE_SCALE;
+        let alignment_magnitude = vertex_normal.dot(observed_line_of_sight).abs();
+        let t = 1.0 - smoothstep(ALPHA_FADE_RAMP_MIN, ALPHA_FADE_RAMP_MAX, alignment_magnitude);
+        texcoords[i * 2 + 0] = s;
+        texcoords[i * 2 + 1] = t;
+    }
+}
+
+pub fn rotate_silhouette_texture(model: &mut Model, observer: &Camera3D, mesh_rotation: f32) {
+    let mesh = &mut model.meshes_mut()[0];
+    let mut vertices = mesh.vertices_mut().to_vec();
+    let mut smooth_vertex_normals = {
+        let mut topology = topology_init(mesh);
+        collect_vertex_normals(&mut topology, mesh);
+        smooth_vertex_normals(&topology)
+    };
+    rotate_vertices(&mut vertices, mesh_rotation);
+    rotate_vertices(&mut smooth_vertex_normals, mesh_rotation);
+    let observed_line_of_sight = observed_line_of_sight(observer);
+    let vertex_count = mesh.vertexCount as usize;
+    if mesh.as_mut().texcoords.is_null() {
+        let texcoords = vec![0.0f32; vertex_count * 2];
+        mesh.as_mut().texcoords = Box::leak(texcoords.into_boxed_slice()).as_mut_ptr();
+    }
+    let texcoords = unsafe { from_raw_parts_mut(mesh.as_mut().texcoords, vertex_count * 2) };
+    for vertex_index in 0..vertex_count {
+        let vertex = vertices[vertex_index];
+        let vertex_normal = smooth_vertex_normals[vertex_index];
+        let angle_component = vertex.y.atan2(vertex.x).rem_euclid(TAU);
+        let s = angle_component / TAU;
+
+        let alignment_magnitude = vertex_normal.dot(observed_line_of_sight).abs();
+        let t = 1.0 - smoothstep(ALPHA_FADE_RAMP_MIN, ALPHA_FADE_RAMP_MAX, alignment_magnitude);
+
+        texcoords[vertex_index * 2 + 0] = s;
+        texcoords[vertex_index * 2 + 1] = t;
+    }
 }
