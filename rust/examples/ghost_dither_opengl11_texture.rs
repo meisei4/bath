@@ -1,7 +1,14 @@
 use asset_payload::SPHERE_PATH;
-use bath::fixed_func::silhouette::{build_stipple_atlas_rgba, collect_deformed_mesh_samples, dither, generate_silhouette_texture, interpolate_between_deformed_meshes, rotate_silhouette_texture_dither, rotate_silhouette_texture_stipple_screen_locked, screen_pass_dither, DitherStaging, FOVY};
+use bath::fixed_func::silhouette::{
+    build_stipple_atlas_rgba, collect_deformed_mesh_samples, dither, generate_silhouette_texture,
+    interpolate_between_deformed_meshes, rotate_silhouette_texture_dither,
+    rotate_silhouette_texture_stipple_screen_locked, screen_pass_dither, DitherStaging, FOVY,
+};
 use bath::fixed_func::silhouette::{ANGULAR_VELOCITY, MODEL_POS, MODEL_SCALE, SCALE_TWEAK};
-use bath::fixed_func::topology::{collect_back_faces, collect_front_faces, collect_neighbors, collect_silhouette_faces, collect_welded_faces, debug_draw_faces, ensure_drawable, observed_line_of_sight, topology_init};
+use bath::fixed_func::topology::{
+    collect_back_faces, collect_front_faces, collect_neighbors, collect_silhouette_faces, collect_welded_faces,
+    debug_draw_faces, ensure_drawable, observed_line_of_sight, topology_init,
+};
 use bath::render::raylib::RaylibRenderer;
 use bath::render::raylib_util::N64_WIDTH;
 use bath::render::renderer::Renderer;
@@ -134,7 +141,5 @@ fn main() {
             );
         }
         screen_pass_dither(&mut draw_handle, &mut dither_staging);
-
     }
-
 }
