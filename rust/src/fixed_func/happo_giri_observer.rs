@@ -58,8 +58,8 @@ pub fn happo_giri_draw(
         unsafe {
             rlViewport(viewport_x, viewport_y, viewport_w, viewport_h);
         }
-        {
-            let mut rl3d = draw_handle.begin_mode3D(cameras[view_index]);
+
+        draw_handle.draw_mode3D(cameras[view_index], |mut rl3d| {
             rl3d.draw_model_ex(
                 target_model,
                 MODEL_POS,
@@ -76,7 +76,7 @@ pub fn happo_giri_draw(
                 MODEL_SCALE * 0.75,
                 Color::BLACK,
             );
-        }
+        });
         unsafe {
             rlViewport(0, 0, screen_w, screen_h);
         }

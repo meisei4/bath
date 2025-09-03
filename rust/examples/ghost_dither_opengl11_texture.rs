@@ -91,8 +91,7 @@ fn main() {
         // );
         let mut draw_handle = render.handle.begin_drawing(&render.thread);
         draw_handle.clear_background(Color::BLACK);
-        {
-            let mut rl3d = draw_handle.begin_mode3D(main_observer);
+        draw_handle.draw_mode3D(main_observer, |mut rl3d| {
             // draw_inverted_hull_guassian_silhouette_stack(&mut rl3d, &inverted_hull, mesh_rotation);
             rl3d.draw_model_ex(
                 &main_model,
@@ -110,7 +109,8 @@ fn main() {
                 MODEL_SCALE * SCALE_TWEAK,
                 Color::BLACK,
             );
-        }
+        });
+
         // let mut topology = topology_init(&main_model.meshes_mut()[0]);
         // collect_welded_faces(&mut topology);
         // collect_neighbors(&mut topology);

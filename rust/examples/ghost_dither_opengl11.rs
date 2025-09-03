@@ -53,23 +53,24 @@ fn main() {
         );
         let mut draw_handle = render.handle.begin_drawing(&render.thread);
         draw_handle.clear_background(Color::BLACK);
-        let mut rl3d = draw_handle.begin_mode3D(main_observer);
-        draw_inverted_hull_guassian_silhouette_stack(&mut rl3d, &inverted_hull_model, mesh_rotation);
-        // rl3d.draw_model_ex(
-        //     &main_model,
-        //     MODEL_POS,
-        //     Vector3::Y,
-        //     mesh_rotation.to_degrees(),
-        //     MODEL_SCALE * SCALE_TWEAK,
-        //     Color::WHITE,
-        // );
-        // rl3d.draw_model_wires_ex(
-        //     &wire_model,
-        //     MODEL_POS,
-        //     Vector3::Y,
-        //     mesh_rotation.to_degrees(),
-        //     MODEL_SCALE * SCALE_TWEAK,
-        //     Color::BLACK,
-        // );
+        draw_handle.draw_mode3D(main_observer, |mut rl3d| {
+            draw_inverted_hull_guassian_silhouette_stack(&mut rl3d, &inverted_hull_model, mesh_rotation);
+            // rl3d.draw_model_ex(
+            //     &main_model,
+            //     MODEL_POS,
+            //     Vector3::Y,
+            //     mesh_rotation.to_degrees(),
+            //     MODEL_SCALE * SCALE_TWEAK,
+            //     Color::WHITE,
+            // );
+            // rl3d.draw_model_wires_ex(
+            //     &wire_model,
+            //     MODEL_POS,
+            //     Vector3::Y,
+            //     mesh_rotation.to_degrees(),
+            //     MODEL_SCALE * SCALE_TWEAK,
+            //     Color::BLACK,
+            // );
+        });
     }
 }

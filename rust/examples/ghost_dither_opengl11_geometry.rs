@@ -1,8 +1,10 @@
 use asset_payload::SPHERE_PATH;
 // use bath::fixed_func::papercraft::unfold;
-use bath::fixed_func::papercraft::{billow_unfolded, fold, unfold, BillowWaveParameters, PeriodicWhipParameters, WhipPulseParameters};
-use bath::fixed_func::silhouette::{collect_deformed_mesh_samples, FOVY};
+use bath::fixed_func::papercraft::{
+    billow_unfolded, fold, unfold, BillowWaveParameters, PeriodicWhipParameters, WhipPulseParameters,
+};
 use bath::fixed_func::silhouette::interpolate_between_deformed_meshes;
+use bath::fixed_func::silhouette::{collect_deformed_mesh_samples, FOVY};
 use bath::fixed_func::silhouette::{ANGULAR_VELOCITY, MODEL_POS, MODEL_SCALE, TIME_BETWEEN_SAMPLES};
 use bath::fixed_func::topology::{debug_draw_faces, ensure_drawable};
 use bath::render::raylib::RaylibRenderer;
@@ -97,10 +99,10 @@ fn main() {
             .unwrap();
         let mut draw_handle = render.handle.begin_drawing(&render.thread);
         draw_handle.clear_background(Color::BLACK);
-        {
-            let mut rl3d = draw_handle.begin_mode3D(observer);
+        draw_handle.draw_mode3D(observer, |mut rl3d| {
             // rl3d.draw_model_wires_ex(&unfolded_model, MODEL_POS, Vector3::Y, 0.0, MODEL_SCALE, Color::WHITE);
-        }
+        });
+
         let all_faces: Vec<usize> = (0..unfolded_mesh.triangleCount as usize).collect();
         debug_draw_faces(
             observer,

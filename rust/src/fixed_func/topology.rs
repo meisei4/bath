@@ -575,6 +575,7 @@ pub fn debug_draw_faces(
 
 #[inline]
 pub fn ensure_drawable(mesh: &mut WeakMesh) {
+    mesh.normals = null_mut(); //TODO: what in the fuck? find out where this happens in the raylib updates i guess?
     ensure_indices(mesh);
     mesh.colors = null_mut();
     ensure_texcoords(mesh);
