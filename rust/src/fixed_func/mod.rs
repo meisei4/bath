@@ -1,4 +1,3 @@
-mod deprecated;
 #[cfg(feature = "tests-only")]
 pub mod happo_giri_observer;
 #[cfg(feature = "tests-only")]

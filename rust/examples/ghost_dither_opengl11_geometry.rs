@@ -1,11 +1,9 @@
 use asset_payload::SPHERE_PATH;
 // use bath::fixed_func::papercraft::unfold;
-use bath::fixed_func::papercraft::{
-    billow_unfolded, fold, unfold, BillowWaveParameters, PeriodicWhipParameters, WhipPulseParameters,
-};
+use bath::fixed_func::papercraft::{fold, BillowWaveParameters, PeriodicWhipParameters, WhipPulseParameters};
 use bath::fixed_func::silhouette::interpolate_between_deformed_meshes;
 use bath::fixed_func::silhouette::{collect_deformed_mesh_samples, FOVY};
-use bath::fixed_func::silhouette::{ANGULAR_VELOCITY, MODEL_POS, MODEL_SCALE, TIME_BETWEEN_SAMPLES};
+use bath::fixed_func::silhouette::{ANGULAR_VELOCITY, TIME_BETWEEN_SAMPLES};
 use bath::fixed_func::topology::{debug_draw_faces, ensure_drawable};
 use bath::render::raylib::RaylibRenderer;
 use bath::render::raylib_util::N64_WIDTH;
@@ -13,7 +11,7 @@ use bath::render::renderer::Renderer;
 use raylib::camera::Camera3D;
 use raylib::color::Color;
 use raylib::consts::CameraProjection;
-use raylib::drawing::{RaylibDraw, RaylibDraw3D, RaylibMode3DExt};
+use raylib::drawing::{RaylibDraw, RaylibMode3DExt};
 use raylib::math::Vector3;
 use raylib::models::RaylibModel;
 

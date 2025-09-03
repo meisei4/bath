@@ -557,10 +557,9 @@ pub fn debug_draw_faces(
                 255,
             )
         };
-        {
-            let mut rl3d = draw_handle.begin_mode3D(observer);
+        draw_handle.draw_mode3D(observer, |mut rl3d| {
             rl3d.draw_triangle3D(vertex_a, vertex_b, vertex_c, color);
-        }
+        });
 
         if label {
             let screen_w = draw_handle.get_screen_width() as f32;
