@@ -1,14 +1,8 @@
 use asset_payload::SPHERE_PATH;
-use bath::fixed_func::silhouette::{
-    build_stipple_atlas_rgba, collect_deformed_mesh_samples, dither, generate_silhouette_texture,
-    interpolate_between_deformed_meshes, rotate_silhouette_texture_dither,
-    rotate_silhouette_texture_stipple_screen_locked, screen_pass_dither, DitherStaging, FOVY,
-};
+use bath::fixed_func::silhouette::{collect_deformed_mesh_samples, interpolate_between_deformed_meshes, FOVY};
 use bath::fixed_func::silhouette::{ANGULAR_VELOCITY, MODEL_POS, MODEL_SCALE, SCALE_TWEAK};
-use bath::fixed_func::topology::{
-    collect_back_faces, collect_front_faces, collect_neighbors, collect_silhouette_faces, collect_welded_faces,
-    debug_draw_faces, ensure_drawable, observed_line_of_sight, topology_init,
-};
+use bath::fixed_func::texture::{dither, generate_silhouette_texture, generate_spherical_uvs, DitherStaging};
+use bath::fixed_func::topology::{ensure_drawable, observed_line_of_sight};
 use bath::render::raylib::RaylibRenderer;
 use bath::render::raylib_util::N64_WIDTH;
 use bath::render::renderer::Renderer;
@@ -41,7 +35,6 @@ fn main() {
     ensure_drawable(&mut wire_model.meshes_mut()[0]);
     ensure_drawable(&mut main_model.meshes_mut()[0]);
     ensure_drawable(&mut inverted_hull.meshes_mut()[0]);
-
     let mesh_samples = collect_deformed_mesh_samples(&mut render);
     interpolate_between_deformed_meshes(&mut wire_model, i_time, &mesh_samples);
     interpolate_between_deformed_meshes(&mut main_model, i_time, &mesh_samples);
@@ -72,7 +65,6 @@ fn main() {
         .handle
         .load_texture_from_image(&render.thread, &silhouette_img)
         .unwrap();
-    // main_model.materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize].texture = *silhouette_texture;
     main_model.materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize].texture = *silhouette_texture;
     let observed_los = observed_line_of_sight(&main_observer);
     while !render.handle.window_should_close() {
@@ -80,15 +72,16 @@ fn main() {
         mesh_rotation -= ANGULAR_VELOCITY * render.handle.get_frame_time();
         interpolate_between_deformed_meshes(&mut wire_model, i_time, &mesh_samples);
         interpolate_between_deformed_meshes(&mut main_model, i_time, &mesh_samples);
+        // apply_umbral_mask_alpha_from_uv(&mut main_model, i_time);
         // rotate_inverted_hull(&main_model, &mut inverted_hull, observed_los, mesh_rotation);
         // rotate_silhouette_texture(&mut main_model, &main_observer, mesh_rotation);
-        rotate_silhouette_texture_dither(
-            &mut main_model,
-            &main_observer,
-            mesh_rotation,
-            render.handle.get_screen_width(),
-            render.handle.get_screen_height(),
-        );
+        // rotate_silhouette_texture_dither(
+        //     &mut main_model,
+        //     &main_observer,
+        //     mesh_rotation,
+        //     render.handle.get_screen_width(),
+        //     render.handle.get_screen_height(),
+        // );
         // rotate_silhouette_texture_stipple_screen_locked(
         //     &mut main_model,
         //     &main_observer,
@@ -118,28 +111,28 @@ fn main() {
                 Color::BLACK,
             );
         }
-        let mut topology = topology_init(&main_model.meshes_mut()[0]);
-        collect_welded_faces(&mut topology);
-        collect_neighbors(&mut topology);
-        collect_front_faces(
-            &mut topology,
-            &wire_model.meshes_mut()[0],
-            mesh_rotation,
-            &main_observer,
-        );
-        collect_back_faces(&mut topology);
-        collect_silhouette_faces(&mut topology);
-        if let Some(silhouette_faces) = &topology.silhouette_faces {
-            debug_draw_faces(
-                main_observer,
-                &mut draw_handle,
-                &wire_model.meshes_mut()[0],
-                mesh_rotation,
-                silhouette_faces,
-                Some(Color::new(255, 32, 32, 90)),
-                true,
-            );
-        }
-        screen_pass_dither(&mut draw_handle, &mut dither_staging);
+        // let mut topology = topology_init(&main_model.meshes_mut()[0]);
+        // collect_welded_faces(&mut topology);
+        // collect_neighbors(&mut topology);
+        // collect_front_faces(
+        //     &mut topology,
+        //     &wire_model.meshes_mut()[0],
+        //     mesh_rotation,
+        //     &main_observer,
+        // );
+        // collect_back_faces(&mut topology);
+        // collect_silhouette_faces(&mut topology);
+        // if let Some(silhouette_faces) = &topology.silhouette_faces {
+        //     debug_draw_faces(
+        //         main_observer,
+        //         &mut draw_handle,
+        //         &wire_model.meshes_mut()[0],
+        //         mesh_rotation,
+        //         silhouette_faces,
+        //         Some(Color::new(255, 32, 32, 90)),
+        //         true,
+        //     );
+        // }
+        // screen_pass_dither(&mut draw_handle, &mut dither_staging);
     }
 }

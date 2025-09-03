@@ -1,9 +1,7 @@
 use asset_payload::SPHERE_PATH;
 // use bath::fixed_func::papercraft::unfold;
-use bath::fixed_func::papercraft::{
-    billow_unfolded, BillowWaveParameters, PeriodicWhipParameters, WhipPulseParameters,
-};
-use bath::fixed_func::silhouette::collect_deformed_mesh_samples;
+use bath::fixed_func::papercraft::{billow_unfolded, fold, unfold, BillowWaveParameters, PeriodicWhipParameters, WhipPulseParameters};
+use bath::fixed_func::silhouette::{collect_deformed_mesh_samples, FOVY};
 use bath::fixed_func::silhouette::interpolate_between_deformed_meshes;
 use bath::fixed_func::silhouette::{ANGULAR_VELOCITY, MODEL_POS, MODEL_SCALE, TIME_BETWEEN_SAMPLES};
 use bath::fixed_func::topology::{debug_draw_faces, ensure_drawable};
@@ -22,21 +20,21 @@ fn main() {
     let mut mesh_rotation = 0.0f32;
     let mut render = RaylibRenderer::init(N64_WIDTH, N64_WIDTH);
 
-    let observer = Camera3D {
-        position: Vector3::new(1.8, 1.1, 2.4), // <- not head-on
-        target: Vector3::ZERO,
-        up: Vector3::Y,
-        fovy: 45.0, // <- perspective FoV
-        projection: CameraProjection::CAMERA_PERSPECTIVE,
-    };
-
     // let observer = Camera3D {
-    //     position: Vector3::new(0.0, 0.0, 2.0),
+    //     position: Vector3::new(1.8, 1.1, 2.4), // <- not head-on
     //     target: Vector3::ZERO,
     //     up: Vector3::Y,
-    //     fovy: FOVY,
-    //     projection: CameraProjection::CAMERA_ORTHOGRAPHIC,
+    //     fovy: 45.0, // <- perspective FoV
+    //     projection: CameraProjection::CAMERA_PERSPECTIVE,
     // };
+
+    let observer = Camera3D {
+        position: Vector3::new(0.0, 0.0, 2.0),
+        target: Vector3::ZERO,
+        up: Vector3::Y,
+        fovy: FOVY,
+        projection: CameraProjection::CAMERA_ORTHOGRAPHIC,
+    };
     let mut wire_model = render.handle.load_model(&render.thread, SPHERE_PATH).unwrap();
     ensure_drawable(&mut wire_model.meshes_mut()[0]);
     let mesh_samples = collect_deformed_mesh_samples(&mut render);
@@ -85,10 +83,10 @@ fn main() {
             // (current_frame as f32 * TIME_BETWEEN_SAMPLES).floor(),
             &mesh_samples,
         );
-        // let unfolded_mesh = unsafe { fold(&mut wire_model.meshes_mut()[0], i_time, true).make_weak() };
+        let unfolded_mesh = unsafe { fold(&mut wire_model.meshes_mut()[0], i_time, true).make_weak() };
         // let unfolded_mesh = unsafe { unfold(&mut wire_model.meshes_mut()[0]).make_weak() };
-        let unfolded_mesh =
-            unsafe { billow_unfolded(&mut wire_model.meshes_mut()[0], i_time, true, &billow_params).make_weak() };
+        // let unfolded_mesh =
+        //     unsafe { billow_unfolded(&mut wire_model.meshes_mut()[0], i_time, true, &billow_params).make_weak() };
         // let unfolded_mesh =
         //     unsafe { whip_pulse_unfolded(&mut wire_model.meshes_mut()[0], i_time, true, &whip_params).make_weak() };
         // let unfolded_mesh =
@@ -101,14 +99,14 @@ fn main() {
         draw_handle.clear_background(Color::BLACK);
         {
             let mut rl3d = draw_handle.begin_mode3D(observer);
-            rl3d.draw_model_wires_ex(&unfolded_model, MODEL_POS, Vector3::Y, 0.0, MODEL_SCALE, Color::WHITE);
+            // rl3d.draw_model_wires_ex(&unfolded_model, MODEL_POS, Vector3::Y, 0.0, MODEL_SCALE, Color::WHITE);
         }
         let all_faces: Vec<usize> = (0..unfolded_mesh.triangleCount as usize).collect();
         debug_draw_faces(
             observer,
             &mut draw_handle,
             &unfolded_mesh,
-            0.0,
+            mesh_rotation,
             &*all_faces,
             None,
             false,
