@@ -1,6 +1,5 @@
 use asset_payload::SPHERE_PATH;
 use bath::fixed_func::silhouette::{MODEL_POS, MODEL_SCALE};
-use bath::fixed_func::topology::ensure_drawable;
 use bath::render::raylib::RaylibRenderer;
 use bath::render::raylib_util::N64_WIDTH;
 use bath::render::renderer::Renderer;
@@ -23,8 +22,6 @@ fn main() {
 
     let mut main_model = render.handle.load_model(&render.thread, SPHERE_PATH).unwrap();
     let mut wire_model = render.handle.load_model(&render.thread, SPHERE_PATH).unwrap();
-    ensure_drawable(&mut wire_model.meshes_mut()[0]);
-    ensure_drawable(&mut main_model.meshes_mut()[0]);
 
     for (i, m) in main_model.meshes_mut().iter_mut().enumerate() {
         println!(
@@ -39,6 +36,15 @@ fn main() {
             m.animNormals
         );
     }
+    let normals = unsafe {
+        std::slice::from_raw_parts(
+            main_model.meshes_mut()[0].normals as *const Vector3,
+            main_model.meshes_mut()[0].vertexCount as usize,
+        )
+    };
+    for norm in normals {
+        println!("norm triplet at norm={}", norm);
+    }
     while !render.handle.window_should_close() {
         let mut draw_handle = render.handle.begin_drawing(&render.thread);
         draw_handle.clear_background(Color::BLACK);
@@ -48,3 +54,23 @@ fn main() {
         });
     }
 }
+
+//
+// fn dump_normals(mesh: &WeakMesh) {
+//     let ptr = mesh.normals;
+//     if ptr.is_null() {
+//         println!("(no normals array: GL_NORMAL_ARRAY should be disabled)");
+//         return;
+//     }
+//     let n_floats = mesh.vertexCount as usize * 3;
+//     let normals_f32: &[f32] = unsafe { std::slice::from_raw_parts(ptr, n_floats) };
+//     for (i, xyz) in normals_f32.chunks_exact(3).enumerate() {
+//         println!("#{i:04}: ({:.6}, {:.6}, {:.6})", xyz[0], xyz[1], xyz[2]);
+//     }
+//     let bad = normals_f32.chunks_exact(3).enumerate().find(|(_, v)| {
+//         !(v[0].is_finite() && v[1].is_finite() && v[2].is_finite())
+//     });
+//     if let Some((i, _)) = bad {
+//         eprintln!("Found non-finite normal at vertex #{i}");
+//     }
+// }
