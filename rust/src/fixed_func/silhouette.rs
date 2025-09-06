@@ -5,7 +5,6 @@ use crate::render::raylib::RaylibRenderer;
 use asset_payload::SPHERE_PATH;
 use raylib::color::Color;
 use raylib::drawing::{RaylibDraw3D, RaylibDrawHandle, RaylibMode3D};
-use raylib::ffi::{rlDisableDepthMask, rlEnableDepthMask};
 use raylib::math::glam::Vec3;
 use raylib::math::{Vector2, Vector3};
 use raylib::models::{Model, RaylibMesh, RaylibModel, WeakMesh};
@@ -67,7 +66,7 @@ pub const ALPHA_FADE_RAMP_STRENGTH: f32 = 1.0;
 pub const FOVY: f32 = 2.0;
 
 pub const GAUSSIAN_ALPHA_FADE_THICKNESS_IN_PIXELS: f32 = 24.0;
-pub const GAUSSIAN_STACK_SIZE: usize = 2;
+pub const GAUSSIAN_STACK_SIZE: usize = 3;
 fn pascal_pass(passes: usize) -> &'static [u32] {
     match passes {
         2 => &[1, 1],          // super cheap, very hard falloff
@@ -182,6 +181,9 @@ pub fn rotate_inverted_hull(
         inverted_hull_colors[j + 0] = 255;
         inverted_hull_colors[j + 1] = 255;
         inverted_hull_colors[j + 2] = 255;
+        // inverted_hull_colors[j + 0] = 0;
+        // inverted_hull_colors[j + 1] = 0;
+        // inverted_hull_colors[j + 2] = 0;
         inverted_hull_colors[j + 3] = (alpha_1_to_0 * 255.0).round() as u8;
     }
 }
@@ -194,21 +196,15 @@ pub fn draw_inverted_hull_guassian_silhouette_stack(
     let screen_h = rl3d.get_screen_height();
     let max_silhouette_radius = max_silhouette_radius(&inverted_hull_model.meshes()[0], MODEL_SCALE * SCALE_TWEAK);
     let gaussian_stack = build_gaussian_silhouette_stack(screen_h, max_silhouette_radius);
-    unsafe {
-        rlDisableDepthMask();
-    }
     for (scale, alpha) in gaussian_stack {
         rl3d.draw_model_ex(
             inverted_hull_model,
             MODEL_POS,
             Vector3::Y,
             mesh_rotation.to_degrees(),
-            MODEL_SCALE * SCALE_TWEAK * scale,
+            MODEL_SCALE * SCALE_TWEAK * 0.82 * scale,
             Color::new(255, 255, 255, alpha),
         );
-    }
-    unsafe {
-        rlEnableDepthMask();
     }
 }
 

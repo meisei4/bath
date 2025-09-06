@@ -21,9 +21,7 @@ rdev = { version = "0.5.3", optional = true }
 terminal_size = { version = "0.4.2", optional = true }
 fftw2-sys = { git = "https://github.com/meisei4/fftw2-rs.git", branch = "main" }
 
-#raylib = { version = "5.5.1", optional = true }
-#raylib = { git = "https://github.com/deltaphc/raylib-rs.git", optional = true }
-raylib = { git = "https://github.com/meisei4/raylib-rs.git", branch = "unstable", features = [], optional = true }
+raylib = { git = "https://github.com/meisei4/raylib-rs.git", branch = "meshbuilder", features = [], optional = true }
 #raylib = { git = "https://github.com/meisei4/raylib-rs.git", rev = "5c8f8e1950b9ab0f02eff8aec9b3ebf24261397d", features = [], optional = true }
 #raylib = { git = "https://github.com/raylib-rs/raylib-rs.git", branch = "unstable", features = [], optional = true }
 #[patch."https://github.com/raylib-rs/raylib-rs.git"]
