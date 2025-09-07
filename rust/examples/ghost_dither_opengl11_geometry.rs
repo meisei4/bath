@@ -1,8 +1,7 @@
 use asset_payload::SPHERE_PATH;
-// use bath::fixed_func::papercraft::unfold;
-use bath::fixed_func::papercraft::fold;
-use bath::fixed_func::silhouette::interpolate_between_deformed_meshes;
+use bath::fixed_func::papercraft::{fold, unfold};
 use bath::fixed_func::silhouette::{collect_deformed_mesh_samples, FOVY};
+use bath::fixed_func::silhouette::{interpolate_between_deformed_meshes, MODEL_POS, MODEL_SCALE};
 use bath::fixed_func::silhouette::{ANGULAR_VELOCITY, TIME_BETWEEN_SAMPLES};
 use bath::fixed_func::topology::{debug_draw_faces, ensure_drawable};
 use bath::render::raylib::RaylibRenderer;
@@ -11,13 +10,13 @@ use bath::render::renderer::Renderer;
 use raylib::camera::Camera3D;
 use raylib::color::Color;
 use raylib::consts::CameraProjection;
-use raylib::drawing::{RaylibDraw, RaylibMode3DExt};
+use raylib::drawing::{RaylibDraw, RaylibDraw3D, RaylibMode3DExt};
 use raylib::math::Vector3;
 use raylib::models::RaylibModel;
 
 fn main() {
     let mut i_time = 0.0f32;
-    let mut mesh_rotation = 0.0f32;
+    let mut _mesh_rotation = 0.0f32;
     let mut render = RaylibRenderer::init(N64_WIDTH, N64_WIDTH);
 
     let observer = Camera3D {
@@ -28,24 +27,25 @@ fn main() {
         projection: CameraProjection::CAMERA_ORTHOGRAPHIC,
     };
     let mut wire_model = render.handle.load_model(&render.thread, SPHERE_PATH).unwrap();
+    //TODO: this is still ugly here:
     ensure_drawable(&mut wire_model.meshes_mut()[0]);
     let mesh_samples = collect_deformed_mesh_samples(&mut render);
     interpolate_between_deformed_meshes(&mut wire_model, i_time, &mesh_samples);
     while !render.handle.window_should_close() {
         i_time += render.handle.get_frame_time();
-        mesh_rotation -= ANGULAR_VELOCITY * render.handle.get_frame_time();
+        _mesh_rotation -= ANGULAR_VELOCITY * render.handle.get_frame_time();
         let duration = mesh_samples.len() as f32 * TIME_BETWEEN_SAMPLES;
         let time = i_time % duration;
         let frame = time / TIME_BETWEEN_SAMPLES;
-        let current_frame = frame.floor() as usize % mesh_samples.len();
+        let _current_frame = frame.floor() as usize % mesh_samples.len();
         interpolate_between_deformed_meshes(
             &mut wire_model,
             i_time,
-            // (current_frame as f32 * TIME_BETWEEN_SAMPLES).floor(),
+            // (_current_frame as f32 * TIME_BETWEEN_SAMPLES).floor(),
             &mesh_samples,
         );
-        let unfolded_mesh = unsafe { fold(&mut wire_model.meshes_mut()[0], i_time, true).make_weak() };
-        // let unfolded_mesh = unsafe { unfold(&mut wire_model.meshes_mut()[0]).make_weak() };
+        // let unfolded_mesh = unsafe { fold(&render.thread, &mut wire_model.meshes_mut()[0], i_time, true).make_weak() };
+        let unfolded_mesh = unsafe { unfold(&render.thread, &mut wire_model.meshes_mut()[0]).make_weak() };
         let unfolded_model = render
             .handle
             .load_model_from_mesh(&render.thread, unfolded_mesh.clone())
@@ -61,7 +61,8 @@ fn main() {
             observer,
             &mut draw_handle,
             &unfolded_mesh,
-            mesh_rotation,
+            // mesh_rotation,
+            0.0,
             &*all_faces,
             None,
             false,

@@ -25,11 +25,13 @@ pub struct Topology {
 
 pub fn topology_init(mesh: &WeakMesh) -> Topology {
     let vertex_positions = mesh.vertices();
+    // TODO: should this check or whatever even be in my project? otherwise in Mesh improvements in raylib-rs?
     assert!(
         !vertex_positions.is_empty(),
         "topology_init: mesh has no vertex positions."
     );
     let all_faces = collect_faces(mesh);
+    // TODO: should this check or whatever even be in my project? otherwise in Mesh improvements in raylib-rs?
     assert!(!all_faces.is_empty(), "topology_init: mesh has no faces.");
     let welded_vertices_per_vertex = collect_welded_vertices(vertex_positions);
     Topology {
@@ -114,8 +116,7 @@ pub fn collect_face_positions_model(topology: &mut Topology, mesh: &WeakMesh) {
 
 pub fn collect_face_texcoords(topology: &mut Topology, mesh: &WeakMesh) {
     let vertex_count = mesh.vertexCount as usize;
-
-    // raw pointer; safe if we check null and size properly.
+    // TODO: should this check or whatever even be in my project? otherwise in Mesh improvements in raylib-rs?
     let uvs_slice: Vec<f32> = if mesh.texcoords.is_null() {
         vec![0.0; vertex_count * 2]
     } else {
@@ -412,7 +413,7 @@ pub fn vertex_normals(mesh: &WeakMesh) -> Vec<Vec3> {
     let vertices = mesh.vertices();
     let vertex_count = vertices.len();
     let mut accum = vec![Vec3::ZERO; vertex_count];
-    // TODO: guaranteed by ensure_drawable()????
+    // TODO: should this check or whatever even be in my project? otherwise in Mesh improvements in raylib-rs?
     let indices: Vec<u16> = if mesh.indices.is_null() {
         (0..vertex_count as u16).collect()
     } else {
@@ -439,7 +440,7 @@ pub fn collect_vertex_normals(topology: &mut Topology, mesh: &WeakMesh) {
     let vertex_count = vertices.len();
     let mut accumulated_vertex_normals = vec![Vec3::ZERO; vertex_count];
     let mut corner_angles: Vec<[f32; 3]> = Vec::with_capacity(topology.all_faces.len());
-    // TODO: guaranteed by ensure_drawable()????
+    // TODO: should this check or whatever even be in my project? otherwise in Mesh improvements in raylib-rs?
     let indices: Vec<u16> = if mesh.indices.is_null() {
         (0..vertex_count as u16).collect()
     } else {
@@ -531,6 +532,7 @@ pub fn debug_draw_faces(
     label: bool,
 ) {
     let vertices = mesh.vertices();
+    // TODO: should this check or whatever even be in my project? otherwise in Mesh improvements in raylib-rs?
     if vertices.is_empty() {
         return;
     }
@@ -574,7 +576,6 @@ pub fn debug_draw_faces(
 
 #[inline]
 pub fn ensure_drawable(mesh: &mut WeakMesh) {
-    // mesh.normals = null_mut(); //TODO: what in the fuck? find out where this happens in the raylib updates i guess?
     ensure_indices(mesh);
     mesh.colors = null_mut();
     ensure_texcoords(mesh);

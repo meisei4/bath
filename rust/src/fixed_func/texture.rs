@@ -17,7 +17,7 @@ use raylib::prelude::{Image, WeakTexture2D};
 use raylib::texture::RaylibTexture2D;
 use std::f32::consts::TAU;
 use std::ffi::c_void;
-use std::intrinsics::copy_nonoverlapping;
+use std::ptr::copy_nonoverlapping;
 use std::slice::from_raw_parts_mut;
 
 const BAYER_SIZE: usize = 8;

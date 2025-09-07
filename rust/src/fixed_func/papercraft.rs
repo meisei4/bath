@@ -1,65 +1,17 @@
+use crate::fixed_func::dsu::{build_dual_graph, build_parent_tree, collect_subtree_faces, ParentLink};
 use crate::fixed_func::topology::{
     build_weld_view, collect_neighbors, collect_welded_faces, edge_opposing_vertex, face_normal, lift_dimension,
     rotate_point_about_axis, topology_init, welded_eq, WeldedEdge, WeldedMesh, WeldedVertex,
 };
 use raylib::math::glam::{Vec2, Vec3};
+use raylib::math::{Vector2, Vector3};
 use raylib::models::{Mesh, WeakMesh};
-use std::collections::{HashMap, VecDeque};
+use std::collections::VecDeque;
 use std::f32::consts::PI;
-use std::mem::{swap, zeroed};
-use std::ptr::null_mut;
 
 pub const ZOOM_SCALE: f32 = 2.0;
-
-pub struct DisjointSetUnion {
-    disjoint_sets: Vec<usize>,
-    rank: Vec<u8>, //TODO: rank is how many nodes in already exist in a given disjoint set...? I DONT LIKE PARALLEL ARRAYS!!
-}
-impl DisjointSetUnion {
-    fn new(nodes: usize) -> Self {
-        Self {
-            disjoint_sets: (0..nodes).collect(),
-            rank: vec![0; nodes],
-        }
-    }
-    fn find(&mut self, node: usize) -> usize {
-        if self.disjoint_sets[node] != node {
-            self.disjoint_sets[node] = self.find(self.disjoint_sets[node]);
-        }
-        self.disjoint_sets[node]
-    }
-    fn union(&mut self, node_a: usize, node_b: usize) -> bool {
-        let (mut a_representative, mut b_representative) = (self.find(node_a), self.find(node_b));
-        if a_representative == b_representative {
-            return false;
-        }
-        if self.rank[a_representative] < self.rank[b_representative] {
-            swap(&mut a_representative, &mut b_representative);
-        }
-        self.disjoint_sets[b_representative] = a_representative;
-        if self.rank[a_representative] == self.rank[b_representative] {
-            self.rank[a_representative] += 1;
-        }
-        true
-    }
-}
-
-#[derive(Copy, Clone, Debug)]
-pub struct DualEdge {
-    face_a: usize,
-    face_b: usize,
-    face_a_local_edge: (u8, u8),
-    face_b_local_edge: (u8, u8),
-    welded_edge: WeldedEdge,
-}
-
-#[derive(Copy, Clone, Debug, Default)]
-pub struct ParentLink {
-    pub parent: Option<usize>, //TODO: why arent we using this?
-    pub parent_local_edge: Option<(u8, u8)>,
-    pub child_local_edge: Option<(u8, u8)>,
-    pub welded_edge: Option<WeldedEdge>,
-}
+const FOLD_DURATION_SEC: f32 = 5.0;
+const FOLD_UNFOLD_DURATION: f32 = FOLD_DURATION_SEC * 2.0;
 
 pub struct HingeAngleContext {
     pub parent_face: usize,
@@ -72,10 +24,7 @@ pub struct HingeAngleContext {
     pub graph_distance_from_parent: f32,
 }
 
-const FOLD_DURATION_SEC: f32 = 5.0;
-const FOLD_UNFOLD_DURATION: f32 = FOLD_DURATION_SEC * 2.0;
-
-pub fn fold(mesh: &mut WeakMesh, i_time: f32, repeat_fold_unfold: bool) -> Mesh {
+pub fn fold(_thread_borrow: &raylib::RaylibThread, mesh: &mut WeakMesh, i_time: f32, repeat_fold_unfold: bool) -> Mesh {
     let fold_progress = if repeat_fold_unfold {
         fold_unfold_time(i_time, FOLD_UNFOLD_DURATION)
     } else {
@@ -94,10 +43,10 @@ pub fn fold(mesh: &mut WeakMesh, i_time: f32, repeat_fold_unfold: bool) -> Mesh 
         );
         align_to_original_pose(&mut lifted_faces, &welded_mesh, parent_face);
     }
-    build_unfolded_mesh(&lifted_faces, &welded_mesh)
+    build_unfolded_mesh(_thread_borrow, &lifted_faces, &welded_mesh)
 }
 
-pub fn unfold(mesh: &mut WeakMesh) -> Mesh {
+pub fn unfold(_thread_borrow: &raylib::RaylibThread, mesh: &mut WeakMesh) -> Mesh {
     let (welded_mesh, parent_links, children, mut lifted_faces, parent_faces) = prepare_mesh_for_folding(mesh);
     for &parent_face in &parent_faces {
         apply_hinge_rotation_with_equation(
@@ -111,7 +60,7 @@ pub fn unfold(mesh: &mut WeakMesh) -> Mesh {
         );
     }
     fit_unfolded_faces_to_zoom_scale(&mut lifted_faces);
-    build_unfolded_mesh(&lifted_faces, &welded_mesh)
+    build_unfolded_mesh(_thread_borrow, &lifted_faces, &welded_mesh)
 }
 
 fn apply_hinge_rotation_with_equation(
@@ -259,107 +208,27 @@ fn fit_unfolded_faces_to_zoom_scale(unfolded_faces: &mut [[Vec3; 3]]) {
     }
 }
 
-fn build_unfolded_mesh(unfolded_faces: &[[Vec3; 3]], welded_mesh: &WeldedMesh) -> Mesh {
+fn build_unfolded_mesh(
+    _thread_borrow: &raylib::RaylibThread,
+    unfolded_faces: &[[Vec3; 3]],
+    welded_mesh: &WeldedMesh,
+) -> Mesh {
     let face_count = unfolded_faces.len();
-    let mut vertices = Vec::with_capacity(face_count * 9);
-    let mut texcoords = Vec::with_capacity(face_count * 6);
+    let mut vertices = Vec::with_capacity(face_count * 3);
+    let mut texcoords = Vec::with_capacity(face_count * 3);
     let mut indices = Vec::with_capacity(face_count * 3);
     for face in 0..face_count {
         for vertex_index in 0..3 {
             let vertex = unfolded_faces[face][vertex_index];
-            vertices.extend_from_slice(&[vertex.x, vertex.y, vertex.z]);
+            vertices.push(Vector3::new(vertex.x, vertex.y, vertex.z));
             let texcoord = welded_mesh.texcoords[face][vertex_index];
-            texcoords.extend_from_slice(&[texcoord.x, texcoord.y]);
-            indices.push((vertices.len() / 3 - 1) as u16);
+            texcoords.push(Vector2::new(texcoord.x, texcoord.y));
+            indices.push((vertices.len() - 1) as u16);
         }
     }
-    let mut unfolded_mesh: Mesh = unsafe { zeroed() };
-    unfolded_mesh.vertexCount = (vertices.len() / 3) as i32;
-    unfolded_mesh.triangleCount = (indices.len() / 3) as i32;
-    unfolded_mesh.vertices = Box::leak(vertices.into_boxed_slice()).as_mut_ptr();
-    unfolded_mesh.indices = Box::leak(indices.into_boxed_slice()).as_mut_ptr();
-    unfolded_mesh.texcoords = Box::leak(texcoords.into_boxed_slice()).as_mut_ptr();
-    unfolded_mesh.normals = null_mut();
-    unfolded_mesh.tangents = null_mut();
-    unfolded_mesh.colors = null_mut();
-    unfolded_mesh
-}
-
-pub fn build_dual_graph(welded_mesh: &WeldedMesh) -> Vec<DualEdge> {
-    let face_count = welded_mesh.welded_faces.len();
-    let mut welded_edge_to_parent: HashMap<WeldedEdge, (usize, (u8, u8))> = HashMap::new();
-    let mut dual_graph = Vec::new();
-    for face in 0..face_count {
-        let [welded_vertex_a, welded_vertex_b, welded_vertex_c] = welded_mesh.welded_faces[face];
-        let local_edges = [(0u8, 1u8), (1, 2), (2, 0)];
-        let welded_vertices = [welded_vertex_a, welded_vertex_b, welded_vertex_c];
-        for &(point_a, point_b) in &local_edges {
-            let edge = WeldedEdge::new(welded_vertices[point_a as usize], welded_vertices[point_b as usize]);
-            if let Some(&(parent_face, parent_edge_local)) = welded_edge_to_parent.get(&edge) {
-                dual_graph.push(DualEdge {
-                    face_a: parent_face,
-                    face_b: face,
-                    welded_edge: edge,
-                    face_a_local_edge: parent_edge_local,
-                    face_b_local_edge: (point_a, point_b),
-                });
-            } else {
-                welded_edge_to_parent.insert(edge, (face, (point_a, point_b)));
-            }
-        }
-    }
-    dual_graph
-}
-
-pub fn build_parent_tree(face_count: usize, dual_graph: &mut [DualEdge]) -> (Vec<ParentLink>, Vec<Vec<usize>>) {
-    // dual_graph.sort_by(|left, right| right.fold_weight.partial_cmp(&left.fold_weight).unwrap());
-    //TODO: biggest change for the anchored faces
-    dual_graph.sort_by(|left, right| dual_edge_sorting_order(left).cmp(&dual_edge_sorting_order(right)));
-    let mut dsu = DisjointSetUnion::new(face_count);
-    let mut adjacency_list = vec![Vec::new(); face_count];
-
-    for edge in dual_graph.iter().copied() {
-        if dsu.union(edge.face_a, edge.face_b) {
-            adjacency_list[edge.face_a].push((edge.face_b, edge));
-            adjacency_list[edge.face_b].push((edge.face_a, edge));
-        }
-    }
-    for adjacent_faces in &mut adjacency_list {
-        adjacent_faces.sort_by_key(|&(face, edge)| (face, edge.welded_edge.vertex_a.id, edge.welded_edge.vertex_b.id));
-    }
-    let mut parent_links = vec![ParentLink::default(); face_count];
-    let mut children = vec![Vec::new(); face_count];
-    let mut seen = vec![false; face_count]; //TODO: stupid fucking parallel arrays again
-    let mut face_queue = VecDeque::new();
-    for id in 0..face_count {
-        if seen[id] {
-            continue;
-        }
-        seen[id] = true;
-        face_queue.push_back(id);
-        while let Some(current_face) = face_queue.pop_front() {
-            for &(face, edge) in &adjacency_list[current_face] {
-                if seen[face] {
-                    continue;
-                }
-                seen[face] = true;
-                let (parent_local_edge, child_local_edge) = if current_face == edge.face_a {
-                    (edge.face_a_local_edge, edge.face_b_local_edge)
-                } else {
-                    (edge.face_b_local_edge, edge.face_a_local_edge)
-                };
-                parent_links[face] = ParentLink {
-                    parent: Some(current_face),
-                    parent_local_edge: Some(parent_local_edge),
-                    child_local_edge: Some(child_local_edge),
-                    welded_edge: Some(edge.welded_edge),
-                };
-                children[current_face].push(face);
-                face_queue.push_back(face);
-            }
-        }
-    }
-    (parent_links, children)
+    let mut mesh_builder = Mesh::gen_mesh(&vertices, &texcoords);
+    mesh_builder.indices(&indices);
+    mesh_builder.build(_thread_borrow).unwrap()
 }
 
 pub fn align_to_welded_edge(
@@ -434,15 +303,6 @@ pub fn align_child_to_parent(
 }
 
 pub fn derive_local_plane_vertices(a: Vec3, b: Vec3, c: Vec3) -> [Vec2; 3] {
-    //                          C
-    //                        / |
-    //                      /   |
-    //                 ac /     |    ←  ac - x * x_axis
-    //                  /       |   (perpendicular part of ac)
-    //                /         |
-    //              /           |
-    //             A------------B
-    //    x_axis ---------------x---->
     let ab = b - a;
     let ab_x_magnitude = ab.length();
     let ac = c - a;
@@ -456,14 +316,6 @@ pub fn derive_local_plane_vertices(a: Vec3, b: Vec3, c: Vec3) -> [Vec2; 3] {
     let b_local = Vec2::new(ab_x_magnitude, 0.0);
     let c_local = Vec2::new(ac_x_magnitude, ac_y_magnitude);
     [a_local, b_local, c_local]
-}
-
-pub fn dual_edge_sorting_order(edge: &DualEdge) -> (u32, u32, usize, usize) {
-    let welded_edge_vertex_a = edge.welded_edge.vertex_a.id;
-    let welded_edge_vertex_b = edge.welded_edge.vertex_b.id;
-    let lesser_face = edge.face_a.min(edge.face_b);
-    let greater_face = edge.face_a.max(edge.face_b);
-    (welded_edge_vertex_a, welded_edge_vertex_b, lesser_face, greater_face)
 }
 
 pub fn anchor_welded_face(face: [Vec2; 3], welded_face: &[WeldedVertex; 3]) -> [Vec2; 3] {
@@ -501,18 +353,6 @@ pub fn anchor_welded_face(face: [Vec2; 3], welded_face: &[WeldedVertex; 3]) -> [
     stable_welded_face[second_smallest_index] = stable_b;
     stable_welded_face[largest_index] = stable_c;
     stable_welded_face
-}
-
-pub fn collect_subtree_faces(root_face: usize, children: &[Vec<usize>]) -> Vec<usize> {
-    let mut subtree = Vec::new();
-    let mut face_stack = vec![root_face];
-    while let Some(face) = face_stack.pop() {
-        subtree.push(face);
-        for &child_face in &children[face] {
-            face_stack.push(child_face);
-        }
-    }
-    subtree
 }
 
 pub fn signed_dihedral_between(
