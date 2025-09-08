@@ -5,7 +5,7 @@ use bath::fixed_func::silhouette::{
 };
 use bath::fixed_func::silhouette::{ANGULAR_VELOCITY, MODEL_POS, MODEL_SCALE, SCALE_TWEAK};
 use bath::fixed_func::texture::{dither, generate_silhouette_texture, DitherStaging};
-use bath::fixed_func::topology::{ensure_drawable, observed_line_of_sight, reverse_vertex_winding};
+use bath::fixed_func::topology::{observed_line_of_sight, reverse_vertex_winding};
 use bath::render::raylib::RaylibRenderer;
 use bath::render::raylib_util::N64_WIDTH;
 use bath::render::renderer::Renderer;
@@ -19,6 +19,7 @@ use raylib::ffi::{rlDisableDepthMask, rlEnableDepthMask};
 use raylib::math::Vector3;
 use raylib::models::{RaylibMaterial, RaylibModel};
 use raylib::texture::Image;
+use std::ptr::null_mut;
 
 fn main() {
     let mut i_time = 0.0f32;
@@ -36,9 +37,8 @@ fn main() {
     let mut main_model = render.handle.load_model(&render.thread, SPHERE_PATH).unwrap();
     let mut inverted_hull = render.handle.load_model(&render.thread, SPHERE_PATH).unwrap();
 
-    ensure_drawable(&mut wire_model.meshes_mut()[0]);
-    ensure_drawable(&mut main_model.meshes_mut()[0]);
-    ensure_drawable(&mut inverted_hull.meshes_mut()[0]);
+    //TODO: this is crazy
+    wire_model.meshes_mut()[0].colors = null_mut();
     reverse_vertex_winding(&mut inverted_hull.meshes_mut()[0]);
 
     let mesh_samples = collect_deformed_mesh_samples(&mut render);

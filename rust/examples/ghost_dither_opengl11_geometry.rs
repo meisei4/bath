@@ -1,9 +1,9 @@
 use asset_payload::SPHERE_PATH;
-use bath::fixed_func::papercraft::{fold, unfold};
+use bath::fixed_func::papercraft::unfold;
 use bath::fixed_func::silhouette::{collect_deformed_mesh_samples, FOVY};
 use bath::fixed_func::silhouette::{interpolate_between_deformed_meshes, MODEL_POS, MODEL_SCALE};
 use bath::fixed_func::silhouette::{ANGULAR_VELOCITY, TIME_BETWEEN_SAMPLES};
-use bath::fixed_func::topology::{debug_draw_faces, ensure_drawable};
+use bath::fixed_func::topology::debug_draw_triangles;
 use bath::render::raylib::RaylibRenderer;
 use bath::render::raylib_util::N64_WIDTH;
 use bath::render::renderer::Renderer;
@@ -28,7 +28,6 @@ fn main() {
     };
     let mut wire_model = render.handle.load_model(&render.thread, SPHERE_PATH).unwrap();
     //TODO: this is still ugly here:
-    ensure_drawable(&mut wire_model.meshes_mut()[0]);
     let mesh_samples = collect_deformed_mesh_samples(&mut render);
     interpolate_between_deformed_meshes(&mut wire_model, i_time, &mesh_samples);
     while !render.handle.window_should_close() {
@@ -53,19 +52,19 @@ fn main() {
         let mut draw_handle = render.handle.begin_drawing(&render.thread);
         draw_handle.clear_background(Color::BLACK);
         draw_handle.draw_mode3D(observer, |mut rl3d| {
-            // rl3d.draw_model_wires_ex(&unfolded_model, MODEL_POS, Vector3::Y, 0.0, MODEL_SCALE, Color::WHITE);
+            rl3d.draw_model_wires_ex(&unfolded_model, MODEL_POS, Vector3::Y, 0.0, MODEL_SCALE, Color::WHITE);
         });
 
-        let all_faces: Vec<usize> = (0..unfolded_mesh.triangleCount as usize).collect();
-        debug_draw_faces(
+        let all_triangles: Vec<usize> = (0..unfolded_mesh.triangleCount as usize).collect();
+        debug_draw_triangles(
             observer,
             &mut draw_handle,
             &unfolded_mesh,
             // mesh_rotation,
             0.0,
-            &*all_faces,
+            &*all_triangles,
             None,
-            false,
+            true,
         );
     }
 }

@@ -1,6 +1,4 @@
-use crate::fixed_func::topology::{
-    collect_vertex_normals, rotate_point_about_axis, smooth_vertex_normals, topology_init,
-};
+use crate::fixed_func::topology::{rotate_point_about_axis, smooth_vertex_normals, Topology};
 use crate::render::raylib::RaylibRenderer;
 use asset_payload::SPHERE_PATH;
 use raylib::color::Color;
@@ -148,7 +146,6 @@ pub fn interpolate_between_radial_field_elements(sample_x: f32, sample_y: f32, r
     radial_field[lower_index] * (1.0 - interpolation_toward_upper)
         + radial_field[upper_index] * interpolation_toward_upper
 }
-
 pub fn rotate_inverted_hull(
     model: &Model,
     inverted_hull: &mut Model,
@@ -158,32 +155,38 @@ pub fn rotate_inverted_hull(
     let line_of_sight = rotate_point_about_axis(-observed_line_of_sight, (Vector3::ZERO, Vector3::Y), -mesh_rotation);
     let mesh = &model.meshes()[0];
     let inverted_hull_mesh = &mut inverted_hull.meshes_mut()[0];
+
+    let vertices = mesh.vertices();
     let vertex_count = mesh.vertexCount as usize;
-    let mut topology = topology_init(mesh);
-    collect_vertex_normals(&mut topology, &model.meshes()[0]);
+    //TODO: this somehow related to the broken depth stuff for the inverted hull
+    let topology = Topology::build_topology(mesh)
+        .collect_triangles()
+        .collect_vertex_normals()
+        .build();
+
     let welded_vertex_normals = smooth_vertex_normals(&topology);
+
     if inverted_hull_mesh.colors.is_null() {
         let colors = vec![255u8; vertex_count * 4];
         inverted_hull_mesh.colors = Box::leak(colors.into_boxed_slice()).as_mut_ptr();
     }
     let inverted_hull_colors = unsafe { from_raw_parts_mut(inverted_hull_mesh.colors, vertex_count * 4) };
-    let vertices = mesh.vertices();
+
     let inverted_hull_vertices = inverted_hull_mesh.vertices_mut();
     for i in 0..vertex_count {
         let vertex = vertices[i];
-        let face_normal = welded_vertex_normals.get(i).copied().unwrap_or(Vec3::Z);
-        let expanded_vertex = vertex + face_normal * INVERTED_HULL_EXPANSION_SCALAR;
+        let triangle_normal = welded_vertex_normals.get(i).copied().unwrap_or(Vec3::Z);
+        let expanded_vertex = vertex + triangle_normal * INVERTED_HULL_EXPANSION_SCALAR;
         inverted_hull_vertices[i] = expanded_vertex;
-        let view_alignment_magnitude = face_normal.dot(line_of_sight).abs();
+
+        let view_alignment_magnitude = triangle_normal.dot(line_of_sight).abs();
         let edge_weight = 1.0 - smoothstep(ALPHA_FADE_RAMP_MIN, ALPHA_FADE_RAMP_MAX, view_alignment_magnitude);
         let alpha_1_to_0 = (1.0 - edge_weight * ALPHA_FADE_RAMP_STRENGTH).clamp(0.0, 1.0);
+
         let j = i * 4;
         inverted_hull_colors[j + 0] = 255;
         inverted_hull_colors[j + 1] = 255;
         inverted_hull_colors[j + 2] = 255;
-        // inverted_hull_colors[j + 0] = 0;
-        // inverted_hull_colors[j + 1] = 0;
-        // inverted_hull_colors[j + 2] = 0;
         inverted_hull_colors[j + 3] = (alpha_1_to_0 * 255.0).round() as u8;
     }
 }
@@ -262,8 +265,8 @@ pub fn temporal_phase(time: f32) -> Vector2 {
 #[inline]
 pub fn add_phase(phase: Vector2) -> Vector2 {
     Vector2::new(
-        LIGHT_WAVE_AMPLITUDE_X * (phase.x).cos(),
-        LIGHT_WAVE_AMPLITUDE_Y * (phase.y).sin(),
+        LIGHT_WAVE_AMPLITUDE_X * phase.x.cos(),
+        LIGHT_WAVE_AMPLITUDE_Y * phase.y.sin(),
     )
 }
 

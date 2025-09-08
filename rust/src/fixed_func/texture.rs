@@ -3,9 +3,7 @@ use crate::fixed_func::silhouette::{
     ALPHA_FADE_RAMP_MIN, DITHER_BLEND_FACTOR, DITHER_TEXTURE_SCALE, FOVY, UMBRAL_MASK_CENTER, UMBRAL_MASK_FADE_BAND,
     UMBRAL_MASK_INNER_RADIUS, UMBRAL_MASK_OFFSET_X, UMBRAL_MASK_OFFSET_Y, UMBRAL_MASK_OUTER_RADIUS,
 };
-use crate::fixed_func::topology::{
-    collect_vertex_normals, observed_line_of_sight, smooth_vertex_normals, topology_init,
-};
+use crate::fixed_func::topology::{observed_line_of_sight, smooth_vertex_normals, Topology};
 use raylib::camera::Camera3D;
 use raylib::color::Color;
 use raylib::consts::PixelFormat::PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
@@ -79,11 +77,11 @@ pub fn rotate_silhouette_texture_dither(
 ) {
     let mesh = &mut model.meshes_mut()[0];
     let mut vertices = mesh.vertices_mut().to_vec();
-    let mut smooth_vertex_normals = {
-        let mut topology = topology_init(mesh);
-        collect_vertex_normals(&mut topology, mesh);
-        smooth_vertex_normals(&topology)
-    };
+    let topology = Topology::build_topology(mesh)
+        .collect_triangles()
+        .collect_vertex_normals()
+        .build();
+    let mut smooth_vertex_normals = smooth_vertex_normals(&topology);
     rotate_vertices(&mut vertices, mesh_rotation);
     rotate_vertices(&mut smooth_vertex_normals, mesh_rotation);
     let observed_line_of_sight = observed_line_of_sight(observer);
@@ -110,11 +108,11 @@ pub fn rotate_silhouette_texture_dither(
 pub fn rotate_silhouette_texture(model: &mut Model, observer: &Camera3D, mesh_rotation: f32) {
     let mesh = &mut model.meshes_mut()[0];
     let mut vertices = mesh.vertices_mut().to_vec();
-    let mut smooth_vertex_normals = {
-        let mut topology = topology_init(mesh);
-        collect_vertex_normals(&mut topology, mesh);
-        smooth_vertex_normals(&topology)
-    };
+    let topology = Topology::build_topology(mesh)
+        .collect_triangles()
+        .collect_vertex_normals()
+        .build();
+    let mut smooth_vertex_normals = smooth_vertex_normals(&topology);
     rotate_vertices(&mut vertices, mesh_rotation);
     rotate_vertices(&mut smooth_vertex_normals, mesh_rotation);
     let observed_line_of_sight = observed_line_of_sight(observer);
@@ -252,11 +250,11 @@ pub fn rotate_silhouette_texture_stipple_screen_locked(
 ) {
     let mesh = &mut model.meshes_mut()[0];
     let mut vertices = mesh.vertices_mut().to_vec();
-    let mut smooth_vertex_normals = {
-        let mut topo = topology_init(mesh);
-        collect_vertex_normals(&mut topo, mesh);
-        smooth_vertex_normals(&topo)
-    };
+    let topology = Topology::build_topology(mesh)
+        .collect_triangles()
+        .collect_vertex_normals()
+        .build();
+    let mut smooth_vertex_normals = smooth_vertex_normals(&topology);
     rotate_vertices(&mut vertices, mesh_rotation);
     rotate_vertices(&mut smooth_vertex_normals, mesh_rotation);
     let los = observed_line_of_sight(observer);
@@ -361,9 +359,6 @@ pub fn generate_spherical_uvs(mesh: &mut raylib::models::WeakMesh) {
         let vv = (v.y * 0.5 + 0.5).clamp(0.0, 1.0);
         uvs[i * 2 + 0] = u;
         uvs[i * 2 + 1] = vv;
-    }
-    unsafe {
-        raylib::ffi::UploadMesh(mesh.as_mut(), true);
     }
 }
 

@@ -1,7 +1,7 @@
-use crate::fixed_func::dsu::{build_dual_graph, build_parent_tree, collect_subtree_faces, ParentLink};
+use crate::fixed_func::dsu::{build_dual_graph, build_parent_tree, collect_subtree_triangles, ParentLink};
 use crate::fixed_func::topology::{
-    build_weld_view, collect_neighbors, collect_welded_faces, edge_opposing_vertex, face_normal, lift_dimension,
-    rotate_point_about_axis, topology_init, welded_eq, WeldedEdge, WeldedMesh, WeldedVertex,
+    build_weld_view, edge_opposing_vertex, lift_dimension, rotate_point_about_axis, triangle_normal, welded_eq,
+    Topology, WeldedEdge, WeldedMesh, WeldedVertex,
 };
 use raylib::math::glam::{Vec2, Vec3};
 use raylib::math::{Vector2, Vector3};
@@ -14,8 +14,8 @@ const FOLD_DURATION_SEC: f32 = 5.0;
 const FOLD_UNFOLD_DURATION: f32 = FOLD_DURATION_SEC * 2.0;
 
 pub struct HingeAngleContext {
-    pub parent_face: usize,
-    pub child_face: usize,
+    pub parent_triangle: usize,
+    pub child_triangle: usize,
     pub parent_local_edge: (u8, u8),
     pub welded_edge: WeldedEdge,
     pub original_signed_dihedral_angle: f32,
@@ -30,70 +30,70 @@ pub fn fold(_thread_borrow: &raylib::RaylibThread, mesh: &mut WeakMesh, i_time: 
     } else {
         (i_time / FOLD_DURATION_SEC).clamp(0.0, 1.0)
     };
-    let (welded_mesh, parent_links, children, mut lifted_faces, parent_faces) = prepare_mesh_for_folding(mesh);
-    for &parent_face in &parent_faces {
+    let (welded_mesh, parent_links, children, mut lifted_triangles, parent_triangles) = prepare_mesh_for_folding(mesh);
+    for &parent_triangle in &parent_triangles {
         apply_hinge_rotation_with_equation(
-            parent_face,
+            parent_triangle,
             &children,
             &parent_links,
-            &mut lifted_faces,
+            &mut lifted_triangles,
             &welded_mesh,
             i_time,
             &|context, _t| context.original_signed_dihedral_angle * fold_progress,
         );
-        align_to_original_pose(&mut lifted_faces, &welded_mesh, parent_face);
+        align_to_original_pose(&mut lifted_triangles, &welded_mesh, parent_triangle);
     }
-    build_unfolded_mesh(_thread_borrow, &lifted_faces, &welded_mesh)
+    build_unfolded_mesh(_thread_borrow, &lifted_triangles, &welded_mesh)
 }
 
 pub fn unfold(_thread_borrow: &raylib::RaylibThread, mesh: &mut WeakMesh) -> Mesh {
-    let (welded_mesh, parent_links, children, mut lifted_faces, parent_faces) = prepare_mesh_for_folding(mesh);
-    for &parent_face in &parent_faces {
+    let (welded_mesh, parent_links, children, mut lifted_triangles, parent_triangles) = prepare_mesh_for_folding(mesh);
+    for &parent_triangle in &parent_triangles {
         apply_hinge_rotation_with_equation(
-            parent_face,
+            parent_triangle,
             &children,
             &parent_links,
-            &mut lifted_faces,
+            &mut lifted_triangles,
             &welded_mesh,
             0.0,
             &|_ctx, _t| 0.0,
         );
     }
-    fit_unfolded_faces_to_zoom_scale(&mut lifted_faces);
-    build_unfolded_mesh(_thread_borrow, &lifted_faces, &welded_mesh)
+    fit_unfolded_triangles_to_zoom_scale(&mut lifted_triangles);
+    build_unfolded_mesh(_thread_borrow, &lifted_triangles, &welded_mesh)
 }
 
 fn apply_hinge_rotation_with_equation(
-    parent_face: usize,
-    children_faces: &[Vec<usize>],
+    parent_triangle: usize,
+    children_triangles: &[Vec<usize>],
     parent_links: &[ParentLink],
-    lifted_faces: &mut [[Vec3; 3]],
+    lifted_triangles: &mut [[Vec3; 3]],
     welded_mesh: &WeldedMesh,
     i_time: f32,
     hinge_angle_equation: &dyn Fn(&HingeAngleContext, f32) -> f32,
 ) {
     let mut queue = VecDeque::new();
-    queue.push_back((parent_face, 0u32, 0.0f32));
+    queue.push_back((parent_triangle, 0u32, 0.0f32));
 
     while let Some((current_parent, depth_from_parent, dist_from_parent)) = queue.pop_front() {
-        for &child_face in &children_faces[current_parent] {
-            let link = parent_links[child_face];
+        for &child_triangle in &children_triangles[current_parent] {
+            let link = parent_links[child_triangle];
             let parent_edge = link.parent_local_edge.unwrap();
-            let parent_a = lifted_faces[current_parent][parent_edge.0 as usize];
-            let parent_b = lifted_faces[current_parent][parent_edge.1 as usize];
+            let parent_a = lifted_triangles[current_parent][parent_edge.0 as usize];
+            let parent_b = lifted_triangles[current_parent][parent_edge.1 as usize];
             let hinge_len = (parent_b - parent_a).length();
             let breadth_first_depth_from_parent = depth_from_parent + 1;
             let graph_distance_from_parent = dist_from_parent + hinge_len;
             let original_signed_dihedral_angle = {
                 let parent_id = current_parent;
-                let child_id = child_face;
+                let child_id = child_triangle;
                 signed_dihedral_between(parent_id, child_id, parent_edge, welded_mesh)
             };
 
             if hinge_len > 1e-8 {
                 let context = HingeAngleContext {
-                    parent_face: current_parent,
-                    child_face,
+                    parent_triangle: current_parent,
+                    child_triangle,
                     parent_local_edge: parent_edge,
                     welded_edge: link.welded_edge.unwrap(),
                     original_signed_dihedral_angle,
@@ -103,15 +103,22 @@ fn apply_hinge_rotation_with_equation(
                 };
 
                 let angle = hinge_angle_equation(&context, i_time);
-                let subtree = collect_subtree_faces(child_face, children_faces);
-                for face in subtree {
+                let subtree = collect_subtree_triangles(child_triangle, children_triangles);
+                for triangle in subtree {
                     for vertex_index in 0..3 {
-                        lifted_faces[face][vertex_index] =
-                            rotate_point_about_axis(lifted_faces[face][vertex_index], (parent_a, parent_b), angle);
+                        lifted_triangles[triangle][vertex_index] = rotate_point_about_axis(
+                            lifted_triangles[triangle][vertex_index],
+                            (parent_a, parent_b),
+                            angle,
+                        );
                     }
                 }
             }
-            queue.push_back((child_face, breadth_first_depth_from_parent, graph_distance_from_parent));
+            queue.push_back((
+                child_triangle,
+                breadth_first_depth_from_parent,
+                graph_distance_from_parent,
+            ));
         }
     }
 }
@@ -119,75 +126,88 @@ fn apply_hinge_rotation_with_equation(
 fn prepare_mesh_for_folding(
     mesh: &mut WeakMesh,
 ) -> (WeldedMesh, Vec<ParentLink>, Vec<Vec<usize>>, Vec<[Vec3; 3]>, Vec<usize>) {
-    let mut topology = topology_init(mesh);
-    collect_welded_faces(&mut topology);
-    collect_neighbors(&mut topology);
+    let mut topology = Topology::build_topology(mesh)
+        .collect_triangles()
+        .collect_welded_triangles()
+        .collect_neighbors()
+        .build();
     let welded_mesh = build_weld_view(&mut topology, mesh);
-    let face_count = welded_mesh.welded_faces.len();
+    let triangle_count = welded_mesh.welded_triangles.len();
     let mut dual_graph = build_dual_graph(&welded_mesh);
-    let (parent_links, children_faces) = build_parent_tree(face_count, &mut dual_graph);
-    let mut local_vertices_per_face = Vec::with_capacity(face_count);
-    for face_index in 0..face_count {
-        let [vertex_a, vertex_b, vertex_c] = welded_mesh.original_vertices[face_index];
-        local_vertices_per_face.push(derive_local_plane_vertices(vertex_a, vertex_b, vertex_c));
+    let (parent_links, children_triangles) = build_parent_tree(triangle_count, &mut dual_graph);
+    let mut local_vertices_per_triangle = Vec::with_capacity(triangle_count);
+    for triangle_index in 0..triangle_count {
+        let [vertex_a, vertex_b, vertex_c] = welded_mesh.original_vertices[triangle_index];
+        local_vertices_per_triangle.push(derive_local_plane_vertices(vertex_a, vertex_b, vertex_c));
     }
 
-    let mut unfolded_faces = vec![[Vec2::ZERO; 3]; face_count];
-    let mut is_already_unfolded = vec![false; face_count];
-    for face in 0..face_count {
-        if is_already_unfolded[face] {
+    let mut unfolded_triangles = vec![[Vec2::ZERO; 3]; triangle_count];
+    let mut is_already_unfolded = vec![false; triangle_count];
+    for triangle in 0..triangle_count {
+        if is_already_unfolded[triangle] {
             continue;
         }
-        unfolded_faces[face] = anchor_welded_face(local_vertices_per_face[face], &welded_mesh.welded_faces[face]);
-        is_already_unfolded[face] = true;
-        let mut face_stack = vec![face];
-        while let Some(parent_face) = face_stack.pop() {
-            for &child_face in &children_faces[parent_face] {
-                if is_already_unfolded[child_face] {
+        unfolded_triangles[triangle] = anchor_welded_triangle(
+            local_vertices_per_triangle[triangle],
+            &welded_mesh.welded_triangles[triangle],
+        );
+        is_already_unfolded[triangle] = true;
+        let mut triangle_stack = vec![triangle];
+        while let Some(parent_triangle) = triangle_stack.pop() {
+            for &child_triangle in &children_triangles[parent_triangle] {
+                if is_already_unfolded[child_triangle] {
                     continue;
                 }
-                let parent_link = parent_links[child_face];
+                let parent_link = parent_links[child_triangle];
                 let aligned_child = align_child_to_parent(
-                    &local_vertices_per_face[child_face],
-                    &welded_mesh.welded_faces[child_face],
-                    &unfolded_faces[parent_face],
-                    &welded_mesh.welded_faces[parent_face],
+                    &local_vertices_per_triangle[child_triangle],
+                    &welded_mesh.welded_triangles[child_triangle],
+                    &unfolded_triangles[parent_triangle],
+                    &welded_mesh.welded_triangles[parent_triangle],
                     parent_link.parent_local_edge.unwrap(),
                     parent_link.child_local_edge.unwrap(),
                     parent_link.welded_edge.unwrap(),
                 );
-                unfolded_faces[child_face] = aligned_child;
-                is_already_unfolded[child_face] = true;
-                face_stack.push(child_face);
+                unfolded_triangles[child_triangle] = aligned_child;
+                is_already_unfolded[child_triangle] = true;
+                triangle_stack.push(child_triangle);
             }
         }
     }
 
-    let mut lifted_faces = vec![[Vec3::ZERO; 3]; face_count];
-    for face in 0..face_count {
-        lifted_faces[face][0] = lift_dimension(unfolded_faces[face][0]);
-        lifted_faces[face][1] = lift_dimension(unfolded_faces[face][1]);
-        lifted_faces[face][2] = lift_dimension(unfolded_faces[face][2]);
+    let mut lifted_triangles = vec![[Vec3::ZERO; 3]; triangle_count];
+    for triangle in 0..triangle_count {
+        lifted_triangles[triangle][0] = lift_dimension(unfolded_triangles[triangle][0]);
+        lifted_triangles[triangle][1] = lift_dimension(unfolded_triangles[triangle][1]);
+        lifted_triangles[triangle][2] = lift_dimension(unfolded_triangles[triangle][2]);
     }
 
-    let parent_faces: Vec<usize> = (0..face_count).filter(|&f| parent_links[f].parent.is_none()).collect();
+    let parent_triangles: Vec<usize> = (0..triangle_count)
+        .filter(|&f| parent_links[f].parent.is_none())
+        .collect();
 
-    (welded_mesh, parent_links, children_faces, lifted_faces, parent_faces)
+    (
+        welded_mesh,
+        parent_links,
+        children_triangles,
+        lifted_triangles,
+        parent_triangles,
+    )
 }
 
-fn fit_unfolded_faces_to_zoom_scale(unfolded_faces: &mut [[Vec3; 3]]) {
-    for face in 0..unfolded_faces.len() {
+fn fit_unfolded_triangles_to_zoom_scale(unfolded_triangles: &mut [[Vec3; 3]]) {
+    for triangle in 0..unfolded_triangles.len() {
         for vertex_index in 0..3 {
-            unfolded_faces[face][vertex_index].z = 0.0;
+            unfolded_triangles[triangle][vertex_index].z = 0.0;
         }
     }
     let mut min_x = f32::MAX;
     let mut min_y = f32::MAX;
     let mut max_x = f32::MIN;
     let mut max_y = f32::MIN;
-    for face in 0..unfolded_faces.len() {
+    for triangle in 0..unfolded_triangles.len() {
         for vertex_index in 0..3 {
-            let vertex = unfolded_faces[face][vertex_index];
+            let vertex = unfolded_triangles[triangle][vertex_index];
             min_x = min_x.min(vertex.x);
             max_x = max_x.max(vertex.x);
             min_y = min_y.min(vertex.y);
@@ -200,46 +220,50 @@ fn fit_unfolded_faces_to_zoom_scale(unfolded_faces: &mut [[Vec3; 3]]) {
     let step_y = max_y - min_y;
     let step = ZOOM_SCALE / step_x.max(step_y).max(1e-8);
 
-    for face in 0..unfolded_faces.len() {
+    for triangle in 0..unfolded_triangles.len() {
         for vertex_index in 0..3 {
-            unfolded_faces[face][vertex_index].x = (unfolded_faces[face][vertex_index].x - center_x) * step;
-            unfolded_faces[face][vertex_index].y = (unfolded_faces[face][vertex_index].y - center_y) * step;
+            unfolded_triangles[triangle][vertex_index].x =
+                (unfolded_triangles[triangle][vertex_index].x - center_x) * step;
+            unfolded_triangles[triangle][vertex_index].y =
+                (unfolded_triangles[triangle][vertex_index].y - center_y) * step;
         }
     }
 }
 
 fn build_unfolded_mesh(
     _thread_borrow: &raylib::RaylibThread,
-    unfolded_faces: &[[Vec3; 3]],
+    unfolded_triangles: &[[Vec3; 3]],
     welded_mesh: &WeldedMesh,
 ) -> Mesh {
-    let face_count = unfolded_faces.len();
-    let mut vertices = Vec::with_capacity(face_count * 3);
-    let mut texcoords = Vec::with_capacity(face_count * 3);
-    let mut indices = Vec::with_capacity(face_count * 3);
-    for face in 0..face_count {
+    let triangle_count = unfolded_triangles.len();
+    let mut vertices = Vec::with_capacity(triangle_count * 3);
+    let mut texcoords = Vec::with_capacity(triangle_count * 3);
+    let mut indices = Vec::with_capacity(triangle_count * 3);
+    for triangle in 0..triangle_count {
         for vertex_index in 0..3 {
-            let vertex = unfolded_faces[face][vertex_index];
+            let vertex = unfolded_triangles[triangle][vertex_index];
             vertices.push(Vector3::new(vertex.x, vertex.y, vertex.z));
-            let texcoord = welded_mesh.texcoords[face][vertex_index];
+            let texcoord = welded_mesh.texcoords[triangle][vertex_index];
             texcoords.push(Vector2::new(texcoord.x, texcoord.y));
             indices.push((vertices.len() - 1) as u16);
         }
     }
-    let mut mesh_builder = Mesh::gen_mesh(&vertices, &texcoords);
-    mesh_builder.indices(&indices);
-    mesh_builder.build(_thread_borrow).unwrap()
+    Mesh::gen_mesh(&vertices)
+        .texcoords(&texcoords)
+        .indices(&indices)
+        .build(_thread_borrow)
+        .unwrap()
 }
 
 pub fn align_to_welded_edge(
-    parent_face_welded_vertices: &[WeldedVertex; 3],
+    parent_triangle_welded_vertices: &[WeldedVertex; 3],
     local_edge: (u8, u8),
     welded_edge: WeldedEdge,
 ) -> (u8, u8) {
     let local_vertex_a = local_edge.0 as usize;
     let local_vertex_b = local_edge.1 as usize;
-    let welded_vertex_a = parent_face_welded_vertices[local_vertex_a];
-    let welded_vertex_b = parent_face_welded_vertices[local_vertex_b];
+    let welded_vertex_a = parent_triangle_welded_vertices[local_vertex_a];
+    let welded_vertex_b = parent_triangle_welded_vertices[local_vertex_b];
     if welded_eq(welded_vertex_a, welded_edge.vertex_a) && welded_eq(welded_vertex_b, welded_edge.vertex_b) {
         (local_edge.0, local_edge.1)
     } else if welded_eq(welded_vertex_a, welded_edge.vertex_b) && welded_eq(welded_vertex_b, welded_edge.vertex_a) {
@@ -282,15 +306,15 @@ pub fn align_child_to_parent(
     let aligned_child_a = parent_a + child_edge_1.rotate(rotation);
     let aligned_child_b = parent_a + child_edge_2.rotate(rotation);
     let aligned_child_c = parent_a + child_edge_3.rotate(rotation);
-    let mut aligned_child_face = [aligned_child_a, aligned_child_b, aligned_child_c];
+    let mut aligned_child_triangle = [aligned_child_a, aligned_child_b, aligned_child_c];
     let parent_c = parent_vertices[edge_opposing_vertex(aligned_parent_edge) as usize];
-    let child_c = aligned_child_face[edge_opposing_vertex(aligned_child_edge) as usize];
+    let child_c = aligned_child_triangle[edge_opposing_vertex(aligned_child_edge) as usize];
     let parent_sign = parent_ab.perp_dot(parent_c - parent_a);
     let child_sign = parent_ab.perp_dot(child_c - parent_a);
     //cases: 0) either negative -> negative. 1) Both positive = positive -> flip the child 2) both negative = positive -> flip the child
     // if (parent_sign * child_sign).is_sign_positive() {
     if (parent_sign * child_sign) > 1e-6 {
-        for child_vertex in &mut aligned_child_face {
+        for child_vertex in &mut aligned_child_triangle {
             let parent_offset = *child_vertex - parent_a;
             let x_aligned_magnitude = parent_offset.dot(parent_x_axis);
             let y_aligned_magnitude = parent_offset.dot(parent_y_axis);
@@ -299,7 +323,7 @@ pub fn align_child_to_parent(
             *child_vertex = parent_a + x_aligned_component + y_aligned_component;
         }
     }
-    aligned_child_face
+    aligned_child_triangle
 }
 
 pub fn derive_local_plane_vertices(a: Vec3, b: Vec3, c: Vec3) -> [Vec2; 3] {
@@ -318,22 +342,22 @@ pub fn derive_local_plane_vertices(a: Vec3, b: Vec3, c: Vec3) -> [Vec2; 3] {
     [a_local, b_local, c_local]
 }
 
-pub fn anchor_welded_face(face: [Vec2; 3], welded_face: &[WeldedVertex; 3]) -> [Vec2; 3] {
+pub fn anchor_welded_triangle(triangle: [Vec2; 3], welded_triangle: &[WeldedVertex; 3]) -> [Vec2; 3] {
     // base edge stability rule: edge between the two SMALLEST welded vertices
     let mut indices = [0, 1, 2];
-    indices.sort_by_key(|&i| welded_face[i].id);
+    indices.sort_by_key(|&i| welded_triangle[i].id);
     let smallest_index = indices[0];
     let second_smallest_index = indices[1];
     let largest_index = indices[2];
 
-    let a = face[smallest_index];
-    let b = face[second_smallest_index];
-    let c = face[largest_index];
+    let a = triangle[smallest_index];
+    let b = triangle[second_smallest_index];
+    let c = triangle[largest_index];
 
     let ab = b - a;
     let ab_x_magnitude = ab.length();
     if ab_x_magnitude <= 0.0 {
-        return face;
+        return triangle;
     }
     //TODO: why not normalize this instead???? im confused now again jesus
     let x_axis = ab.normalize_or_zero();
@@ -348,11 +372,11 @@ pub fn anchor_welded_face(face: [Vec2; 3], welded_face: &[WeldedVertex; 3]) -> [
     let stable_a = Vec2::new(0.0, 0.0);
     let stable_b = Vec2::new(ab_x_magnitude, 0.0);
     let stable_c = Vec2::new(ac_x_magnitude, ac_y_magnitude);
-    let mut stable_welded_face = [Vec2::ZERO; 3];
-    stable_welded_face[smallest_index] = stable_a;
-    stable_welded_face[second_smallest_index] = stable_b;
-    stable_welded_face[largest_index] = stable_c;
-    stable_welded_face
+    let mut stable_welded_triangle = [Vec2::ZERO; 3];
+    stable_welded_triangle[smallest_index] = stable_a;
+    stable_welded_triangle[second_smallest_index] = stable_b;
+    stable_welded_triangle[largest_index] = stable_c;
+    stable_welded_triangle
 }
 
 pub fn signed_dihedral_between(
@@ -363,16 +387,16 @@ pub fn signed_dihedral_between(
 ) -> f32 {
     let [parent_a_world, parent_b_world, parent_c_world] = welded.original_vertices[parent_id];
     let [child_a, child_b, child_c] = welded.original_vertices[child_id];
-    let parent_face_normal = face_normal(parent_a_world, parent_b_world, parent_c_world);
-    let child_face_normal = face_normal(child_a, child_b, child_c);
-    let parent_face_world = [parent_a_world, parent_b_world, parent_c_world];
-    let parent_a_local = parent_face_world[parent_edge_local.0 as usize];
-    let parent_b_local = parent_face_world[parent_edge_local.1 as usize];
+    let parent_triangle_normal = triangle_normal(parent_a_world, parent_b_world, parent_c_world);
+    let child_triangle_normal = triangle_normal(child_a, child_b, child_c);
+    let parent_triangle_world = [parent_a_world, parent_b_world, parent_c_world];
+    let parent_a_local = parent_triangle_world[parent_edge_local.0 as usize];
+    let parent_b_local = parent_triangle_world[parent_edge_local.1 as usize];
     let x_axis = (parent_b_local - parent_a_local).normalize_or_zero();
 
-    let cosine = parent_face_normal.dot(child_face_normal).clamp(-1.0, 1.0);
+    let cosine = parent_triangle_normal.dot(child_triangle_normal).clamp(-1.0, 1.0);
     let dihedral_angle = cosine.acos();
-    let sine = x_axis.dot(parent_face_normal.cross(child_face_normal));
+    let sine = x_axis.dot(parent_triangle_normal.cross(child_triangle_normal));
     // if sine >= 0.0 {
     //     dihedral_angle
     // } else {
@@ -381,24 +405,24 @@ pub fn signed_dihedral_between(
     dihedral_angle * sine.signum()
 }
 
-pub fn align_to_original_pose(unfolded_faces_lifted: &mut [[Vec3; 3]], welded_mesh: &WeldedMesh, root: usize) {
-    let [unfolded_a, unfolded_b, unfolded_c] = unfolded_faces_lifted[root];
+pub fn align_to_original_pose(unfolded_triangles_lifted: &mut [[Vec3; 3]], welded_mesh: &WeldedMesh, root: usize) {
+    let [unfolded_a, unfolded_b, unfolded_c] = unfolded_triangles_lifted[root];
     let unfolded_x_axis = (unfolded_b - unfolded_a).normalize_or_zero();
-    let unfolded_z_axis = face_normal(unfolded_a, unfolded_b, unfolded_c);
+    let unfolded_z_axis = triangle_normal(unfolded_a, unfolded_b, unfolded_c);
     let unfolded_y_axis = unfolded_z_axis.cross(unfolded_x_axis).normalize_or_zero();
 
     let [folded_a, folded_b, folded_c] = welded_mesh.original_vertices[root];
     let folded_x_axis = (folded_b - folded_a).normalize_or_zero();
-    let folded_z_axis = face_normal(folded_a, folded_b, folded_c);
+    let folded_z_axis = triangle_normal(folded_a, folded_b, folded_c);
     let folded_y_axis = folded_z_axis.cross(folded_x_axis).normalize_or_zero();
 
-    for unfolded_face in 0..unfolded_faces_lifted.len() {
+    for unfolded_triangle in 0..unfolded_triangles_lifted.len() {
         for i in 0..3 {
-            let unfolded_edge = unfolded_faces_lifted[unfolded_face][i] - unfolded_a;
+            let unfolded_edge = unfolded_triangles_lifted[unfolded_triangle][i] - unfolded_a;
             let unfolded_x_magnitude = unfolded_edge.dot(unfolded_x_axis);
             let unfolded_y_magnitude = unfolded_edge.dot(unfolded_y_axis);
             let unfolded_z_magnitude = unfolded_edge.dot(unfolded_z_axis);
-            unfolded_faces_lifted[unfolded_face][i] = folded_a
+            unfolded_triangles_lifted[unfolded_triangle][i] = folded_a
                 + folded_x_axis * unfolded_x_magnitude
                 + folded_y_axis * unfolded_y_magnitude
                 + folded_z_axis * unfolded_z_magnitude;

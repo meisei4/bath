@@ -37,10 +37,10 @@ impl DisjointSetUnion {
 
 #[derive(Copy, Clone, Debug)]
 pub struct DualEdge {
-    face_a: usize,
-    face_b: usize,
-    face_a_local_edge: (u8, u8),
-    face_b_local_edge: (u8, u8),
+    triangle_a: usize,
+    triangle_b: usize,
+    triangle_a_local_edge: (u8, u8),
+    triangle_b_local_edge: (u8, u8),
     welded_edge: WeldedEdge,
 }
 
@@ -53,98 +53,104 @@ pub struct ParentLink {
 }
 
 pub fn build_dual_graph(welded_mesh: &WeldedMesh) -> Vec<DualEdge> {
-    let face_count = welded_mesh.welded_faces.len();
+    let triangle_count = welded_mesh.welded_triangles.len();
     let mut welded_edge_to_parent: HashMap<WeldedEdge, (usize, (u8, u8))> = HashMap::new();
     let mut dual_graph = Vec::new();
-    for face in 0..face_count {
-        let [welded_vertex_a, welded_vertex_b, welded_vertex_c] = welded_mesh.welded_faces[face];
+    for triangle in 0..triangle_count {
+        let [welded_vertex_a, welded_vertex_b, welded_vertex_c] = welded_mesh.welded_triangles[triangle];
         let local_edges = [(0u8, 1u8), (1, 2), (2, 0)];
         let welded_vertices = [welded_vertex_a, welded_vertex_b, welded_vertex_c];
         for &(point_a, point_b) in &local_edges {
             let edge = WeldedEdge::new(welded_vertices[point_a as usize], welded_vertices[point_b as usize]);
-            if let Some(&(parent_face, parent_edge_local)) = welded_edge_to_parent.get(&edge) {
+            if let Some(&(parent_triangle, parent_edge_local)) = welded_edge_to_parent.get(&edge) {
                 dual_graph.push(DualEdge {
-                    face_a: parent_face,
-                    face_b: face,
+                    triangle_a: parent_triangle,
+                    triangle_b: triangle,
                     welded_edge: edge,
-                    face_a_local_edge: parent_edge_local,
-                    face_b_local_edge: (point_a, point_b),
+                    triangle_a_local_edge: parent_edge_local,
+                    triangle_b_local_edge: (point_a, point_b),
                 });
             } else {
-                welded_edge_to_parent.insert(edge, (face, (point_a, point_b)));
+                welded_edge_to_parent.insert(edge, (triangle, (point_a, point_b)));
             }
         }
     }
     dual_graph
 }
 
-pub fn build_parent_tree(face_count: usize, dual_graph: &mut [DualEdge]) -> (Vec<ParentLink>, Vec<Vec<usize>>) {
+pub fn build_parent_tree(triangle_count: usize, dual_graph: &mut [DualEdge]) -> (Vec<ParentLink>, Vec<Vec<usize>>) {
     // dual_graph.sort_by(|left, right| right.fold_weight.partial_cmp(&left.fold_weight).unwrap());
-    //TODO: biggest change for the anchored faces
+    //TODO: biggest change for the anchored triangles
     dual_graph.sort_by(|left, right| dual_edge_sorting_order(left).cmp(&dual_edge_sorting_order(right)));
-    let mut dsu = DisjointSetUnion::new(face_count);
-    let mut adjacency_list = vec![Vec::new(); face_count];
+    let mut dsu = DisjointSetUnion::new(triangle_count);
+    let mut adjacency_list = vec![Vec::new(); triangle_count];
 
     for edge in dual_graph.iter().copied() {
-        if dsu.union(edge.face_a, edge.face_b) {
-            adjacency_list[edge.face_a].push((edge.face_b, edge));
-            adjacency_list[edge.face_b].push((edge.face_a, edge));
+        if dsu.union(edge.triangle_a, edge.triangle_b) {
+            adjacency_list[edge.triangle_a].push((edge.triangle_b, edge));
+            adjacency_list[edge.triangle_b].push((edge.triangle_a, edge));
         }
     }
-    for adjacent_faces in &mut adjacency_list {
-        adjacent_faces.sort_by_key(|&(face, edge)| (face, edge.welded_edge.vertex_a.id, edge.welded_edge.vertex_b.id));
+    for adjacent_triangles in &mut adjacency_list {
+        adjacent_triangles
+            .sort_by_key(|&(triangle, edge)| (triangle, edge.welded_edge.vertex_a.id, edge.welded_edge.vertex_b.id));
     }
-    let mut parent_links = vec![ParentLink::default(); face_count];
-    let mut children = vec![Vec::new(); face_count];
-    let mut seen = vec![false; face_count]; //TODO: stupid fucking parallel arrays again
-    let mut face_queue = VecDeque::new();
-    for id in 0..face_count {
+    let mut parent_links = vec![ParentLink::default(); triangle_count];
+    let mut children = vec![Vec::new(); triangle_count];
+    let mut seen = vec![false; triangle_count]; //TODO: stupid fucking parallel arrays again
+    let mut triangle_queue = VecDeque::new();
+    for id in 0..triangle_count {
         if seen[id] {
             continue;
         }
         seen[id] = true;
-        face_queue.push_back(id);
-        while let Some(current_face) = face_queue.pop_front() {
-            for &(face, edge) in &adjacency_list[current_face] {
-                if seen[face] {
+        triangle_queue.push_back(id);
+        while let Some(current_triangle) = triangle_queue.pop_front() {
+            for &(triangle, edge) in &adjacency_list[current_triangle] {
+                if seen[triangle] {
                     continue;
                 }
-                seen[face] = true;
-                let (parent_local_edge, child_local_edge) = if current_face == edge.face_a {
-                    (edge.face_a_local_edge, edge.face_b_local_edge)
+                seen[triangle] = true;
+                let (parent_local_edge, child_local_edge) = if current_triangle == edge.triangle_a {
+                    (edge.triangle_a_local_edge, edge.triangle_b_local_edge)
                 } else {
-                    (edge.face_b_local_edge, edge.face_a_local_edge)
+                    (edge.triangle_b_local_edge, edge.triangle_a_local_edge)
                 };
-                parent_links[face] = ParentLink {
-                    parent: Some(current_face),
+                parent_links[triangle] = ParentLink {
+                    parent: Some(current_triangle),
                     parent_local_edge: Some(parent_local_edge),
                     child_local_edge: Some(child_local_edge),
                     welded_edge: Some(edge.welded_edge),
                 };
-                children[current_face].push(face);
-                face_queue.push_back(face);
+                children[current_triangle].push(triangle);
+                triangle_queue.push_back(triangle);
             }
         }
     }
     (parent_links, children)
 }
 
-pub fn collect_subtree_faces(root_face: usize, children: &[Vec<usize>]) -> Vec<usize> {
+pub fn collect_subtree_triangles(root_triangle: usize, children: &[Vec<usize>]) -> Vec<usize> {
     let mut subtree = Vec::new();
-    let mut face_stack = vec![root_face];
-    while let Some(face) = face_stack.pop() {
-        subtree.push(face);
-        for &child_face in &children[face] {
-            face_stack.push(child_face);
+    let mut triangle_stack = vec![root_triangle];
+    while let Some(triangle) = triangle_stack.pop() {
+        subtree.push(triangle);
+        for &child_triangle in &children[triangle] {
+            triangle_stack.push(child_triangle);
         }
     }
     subtree
 }
 
-pub fn dual_edge_sorting_order(edge: &DualEdge) -> (u32, u32, usize, usize) {
+pub fn dual_edge_sorting_order(edge: &DualEdge) -> (usize, usize, usize, usize) {
     let welded_edge_vertex_a = edge.welded_edge.vertex_a.id;
     let welded_edge_vertex_b = edge.welded_edge.vertex_b.id;
-    let lesser_face = edge.face_a.min(edge.face_b);
-    let greater_face = edge.face_a.max(edge.face_b);
-    (welded_edge_vertex_a, welded_edge_vertex_b, lesser_face, greater_face)
+    let lesser_triangle = edge.triangle_a.min(edge.triangle_b);
+    let greater_triangle = edge.triangle_a.max(edge.triangle_b);
+    (
+        welded_edge_vertex_a,
+        welded_edge_vertex_b,
+        lesser_triangle,
+        greater_triangle,
+    )
 }

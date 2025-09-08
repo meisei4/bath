@@ -5,7 +5,7 @@ use bath::fixed_func::silhouette::{
 };
 use bath::fixed_func::silhouette::{ANGULAR_VELOCITY, MODEL_POS, MODEL_SCALE, SCALE_TWEAK};
 use bath::fixed_func::texture::{dither, generate_silhouette_texture, DitherStaging};
-use bath::fixed_func::topology::{ensure_drawable, observed_line_of_sight, reverse_vertex_winding};
+use bath::fixed_func::topology::{observed_line_of_sight, reverse_vertex_winding};
 use bath::render::raylib::RaylibRenderer;
 use bath::render::raylib_util::N64_WIDTH;
 use bath::render::renderer::Renderer;
@@ -36,9 +36,6 @@ fn main() {
     let mut main_model = render.handle.load_model(&render.thread, SPHERE_PATH).unwrap();
     let mut inverted_hull = render.handle.load_model(&render.thread, SPHERE_PATH).unwrap();
 
-    ensure_drawable(&mut wire_model.meshes_mut()[0]);
-    ensure_drawable(&mut main_model.meshes_mut()[0]);
-    ensure_drawable(&mut inverted_hull.meshes_mut()[0]);
     reverse_vertex_winding(&mut inverted_hull.meshes_mut()[0]);
 
     let mesh_samples = collect_deformed_mesh_samples(&mut render);
@@ -125,23 +122,23 @@ fn main() {
         });
 
         // let mut topology = topology_init(&main_model.meshes_mut()[0]);
-        // collect_welded_faces(&mut topology);
+        // collect_welded_triangles(&mut topology);
         // collect_neighbors(&mut topology);
-        // collect_front_faces(
+        // collect_front_triangles(
         //     &mut topology,
         //     &wire_model.meshes_mut()[0],
         //     mesh_rotation,
         //     &main_observer,
         // );
-        // collect_back_faces(&mut topology);
-        // collect_silhouette_faces(&mut topology);
-        // if let Some(silhouette_faces) = &topology.silhouette_faces {
-        //     debug_draw_faces(
+        // collect_back_triangles(&mut topology);
+        // collect_silhouette_triangles(&mut topology);
+        // if let Some(silhouette_triangles) = &topology.silhouette_triangles {
+        //     debug_draw_triangles(
         //         main_observer,
         //         &mut draw_handle,
         //         &wire_model.meshes_mut()[0],
         //         mesh_rotation,
-        //         silhouette_faces,
+        //         silhouette_triangles,
         //         Some(Color::new(255, 32, 32, 90)),
         //         true,
         //     );

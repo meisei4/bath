@@ -2,7 +2,7 @@ use asset_payload::SPHERE_PATH;
 use bath::fixed_func::happo_giri_observer::{happo_giri_draw, happo_giri_setup};
 use bath::fixed_func::silhouette::{collect_deformed_mesh_samples, interpolate_between_deformed_meshes, FOVY};
 use bath::fixed_func::silhouette::{rotate_inverted_hull, ANGULAR_VELOCITY};
-use bath::fixed_func::topology::{ensure_drawable, observed_line_of_sight, reverse_vertex_winding};
+use bath::fixed_func::topology::{observed_line_of_sight, reverse_vertex_winding};
 use bath::render::raylib::RaylibRenderer;
 use bath::render::raylib_util::N64_WIDTH;
 use bath::render::renderer::Renderer;
@@ -29,9 +29,6 @@ fn main() {
     let mut main_model = render.handle.load_model(&render.thread, SPHERE_PATH).unwrap();
     let mut inverted_hull_model = render.handle.load_model(&render.thread, SPHERE_PATH).unwrap();
 
-    ensure_drawable(&mut wire_model.meshes_mut()[0]);
-    ensure_drawable(&mut main_model.meshes_mut()[0]);
-    ensure_drawable(&mut inverted_hull_model.meshes_mut()[0]);
     reverse_vertex_winding(&mut inverted_hull_model.meshes_mut()[0]);
 
     let mesh_samples = collect_deformed_mesh_samples(&mut render);

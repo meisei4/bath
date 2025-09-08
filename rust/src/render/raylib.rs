@@ -338,7 +338,7 @@ impl Renderer for RaylibRenderer {
             // ffi::rlTexCoord2f(0.0, 1.0);
             // ffi::rlVertex3f(0.0, height, 0.0);
 
-            //BLACK FACE CULLING??? WHAT??
+            //BLACK triangle CULLING??? WHAT??
             // ffi::rlTexCoord2f(0.0, 1.0);
             // ffi::rlVertex3f(0.0, height, 0.0);
             // ffi::rlTexCoord2f(1.0, 1.0);
