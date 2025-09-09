@@ -3,15 +3,11 @@ use crate::render::raylib::RaylibRenderer;
 use raylib::color::Color;
 use raylib::drawing::{RaylibDraw3D, RaylibDrawHandle, RaylibMode3D};
 use raylib::ffi::rlCullMode::{RL_CULL_FACE_BACK, RL_CULL_FACE_FRONT};
-use raylib::ffi::{
-    rlDisableDepthMask, rlEnableDepthMask, rlSetCullFace, RL_DEFAULT_SHADER_ATTRIB_LOCATION_COLOR,
-    RL_DEFAULT_SHADER_ATTRIB_LOCATION_POSITION,
-};
+use raylib::ffi::{rlDisableDepthMask, rlEnableDepthMask, rlSetCullFace};
 use raylib::math::glam::Vec3;
 use raylib::math::{Vector2, Vector3};
 use raylib::models::{Mesh, Model, RaylibMesh, RaylibModel, WeakMesh};
 use std::f32::consts::TAU;
-use std::slice::from_raw_parts;
 
 pub const MODEL_POS: Vector3 = Vector3::ZERO;
 // pub const SCALE_TWEAK: f32 = 0.66;
@@ -140,10 +136,6 @@ pub fn interpolate_between_deformed_vertices(model: &mut Model, i_time: f32, ver
         dst_vertex.y = src_vertex.y * (1.0 - weight) + next_vertex.y * weight;
         dst_vertex.z = src_vertex.z * (1.0 - weight) + next_vertex.z * weight;
     }
-    unsafe {
-        let vertex_data = from_raw_parts(vertices.as_ptr() as *const u8, vertices.len() * size_of::<Vector3>());
-        target_mesh.update_buffer(RL_DEFAULT_SHADER_ATTRIB_LOCATION_POSITION as i32, vertex_data, 0);
-    }
 }
 
 pub fn interpolate_between_radial_field_elements(sample_x: f32, sample_y: f32, radial_field: &[f32]) -> f32 {
@@ -210,20 +202,6 @@ pub fn rotate_inverted_hull(
         .ensure_colors() //TODO: this is absurd, it demonstrates though that raylib c will auto fill colors during the obj load i think??
         .unwrap()
         .copy_from_slice(&alpha_faded_colors);
-    //TODO: why dont i have to call this shit before and it would work though... does upload mesh or upload buffer even matter im so confused
-
-    unsafe {
-        let vertex_data = from_raw_parts(
-            expanded_vertices.as_ptr() as *const u8,
-            expanded_vertices.len() * size_of::<Vector3>(),
-        );
-        inverted_hull_mesh.update_buffer(RL_DEFAULT_SHADER_ATTRIB_LOCATION_POSITION as i32, vertex_data, 0);
-        let color_data = from_raw_parts(
-            alpha_faded_colors.as_ptr() as *const u8,
-            alpha_faded_colors.len() * size_of::<Color>(),
-        );
-        inverted_hull_mesh.update_buffer(RL_DEFAULT_SHADER_ATTRIB_LOCATION_COLOR as i32, color_data, 0);
-    }
 }
 
 pub fn draw_inverted_hull_guassian_silhouette_stack(

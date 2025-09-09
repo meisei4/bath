@@ -14,9 +14,9 @@ use raylib::color::Color;
 use raylib::consts::CameraProjection;
 use raylib::consts::MaterialMapIndex::MATERIAL_MAP_ALBEDO;
 use raylib::drawing::{RaylibDraw, RaylibDraw3D, RaylibMode3DExt};
+use raylib::ffi::{rlSetLineWidth, rlSetPointSize};
 use raylib::math::Vector3;
 use raylib::models::{RaylibMaterial, RaylibMesh, RaylibModel};
-use std::ptr::null_mut;
 
 fn main() {
     let mut i_time = 0.0f32;
@@ -29,16 +29,9 @@ fn main() {
         fovy: FOVY,
         projection: CameraProjection::CAMERA_ORTHOGRAPHIC,
     };
-
-    let mut wire_model = render.handle.load_model(&render.thread, SPHERE_PATH).unwrap();
-    wire_model.meshes_mut()[0].colors = null_mut();
-    // wire_model.meshes_mut()[0].ensure_colors().unwrap();
-
     let mut main_model = render.handle.load_model(&render.thread, SPHERE_PATH).unwrap();
-    // let mut inverted_hull = render.handle.load_model(&render.thread, SPHERE_PATH).unwrap();
     let mut inverted_hull = build_inverted_hull(&mut render, &main_model);
     let mesh_samples = collect_deformed_vertex_samples(main_model.meshes()[0].vertices());
-    interpolate_between_deformed_vertices(&mut wire_model, i_time, &mesh_samples);
     interpolate_between_deformed_vertices(&mut main_model, i_time, &mesh_samples);
     let mut silhouette_img = generate_silhouette_texture(N64_WIDTH, N64_WIDTH);
     dither(&mut silhouette_img);
@@ -53,7 +46,6 @@ fn main() {
     while !render.handle.window_should_close() {
         i_time += render.handle.get_frame_time();
         mesh_rotation -= ANGULAR_VELOCITY * render.handle.get_frame_time();
-        interpolate_between_deformed_vertices(&mut wire_model, i_time, &mesh_samples);
         interpolate_between_deformed_vertices(&mut main_model, i_time, &mesh_samples);
         rotate_inverted_hull(&main_model, &mut inverted_hull, observed_los, mesh_rotation);
         let mut draw_handle = render.handle.begin_drawing(&render.thread);
@@ -65,16 +57,25 @@ fn main() {
                 Vector3::Y,
                 mesh_rotation.to_degrees(),
                 MODEL_SCALE * SCALE_TWEAK,
-                Color::WHITE,
+                Color::BLUE,
             );
-            //TODO: THIS WILL NOT WORK BECAUSE COLOR IS ALREADY SET TO WHITE FOR THE MAIN MODEL WHEN THE OBJ IS LOADED
+            unsafe { rlSetLineWidth(5.0) };
             rl3d.draw_model_wires_ex(
                 &main_model,
                 MODEL_POS,
                 Vector3::Y,
                 mesh_rotation.to_degrees(),
                 MODEL_SCALE * SCALE_TWEAK,
-                Color::BLACK,
+                Color::RED,
+            );
+            unsafe { rlSetPointSize(20.0) };
+            rl3d.draw_model_points_ex(
+                &main_model,
+                MODEL_POS,
+                Vector3::Y,
+                mesh_rotation.to_degrees(),
+                MODEL_SCALE * SCALE_TWEAK,
+                Color::GREEN,
             );
             draw_inverted_hull_guassian_silhouette_stack(&mut rl3d, &inverted_hull, mesh_rotation);
         });
@@ -88,9 +89,9 @@ fn main() {
             .back_triangles()
             .silhouette_triangles()
             .build();
+        // if let Some(triangle_set) = topology.front_triangles.as_ref() {
+        // if let Some(triangle_set) = topology.back_triangles.as_ref() {
         if let Some(triangle_set) = topology.silhouette_triangles_snapshot.as_ref() {
-            // if let Some(triangle_set) = topology.front_triangles.as_ref() {
-            // if let Some(triangle_set) = topology.back_triangles.as_ref() {
             debug_draw_triangles(
                 main_observer,
                 &mut draw_handle,

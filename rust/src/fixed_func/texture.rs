@@ -8,7 +8,7 @@ use raylib::camera::Camera3D;
 use raylib::color::Color;
 use raylib::consts::PixelFormat::PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
 use raylib::drawing::{RaylibDraw, RaylibDrawHandle};
-use raylib::ffi::{rlReadScreenPixels, MemFree, RL_DEFAULT_SHADER_ATTRIB_LOCATION_TEXCOORD};
+use raylib::ffi::{rlReadScreenPixels, MemFree};
 use raylib::math::{Rectangle, Vector2};
 use raylib::models::{Model, RaylibMesh, RaylibModel};
 use raylib::prelude::{Image, WeakTexture2D};
@@ -16,7 +16,7 @@ use raylib::texture::RaylibTexture2D;
 use std::f32::consts::TAU;
 use std::ffi::c_void;
 use std::ptr::copy_nonoverlapping;
-use std::slice::{from_raw_parts, from_raw_parts_mut};
+use std::slice::from_raw_parts_mut;
 
 //TODO: oh my god is this actually making that umbral mask texture by accidentally failing to make a front face only alpha radial feather??
 pub fn generate_silhouette_texture(texture_w: i32, texture_h: i32) -> Image {
@@ -100,10 +100,10 @@ pub fn rotate_silhouette_texture(model: &mut Model, observer: &Camera3D, mesh_ro
         texcoords[vertex_index].x = s;
         texcoords[vertex_index].y = t;
     }
-    unsafe {
-        let texcoord_data = from_raw_parts(texcoords.as_ptr() as *const u8, texcoords.len() * size_of::<Vector2>());
-        mesh.update_buffer(RL_DEFAULT_SHADER_ATTRIB_LOCATION_TEXCOORD as i32, texcoord_data, 0);
-    }
+    // unsafe {
+    // let texcoord_data = from_raw_parts(texcoords.as_ptr() as *const u8, texcoords.len() * size_of::<Vector2>());
+    // mesh.update_buffer(RL_DEFAULT_SHADER_ATTRIB_LOCATION_TEXCOORD as i32, texcoord_data, 0);
+    // }
 }
 
 const BAYER_SIZE: usize = 8;

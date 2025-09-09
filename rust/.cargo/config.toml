@@ -7,6 +7,9 @@
 #TODO: hack for opengl_11 at this level or the build.rs level
 #rustflags = ["-C", "link-args=-lGL"]
 
+#[env]
+##BINDGEN_EXTRA_CLANG_ARGS_x86_64-unknown-linux-gnu = "-I/home/adduser/raylib/src"
+
 [target.x86_64-apple-darwin]
 # on mac:
 #cargo build --lib --release
