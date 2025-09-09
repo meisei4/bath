@@ -60,7 +60,8 @@ pub fn happo_giri_draw(
         }
 
         draw_handle.draw_mode3D(cameras[view_index], |mut rl3d| {
-            rl3d.draw_model_ex(
+            // rl3d.draw_model_ex(
+            rl3d.draw_model_wires_ex(
                 target_model,
                 MODEL_POS,
                 Vector3::Y,

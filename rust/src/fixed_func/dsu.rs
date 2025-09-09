@@ -53,11 +53,11 @@ pub struct ParentLink {
 }
 
 pub fn build_dual_graph(welded_mesh: &WeldedMesh) -> Vec<DualEdge> {
-    let triangle_count = welded_mesh.welded_triangles.len();
+    let triangle_count = welded_mesh.welded_vertices_per_triangle.len();
     let mut welded_edge_to_parent: HashMap<WeldedEdge, (usize, (u8, u8))> = HashMap::new();
     let mut dual_graph = Vec::new();
     for triangle in 0..triangle_count {
-        let [welded_vertex_a, welded_vertex_b, welded_vertex_c] = welded_mesh.welded_triangles[triangle];
+        let [welded_vertex_a, welded_vertex_b, welded_vertex_c] = welded_mesh.welded_vertices_per_triangle[triangle];
         let local_edges = [(0u8, 1u8), (1, 2), (2, 0)];
         let welded_vertices = [welded_vertex_a, welded_vertex_b, welded_vertex_c];
         for &(point_a, point_b) in &local_edges {

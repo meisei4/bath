@@ -1,11 +1,14 @@
 use asset_payload::SPHERE_PATH;
 use bath::fixed_func::silhouette::{
-    collect_deformed_mesh_samples, draw_inverted_hull_guassian_silhouette_stack, interpolate_between_deformed_meshes,
-    rotate_inverted_hull, FOVY,
+    collect_deformed_vertex_samples, draw_inverted_hull_guassian_silhouette_stack,
+    interpolate_between_deformed_vertices, rotate_inverted_hull, FOVY,
 };
 use bath::fixed_func::silhouette::{ANGULAR_VELOCITY, MODEL_POS, MODEL_SCALE, SCALE_TWEAK};
-use bath::fixed_func::texture::{dither, generate_silhouette_texture, DitherStaging};
-use bath::fixed_func::topology::{observed_line_of_sight, reverse_vertex_winding};
+use bath::fixed_func::texture::{
+    dither, generate_silhouette_texture, rotate_silhouette_texture, rotate_silhouette_texture_dither,
+    screen_pass_dither, ScreenPassDither,
+};
+use bath::fixed_func::topology::observed_line_of_sight;
 use bath::render::raylib::RaylibRenderer;
 use bath::render::raylib_util::N64_WIDTH;
 use bath::render::renderer::Renderer;
@@ -17,7 +20,7 @@ use raylib::consts::PixelFormat::PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
 use raylib::drawing::{RaylibDraw, RaylibDraw3D, RaylibMode3DExt};
 use raylib::ffi::{rlDisableDepthMask, rlEnableDepthMask};
 use raylib::math::Vector3;
-use raylib::models::{RaylibMaterial, RaylibModel};
+use raylib::models::{RaylibMaterial, RaylibMesh, RaylibModel};
 use raylib::texture::Image;
 
 fn main() {
@@ -36,15 +39,12 @@ fn main() {
     let mut main_model = render.handle.load_model(&render.thread, SPHERE_PATH).unwrap();
     let mut inverted_hull = render.handle.load_model(&render.thread, SPHERE_PATH).unwrap();
 
-    reverse_vertex_winding(&mut inverted_hull.meshes_mut()[0]);
-
-    let mesh_samples = collect_deformed_mesh_samples(&mut render);
-    interpolate_between_deformed_meshes(&mut wire_model, i_time, &mesh_samples);
-    interpolate_between_deformed_meshes(&mut main_model, i_time, &mesh_samples);
-    // let mut silhouette_img = generate_silhouette_texture(128, 128);
-    let mut silhouette_img =
-        generate_silhouette_texture(render.handle.get_screen_width(), render.handle.get_screen_height());
+    let mesh_samples = collect_deformed_vertex_samples(main_model.meshes()[0].vertices());
+    interpolate_between_deformed_vertices(&mut wire_model, i_time, &mesh_samples);
+    interpolate_between_deformed_vertices(&mut main_model, i_time, &mesh_samples);
     // let mut silhouette_img = build_stipple_atlas_rgba();
+    // let mut silhouette_img = generate_silhouette_texture(128, 128);
+    let mut silhouette_img = generate_silhouette_texture(N64_WIDTH, N64_WIDTH);
     dither(&mut silhouette_img);
     let mut blank_image = Image::gen_image_color(
         render.handle.get_screen_width(),
@@ -59,7 +59,7 @@ fn main() {
             .expect("load_texture_from_image failed")
             .make_weak()
     };
-    let mut dither_staging = DitherStaging {
+    let mut dither_staging = ScreenPassDither {
         blit_texture,
         is_initialized: true,
         staging_rgba_bytes: Vec::new(),
@@ -73,29 +73,20 @@ fn main() {
     while !render.handle.window_should_close() {
         i_time += render.handle.get_frame_time();
         mesh_rotation -= ANGULAR_VELOCITY * render.handle.get_frame_time();
-        interpolate_between_deformed_meshes(&mut wire_model, i_time, &mesh_samples);
-        interpolate_between_deformed_meshes(&mut main_model, i_time, &mesh_samples);
-        // apply_umbral_mask_alpha_from_uv(&mut main_model, i_time);
+        interpolate_between_deformed_vertices(&mut wire_model, i_time, &mesh_samples);
+        interpolate_between_deformed_vertices(&mut main_model, i_time, &mesh_samples);
         rotate_inverted_hull(&main_model, &mut inverted_hull, observed_los, mesh_rotation);
-        // rotate_silhouette_texture(&mut main_model, &main_observer, mesh_rotation);
-        // rotate_silhouette_texture_dither(
-        //     &mut main_model,
-        //     &main_observer,
-        //     mesh_rotation,
-        //     render.handle.get_screen_width(),
-        //     render.handle.get_screen_height(),
-        // );
-        // rotate_silhouette_texture_stipple_screen_locked(
-        //     &mut main_model,
-        //     &main_observer,
-        //     mesh_rotation,
-        //     render.handle.get_screen_width(),
-        //     render.handle.get_screen_height(),
-        // );
+        rotate_silhouette_texture(&mut main_model, &main_observer, mesh_rotation);
+        rotate_silhouette_texture_dither(
+            &mut main_model,
+            &main_observer,
+            mesh_rotation,
+            render.handle.get_screen_width(),
+            render.handle.get_screen_height(),
+        );
         let mut draw_handle = render.handle.begin_drawing(&render.thread);
         draw_handle.clear_background(Color::BLACK);
         draw_handle.draw_mode3D(main_observer, |mut rl3d| {
-            // draw_inverted_hull_guassian_silhouette_stack(&mut rl3d, &inverted_hull, mesh_rotation);
             rl3d.draw_model_ex(
                 &main_model,
                 MODEL_POS,
@@ -120,29 +111,6 @@ fn main() {
                 rlEnableDepthMask();
             }
         });
-
-        // let mut topology = topology_init(&main_model.meshes_mut()[0]);
-        // collect_welded_triangles(&mut topology);
-        // collect_neighbors(&mut topology);
-        // collect_front_triangles(
-        //     &mut topology,
-        //     &wire_model.meshes_mut()[0],
-        //     mesh_rotation,
-        //     &main_observer,
-        // );
-        // collect_back_triangles(&mut topology);
-        // collect_silhouette_triangles(&mut topology);
-        // if let Some(silhouette_triangles) = &topology.silhouette_triangles {
-        //     debug_draw_triangles(
-        //         main_observer,
-        //         &mut draw_handle,
-        //         &wire_model.meshes_mut()[0],
-        //         mesh_rotation,
-        //         silhouette_triangles,
-        //         Some(Color::new(255, 32, 32, 90)),
-        //         true,
-        //     );
-        // }
-        // screen_pass_dither(&mut draw_handle, &mut dither_staging);
+        screen_pass_dither(&mut draw_handle, &mut dither_staging);
     }
 }

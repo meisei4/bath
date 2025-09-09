@@ -1,7 +1,7 @@
 use crate::fixed_func::dsu::{build_dual_graph, build_parent_tree, collect_subtree_triangles, ParentLink};
 use crate::fixed_func::topology::{
-    build_weld_view, edge_opposing_vertex, lift_dimension, rotate_point_about_axis, triangle_normal, welded_eq,
-    Topology, WeldedEdge, WeldedMesh, WeldedVertex,
+    edge_opposing_vertex, lift_dimension, rotate_point_about_axis, triangle_normal, welded_eq, Topology, WeldedEdge,
+    WeldedMesh, WeldedVertex,
 };
 use raylib::math::glam::{Vec2, Vec3};
 use raylib::math::{Vector2, Vector3};
@@ -126,18 +126,20 @@ fn apply_hinge_rotation_with_equation(
 fn prepare_mesh_for_folding(
     mesh: &mut WeakMesh,
 ) -> (WeldedMesh, Vec<ParentLink>, Vec<Vec<usize>>, Vec<[Vec3; 3]>, Vec<usize>) {
-    let mut topology = Topology::build_topology(mesh)
-        .collect_triangles()
-        .collect_welded_triangles()
-        .collect_neighbors()
-        .build();
-    let welded_mesh = build_weld_view(&mut topology, mesh);
-    let triangle_count = welded_mesh.welded_triangles.len();
+    let welded_mesh = Topology::build_topology(mesh)
+        .welded_vertices()
+        .triangles()
+        .welded_vertices_per_triangle()
+        .neighbors_per_triangle()
+        .vertices_per_triangle()
+        .texcoords_per_triangle()
+        .build_welded_mesh();
+    let triangle_count = welded_mesh.welded_vertices_per_triangle.len();
     let mut dual_graph = build_dual_graph(&welded_mesh);
     let (parent_links, children_triangles) = build_parent_tree(triangle_count, &mut dual_graph);
     let mut local_vertices_per_triangle = Vec::with_capacity(triangle_count);
     for triangle_index in 0..triangle_count {
-        let [vertex_a, vertex_b, vertex_c] = welded_mesh.original_vertices[triangle_index];
+        let [vertex_a, vertex_b, vertex_c] = welded_mesh.vertices_per_triangle[triangle_index];
         local_vertices_per_triangle.push(derive_local_plane_vertices(vertex_a, vertex_b, vertex_c));
     }
 
@@ -149,7 +151,7 @@ fn prepare_mesh_for_folding(
         }
         unfolded_triangles[triangle] = anchor_welded_triangle(
             local_vertices_per_triangle[triangle],
-            &welded_mesh.welded_triangles[triangle],
+            &welded_mesh.welded_vertices_per_triangle[triangle],
         );
         is_already_unfolded[triangle] = true;
         let mut triangle_stack = vec![triangle];
@@ -161,9 +163,9 @@ fn prepare_mesh_for_folding(
                 let parent_link = parent_links[child_triangle];
                 let aligned_child = align_child_to_parent(
                     &local_vertices_per_triangle[child_triangle],
-                    &welded_mesh.welded_triangles[child_triangle],
+                    &welded_mesh.welded_vertices_per_triangle[child_triangle],
                     &unfolded_triangles[parent_triangle],
-                    &welded_mesh.welded_triangles[parent_triangle],
+                    &welded_mesh.welded_vertices_per_triangle[parent_triangle],
                     parent_link.parent_local_edge.unwrap(),
                     parent_link.child_local_edge.unwrap(),
                     parent_link.welded_edge.unwrap(),
@@ -243,12 +245,12 @@ fn build_unfolded_mesh(
         for vertex_index in 0..3 {
             let vertex = unfolded_triangles[triangle][vertex_index];
             vertices.push(Vector3::new(vertex.x, vertex.y, vertex.z));
-            let texcoord = welded_mesh.texcoords[triangle][vertex_index];
+            let texcoord = welded_mesh.texcoords_per_triangle[triangle][vertex_index];
             texcoords.push(Vector2::new(texcoord.x, texcoord.y));
             indices.push((vertices.len() - 1) as u16);
         }
     }
-    Mesh::gen_mesh(&vertices)
+    Mesh::init_mesh(&vertices)
         .texcoords(&texcoords)
         .indices(&indices)
         .build(_thread_borrow)
@@ -359,9 +361,7 @@ pub fn anchor_welded_triangle(triangle: [Vec2; 3], welded_triangle: &[WeldedVert
     if ab_x_magnitude <= 0.0 {
         return triangle;
     }
-    //TODO: why not normalize this instead???? im confused now again jesus
     let x_axis = ab.normalize_or_zero();
-    // TODO: this is not perfect?
     let perpendicular_rotation = Vec2::new((PI * 0.5).cos(), 1.0);
     let y_axis = x_axis.rotate(perpendicular_rotation);
     // let y_axis = Vec2::new(-x_axis.y, x_axis.x);
@@ -385,8 +385,8 @@ pub fn signed_dihedral_between(
     parent_edge_local: (u8, u8),
     welded: &WeldedMesh,
 ) -> f32 {
-    let [parent_a_world, parent_b_world, parent_c_world] = welded.original_vertices[parent_id];
-    let [child_a, child_b, child_c] = welded.original_vertices[child_id];
+    let [parent_a_world, parent_b_world, parent_c_world] = welded.vertices_per_triangle[parent_id];
+    let [child_a, child_b, child_c] = welded.vertices_per_triangle[child_id];
     let parent_triangle_normal = triangle_normal(parent_a_world, parent_b_world, parent_c_world);
     let child_triangle_normal = triangle_normal(child_a, child_b, child_c);
     let parent_triangle_world = [parent_a_world, parent_b_world, parent_c_world];
@@ -411,7 +411,7 @@ pub fn align_to_original_pose(unfolded_triangles_lifted: &mut [[Vec3; 3]], welde
     let unfolded_z_axis = triangle_normal(unfolded_a, unfolded_b, unfolded_c);
     let unfolded_y_axis = unfolded_z_axis.cross(unfolded_x_axis).normalize_or_zero();
 
-    let [folded_a, folded_b, folded_c] = welded_mesh.original_vertices[root];
+    let [folded_a, folded_b, folded_c] = welded_mesh.vertices_per_triangle[root];
     let folded_x_axis = (folded_b - folded_a).normalize_or_zero();
     let folded_z_axis = triangle_normal(folded_a, folded_b, folded_c);
     let folded_y_axis = folded_z_axis.cross(folded_x_axis).normalize_or_zero();
