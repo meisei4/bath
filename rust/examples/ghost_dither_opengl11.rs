@@ -47,7 +47,7 @@ fn main() {
         i_time += render.handle.get_frame_time();
         mesh_rotation -= ANGULAR_VELOCITY * render.handle.get_frame_time();
         interpolate_between_deformed_vertices(&mut main_model, i_time, &mesh_samples);
-        rotate_inverted_hull(&main_model, &mut inverted_hull, observed_los, mesh_rotation);
+        rotate_inverted_hull(&main_model.meshes()[0], &mut inverted_hull, observed_los, mesh_rotation);
         let mut draw_handle = render.handle.begin_drawing(&render.thread);
         draw_handle.clear_background(Color::BLACK);
         draw_handle.draw_mode3D(main_observer, |mut rl3d| {
@@ -100,6 +100,7 @@ fn main() {
                 &triangle_set,
                 Some(Color::new(255, 32, 32, 90)),
                 true,
+                12,
             );
         }
     }

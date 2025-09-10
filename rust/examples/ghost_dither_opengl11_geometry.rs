@@ -77,6 +77,7 @@ fn main() {
             &triangle_set,
             None,
             true,
+            12,
         );
     }
 }

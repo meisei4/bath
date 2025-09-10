@@ -164,15 +164,13 @@ pub fn build_inverted_hull(render: &mut RaylibRenderer, model: &Model) -> Model 
 }
 
 pub fn rotate_inverted_hull(
-    model: &Model,
+    mesh: &WeakMesh,
     inverted_hull: &mut Model,
     observed_line_of_sight: Vec3,
     mesh_rotation: f32,
 ) {
     let line_of_sight = rotate_point_about_axis(-observed_line_of_sight, (Vector3::ZERO, Vector3::Y), -mesh_rotation);
-    let mesh = &model.meshes()[0];
     let inverted_hull_mesh = &mut inverted_hull.meshes_mut()[0];
-
     let vertices = mesh.vertices();
     let vertex_count = vertices.len();
     let topology = Topology::build_topology(mesh)

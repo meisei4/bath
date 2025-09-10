@@ -1,6 +1,6 @@
 use asset_payload::SPHERE_PATH;
 use bath::fixed_func::silhouette::{
-    collect_deformed_vertex_samples, draw_inverted_hull_guassian_silhouette_stack,
+    build_inverted_hull, collect_deformed_vertex_samples, draw_inverted_hull_guassian_silhouette_stack,
     interpolate_between_deformed_vertices, rotate_inverted_hull, FOVY,
 };
 use bath::fixed_func::silhouette::{ANGULAR_VELOCITY, MODEL_POS, MODEL_SCALE, SCALE_TWEAK};
@@ -35,12 +35,9 @@ fn main() {
         projection: CameraProjection::CAMERA_ORTHOGRAPHIC,
     };
 
-    let mut wire_model = render.handle.load_model(&render.thread, SPHERE_PATH).unwrap();
     let mut main_model = render.handle.load_model(&render.thread, SPHERE_PATH).unwrap();
-    let mut inverted_hull = render.handle.load_model(&render.thread, SPHERE_PATH).unwrap();
-
+    let mut inverted_hull = build_inverted_hull(&mut render, &main_model);
     let mesh_samples = collect_deformed_vertex_samples(main_model.meshes()[0].vertices());
-    interpolate_between_deformed_vertices(&mut wire_model, i_time, &mesh_samples);
     interpolate_between_deformed_vertices(&mut main_model, i_time, &mesh_samples);
     // let mut silhouette_img = build_stipple_atlas_rgba();
     // let mut silhouette_img = generate_silhouette_texture(128, 128);
@@ -73,9 +70,8 @@ fn main() {
     while !render.handle.window_should_close() {
         i_time += render.handle.get_frame_time();
         mesh_rotation -= ANGULAR_VELOCITY * render.handle.get_frame_time();
-        interpolate_between_deformed_vertices(&mut wire_model, i_time, &mesh_samples);
         interpolate_between_deformed_vertices(&mut main_model, i_time, &mesh_samples);
-        rotate_inverted_hull(&main_model, &mut inverted_hull, observed_los, mesh_rotation);
+        rotate_inverted_hull(&main_model.meshes()[0], &mut inverted_hull, observed_los, mesh_rotation);
         rotate_silhouette_texture(&mut main_model, &main_observer, mesh_rotation);
         rotate_silhouette_texture_dither(
             &mut main_model,
@@ -96,7 +92,7 @@ fn main() {
                 Color::WHITE,
             );
             rl3d.draw_model_wires_ex(
-                &wire_model,
+                &main_model,
                 MODEL_POS,
                 Vector3::Y,
                 mesh_rotation.to_degrees(),

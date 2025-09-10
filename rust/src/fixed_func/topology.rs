@@ -434,6 +434,7 @@ pub fn debug_draw_triangles(
     triangle_set: &HashSet<usize>,
     fill_color: Option<Color>,
     label: bool,
+    font_size: i32,
 ) {
     let vertices_per_triangle_snapshot = topology
         .vertices_per_triangle_snapshot
@@ -469,7 +470,7 @@ pub fn debug_draw_triangles(
             let centroid = (vertex_a + vertex_b + vertex_c) / 3.0;
             let sx = ((centroid.x) * 0.5 + 0.5) * screen_w;
             let sy = ((-centroid.y) * 0.5 + 0.5) * screen_h;
-            draw_handle.draw_text(&triangle_id.to_string(), sx as i32, sy as i32, 12, Color::WHITE);
+            draw_handle.draw_text(&triangle_id.to_string(), sx as i32, sy as i32, font_size, Color::WHITE);
         }
     }
 }
