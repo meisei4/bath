@@ -1,7 +1,8 @@
 use crate::fixed_func::silhouette::{
     add_phase, rotate_vertices, smoothstep, spatial_phase, temporal_phase, uv_to_grid_space, ALPHA_FADE_RAMP_MAX,
-    ALPHA_FADE_RAMP_MIN, DITHER_BLEND_FACTOR, DITHER_TEXTURE_SCALE, FOVY, UMBRAL_MASK_CENTER, UMBRAL_MASK_FADE_BAND,
-    UMBRAL_MASK_INNER_RADIUS, UMBRAL_MASK_OFFSET_X, UMBRAL_MASK_OFFSET_Y, UMBRAL_MASK_OUTER_RADIUS,
+    ALPHA_FADE_RAMP_MIN, DITHER_BLEND_FACTOR, DITHER_TEXTURE_SCALE, FOVY_ORTHOGRAPHIC, UMBRAL_MASK_CENTER,
+    UMBRAL_MASK_FADE_BAND, UMBRAL_MASK_INNER_RADIUS, UMBRAL_MASK_OFFSET_X, UMBRAL_MASK_OFFSET_Y,
+    UMBRAL_MASK_OUTER_RADIUS,
 };
 use crate::fixed_func::topology::{observed_line_of_sight, Topology};
 use raylib::camera::Camera3D;
@@ -60,7 +61,7 @@ pub fn rotate_silhouette_texture_dither(
     let observed_line_of_sight = observed_line_of_sight(observer);
     let vertex_count = mesh.vertexCount as usize;
     let texcoords = mesh.ensure_texcoords().unwrap();
-    let world_to_pixels = screen_h as f32 / FOVY;
+    let world_to_pixels = screen_h as f32 / FOVY_ORTHOGRAPHIC;
     for i in 0..vertex_count {
         let vertex = vertices[i];
         let vertex_normal = smooth_vertex_normals[i];

@@ -1,13 +1,13 @@
 use asset_payload::SPHERE_PATH;
 use bath::fixed_func::happo_giri_observer::{happo_giri_draw, happo_giri_setup};
-use bath::fixed_func::silhouette::{build_inverted_hull, FOVY};
+use bath::fixed_func::silhouette::{build_inverted_hull, FOVY_PERSPECTIVE};
 use bath::fixed_func::silhouette::{
     collect_deformed_vertex_samples, interpolate_between_deformed_vertices, rotate_inverted_hull, ANGULAR_VELOCITY,
 };
 use bath::fixed_func::texture::{dither, generate_silhouette_texture};
 use bath::fixed_func::topology::observed_line_of_sight;
 use bath::render::raylib::RaylibRenderer;
-use bath::render::raylib_util::{N64_HEIGHT, N64_WIDTH};
+use bath::render::raylib_util::N64_WIDTH;
 use bath::render::renderer::Renderer;
 use raylib::camera::Camera3D;
 use raylib::consts::CameraProjection;
@@ -19,13 +19,20 @@ use raylib::models::{RaylibMaterial, RaylibMesh, RaylibModel};
 fn main() {
     let mut i_time = 0.0f32;
     let mut mesh_rotation = 0.0f32;
-    let mut render = RaylibRenderer::init(N64_WIDTH * 2, N64_HEIGHT * 2);
+    let mut render = RaylibRenderer::init(N64_WIDTH * 2, N64_WIDTH);
+    // let main_observer = Camera3D {
+    //     position: Vector3::new(0.0, 0.0, 2.0),
+    //     target: Vector3::ZERO,
+    //     up: Vector3::Y,
+    //     fovy: FOVY_ORTHOGRAPHIC,
+    //     projection: CameraProjection::CAMERA_ORTHOGRAPHIC,
+    // };
     let main_observer = Camera3D {
         position: Vector3::new(0.0, 0.0, 2.0),
         target: Vector3::ZERO,
         up: Vector3::Y,
-        fovy: FOVY,
-        projection: CameraProjection::CAMERA_ORTHOGRAPHIC,
+        fovy: FOVY_PERSPECTIVE,
+        projection: CameraProjection::CAMERA_PERSPECTIVE,
     };
     let (observers, labels) = happo_giri_setup();
     let mut main_model = render.handle.load_model(&render.thread, SPHERE_PATH).unwrap();

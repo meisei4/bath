@@ -1,7 +1,7 @@
 use asset_payload::SPHERE_PATH;
 use bath::fixed_func::silhouette::{
     build_inverted_hull, collect_deformed_vertex_samples, draw_inverted_hull_guassian_silhouette_stack,
-    interpolate_between_deformed_vertices, rotate_inverted_hull, FOVY,
+    interpolate_between_deformed_vertices, rotate_inverted_hull, FOVY_ORTHOGRAPHIC,
 };
 use bath::fixed_func::silhouette::{ANGULAR_VELOCITY, MODEL_POS, MODEL_SCALE, SCALE_TWEAK};
 use bath::fixed_func::texture::{dither, generate_silhouette_texture};
@@ -26,7 +26,7 @@ fn main() {
         position: Vector3::new(0.0, 0.0, 2.0),
         target: Vector3::ZERO,
         up: Vector3::Y,
-        fovy: FOVY,
+        fovy: FOVY_ORTHOGRAPHIC,
         projection: CameraProjection::CAMERA_ORTHOGRAPHIC,
     };
     let mut main_model = render.handle.load_model(&render.thread, SPHERE_PATH).unwrap();

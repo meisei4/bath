@@ -2,7 +2,7 @@ mod dsu;
 #[cfg(feature = "tests-only")]
 pub mod happo_giri_observer;
 #[cfg(feature = "tests-only")]
-pub mod mesh_features_close_to_upstream;
+pub mod jugemu;
 #[cfg(feature = "tests-only")]
 pub mod papercraft;
 #[cfg(feature = "tests-only")]

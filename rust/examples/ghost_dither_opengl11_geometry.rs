@@ -1,6 +1,6 @@
 use asset_payload::SPHERE_PATH;
 use bath::fixed_func::papercraft::unfold;
-use bath::fixed_func::silhouette::{collect_deformed_vertex_samples, FOVY};
+use bath::fixed_func::silhouette::{collect_deformed_vertex_samples, FOVY_ORTHOGRAPHIC};
 use bath::fixed_func::silhouette::{interpolate_between_deformed_vertices, MODEL_POS, MODEL_SCALE};
 use bath::fixed_func::silhouette::{ANGULAR_VELOCITY, TIME_BETWEEN_SAMPLES};
 use bath::fixed_func::topology::{debug_draw_triangles, Topology};
@@ -23,7 +23,7 @@ fn main() {
         position: Vector3::new(0.0, 0.0, 2.0),
         target: Vector3::ZERO,
         up: Vector3::Y,
-        fovy: FOVY,
+        fovy: FOVY_ORTHOGRAPHIC,
         projection: CameraProjection::CAMERA_ORTHOGRAPHIC,
     };
     let mut main_model = render.handle.load_model(&render.thread, SPHERE_PATH).unwrap();

@@ -61,7 +61,8 @@ pub const ALPHA_FADE_RAMP_MIN: f32 = 0.0;
 pub const ALPHA_FADE_RAMP_MAX: f32 = 0.5;
 pub const ALPHA_FADE_RAMP_STRENGTH: f32 = 1.0;
 
-pub const FOVY: f32 = 2.0;
+pub const FOVY_ORTHOGRAPHIC: f32 = 2.0;
+pub const FOVY_PERSPECTIVE: f32 = 60.0;
 
 pub const GAUSSIAN_ALPHA_FADE_THICKNESS_IN_PIXELS: f32 = 24.0;
 pub const GAUSSIAN_STACK_SIZE: usize = 3;
@@ -234,7 +235,7 @@ pub fn build_gaussian_silhouette_stack(screen_h: i32, max_silhouette_radius: f32
     if GAUSSIAN_STACK_SIZE == 0 {
         return Vec::new();
     }
-    let pixels_to_world = FOVY / screen_h as f32;
+    let pixels_to_world = FOVY_ORTHOGRAPHIC / screen_h as f32;
     let alpha_feather_thickness_in_world = GAUSSIAN_ALPHA_FADE_THICKNESS_IN_PIXELS * pixels_to_world;
     let step_world = alpha_feather_thickness_in_world / GAUSSIAN_STACK_SIZE as f32;
     let pascal = pascal_pass(GAUSSIAN_STACK_SIZE);

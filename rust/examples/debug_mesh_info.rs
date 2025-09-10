@@ -1,6 +1,5 @@
 use asset_payload::SPHERE_PATH;
-use bath::fixed_func::silhouette::FOVY;
-use bath::fixed_func::silhouette::{ANGULAR_VELOCITY, MODEL_POS, MODEL_SCALE, SCALE_TWEAK};
+use bath::fixed_func::silhouette::{ANGULAR_VELOCITY, FOVY_PERSPECTIVE, MODEL_POS, MODEL_SCALE, SCALE_TWEAK};
 use bath::fixed_func::texture::{dither, generate_silhouette_texture};
 use bath::render::raylib::RaylibRenderer;
 use bath::render::raylib_util::N64_WIDTH;
@@ -17,12 +16,19 @@ fn main() {
     let mut i_time = 0.0f32;
     let mut mesh_rotation = 0.0f32;
     let mut render = RaylibRenderer::init(N64_WIDTH, N64_WIDTH);
+    // let main_observer = Camera3D {
+    //     position: Vector3::new(0.0, 0.0, 2.0),
+    //     target: Vector3::ZERO,
+    //     up: Vector3::Y,
+    //     fovy: FOVY_ORTHOGRAPHIC,
+    //     projection: CameraProjection::CAMERA_ORTHOGRAPHIC,
+    // };
     let main_observer = Camera3D {
         position: Vector3::new(0.0, 0.0, 2.0),
         target: Vector3::ZERO,
         up: Vector3::Y,
-        fovy: FOVY,
-        projection: CameraProjection::CAMERA_ORTHOGRAPHIC,
+        fovy: FOVY_PERSPECTIVE,
+        projection: CameraProjection::CAMERA_PERSPECTIVE,
     };
     let mut main_model = render.handle.load_model(&render.thread, SPHERE_PATH).unwrap();
     dump_colors(&main_model.meshes()[0]);
@@ -32,9 +38,7 @@ fn main() {
         .handle
         .load_texture_from_image(&render.thread, &silhouette_img)
         .unwrap();
-    //TODO: figure out how to do this better lmao
     // main_model.materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize].texture = *silhouette_texture;
-    // main_model.meshes_mut()[0].colors = null_mut();
     while !render.handle.window_should_close() {
         i_time += render.handle.get_frame_time();
         mesh_rotation -= ANGULAR_VELOCITY * render.handle.get_frame_time();

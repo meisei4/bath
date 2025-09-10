@@ -468,9 +468,9 @@ pub fn debug_draw_triangles(
             let screen_w = draw_handle.get_screen_width() as f32;
             let screen_h = draw_handle.get_screen_height() as f32;
             let centroid = (vertex_a + vertex_b + vertex_c) / 3.0;
-            let sx = ((centroid.x) * 0.5 + 0.5) * screen_w;
-            let sy = ((-centroid.y) * 0.5 + 0.5) * screen_h;
-            draw_handle.draw_text(&triangle_id.to_string(), sx as i32, sy as i32, font_size, Color::WHITE);
+            let sx = ((centroid.x * 0.5 + 0.5) * screen_w) as i32;
+            let sy = ((-centroid.y * 0.5 + 0.5) * screen_h) as i32;
+            draw_handle.draw_text(&triangle_id.to_string(), sx, sy, font_size, Color::WHITE);
         }
     }
 }
