@@ -13,8 +13,8 @@ use std::f32::consts::TAU;
 pub const MODEL_POS: Vector3 = Vector3::ZERO;
 // pub const SCALE_TWEAK: f32 = 0.66;
 pub const SCALE_TWEAK: f32 = 1.0;
-// pub const MODEL_SCALE: Vector3 = Vector3::ONE;
-pub const MODEL_SCALE: Vector3 = Vector3::new(0.75, 0.75, 0.75);
+pub const MODEL_SCALE: Vector3 = Vector3::ONE;
+// pub const MODEL_SCALE: Vector3 = Vector3::new(0.75, 0.75, 0.75);
 
 pub const HALF: f32 = 0.5;
 pub const GRID_SCALE: f32 = 4.0;
