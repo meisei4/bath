@@ -17,7 +17,6 @@ use raylib::math::Vector3;
 pub const MODEL_POS_BACK: Vector3 = Vector3::new(0.0, 0.0, -2.0);
 
 fn main() {
-    let mut i_time = 0.0f32;
     let mut mesh_rotation = 0.0f32;
     let mut render = RaylibRenderer::init(N64_WIDTH, N64_WIDTH);
 
@@ -47,7 +46,6 @@ fn main() {
     let main_model = render.handle.load_model(&render.thread, SPHERE_PATH).unwrap();
 
     while !render.handle.window_should_close() {
-        i_time += render.handle.get_frame_time();
         mesh_rotation -= ANGULAR_VELOCITY * render.handle.get_frame_time();
 
         let mut draw_handle = render.handle.begin_drawing(&render.thread);

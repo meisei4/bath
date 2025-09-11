@@ -1,4 +1,6 @@
-use crate::fixed_func::silhouette::{FOVY_ORTHOGRAPHIC, MODEL_POS, MODEL_SCALE};
+use crate::fixed_func::silhouette::{
+    draw_inverted_hull_guassian_silhouette_stack, FOVY_ORTHOGRAPHIC, MODEL_POS, MODEL_SCALE,
+};
 use crate::fixed_func::topology::{debug_draw_triangles, Topology};
 use crate::render::raylib::RaylibRenderer;
 use raylib::camera::Camera3D;
@@ -155,11 +157,11 @@ pub fn happo_giri_draw(
                 32,
             );
         }
-        // if let Some(inverted_hull) = inverted_hull {
-        //     draw_handle.draw_mode3D(cameras[view_index], |mut rl3d| {
-        //         draw_inverted_hull_guassian_silhouette_stack(&mut rl3d, inverted_hull, mesh_rotation);
-        //     });
-        // }
+        if let Some(inverted_hull) = inverted_hull {
+            draw_handle.draw_mode3D(cameras[view_index], |mut rl3d| {
+                draw_inverted_hull_guassian_silhouette_stack(&mut rl3d, inverted_hull, mesh_rotation);
+            });
+        }
         unsafe {
             rlViewport(0, 0, screen_w, screen_h);
         }
@@ -186,7 +188,7 @@ pub fn create_camera(x: f32, y: f32, z: f32) -> Camera3D {
     // }
 }
 fn print_matrix_set(tag: &str, m: Matrix) {
-    let a = m.to_array(); 
+    let a = m.to_array();
     eprintln!(
         "{tag} (SET):\n\
          [{:>8.4} {:>8.4} {:>8.4} {:>8.4}]\n\
