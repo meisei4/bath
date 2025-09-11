@@ -1,14 +1,17 @@
+use crate::fixed_func::immediate_mode3d::{cell_viewport, with_immediate_mode3d};
 use crate::fixed_func::silhouette::{
-    draw_inverted_hull_guassian_silhouette_stack, FOVY_ORTHOGRAPHIC, MODEL_POS, MODEL_SCALE,
+    draw_inverted_hull_guassian_silhouette_stack, draw_inverted_hull_guassian_silhouette_stack_immediate,
+    FOVY_ORTHOGRAPHIC, MODEL_POS, MODEL_SCALE,
 };
-use crate::fixed_func::topology::{debug_draw_triangles, Topology};
+use crate::fixed_func::topology::{debug_draw_triangles, debug_draw_triangles_immediate, Topology};
 use crate::render::raylib::RaylibRenderer;
 use raylib::camera::Camera3D;
 use raylib::color::Color;
 use raylib::consts::CameraProjection;
 use raylib::drawing::{RaylibDraw, RaylibDraw3D, RaylibMode3DExt};
 use raylib::ffi::{
-    rlGetMatrixModelview, rlGetMatrixProjection, rlSetMatrixModelview, rlSetMatrixProjection, rlViewport,
+    rlGetMatrixModelview, rlGetMatrixProjection, rlSetLineWidth, rlSetMatrixModelview, rlSetMatrixProjection,
+    rlSetPointSize, rlViewport,
 };
 use raylib::math::{Matrix, Vector3};
 use raylib::models::{Model, RaylibModel};
@@ -38,6 +41,23 @@ pub fn happo_giri_setup() -> (Vec<Camera3D>, Vec<&'static str>) {
         "back-left",
     ];
     (cameras, labels)
+}
+
+pub fn create_camera(x: f32, y: f32, z: f32) -> Camera3D {
+    Camera3D {
+        position: Vector3::new(x, y, z),
+        target: Vector3::ZERO,
+        up: Vector3::Y,
+        fovy: FOVY_ORTHOGRAPHIC,
+        projection: CameraProjection::CAMERA_ORTHOGRAPHIC,
+    }
+    // Camera3D {
+    //     position: Vector3::new(x, y, z),
+    //     target: Vector3::ZERO,
+    //     up: Vector3::Y,
+    //     fovy: FOVY_PERSPECTIVE,
+    //     projection: CameraProjection::CAMERA_PERSPECTIVE,
+    // }
 }
 
 pub fn happo_giri_draw(
@@ -171,22 +191,97 @@ pub fn happo_giri_draw(
     }
 }
 
-pub fn create_camera(x: f32, y: f32, z: f32) -> Camera3D {
-    Camera3D {
-        position: Vector3::new(x, y, z),
-        target: Vector3::ZERO,
-        up: Vector3::Y,
-        fovy: FOVY_ORTHOGRAPHIC,
-        projection: CameraProjection::CAMERA_ORTHOGRAPHIC,
+pub fn happo_giri_draw_immediate(
+    render: &mut RaylibRenderer,
+    cameras: &[Camera3D],
+    labels: &[&'static str],
+    grid_columns: i32,
+    grid_rows: i32,
+    target_model: &Model,
+    inverted_hull: Option<&Model>,
+    mesh_rotation: f32,
+) {
+    let screen_w = render.handle.get_screen_width();
+    let screen_h = render.handle.get_screen_height();
+    let grid_w = screen_w / grid_columns;
+    let grid_h = screen_h / grid_rows;
+    let mut draw_handle = render.handle.begin_drawing(&render.thread);
+    draw_handle.clear_background(Color::BLACK);
+    for view_index in 0..8 {
+        let camera = cameras[view_index];
+        // print_cam("cell camera", &camera);
+        let viewport = cell_viewport(view_index as i32, grid_columns, grid_rows, screen_w, screen_h);
+        unsafe {
+            with_immediate_mode3d(&camera, viewport, 0.01, 1000.0, |rl3d| {
+                rlSetLineWidth(2.0);
+                rl3d.draw_model_ex(
+                    target_model,
+                    MODEL_POS,
+                    Vector3::Y,
+                    mesh_rotation.to_degrees(),
+                    MODEL_SCALE,
+                    Color::BLUE,
+                );
+                rl3d.draw_model_wires_ex(
+                    target_model,
+                    MODEL_POS,
+                    Vector3::Y,
+                    mesh_rotation.to_degrees(),
+                    MODEL_SCALE,
+                    Color::RED,
+                );
+                rlSetPointSize(12.0);
+                rl3d.draw_model_points_ex(
+                    target_model,
+                    MODEL_POS,
+                    Vector3::Y,
+                    mesh_rotation.to_degrees(),
+                    MODEL_SCALE,
+                    Color::GREEN,
+                );
+                if let Some(inverted_hull) = inverted_hull {
+                    draw_inverted_hull_guassian_silhouette_stack_immediate(
+                        rl3d,
+                        inverted_hull,
+                        mesh_rotation,
+                        viewport.h,
+                    );
+                }
+            });
+            let topology = Topology::build_topology(&target_model.meshes()[0])
+                .welded_vertices()
+                .triangles()
+                .welded_vertices_per_triangle()
+                .neighbors_per_triangle()
+                .vertices_per_triangle()
+                .front_triangles(mesh_rotation, &camera)
+                .back_triangles()
+                .silhouette_triangles()
+                .build();
+
+            if let Some(tri_set) = topology.silhouette_triangles_snapshot.as_ref() {
+                debug_draw_triangles_immediate(
+                    &camera,
+                    viewport,
+                    &mut draw_handle, // for 2D text
+                    &topology,
+                    mesh_rotation,
+                    tri_set,
+                    Some(Color::new(255, 32, 32, 90)),
+                    false,
+                    32,
+                );
+            }
+        };
+        unsafe { rlViewport(0, 0, screen_w, screen_h) };
+        let column_index = (view_index as i32) % grid_columns;
+        let row_index = (view_index as i32) / grid_columns;
+        let label_pos_x = column_index * grid_w;
+        let label_pos_y = row_index * grid_h;
+        draw_handle.draw_text(labels[view_index], label_pos_x, label_pos_y, 14, Color::WHITE);
     }
-    // Camera3D {
-    //     position: Vector3::new(x, y, z),
-    //     target: Vector3::ZERO,
-    //     up: Vector3::Y,
-    //     fovy: FOVY_PERSPECTIVE,
-    //     projection: CameraProjection::CAMERA_PERSPECTIVE,
-    // }
 }
+
 fn print_matrix_set(tag: &str, m: Matrix) {
     let a = m.to_array();
     eprintln!(

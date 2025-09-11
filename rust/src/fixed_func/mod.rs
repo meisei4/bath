@@ -1,6 +1,7 @@
 mod dsu;
 #[cfg(feature = "tests-only")]
-pub mod happo_giri_observer;
+pub mod happo_giri;
+mod immediate_mode3d;
 #[cfg(feature = "tests-only")]
 pub mod jugemu;
 #[cfg(feature = "tests-only")]

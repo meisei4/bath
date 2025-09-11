@@ -89,8 +89,6 @@ fn main() {
             .back_triangles()
             .silhouette_triangles()
             .build();
-        // if let Some(triangle_set) = topology.front_triangles.as_ref() {
-        // if let Some(triangle_set) = topology.back_triangles.as_ref() {
         if let Some(triangle_set) = topology.silhouette_triangles_snapshot.as_ref() {
             debug_draw_triangles(
                 main_observer,

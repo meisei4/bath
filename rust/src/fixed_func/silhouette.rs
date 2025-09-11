@@ -1,3 +1,4 @@
+use crate::fixed_func::immediate_mode3d::Immediate3D;
 use crate::fixed_func::topology::{rotate_point_about_axis, Topology};
 use crate::render::raylib::RaylibRenderer;
 use raylib::color::Color;
@@ -12,7 +13,8 @@ use std::f32::consts::TAU;
 pub const MODEL_POS: Vector3 = Vector3::ZERO;
 // pub const SCALE_TWEAK: f32 = 0.66;
 pub const SCALE_TWEAK: f32 = 1.0;
-pub const MODEL_SCALE: Vector3 = Vector3::ONE;
+// pub const MODEL_SCALE: Vector3 = Vector3::ONE;
+pub const MODEL_SCALE: Vector3 = Vector3::new(0.75, 0.75, 0.75);
 
 pub const HALF: f32 = 0.5;
 pub const GRID_SCALE: f32 = 4.0;
@@ -229,6 +231,33 @@ pub fn draw_inverted_hull_guassian_silhouette_stack(
         rlSetCullFace(RL_CULL_FACE_BACK as i32);
         rlEnableDepthMask();
     }
+}
+
+pub unsafe fn draw_inverted_hull_guassian_silhouette_stack_immediate(
+    rl3d: &mut Immediate3D,
+    inverted_hull_model: &Model,
+    mesh_rotation: f32,
+    viewport_h: i32,
+) {
+    let max_r = max_silhouette_radius(&inverted_hull_model.meshes()[0], MODEL_SCALE * SCALE_TWEAK);
+    let gaussian_stack = build_gaussian_silhouette_stack(viewport_h, max_r);
+
+    rlDisableDepthMask();
+    rlSetCullFace(RL_CULL_FACE_FRONT as i32);
+
+    for (scale, alpha) in gaussian_stack {
+        rl3d.draw_model_ex(
+            inverted_hull_model,
+            MODEL_POS,
+            Vector3::Y,
+            mesh_rotation.to_degrees(),
+            MODEL_SCALE * SCALE_TWEAK * 0.82 * scale,
+            Color::new(255, 255, 255, alpha),
+        );
+    }
+
+    rlSetCullFace(RL_CULL_FACE_BACK as i32);
+    rlEnableDepthMask();
 }
 
 pub fn build_gaussian_silhouette_stack(screen_h: i32, max_silhouette_radius: f32) -> Vec<(f32, u8)> {

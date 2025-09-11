@@ -1,3 +1,4 @@
+use crate::fixed_func::immediate_mode3d::{with_immediate_mode3d, Viewport};
 use crate::fixed_func::silhouette::rotate_vertices;
 use raylib::camera::Camera3D;
 use raylib::color::Color;
@@ -463,13 +464,69 @@ pub fn debug_draw_triangles(
         draw_handle.draw_mode3D(observer, |mut rl3d| {
             rl3d.draw_triangle3D(vertex_a, vertex_b, vertex_c, color);
         });
-
+        //TODO: in OpenGL 1.1 context the labels/text will not draw correctly when the viewport/screen is non-square aspect
+        //TODO: something about screen scale and the actual mesh showing up (model scale??)
         if label {
             let screen_w = draw_handle.get_screen_width() as f32;
             let screen_h = draw_handle.get_screen_height() as f32;
             let centroid = (vertex_a + vertex_b + vertex_c) / 3.0;
             let sx = ((centroid.x * 0.5 + 0.5) * screen_w) as i32;
             let sy = ((-centroid.y * 0.5 + 0.5) * screen_h) as i32;
+            draw_handle.draw_text(&triangle_id.to_string(), sx, sy, font_size, Color::WHITE);
+        }
+    }
+}
+
+pub unsafe fn debug_draw_triangles_immediate(
+    observer: &Camera3D,
+    viewport: Viewport,
+    draw_handle: &mut RaylibDrawHandle,
+    topology: &Topology,
+    rotation: f32,
+    triangle_set: &HashSet<usize>,
+    fill_color: Option<Color>,
+    label: bool,
+    font_size: i32,
+) {
+    let vertices_per_triangle_snapshot = topology.vertices_per_triangle_snapshot.as_ref().unwrap();
+    let triangle_count = vertices_per_triangle_snapshot.len();
+
+    with_immediate_mode3d(observer, viewport, 0.01, 1000.0, |rl3d| {
+        for &triangle_id in triangle_set {
+            if triangle_id >= triangle_count {
+                continue;
+            }
+            let [vertex_a, vertex_b, vertex_c] = vertices_per_triangle_snapshot[triangle_id];
+            let mut triangle = vec![vertex_a, vertex_b, vertex_c];
+            rotate_vertices(&mut triangle, rotation);
+            let (a, b, c) = (triangle[0], triangle[1], triangle[2]);
+
+            let color = fill_color.unwrap_or_else(|| {
+                Color::new(
+                    (triangle_id.wrapping_mul(60) & 255) as u8,
+                    (triangle_id.wrapping_mul(120) & 255) as u8,
+                    (triangle_id.wrapping_mul(240) & 255) as u8,
+                    255,
+                )
+            });
+
+            rl3d.draw_triangle3d(a, b, c, color);
+        }
+    });
+
+    if label {
+        for &triangle_id in triangle_set {
+            if triangle_id >= triangle_count {
+                continue;
+            }
+            let [vertex_a, vertex_b, vertex_c] = vertices_per_triangle_snapshot[triangle_id];
+            let mut triangle = vec![vertex_a, vertex_b, vertex_c];
+            rotate_vertices(&mut triangle, rotation);
+            let (a, b, c) = (triangle[0], triangle[1], triangle[2]);
+            let centroid = (a + b + c) / 3.0;
+            let sx = viewport.x + ((centroid.x * 0.5 + 0.5) * viewport.w as f32) as i32;
+            let sy = viewport.y + ((-centroid.y * 0.5 + 0.5) * viewport.h as f32) as i32;
+
             draw_handle.draw_text(&triangle_id.to_string(), sx, sy, font_size, Color::WHITE);
         }
     }

@@ -1,7 +1,7 @@
 use asset_payload::SPHERE_PATH;
 use bath::fixed_func::jugemu::{
-    draw_frustum, draw_near_plane_projection_markers_for_model, draw_observed_axes,
-    project_world_point_to_main_observer_pixels,
+    draw_frustum, draw_near_plane_markers, draw_observed_axes, draw_proxy_near_plane,
+    project_world_to_near_plane_pixels, PROXY_NEAR_PLANE_GRID_STEP_PIXELS, RAY_TO_NDC_MATH_NEAR_PLANE_DISTANCE,
 };
 use bath::fixed_func::silhouette::{ANGULAR_VELOCITY, FOVY_PERSPECTIVE, MODEL_SCALE, SCALE_TWEAK};
 use bath::render::raylib::RaylibRenderer;
@@ -79,7 +79,7 @@ fn main() {
                 near_clip_plane,
                 far_clip_plane,
             );
-            draw_near_plane_projection_markers_for_model(
+            draw_near_plane_markers(
                 &mut rl3d,
                 &main_observer,
                 near_clip_plane,
@@ -87,12 +87,20 @@ fn main() {
                 MODEL_SCALE * SCALE_TWEAK,
                 mesh_rotation,
             );
+            draw_proxy_near_plane(
+                &mut rl3d,
+                &main_observer,
+                main_observer_aspect,
+                near_clip_plane,
+                screen_width_pixels,
+                screen_height_pixels,
+                PROXY_NEAR_PLANE_GRID_STEP_PIXELS,
+            );
         });
-
-        if let Some((pixel_x, pixel_y)) = project_world_point_to_main_observer_pixels(
+        if let Some((pixel_x, pixel_y)) = project_world_to_near_plane_pixels(
             &main_observer,
             main_observer_aspect,
-            near_clip_plane,
+            RAY_TO_NDC_MATH_NEAR_PLANE_DISTANCE, // use constant math-near for ray→NDC→pixel
             screen_width_pixels,
             screen_height_pixels,
             MODEL_POS_BACK,

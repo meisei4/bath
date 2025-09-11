@@ -1,5 +1,5 @@
 use asset_payload::SPHERE_PATH;
-use bath::fixed_func::happo_giri_observer::{happo_giri_draw, happo_giri_setup};
+use bath::fixed_func::happo_giri::{happo_giri_draw_immediate, happo_giri_setup};
 use bath::fixed_func::silhouette::{build_inverted_hull, FOVY_PERSPECTIVE};
 use bath::fixed_func::silhouette::{
     collect_deformed_vertex_samples, interpolate_between_deformed_vertices, rotate_inverted_hull, ANGULAR_VELOCITY,
@@ -12,7 +12,6 @@ use bath::render::renderer::Renderer;
 use raylib::camera::Camera3D;
 use raylib::consts::CameraProjection;
 use raylib::consts::MaterialMapIndex::MATERIAL_MAP_ALBEDO;
-use raylib::ffi::{rlSetLineWidth, rlSetPointSize};
 use raylib::math::Vector3;
 use raylib::models::{RaylibMaterial, RaylibMesh, RaylibModel};
 
@@ -52,9 +51,7 @@ fn main() {
         mesh_rotation -= ANGULAR_VELOCITY * render.handle.get_frame_time();
         interpolate_between_deformed_vertices(&mut main_model, i_time, &mesh_samples);
         rotate_inverted_hull(&main_model.meshes()[0], &mut inverted_hull, observed_los, mesh_rotation);
-        unsafe { rlSetLineWidth(3.0) };
-        unsafe { rlSetPointSize(6.0) };
-        happo_giri_draw(
+        happo_giri_draw_immediate(
             &mut render,
             &observers,
             &labels,
