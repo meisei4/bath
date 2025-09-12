@@ -1,5 +1,5 @@
 use crate::fixed_func::immediate_mode3d::Immediate3D;
-use crate::fixed_func::topology::{rotate_point_about_axis, Topology};
+use crate::fixed_func::topology::{rotate_point_about_axis, rotate_vertices_in_plane, Topology};
 use crate::render::raylib::RaylibRenderer;
 use raylib::color::Color;
 use raylib::drawing::{RaylibDraw3D, RaylibDrawHandle, RaylibMode3D};
@@ -11,8 +11,6 @@ use raylib::models::{Mesh, Model, RaylibMesh, RaylibModel, WeakMesh};
 use std::f32::consts::TAU;
 
 pub const MODEL_POS: Vector3 = Vector3::ZERO;
-// pub const SCALE_TWEAK: f32 = 0.66;
-pub const SCALE_TWEAK: f32 = 1.0;
 pub const MODEL_SCALE: Vector3 = Vector3::ONE;
 // pub const MODEL_SCALE: Vector3 = Vector3::new(0.75, 0.75, 0.75);
 
@@ -88,10 +86,10 @@ pub fn collect_deformed_vertex_samples(base_vertices: &[Vector3]) -> Vec<Vec<Vec
         let sample_time = i as f32 * TIME_BETWEEN_SAMPLES;
         let sample_rotation = -ANGULAR_VELOCITY * sample_time;
         let mut mesh_sample = vertices.to_vec();
-        rotate_vertices(&mut mesh_sample, sample_rotation);
+        rotate_vertices_in_plane(&mut mesh_sample, sample_rotation);
         let radial_field = generate_silhouette_radial_field(sample_time);
         deform_vertices_with_radial_field(&mut mesh_sample, &radial_field);
-        rotate_vertices(&mut mesh_sample, -sample_rotation);
+        rotate_vertices_in_plane(&mut mesh_sample, -sample_rotation);
         mesh_samples.push(mesh_sample);
     }
     mesh_samples
@@ -211,7 +209,7 @@ pub fn draw_inverted_hull_guassian_silhouette_stack(
     mesh_rotation: f32,
 ) {
     let screen_h = rl3d.get_screen_height();
-    let max_silhouette_radius = max_silhouette_radius(&inverted_hull_model.meshes()[0], MODEL_SCALE * SCALE_TWEAK);
+    let max_silhouette_radius = max_silhouette_radius(&inverted_hull_model.meshes()[0], MODEL_SCALE);
     let gaussian_stack = build_gaussian_silhouette_stack(screen_h, max_silhouette_radius);
     unsafe {
         rlDisableDepthMask();
@@ -223,7 +221,7 @@ pub fn draw_inverted_hull_guassian_silhouette_stack(
             MODEL_POS,
             Vector3::Y,
             mesh_rotation.to_degrees(),
-            MODEL_SCALE * SCALE_TWEAK * 0.82 * scale,
+            MODEL_SCALE * 0.82 * scale,
             Color::new(255, 255, 255, alpha),
         );
     }
@@ -239,7 +237,7 @@ pub unsafe fn draw_inverted_hull_guassian_silhouette_stack_immediate(
     mesh_rotation: f32,
     viewport_h: i32,
 ) {
-    let max_r = max_silhouette_radius(&inverted_hull_model.meshes()[0], MODEL_SCALE * SCALE_TWEAK);
+    let max_r = max_silhouette_radius(&inverted_hull_model.meshes()[0], MODEL_SCALE);
     let gaussian_stack = build_gaussian_silhouette_stack(viewport_h, max_r);
 
     rlDisableDepthMask();
@@ -251,7 +249,7 @@ pub unsafe fn draw_inverted_hull_guassian_silhouette_stack_immediate(
             MODEL_POS,
             Vector3::Y,
             mesh_rotation.to_degrees(),
-            MODEL_SCALE * SCALE_TWEAK * 0.82 * scale,
+            MODEL_SCALE * 0.82 * scale,
             Color::new(255, 255, 255, alpha),
         );
     }
@@ -325,15 +323,6 @@ pub fn smoothstep(edge0: f32, edge1: f32, x: f32) -> f32 {
 #[inline]
 pub fn uv_to_grid_space(uv: Vector2) -> Vector2 {
     (uv - GRID_ORIGIN_UV_OFFSET) * GRID_SCALE
-}
-
-#[inline]
-pub fn rotate_vertices(vertices: &mut [Vector3], rotation: f32) {
-    for vertex in vertices {
-        let (x0, z0) = (vertex.x, vertex.z);
-        vertex.x = x0 * rotation.cos() + z0 * rotation.sin();
-        vertex.z = -x0 * rotation.sin() + z0 * rotation.cos();
-    }
 }
 
 #[inline]
@@ -470,9 +459,9 @@ pub fn deform_mesh_from_field_phase_derived(
     let vertices = mesh.vertices_mut();
 
     let mut working_vertices = base_vertices.to_vec();
-    rotate_vertices(&mut working_vertices, phase_theta);
+    rotate_vertices_in_plane(&mut working_vertices, phase_theta);
     deform_vertices_with_radial_field(&mut working_vertices, radial_field);
-    rotate_vertices(&mut working_vertices, -phase_theta);
+    rotate_vertices_in_plane(&mut working_vertices, -phase_theta);
 
     vertices.copy_from_slice(&working_vertices);
 }

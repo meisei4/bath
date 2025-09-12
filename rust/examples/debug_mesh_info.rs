@@ -1,5 +1,5 @@
 use asset_payload::SPHERE_PATH;
-use bath::fixed_func::silhouette::{ANGULAR_VELOCITY, FOVY_PERSPECTIVE, MODEL_POS, MODEL_SCALE, SCALE_TWEAK};
+use bath::fixed_func::silhouette::{ANGULAR_VELOCITY, FOVY_PERSPECTIVE, MODEL_POS, MODEL_SCALE};
 use bath::fixed_func::texture::{dither, generate_silhouette_texture};
 use bath::render::raylib::RaylibRenderer;
 use bath::render::raylib_util::N64_WIDTH;
@@ -50,7 +50,7 @@ fn main() {
                 MODEL_POS,
                 Vector3::Y,
                 mesh_rotation.to_degrees(),
-                MODEL_SCALE * SCALE_TWEAK,
+                MODEL_SCALE,
                 Color::BLUE,
             );
             unsafe { rlSetLineWidth(5.0) };
@@ -59,7 +59,7 @@ fn main() {
                 MODEL_POS,
                 Vector3::Y,
                 mesh_rotation.to_degrees(),
-                MODEL_SCALE * SCALE_TWEAK,
+                MODEL_SCALE,
                 Color::RED,
             );
             unsafe { rlSetPointSize(20.0) };
@@ -68,7 +68,7 @@ fn main() {
                 MODEL_POS,
                 Vector3::Y,
                 mesh_rotation.to_degrees(),
-                MODEL_SCALE * SCALE_TWEAK,
+                MODEL_SCALE,
                 Color::GREEN,
             );
         });

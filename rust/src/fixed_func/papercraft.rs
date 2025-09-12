@@ -63,7 +63,7 @@ pub fn unfold(_thread_borrow: &raylib::RaylibThread, mesh: &mut WeakMesh) -> Mes
     build_unfolded_mesh(_thread_borrow, &lifted_triangles, &welded_mesh)
 }
 
-pub fn recompute_unfold_into_existing_mesh(target_mesh: &mut WeakMesh, source_mesh: &mut WeakMesh) {
+pub fn recompute_unfold_into_existing_mesh(dst_mesh: &mut WeakMesh, source_mesh: &mut WeakMesh) {
     let (welded_mesh, parent_links, children, mut lifted_triangles, parent_triangles) =
         prepare_mesh_for_folding(source_mesh);
 
@@ -80,14 +80,13 @@ pub fn recompute_unfold_into_existing_mesh(target_mesh: &mut WeakMesh, source_me
     }
     fit_unfolded_triangles_to_zoom_scale(&mut lifted_triangles);
     let triangle_count = lifted_triangles.len();
-    let verts = target_mesh.vertices_mut();
-    debug_assert_eq!(verts.len(), triangle_count * 3);
-    let mut write_index = 0usize;
-    for t in 0..triangle_count {
-        for v in 0..3 {
-            let p = lifted_triangles[t][v];
-            verts[write_index] = Vector3::new(p.x, p.y, p.z);
-            write_index += 1;
+    let dst_vertices = dst_mesh.vertices_mut();
+    let mut vertex_index = 0usize;
+    for triangle in 0..triangle_count {
+        for vertex in 0..3 {
+            let point = lifted_triangles[triangle][vertex];
+            dst_vertices[vertex_index] = Vector3::new(point.x, point.y, point.z);
+            vertex_index += 1;
         }
     }
 }

@@ -1,10 +1,9 @@
 use crate::fixed_func::immediate_mode3d::{with_immediate_mode3d, Viewport};
-use crate::fixed_func::silhouette::rotate_vertices;
 use raylib::camera::Camera3D;
 use raylib::color::Color;
 use raylib::drawing::{RaylibDraw, RaylibDraw3D, RaylibDrawHandle, RaylibMode3DExt};
 use raylib::math::glam::{Vec2, Vec3};
-use raylib::math::Vector2;
+use raylib::math::{Vector2, Vector3};
 use raylib::models::{RaylibMesh, WeakMesh};
 use std::collections::{HashMap, HashSet};
 
@@ -321,7 +320,7 @@ impl<'a> TopologyBuilder<'a> {
         let mut front_triangles = HashSet::with_capacity(self.topology.triangles_snapshot.len());
         for (triangle_id, [vertex_a, vertex_b, vertex_c]) in vertices_per_triangle.iter().copied().enumerate() {
             let mut triangle = vec![vertex_a, vertex_b, vertex_c];
-            rotate_vertices(&mut triangle, rotation);
+            rotate_vertices_in_plane(&mut triangle, rotation);
             let normal = triangle_normal(triangle[0], triangle[1], triangle[2]);
             if normal.dot(line_of_sight) <= 0.0 {
                 front_triangles.insert(triangle_id);
@@ -449,7 +448,7 @@ pub fn debug_draw_triangles(
         }
         let [vertex_a, vertex_b, vertex_c] = vertices_per_triangle_snapshot[triangle_id];
         let mut triangle = vec![vertex_a, vertex_b, vertex_c];
-        rotate_vertices(&mut triangle, rotation);
+        rotate_vertices_in_plane(&mut triangle, rotation);
         let (vertex_a, vertex_b, vertex_c) = (triangle[0], triangle[1], triangle[2]);
         let color = if let Some(c) = fill_color {
             c
@@ -498,7 +497,7 @@ pub unsafe fn debug_draw_triangles_immediate(
             }
             let [vertex_a, vertex_b, vertex_c] = vertices_per_triangle_snapshot[triangle_id];
             let mut triangle = vec![vertex_a, vertex_b, vertex_c];
-            rotate_vertices(&mut triangle, rotation);
+            rotate_vertices_in_plane(&mut triangle, rotation);
             let (a, b, c) = (triangle[0], triangle[1], triangle[2]);
 
             let color = fill_color.unwrap_or_else(|| {
@@ -521,7 +520,7 @@ pub unsafe fn debug_draw_triangles_immediate(
             }
             let [vertex_a, vertex_b, vertex_c] = vertices_per_triangle_snapshot[triangle_id];
             let mut triangle = vec![vertex_a, vertex_b, vertex_c];
-            rotate_vertices(&mut triangle, rotation);
+            rotate_vertices_in_plane(&mut triangle, rotation);
             let (a, b, c) = (triangle[0], triangle[1], triangle[2]);
             let centroid = (a + b + c) / 3.0;
             let sx = viewport.x + ((centroid.x * 0.5 + 0.5) * viewport.w as f32) as i32;
@@ -578,6 +577,15 @@ pub fn rotate_point_about_axis(c: Vec3, axis: (Vec3, Vec3), theta: f32) -> Vec3 
     //rotate in the xy plane
     let rotated_c = rotated_x_component + rotated_y_component + ac_z_component;
     origin + rotated_c
+}
+
+#[inline]
+pub fn rotate_vertices_in_plane(vertices: &mut [Vector3], rotation: f32) {
+    for vertex in vertices {
+        let (x0, z0) = (vertex.x, vertex.z);
+        vertex.x = x0 * rotation.cos() + z0 * rotation.sin();
+        vertex.z = -x0 * rotation.sin() + z0 * rotation.cos();
+    }
 }
 
 #[inline]

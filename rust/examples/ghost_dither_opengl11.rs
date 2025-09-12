@@ -3,7 +3,7 @@ use bath::fixed_func::silhouette::{
     build_inverted_hull, collect_deformed_vertex_samples, draw_inverted_hull_guassian_silhouette_stack,
     interpolate_between_deformed_vertices, rotate_inverted_hull, FOVY_ORTHOGRAPHIC,
 };
-use bath::fixed_func::silhouette::{ANGULAR_VELOCITY, MODEL_POS, MODEL_SCALE, SCALE_TWEAK};
+use bath::fixed_func::silhouette::{ANGULAR_VELOCITY, MODEL_POS, MODEL_SCALE};
 use bath::fixed_func::texture::{dither, generate_silhouette_texture};
 use bath::fixed_func::topology::{debug_draw_triangles, observed_line_of_sight, Topology};
 use bath::render::raylib::RaylibRenderer;
@@ -56,7 +56,7 @@ fn main() {
                 MODEL_POS,
                 Vector3::Y,
                 mesh_rotation.to_degrees(),
-                MODEL_SCALE * SCALE_TWEAK,
+                MODEL_SCALE,
                 Color::BLUE,
             );
             unsafe { rlSetLineWidth(5.0) };
@@ -65,7 +65,7 @@ fn main() {
                 MODEL_POS,
                 Vector3::Y,
                 mesh_rotation.to_degrees(),
-                MODEL_SCALE * SCALE_TWEAK,
+                MODEL_SCALE,
                 Color::RED,
             );
             unsafe { rlSetPointSize(20.0) };
@@ -74,7 +74,7 @@ fn main() {
                 MODEL_POS,
                 Vector3::Y,
                 mesh_rotation.to_degrees(),
-                MODEL_SCALE * SCALE_TWEAK,
+                MODEL_SCALE,
                 Color::GREEN,
             );
             draw_inverted_hull_guassian_silhouette_stack(&mut rl3d, &inverted_hull, mesh_rotation);

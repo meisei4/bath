@@ -69,7 +69,7 @@ fn main() {
             .back_triangles()
             .build();
         let mut triangle_set = topology.front_triangles_snapshot.clone().unwrap();
-        let back_triangles = topology.front_triangles_snapshot.clone().unwrap();
+        let back_triangles = topology.back_triangles_snapshot.clone().unwrap();
         triangle_set.extend(back_triangles.iter().copied());
         debug_draw_triangles(
             observer,
