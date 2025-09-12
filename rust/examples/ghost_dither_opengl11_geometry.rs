@@ -1,5 +1,5 @@
 use asset_payload::SPHERE_PATH;
-use bath::fixed_func::papercraft::unfold;
+use bath::fixed_func::papercraft::{recompute_unfold_into_existing_mesh, unfold};
 use bath::fixed_func::silhouette::{collect_deformed_vertex_samples, FOVY_ORTHOGRAPHIC};
 use bath::fixed_func::silhouette::{interpolate_between_deformed_vertices, MODEL_POS, MODEL_SCALE};
 use bath::fixed_func::silhouette::{ANGULAR_VELOCITY, TIME_BETWEEN_SAMPLES};
@@ -18,7 +18,6 @@ fn main() {
     let mut i_time = 0.0f32;
     let mut _mesh_rotation = 0.0f32;
     let mut render = RaylibRenderer::init(N64_WIDTH, N64_WIDTH);
-
     let observer = Camera3D {
         position: Vector3::new(0.0, 0.0, 2.0),
         target: Vector3::ZERO,
@@ -29,6 +28,13 @@ fn main() {
     let mut main_model = render.handle.load_model(&render.thread, SPHERE_PATH).unwrap();
     let mesh_samples = collect_deformed_vertex_samples(main_model.meshes()[0].vertices());
     interpolate_between_deformed_vertices(&mut main_model, i_time, &mesh_samples);
+    _mesh_rotation = 0.0;
+    let initial_unfolded_mesh = unfold(&render.thread, &mut main_model.meshes_mut()[0]);
+    let mut unfolded_model = render
+        .handle
+        .load_model_from_mesh(&render.thread, unsafe { initial_unfolded_mesh.make_weak() })
+        .unwrap();
+
     while !render.handle.window_should_close() {
         i_time += render.handle.get_frame_time();
         _mesh_rotation -= ANGULAR_VELOCITY * render.handle.get_frame_time();
@@ -39,14 +45,10 @@ fn main() {
         // let anim_time = (_current_frame as f32 * TIME_BETWEEN_SAMPLES).floor();
         let anim_time = i_time;
         interpolate_between_deformed_vertices(&mut main_model, anim_time, &mesh_samples);
-        // let unfolded_mesh = unsafe { fold(&render.thread, &mut main_model.meshes_mut()[0], i_time, true).make_weak() };
-
-        _mesh_rotation = 0.0;
-        let unfolded_mesh = unsafe { unfold(&render.thread, &mut main_model.meshes_mut()[0]).make_weak() };
-        let unfolded_model = render
-            .handle
-            .load_model_from_mesh(&render.thread, unfolded_mesh.clone())
-            .unwrap();
+        let source_mesh: &mut raylib::models::WeakMesh = &mut main_model.meshes_mut()[0];
+        let target_mesh: &mut raylib::models::WeakMesh = &mut unfolded_model.meshes_mut()[0];
+        recompute_unfold_into_existing_mesh(target_mesh, source_mesh);
+        let unfolded_mesh = target_mesh.clone();
         let mut draw_handle = render.handle.begin_drawing(&render.thread);
         draw_handle.clear_background(Color::BLACK);
         draw_handle.draw_mode3D(observer, |mut rl3d| {
@@ -54,7 +56,8 @@ fn main() {
                 &unfolded_model,
                 MODEL_POS,
                 Vector3::Y,
-                _mesh_rotation.to_degrees(),
+                0.0,
+                // _mesh_rotation.to_degrees(),
                 MODEL_SCALE,
                 Color::WHITE,
             );
@@ -67,13 +70,13 @@ fn main() {
             .build();
         let mut triangle_set = topology.front_triangles_snapshot.clone().unwrap();
         let back_triangles = topology.front_triangles_snapshot.clone().unwrap();
-        // Union front and back facing triangle sets
         triangle_set.extend(back_triangles.iter().copied());
         debug_draw_triangles(
             observer,
             &mut draw_handle,
             &topology,
-            _mesh_rotation,
+            0.0,
+            // _mesh_rotation,
             &triangle_set,
             None,
             true,

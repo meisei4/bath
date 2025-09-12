@@ -5,7 +5,7 @@ use crate::fixed_func::topology::{
 };
 use raylib::math::glam::{Vec2, Vec3};
 use raylib::math::{Vector2, Vector3};
-use raylib::models::{Mesh, WeakMesh};
+use raylib::models::{Mesh, RaylibMesh, WeakMesh};
 use std::collections::VecDeque;
 use std::f32::consts::PI;
 
@@ -63,7 +63,36 @@ pub fn unfold(_thread_borrow: &raylib::RaylibThread, mesh: &mut WeakMesh) -> Mes
     build_unfolded_mesh(_thread_borrow, &lifted_triangles, &welded_mesh)
 }
 
-fn apply_hinge_rotation_with_equation(
+pub fn recompute_unfold_into_existing_mesh(target_mesh: &mut WeakMesh, source_mesh: &mut WeakMesh) {
+    let (welded_mesh, parent_links, children, mut lifted_triangles, parent_triangles) =
+        prepare_mesh_for_folding(source_mesh);
+
+    for &parent_triangle in &parent_triangles {
+        apply_hinge_rotation_with_equation(
+            parent_triangle,
+            &children,
+            &parent_links,
+            &mut lifted_triangles,
+            &welded_mesh,
+            0.0,
+            &|_ctx, _t| 0.0,
+        );
+    }
+    fit_unfolded_triangles_to_zoom_scale(&mut lifted_triangles);
+    let triangle_count = lifted_triangles.len();
+    let verts = target_mesh.vertices_mut();
+    debug_assert_eq!(verts.len(), triangle_count * 3);
+    let mut write_index = 0usize;
+    for t in 0..triangle_count {
+        for v in 0..3 {
+            let p = lifted_triangles[t][v];
+            verts[write_index] = Vector3::new(p.x, p.y, p.z);
+            write_index += 1;
+        }
+    }
+}
+
+pub fn apply_hinge_rotation_with_equation(
     parent_triangle: usize,
     children_triangles: &[Vec<usize>],
     parent_links: &[ParentLink],
