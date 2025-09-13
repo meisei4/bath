@@ -49,7 +49,7 @@ fn main() {
     };
 
     let mut main_model = render.handle.load_model(&render.thread, SPHERE_PATH).unwrap();
-    //TODO: this will automatically color the wire mesh... not sure a way around that in opengl,
+    //TODO: this will automatically color the wire mesh... not sure a way around that in opengl
     apply_barycentric_palette(&mut main_model.meshes_mut()[0]);
 
     let max_points = main_model.meshes()[0].vertexCount as usize;
@@ -118,11 +118,10 @@ fn main() {
 
             draw_near_plane_software_raster(
                 &mut rl3d,
-                &main_observer,
-                main_observer_aspect,
-                near_clip_plane,
                 screen_w,
                 screen_h,
+                &main_observer,
+                near_clip_plane,
                 &main_model.meshes()[0],
                 MODEL_POS_BACK,
                 MODEL_SCALE,
