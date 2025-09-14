@@ -1,6 +1,6 @@
 use asset_payload::SPHERE_PATH;
 use bath::fixed_func::jugemu::{
-    apply_barycentric_palette, draw_frustum, draw_near_plane_intersectional_disk_mesh, draw_observed_axes,
+    apply_barycentric_palette, draw_near_plane_intersectional_disk_mesh, draw_observed_axes, map_frustum_to_ndc_cube,
 };
 use bath::fixed_func::silhouette::{ANGULAR_VELOCITY, FOVY_PERSPECTIVE, MODEL_POS, MODEL_SCALE};
 use bath::fixed_func::topology::Topology;
@@ -16,13 +16,15 @@ use raylib::math::Vector3;
 use raylib::models::{Mesh, RaylibModel};
 
 pub const OBSERVER_POS: Vector3 = Vector3::new(0.0, 0.0, 2.0);
-pub const JUGEMU_POS_ISO: Vector3 = Vector3::new(3.0, 1.0, 3.0);
+pub const JUGEMU_POS_ISO: Vector3 = Vector3::new(2.7, 1.0, 2.8);
+pub const JUGEMU_POS_ISO_NDC_ZOOM: Vector3 = Vector3::new(2.5, 0.0, 0.6);
 
 fn main() {
     let mut mesh_rotation = 0.0f32;
     let mut render = RaylibRenderer::init(N64_WIDTH, N64_WIDTH);
 
     let near_clip_plane: f32 = 1.0;
+    //TODO: this is actually messing up how the unit cube gets made maybe idk
     let far_clip_plane: f32 = 3.0;
 
     let main_observer = Camera3D {
@@ -39,12 +41,23 @@ fn main() {
 
     let jugemu = Camera3D {
         // position: OBSERVER_POS,
-        position: JUGEMU_POS_ISO,
+        // position: JUGEMU_POS_ISO,
+        position: JUGEMU_POS_ISO_NDC_ZOOM,
         target: Vector3::ZERO,
         up: Vector3::Y,
         fovy: FOVY_PERSPECTIVE,
         projection: CameraProjection::CAMERA_PERSPECTIVE,
     };
+
+    // let jugemu = Camera3D {
+    //     position: OBSERVER_POS,
+    //     // position: JUGEMU_POS_ISO,
+    //     // position: JUGEMU_POS_ISO_NDC_ZOOM,
+    //     target: Vector3::ZERO,
+    //     up: Vector3::Y,
+    //     fovy: FOVY_ORTHOGRAPHIC,
+    //     projection: CameraProjection::CAMERA_ORTHOGRAPHIC,
+    // };
 
     let mut main_model = render.handle.load_model(&render.thread, SPHERE_PATH).unwrap();
     //TODO: this will automatically color the wire mesh... not sure a way around that in opengl
@@ -57,7 +70,9 @@ fn main() {
         .handle
         .load_model_from_mesh(&render.thread, unsafe { ndc_mesh.make_weak() })
         .unwrap();
+    // TODO: this will mess with the draw_points colors...
     apply_barycentric_palette(&mut ndc_model.meshes_mut()[0]);
+
     //TODO: used for either the NDC reflection points, or world space non-reflected points, NOT BOTH!!!!
     let mut near_plane_intersectional_disk_mesh = Mesh::init_mesh(&initial_vertices).build(&render.thread).unwrap();
     let mut near_plane_intersectional_disk_model = render
@@ -75,19 +90,32 @@ fn main() {
 
         draw_handle.draw_mode3D(jugemu, |mut rl3d| {
             draw_observed_axes(&mut rl3d, &main_observer);
+            map_frustum_to_ndc_cube(
+                &mut rl3d,
+                screen_w,
+                screen_h,
+                &main_observer,
+                near_clip_plane,
+                far_clip_plane,
+                &mut main_model,
+                &mut ndc_model,
+                MODEL_POS,
+                MODEL_SCALE,
+                mesh_rotation,
+            );
 
-            unsafe { rlSetLineWidth(2.0) };
+            unsafe { rlSetLineWidth(1.0) };
             rl3d.draw_model_wires_ex(
-                &main_model,
+                &ndc_model,
                 MODEL_POS,
                 Vector3::Y,
                 mesh_rotation.to_degrees(),
                 MODEL_SCALE,
-                Color::RED,
+                Color::WHITE,
             );
-            unsafe { rlSetPointSize(2.0) };
+            unsafe { rlSetPointSize(4.0) };
             rl3d.draw_model_points_ex(
-                &main_model,
+                &ndc_model,
                 MODEL_POS,
                 Vector3::Y,
                 mesh_rotation.to_degrees(),
@@ -95,8 +123,7 @@ fn main() {
                 Color::GREEN,
             );
 
-            draw_frustum(&mut rl3d, aspect, &main_observer, near_clip_plane, far_clip_plane);
-            let topology = Topology::build_topology(&main_model.meshes()[0])
+            let topology = Topology::build_topology(&ndc_model.meshes()[0])
                 .triangles()
                 .vertices_per_triangle()
                 .vertex_normals()
@@ -104,7 +131,7 @@ fn main() {
                 .welded_vertices_per_triangle()
                 .neighbors_per_triangle()
                 .front_triangles(mesh_rotation, &main_observer)
-                .silhouette_triangles()
+                .silhouette_triangles() //TODO: optional??
                 .build();
 
             draw_near_plane_intersectional_disk_mesh(
@@ -116,21 +143,8 @@ fn main() {
                 MODEL_SCALE,
                 mesh_rotation,
                 &topology,
-                false,
+                true,
             );
-
-            // draw_near_plane_software_raster(
-            //     &mut rl3d,
-            //     screen_w,
-            //     screen_h,
-            //     &main_observer,
-            //     near_clip_plane,
-            //     &main_model.meshes()[0],
-            //     MODEL_POS_BACK,
-            //     MODEL_SCALE,
-            //     mesh_rotation,
-            //     1,
-            // );
         });
     }
 }

@@ -11,8 +11,10 @@ use raylib::models::{Mesh, Model, RaylibMesh, RaylibModel, WeakMesh};
 use std::f32::consts::TAU;
 
 pub const MODEL_POS: Vector3 = Vector3::ZERO;
-pub const MODEL_SCALE: Vector3 = Vector3::ONE;
-// pub const MODEL_SCALE: Vector3 = Vector3::new(0.75, 0.75, 0.75);
+// pub const MODEL_SCALE: Vector3 = Vector3::ONE;
+pub const SCALE_ELEMENT: f32 = 0.5;
+pub const MODEL_SCALE: Vector3 = Vector3::new(SCALE_ELEMENT, SCALE_ELEMENT, SCALE_ELEMENT);
+pub const MODEL_SCALE_NDC: Vector3 = Vector3::ONE;
 
 pub const HALF: f32 = 0.5;
 pub const GRID_SCALE: f32 = 4.0;
