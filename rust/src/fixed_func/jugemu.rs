@@ -141,11 +141,8 @@ pub fn world_coord_to_ndc_coord(
     //TODO: everywhere that these calculations are made we need to make it consistent for the didactic visuals
     let half_height_near_clip_plane = near_clip_plane * half_fovy.tan();
 
-    /// ANISOTROPIC
-    // let half_width_near_clip_plane = half_height_near_clip_plane * aspect;
-
-    /// ISOTROPIC DIDACTIC
-    let half_width_near_clip_plane = half_height_near_clip_plane;
+    /// ANISOTROPIC this should not use half_height_near_clip_plane alone, because it risks double application of NDC somehow?
+    let half_width_near_clip_plane = half_height_near_clip_plane * aspect;
 
     let ray_from_world_to_observer = world_coord - observer.position;
     let signed_depth_component = ray_from_world_to_observer.dot(observed_line_of_sight); // depth here is now POSITIVE/FORWARD from camera (no longer world context of -z los)
