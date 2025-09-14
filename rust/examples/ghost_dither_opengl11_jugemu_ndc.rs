@@ -5,7 +5,7 @@ use bath::fixed_func::jugemu::{
 use bath::fixed_func::silhouette::{ANGULAR_VELOCITY, FOVY_PERSPECTIVE, MODEL_POS, MODEL_SCALE};
 use bath::fixed_func::topology::Topology;
 use bath::render::raylib::RaylibRenderer;
-use bath::render::raylib_util::N64_WIDTH;
+use bath::render::raylib_util::{N64_HEIGHT, N64_WIDTH};
 use bath::render::renderer::Renderer;
 use raylib::camera::Camera3D;
 use raylib::color::Color;
@@ -17,14 +17,13 @@ use raylib::models::{Mesh, RaylibModel};
 
 pub const OBSERVER_POS: Vector3 = Vector3::new(0.0, 0.0, 2.0);
 pub const JUGEMU_POS_ISO: Vector3 = Vector3::new(2.7, 1.0, 2.8);
-pub const JUGEMU_POS_ISO_NDC_ZOOM: Vector3 = Vector3::new(2.5, 0.0, 0.6);
+pub const JUGEMU_POS_ISO_NDC_ZOOM: Vector3 = Vector3::new(2.2, 0.0, 0.5);
 
 fn main() {
     let mut mesh_rotation = 0.0f32;
-    let mut render = RaylibRenderer::init(N64_WIDTH, N64_WIDTH);
+    let mut render = RaylibRenderer::init(N64_WIDTH, N64_HEIGHT);
 
     let near_clip_plane: f32 = 1.0;
-    //TODO: this is actually messing up how the unit cube gets made maybe idk
     let far_clip_plane: f32 = 3.0;
 
     let main_observer = Camera3D {
@@ -41,26 +40,17 @@ fn main() {
 
     let jugemu = Camera3D {
         // position: OBSERVER_POS,
-        // position: JUGEMU_POS_ISO,
-        position: JUGEMU_POS_ISO_NDC_ZOOM,
+        position: JUGEMU_POS_ISO,
+        // position: JUGEMU_POS_ISO_NDC_ZOOM,
         target: Vector3::ZERO,
         up: Vector3::Y,
         fovy: FOVY_PERSPECTIVE,
         projection: CameraProjection::CAMERA_PERSPECTIVE,
     };
 
-    // let jugemu = Camera3D {
-    //     position: OBSERVER_POS,
-    //     // position: JUGEMU_POS_ISO,
-    //     // position: JUGEMU_POS_ISO_NDC_ZOOM,
-    //     target: Vector3::ZERO,
-    //     up: Vector3::Y,
-    //     fovy: FOVY_ORTHOGRAPHIC,
-    //     projection: CameraProjection::CAMERA_ORTHOGRAPHIC,
-    // };
-
     let mut main_model = render.handle.load_model(&render.thread, SPHERE_PATH).unwrap();
-    //TODO: this will automatically color the wire mesh... not sure a way around that in opengl
+    //TODO: this will automatically color the wire mesh... and its points for wire and point mode still
+    // (see https://github.com/raysan5/raylib/pull/5177)
     apply_barycentric_palette(&mut main_model.meshes_mut()[0]);
 
     let max_vertices = main_model.meshes()[0].vertexCount as usize;
@@ -70,10 +60,8 @@ fn main() {
         .handle
         .load_model_from_mesh(&render.thread, unsafe { ndc_mesh.make_weak() })
         .unwrap();
-    // TODO: this will mess with the draw_points colors...
     apply_barycentric_palette(&mut ndc_model.meshes_mut()[0]);
 
-    //TODO: used for either the NDC reflection points, or world space non-reflected points, NOT BOTH!!!!
     let mut near_plane_intersectional_disk_mesh = Mesh::init_mesh(&initial_vertices).build(&render.thread).unwrap();
     let mut near_plane_intersectional_disk_model = render
         .handle
@@ -131,7 +119,7 @@ fn main() {
                 .welded_vertices_per_triangle()
                 .neighbors_per_triangle()
                 .front_triangles(mesh_rotation, &main_observer)
-                .silhouette_triangles() //TODO: optional??
+                .silhouette_triangles() //TODO: optional
                 .build();
 
             draw_near_plane_intersectional_disk_mesh(

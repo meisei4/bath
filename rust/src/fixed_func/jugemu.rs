@@ -32,6 +32,30 @@ pub fn map_frustum_to_ndc_cube(
     model_scale: Vector3,
     mesh_rotation: f32,
 ) {
+    let aspect = screen_w as f32 / screen_h as f32;
+    let observed_line_of_sight = observed_line_of_sight(observer);
+    let center_near_clip_plane = observer.position + observed_line_of_sight * near_clip_plane;
+    let half_fovy = observer.fovy.to_radians() * 0.5;
+    let half_height_near_clip_plane = near_clip_plane * half_fovy.tan();
+
+    ///ANISOTROPIC VIEW
+    // let half_width_near_clip_plane = half_height_near_clip_plane * aspect;
+    // let half_depth_ndc_cube = 0.5 * (far_clip_plane - near_clip_plane);
+    // let ndc_cube_center = center_near_clip_plane + observed_line_of_sight * half_depth_ndc_cube;
+
+    ///ISOTROPIC DIDACTIC VIEW
+    let half_width_near_clip_plane = half_height_near_clip_plane;
+    let half_depth_ndc_cube = half_height_near_clip_plane;
+    let ndc_cube_center = center_near_clip_plane + observed_line_of_sight * half_depth_ndc_cube;
+    draw_ndc_cube(
+        rl3d,
+        observer,
+        ndc_cube_center,
+        half_width_near_clip_plane,
+        half_height_near_clip_plane,
+        half_depth_ndc_cube,
+        Color::SKYBLUE,
+    );
     update_world_to_ndc_mapped_mesh(
         &mut ndc_model.meshes_mut()[0],
         &src_model.meshes()[0],
@@ -43,28 +67,6 @@ pub fn map_frustum_to_ndc_cube(
         model_pos,
         model_scale,
         mesh_rotation,
-    );
-
-    let aspect = screen_w as f32 / screen_h as f32;
-    let observed_line_of_sight = observed_line_of_sight(observer);
-    let center_near_clip_plane = observer.position + observed_line_of_sight * near_clip_plane;
-    let half_height_near_clip_plane = near_clip_plane * (observer.fovy.to_radians() * 0.5).tan();
-    // let half_width_near_clip_plane = half_height_near_clip_plane * aspect;
-    // let half_depth_ndc_cube = 0.5 * (far_clip_plane - near_clip_plane);
-    // let ndc_cube_center = center_near_clip_plane + observed_line_of_sight * half_depth_ndc_cube;
-
-    let half_width_near_clip_plane = half_height_near_clip_plane;
-    let half_depth_ndc_cube = half_height_near_clip_plane;
-    let ndc_cube_center = center_near_clip_plane + observed_line_of_sight * half_depth_ndc_cube;
-
-    draw_ndc_cube(
-        rl3d,
-        observer,
-        ndc_cube_center,
-        half_width_near_clip_plane,
-        half_height_near_clip_plane,
-        half_depth_ndc_cube,
-        Color::SKYBLUE,
     );
 }
 
@@ -78,24 +80,31 @@ pub fn update_world_to_ndc_mapped_mesh(
     far_clip_plane: f32,
     model_pos: Vector3,
     model_scale: Vector3,
-    mesh_rotation_radians: f32,
+    mesh_rotation: f32,
 ) {
     let aspect = screen_w as f32 / screen_h as f32;
     let observed_line_of_sight = observed_line_of_sight(observer);
 
     let center_near_clip_plane = observer.position + observed_line_of_sight * near_clip_plane;
-    let half_height_near_clip_plane = near_clip_plane * (observer.fovy.to_radians() * 0.5).tan();
+    let half_fovy = observer.fovy.to_radians() * 0.5;
+    let half_height_near_clip_plane = near_clip_plane * half_fovy.tan();
+
+    ///ANISOTROPIC VIEW
+    // let half_width_near_clip_plane = half_height_near_clip_plane * aspect;
+    // let half_depth_ndc_cube = 0.5 * (far_clip_plane - near_clip_plane);
+    // let ndc_cube_center = center_near_clip_plane + observed_line_of_sight * half_depth_ndc_cube;
+
+    ///ISOTROPIC DIDACTIC VIEW
     let half_width_near_clip_plane = half_height_near_clip_plane;
     let half_depth_ndc_cube = half_height_near_clip_plane;
     let ndc_cube_center = center_near_clip_plane + observed_line_of_sight * half_depth_ndc_cube;
 
     let world_coords = world_mesh.vertices();
     let ndc_coords = ndc_mesh.vertices_mut();
-    let ndc_vertex_count = world_coords.len().min(ndc_coords.len()); //TODO: ???
+    let ndc_vertex_count = world_coords.len().min(ndc_coords.len());
     for i in 0..ndc_vertex_count {
         // let world_coord = world_coords[i].clone();
-        let world_coord =
-            apply_model_translate_rotate_scale(world_coords[i], model_pos, model_scale, mesh_rotation_radians);
+        let world_coord = apply_model_translate_rotate_scale(world_coords[i], model_pos, model_scale, mesh_rotation);
         let ndc_coord = world_coord_to_ndc_coord(aspect, observer, near_clip_plane, far_clip_plane, world_coord);
         let scaled_ndc_coord = scale_ndc_coord_by_near_clip_plane(
             observer,
@@ -107,7 +116,7 @@ pub fn update_world_to_ndc_mapped_mesh(
         );
         // ndc_coords[i] = scaled_ndc_coord;
         ndc_coords[i] =
-            apply_inverse_model_translate_rotate_scale(scaled_ndc_coord, model_pos, model_scale, mesh_rotation_radians);
+            apply_inverse_model_translate_rotate_scale(scaled_ndc_coord, model_pos, model_scale, mesh_rotation);
     }
     ndc_mesh.vertexCount = ndc_vertex_count as c_int;
 }
@@ -122,21 +131,32 @@ pub fn world_coord_to_ndc_coord(
 ) -> (f32, f32, f32) {
     let (observed_line_of_sight, observed_right, observed_up) = observed_orthonormal_basis_vectors(observer);
     let half_fovy = observer.fovy.to_radians() * 0.5;
+    //TODO: everywhere that these calculations are made we need to make it consistent for the didactic visuals
     let half_height_near_clip_plane = near_clip_plane * half_fovy.tan();
+
+    /// ANISOTROPIC
     // let half_width_near_clip_plane = half_height_near_clip_plane * aspect;
+
+    /// ISOTROPIC DIDACTIC
     let half_width_near_clip_plane = half_height_near_clip_plane;
+
     let ray_from_world_to_observer = world_coord - observer.position;
-    let depth_component = ray_from_world_to_observer.dot(observed_line_of_sight);
+    let signed_depth_component = ray_from_world_to_observer.dot(observed_line_of_sight); // depth here is now POSITIVE/FORWARD from camera (no longer world context of -z los)
     let center_near_clip_plane = observer.position + observed_line_of_sight * near_clip_plane;
     let intersection_coord = near_plane_intersection(observer, near_clip_plane, world_coord);
     let clip_plane_vector = intersection_coord - center_near_clip_plane;
     let x_ndc = clip_plane_vector.dot(observed_right) / half_width_near_clip_plane;
     let y_ndc = clip_plane_vector.dot(observed_up) / half_height_near_clip_plane;
-    // let z_ndc = ((far_clip_plane + near_clip_plane) - (2.0 * far_clip_plane * near_clip_plane) / depth_component)
-    //     / (far_clip_plane - near_clip_plane);
-    let z_ndc = 2.0 * (depth_component - near_clip_plane) / (far_clip_plane - near_clip_plane) - 1.0;
 
-    (x_ndc, y_ndc, z_ndc)
+    /// OTHOGRAPHIC Z?
+    // let z_ndc_linear_orthographic = 2.0 * (signed_depth_component - near_clip_plane) / (far_clip_plane - near_clip_plane) - 1.0;
+    // (x_ndc, y_ndc, z_ndc_linear_orthographic)
+
+    ///PERSPECTIVE CORRECT Z?
+    let z_ndc_perspective_correct = ((far_clip_plane + near_clip_plane)
+        - (2.0 * far_clip_plane * near_clip_plane) / signed_depth_component)
+        / (far_clip_plane - near_clip_plane);
+    (x_ndc, y_ndc, z_ndc_perspective_correct)
 }
 
 #[inline]
@@ -160,12 +180,12 @@ fn apply_model_translate_rotate_scale(
     model_coord: Vector3,
     model_pos: Vector3,
     model_scale: Vector3,
-    rotation: f32,
+    mesh_rotation: f32,
 ) -> Vector3 {
     let scaled_x = model_coord.x * model_scale.x;
     let scaled_y = model_coord.y * model_scale.y;
     let scaled_z = model_coord.z * model_scale.z;
-    let (sine, cosine) = rotation.sin_cos();
+    let (sine, cosine) = mesh_rotation.sin_cos();
     let rotated_x = cosine * scaled_x + sine * scaled_z;
     let rotated_z = -sine * scaled_x + cosine * scaled_z;
     Vector3 {
@@ -176,17 +196,16 @@ fn apply_model_translate_rotate_scale(
 }
 
 #[inline]
-//AKA: apply_world_translation_rotation_scaling
 fn apply_inverse_model_translate_rotate_scale(
     world_coord: Vector3,
     world_pos: Vector3,
     world_scale: Vector3,
-    rotation: f32,
+    mesh_rotation: f32,
 ) -> Vector3 {
     let translated_x = world_coord.x - world_pos.x;
     let translated_y = world_coord.y - world_pos.y;
     let translated_z = world_coord.z - world_pos.z;
-    let (sine, cosine) = (-rotation).sin_cos();
+    let (sine, cosine) = (-mesh_rotation).sin_cos();
     let rotated_x = cosine * translated_x + sine * translated_z;
     let rotated_z = -sine * translated_x + cosine * translated_z;
     Vector3 {
@@ -328,7 +347,7 @@ pub fn draw_near_plane_intersectional_disk_mesh(
     intersection_model: &mut Model,
     model_position: Vector3,
     model_scale: Vector3,
-    mesh_rotation_radians: f32,
+    mesh_rotation: f32,
     topology: &Topology,
     reflect_y: bool,
 ) {
@@ -344,7 +363,7 @@ pub fn draw_near_plane_intersectional_disk_mesh(
     //TODO: when just iterating over a reference to the hashset of the front triangles (no difference stuff with silhouettes) you need to copy?
     for triangle_id in triangle_set.iter().copied() {
         let mut vertices = vertices_per_triangle[triangle_id];
-        rotate_vertices_in_plane(&mut vertices, mesh_rotation_radians);
+        rotate_vertices_in_plane(&mut vertices, mesh_rotation);
 
         for vertex in vertices.iter() {
             let scaled = vertex * model_scale;
@@ -377,7 +396,6 @@ pub fn draw_near_plane_intersectional_disk_mesh(
             vertex_count,
         );
     }
-    // replace_mesh_vertices(&mut intersection_model.meshes_mut()[0], &intersection_coordinates);
     unsafe { rlSetPointSize(3.0) };
     rl3d.draw_model_points(&intersection_model, Vector3::ZERO, 1.0, Color::GREEN);
     // rl3d.draw_model_wires(&intersection_model, Vector3::ZERO, 1.0, Color::WHITE);
@@ -398,9 +416,9 @@ fn flip_y_in_near_clip_plane(intersection_coord: Vector3, observer: &Camera3D, n
 pub fn near_plane_intersection(observer: &Camera3D, near_clip_plane: f32, world_coord: Vector3) -> Vector3 {
     let observed_line_of_sight = observed_line_of_sight(observer);
     let ray_from_world_to_observer = world_coord - observer.position;
-    let depth_component = ray_from_world_to_observer.dot(observed_line_of_sight);
-    let interpolation_factor = near_clip_plane / depth_component;
-    observer.position + ray_from_world_to_observer * interpolation_factor
+    let signed_depth_component = ray_from_world_to_observer.dot(observed_line_of_sight); // depth here is now POSITIVE/FORWARD from camera (no longer world context of -z los)
+    let depth_interpolation = near_clip_plane / signed_depth_component;
+    observer.position + ray_from_world_to_observer * depth_interpolation
 }
 
 #[inline]
@@ -429,7 +447,6 @@ pub fn apply_barycentric_palette(mesh: &mut WeakMesh) {
 }
 
 //TODO: make this a more common update mesh function somehow? to avoid having to do load and unloads of model/meshes constantly in opengl1.1
-//TODO: Is this fucking up the colors?
 pub fn replace_mesh_vertices(dst_mesh: &mut WeakMesh, src_vertices: &[Vector3], capacity: usize) {
     if src_vertices.is_empty() {
         return;
