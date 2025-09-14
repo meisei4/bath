@@ -1,3 +1,10 @@
+// TODO: BIG LIST
+//  1. add the literal multi view ports to mere jugemu and jugemu_ndc, and main_observer views,
+//  2. add the aspect issues proven via the above views
+//  3. More annotations on all the didactic visuals
+//  4. get more creative with how the colors scheming should work and add actual key's in a text/asci overlay that explains all the pedagogy
+//  5. perhaps add some texture mapping visualization explanations
+//  6. add keyboard input to navigate the visualizers?????
 use crate::fixed_func::topology::{observed_line_of_sight, rotate_vertices_in_plane, Topology};
 use raylib::camera::Camera3D;
 use raylib::color::Color;
