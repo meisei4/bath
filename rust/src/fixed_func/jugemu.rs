@@ -5,6 +5,10 @@
 //  4. get more creative with how the colors scheming should work and add actual key's in a text/asci overlay that explains all the pedagogy
 //  5. perhaps add some texture mapping visualization explanations
 //  6. add keyboard input to navigate the visualizers?????
+
+//TODO: MORE:
+// 0. test out different meshes and stuff
+// 1. draw two versions of a depth tilted triangle: (a) affine UV (u,v) and (b) perspective-correct (u/w, v/w, 1/w)
 use crate::fixed_func::topology::{observed_line_of_sight, rotate_vertices_in_plane, Topology};
 use raylib::camera::Camera3D;
 use raylib::color::Color;
