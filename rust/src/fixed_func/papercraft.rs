@@ -63,9 +63,10 @@ pub fn unfold(_thread_borrow: &raylib::RaylibThread, mesh: &mut WeakMesh) -> Mes
     build_unfolded_mesh(_thread_borrow, &lifted_triangles, &welded_mesh)
 }
 
-pub fn recompute_unfold_into_existing_mesh(dst_mesh: &mut WeakMesh, source_mesh: &mut WeakMesh) {
+//TODO: consolidate all these scary mesh updates...
+pub fn recompute_unfold_into_existing_mesh(dst_mesh: &mut WeakMesh, src_mesh: &mut WeakMesh) {
     let (welded_mesh, parent_links, children, mut lifted_triangles, parent_triangles) =
-        prepare_mesh_for_folding(source_mesh);
+        prepare_mesh_for_folding(src_mesh);
 
     for &parent_triangle in &parent_triangles {
         apply_hinge_rotation_with_equation(

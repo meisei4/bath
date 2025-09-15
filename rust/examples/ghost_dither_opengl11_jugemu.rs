@@ -1,8 +1,8 @@
-use asset_payload::SPHERE_PATH;
 use bath::fixed_func::jugemu::{
     apply_barycentric_palette, draw_frustum, draw_near_plane_intersectional_disk_mesh, draw_observed_axes,
 };
 use bath::fixed_func::silhouette::{ANGULAR_VELOCITY, FOVY_PERSPECTIVE, MODEL_POS, MODEL_SCALE};
+use bath::fixed_func::software_render::draw_near_plane_software_raster;
 use bath::fixed_func::topology::Topology;
 use bath::render::raylib::RaylibRenderer;
 use bath::render::raylib_util::{N64_HEIGHT, N64_WIDTH};
@@ -13,10 +13,12 @@ use raylib::consts::CameraProjection;
 use raylib::drawing::{RaylibDraw, RaylibDraw3D, RaylibMode3DExt};
 use raylib::ffi::{rlSetLineWidth, rlSetPointSize};
 use raylib::math::Vector3;
-use raylib::models::{Mesh, RaylibModel};
+use raylib::models::{Mesh, RaylibMesh, RaylibModel};
 
 pub const OBSERVER_POS: Vector3 = Vector3::new(0.0, 0.0, 2.0);
 pub const JUGEMU_POS_ISO: Vector3 = Vector3::new(3.0, 1.0, 3.0);
+pub const JUGEMU_POS_ISO_WOBBLE: Vector3 = Vector3::new(0.0, 2.0, 2.0);
+pub const JUGEMU_POS_ISO_NDC_ZOOM: Vector3 = Vector3::new(2.2, 0.0, 0.5);
 
 fn main() {
     let mut mesh_rotation = 0.0f32;
@@ -38,18 +40,24 @@ fn main() {
     let aspect = screen_w as f32 / screen_h as f32;
 
     let jugemu = Camera3D {
-        // position: OBSERVER_POS,
-        position: JUGEMU_POS_ISO,
+        position: OBSERVER_POS,
+        // position: JUGEMU_POS_ISO,
+        // position: JUGEMU_POS_ISO_WOBBLE,
+        // position: JUGEMU_POS_ISO_NDC_ZOOM,
         target: Vector3::ZERO,
         up: Vector3::Y,
         fovy: FOVY_PERSPECTIVE,
         projection: CameraProjection::CAMERA_PERSPECTIVE,
     };
+    // let mut main_model = render.handle.load_model(&render.thread, SPHERE_PATH).unwrap();
+    let mut cube_mesh = Mesh::try_gen_mesh_cube(&render.thread, 1.0, 1.0, 1.0).unwrap();
+    let mut main_model = render
+        .handle
+        .load_model_from_mesh(&render.thread, unsafe { cube_mesh.make_weak() })
+        .unwrap();
 
-    let mut main_model = render.handle.load_model(&render.thread, SPHERE_PATH).unwrap();
-    //TODO: this will automatically color the wire mesh... not sure a way around that in opengl
+    //TODO: this will automatically color the wire mesh and points.
     apply_barycentric_palette(&mut main_model.meshes_mut()[0]);
-
     let max_vertices = main_model.meshes()[0].vertexCount as usize;
     let initial_vertices = vec![Vector3::ZERO; max_vertices];
     let mut ndc_mesh = Mesh::init_mesh(&initial_vertices).build(&render.thread).unwrap();
@@ -58,7 +66,6 @@ fn main() {
         .load_model_from_mesh(&render.thread, unsafe { ndc_mesh.make_weak() })
         .unwrap();
     apply_barycentric_palette(&mut ndc_model.meshes_mut()[0]);
-    //TODO: used for either the NDC reflection points, or world space non-reflected points, NOT BOTH!!!!
     let mut near_plane_intersectional_disk_mesh = Mesh::init_mesh(&initial_vertices).build(&render.thread).unwrap();
     let mut near_plane_intersectional_disk_model = render
         .handle
@@ -75,7 +82,14 @@ fn main() {
 
         draw_handle.draw_mode3D(jugemu, |mut rl3d| {
             draw_observed_axes(&mut rl3d, &main_observer);
-
+            // rl3d.draw_model_ex(
+            //     &main_model,
+            //     MODEL_POS,
+            //     Vector3::Y,
+            //     mesh_rotation.to_degrees(),
+            //     MODEL_SCALE,
+            //     Color::WHITE,
+            // );
             unsafe { rlSetLineWidth(1.0) };
             rl3d.draw_model_wires_ex(
                 &main_model,
@@ -119,18 +133,18 @@ fn main() {
                 false,
             );
 
-            // draw_near_plane_software_raster(
-            //     &mut rl3d,
-            //     screen_w,
-            //     screen_h,
-            //     &main_observer,
-            //     near_clip_plane,
-            //     &main_model.meshes()[0],
-            //     MODEL_POS_BACK,
-            //     MODEL_SCALE,
-            //     mesh_rotation,
-            //     1,
-            // );
+            draw_near_plane_software_raster(
+                &mut rl3d,
+                screen_w,
+                screen_h,
+                &main_observer,
+                near_clip_plane,
+                &main_model.meshes()[0],
+                MODEL_POS,
+                MODEL_SCALE,
+                mesh_rotation,
+                1,
+            );
         });
     }
 }

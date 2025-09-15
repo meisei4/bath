@@ -110,6 +110,7 @@ pub fn update_world_to_ndc_mapped_mesh(
     let half_depth_ndc_cube = half_height_near_clip_plane;
     let ndc_cube_center = center_near_clip_plane + observed_line_of_sight * half_depth_ndc_cube;
 
+    //TODO: consolidate all these scary mesh updates...
     let world_coords = world_mesh.vertices();
     let ndc_coords = ndc_mesh.vertices_mut();
     let ndc_vertex_count = world_coords.len().min(ndc_coords.len());
@@ -352,19 +353,18 @@ pub fn draw_near_plane_intersectional_disk_mesh(
     rl3d: &mut impl RaylibDraw3D,
     observer: &Camera3D,
     near_clip_plane: f32,
-    intersection_model: &mut Model,
+    near_plane_intersectional_disk_model: &mut Model,
     model_position: Vector3,
     model_scale: Vector3,
     mesh_rotation: f32,
     topology: &Topology,
     reflect_y: bool,
 ) {
+    let vertex_count = near_plane_intersectional_disk_model.meshes()[0].vertexCount as usize;
     let triangle_set = topology.front_triangles_snapshot.as_ref().unwrap();
     // let front_triangles = topology.front_triangles_snapshot.as_ref().unwrap();
     // let silhouette_triangles = topology.silhouette_triangles_snapshot.clone().unwrap();
     // let triangle_set: HashSet<usize> = front_triangles.difference(&silhouette_triangles).copied().collect();
-
-    let vertex_count = &triangle_set.len() * 3;
     let vertices_per_triangle = topology.vertices_per_triangle_snapshot.as_ref().unwrap();
 
     let mut intersection_coordinates = Vec::new();
@@ -399,13 +399,18 @@ pub fn draw_near_plane_intersectional_disk_mesh(
 
     if !intersection_coordinates.is_empty() {
         replace_mesh_vertices(
-            &mut intersection_model.meshes_mut()[0],
+            &mut near_plane_intersectional_disk_model.meshes_mut()[0],
             &intersection_coordinates,
             vertex_count,
         );
     }
     unsafe { rlSetPointSize(3.0) };
-    rl3d.draw_model_points(&intersection_model, Vector3::ZERO, 1.0, Color::GREEN);
+    rl3d.draw_model_points(
+        &near_plane_intersectional_disk_model,
+        Vector3::ZERO,
+        1.0,
+        Color::GOLDENROD,
+    );
     // rl3d.draw_model_wires(&intersection_model, Vector3::ZERO, 1.0, Color::WHITE);
 }
 
@@ -454,7 +459,7 @@ pub fn apply_barycentric_palette(mesh: &mut WeakMesh) {
     }
 }
 
-//TODO: make this a more common update mesh function somehow? to avoid having to do load and unloads of model/meshes constantly in opengl1.1
+//TODO: consolidate all these scary mesh updates...
 pub fn replace_mesh_vertices(dst_mesh: &mut WeakMesh, src_vertices: &[Vector3], capacity: usize) {
     if src_vertices.is_empty() {
         return;

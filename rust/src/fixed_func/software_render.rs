@@ -6,7 +6,8 @@ use raylib::drawing::RaylibDraw3D;
 use raylib::math::{Vector2, Vector3};
 use raylib::models::{RaylibMesh, WeakMesh};
 
-pub const PERSPECTIVE_CORRECT: bool = true;
+//TODO: NEXT WAY TO TEST THIS IS WITH ACTUAL CHECKERED TEXTURE LIKE IN: https://youtu.be/UIcpF_E0xNI?t=1435
+pub const PERSPECTIVE_CORRECT: bool = false;
 pub const DEPTH_TEST_ON: bool = true;
 
 pub fn draw_near_plane_software_raster(
