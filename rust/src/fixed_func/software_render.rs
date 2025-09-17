@@ -1,5 +1,5 @@
 use crate::fixed_func::jugemu::{near_plane_intersection, observed_orthonormal_basis_vectors};
-use crate::fixed_func::topology::rotate_vertices_in_plane;
+use crate::fixed_func::topology::rotate_vertices_in_plane_slice;
 use raylib::camera::Camera3D;
 use raylib::color::Color;
 use raylib::drawing::RaylibDraw3D;
@@ -30,7 +30,7 @@ pub fn draw_near_plane_software_raster(
     let vertices = mesh.vertices();
     for [vertex_a, vertex_b, vertex_c] in triangles {
         let mut triangle = [vertices[vertex_a], vertices[vertex_b], vertices[vertex_c]];
-        rotate_vertices_in_plane(&mut triangle, mesh_rotation_radians);
+        rotate_vertices_in_plane_slice(&mut triangle, mesh_rotation_radians);
         let world_triangle = triangle.map(|vertex| model_position + vertex * model_scale);
         //TODO: this is only for getting x,y and depth data, it doesnt project anything. make that more clear
         let projection_a =

@@ -3,7 +3,7 @@ use crate::fixed_func::silhouette::{
     DITHER_BLEND_FACTOR, DITHER_TEXTURE_SCALE, FOVY_ORTHOGRAPHIC, UMBRAL_MASK_CENTER, UMBRAL_MASK_FADE_BAND,
     UMBRAL_MASK_INNER_RADIUS, UMBRAL_MASK_OFFSET_X, UMBRAL_MASK_OFFSET_Y, UMBRAL_MASK_OUTER_RADIUS,
 };
-use crate::fixed_func::topology::{observed_line_of_sight, rotate_vertices_in_plane, Topology};
+use crate::fixed_func::topology::{observed_line_of_sight, rotate_vertices_in_plane_slice, Topology};
 use raylib::camera::Camera3D;
 use raylib::color::Color;
 use raylib::consts::PixelFormat::PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
@@ -55,8 +55,8 @@ pub fn rotate_silhouette_texture_dither(
         .smooth_vertex_normals()
         .build();
     let mut smooth_vertex_normals = topology.vertex_normals_snapshot.unwrap();
-    rotate_vertices_in_plane(&mut vertices, mesh_rotation);
-    rotate_vertices_in_plane(&mut smooth_vertex_normals, mesh_rotation);
+    rotate_vertices_in_plane_slice(&mut vertices, mesh_rotation);
+    rotate_vertices_in_plane_slice(&mut smooth_vertex_normals, mesh_rotation);
     let observed_line_of_sight = observed_line_of_sight(observer);
     let vertex_count = mesh.vertexCount as usize;
     let texcoords = mesh.ensure_texcoords().unwrap();
@@ -84,8 +84,8 @@ pub fn rotate_silhouette_texture(model: &mut Model, observer: &Camera3D, mesh_ro
         .smooth_vertex_normals()
         .build();
     let mut smooth_vertex_normals = topology.vertex_normals_snapshot.unwrap();
-    rotate_vertices_in_plane(&mut vertices, mesh_rotation);
-    rotate_vertices_in_plane(&mut smooth_vertex_normals, mesh_rotation);
+    rotate_vertices_in_plane_slice(&mut vertices, mesh_rotation);
+    rotate_vertices_in_plane_slice(&mut smooth_vertex_normals, mesh_rotation);
     let observed_line_of_sight = observed_line_of_sight(observer);
     let vertex_count = mesh.vertexCount as usize;
     let texcoords = mesh.ensure_texcoords().unwrap();

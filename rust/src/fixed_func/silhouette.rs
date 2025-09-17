@@ -1,5 +1,5 @@
 use crate::fixed_func::immediate_mode3d::Immediate3D;
-use crate::fixed_func::topology::{rotate_point_about_axis, rotate_vertices_in_plane, Topology};
+use crate::fixed_func::topology::{rotate_point_about_axis, rotate_vertices_in_plane_slice, Topology};
 use crate::render::raylib::RaylibRenderer;
 use raylib::color::Color;
 use raylib::drawing::{RaylibDraw3D, RaylibDrawHandle, RaylibMode3D};
@@ -88,10 +88,10 @@ pub fn collect_deformed_vertex_samples(base_vertices: &[Vector3]) -> Vec<Vec<Vec
         let sample_time = i as f32 * TIME_BETWEEN_SAMPLES;
         let sample_rotation = -ANGULAR_VELOCITY * sample_time;
         let mut mesh_sample = vertices.to_vec();
-        rotate_vertices_in_plane(&mut mesh_sample, sample_rotation);
+        rotate_vertices_in_plane_slice(&mut mesh_sample, sample_rotation);
         let radial_field = generate_silhouette_radial_field(sample_time);
         deform_vertices_with_radial_field(&mut mesh_sample, &radial_field);
-        rotate_vertices_in_plane(&mut mesh_sample, -sample_rotation);
+        rotate_vertices_in_plane_slice(&mut mesh_sample, -sample_rotation);
         mesh_samples.push(mesh_sample);
     }
     mesh_samples
@@ -461,9 +461,9 @@ pub fn deform_mesh_from_field_phase_derived(
     let vertices = mesh.vertices_mut();
 
     let mut working_vertices = base_vertices.to_vec();
-    rotate_vertices_in_plane(&mut working_vertices, phase_theta);
+    rotate_vertices_in_plane_slice(&mut working_vertices, phase_theta);
     deform_vertices_with_radial_field(&mut working_vertices, radial_field);
-    rotate_vertices_in_plane(&mut working_vertices, -phase_theta);
+    rotate_vertices_in_plane_slice(&mut working_vertices, -phase_theta);
 
     vertices.copy_from_slice(&working_vertices);
 }

@@ -36,6 +36,7 @@ std = []
 tests-only = ["midir", "rdev", "terminal_size", "raylib"]
 nasa-embed = ["asset_payload/nasa-embed"]
 glsl-100 = ["raylib/opengl_es_20"]
+#TODO: If you mess up the spaces in a feature list like `--features tests-only, opengl-11` vs. `--features tests-only,opengl-11` it wont target... wtf
 opengl-11 = ["raylib/opengl_11"]
 
 [target.'cfg(not(any(target_arch = "wasm32", target_os = "linux")))'.dependencies]

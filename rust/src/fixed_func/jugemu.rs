@@ -9,7 +9,7 @@
 //TODO: MORE:
 // 0. test out different meshes and stuff
 // 1. draw two versions of a depth tilted triangle: (a) affine UV (u,v) and (b) perspective-correct (u/w, v/w, 1/w)
-use crate::fixed_func::topology::{observed_line_of_sight, rotate_vertices_in_plane, Topology};
+use crate::fixed_func::topology::{observed_line_of_sight, rotate_vertices_in_plane_slice, Topology};
 use raylib::camera::Camera3D;
 use raylib::color::Color;
 use raylib::drawing::RaylibDraw3D;
@@ -371,7 +371,7 @@ pub fn draw_near_plane_intersectional_disk_mesh(
     //TODO: when just iterating over a reference to the hashset of the front triangles (no difference stuff with silhouettes) you need to copy?
     for triangle_id in triangle_set.iter().copied() {
         let mut vertices = vertices_per_triangle[triangle_id];
-        rotate_vertices_in_plane(&mut vertices, mesh_rotation);
+        rotate_vertices_in_plane_slice(&mut vertices, mesh_rotation);
 
         for vertex in vertices.iter() {
             let scaled = vertex * model_scale;
