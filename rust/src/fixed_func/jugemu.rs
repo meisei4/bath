@@ -49,12 +49,12 @@ pub fn map_frustum_to_ndc_cube(
     let half_fovy = observer.fovy.to_radians() * 0.5;
     let half_height_near_clip_plane = near_clip_plane * half_fovy.tan();
 
-    ///ANISOTROPIC VIEW
+    // ANISOTROPIC VIEW
     // let half_width_near_clip_plane = half_height_near_clip_plane * aspect;
     // let half_depth_ndc_cube = 0.5 * (far_clip_plane - near_clip_plane);
     // let ndc_cube_center = center_near_clip_plane + observed_line_of_sight * half_depth_ndc_cube;
 
-    ///ISOTROPIC DIDACTIC VIEW
+    // ISOTROPIC DIDACTIC VIEW
     let half_width_near_clip_plane = half_height_near_clip_plane;
     let half_depth_ndc_cube = half_height_near_clip_plane;
     let ndc_cube_center = center_near_clip_plane + observed_line_of_sight * half_depth_ndc_cube;
@@ -100,12 +100,12 @@ pub fn update_world_to_ndc_mapped_mesh(
     let half_fovy = observer.fovy.to_radians() * 0.5;
     let half_height_near_clip_plane = near_clip_plane * half_fovy.tan();
 
-    ///ANISOTROPIC VIEW
+    // ANISOTROPIC VIEW
     // let half_width_near_clip_plane = half_height_near_clip_plane * aspect;
     // let half_depth_ndc_cube = 0.5 * (far_clip_plane - near_clip_plane);
     // let ndc_cube_center = center_near_clip_plane + observed_line_of_sight * half_depth_ndc_cube;
 
-    ///ISOTROPIC DIDACTIC VIEW
+    // ISOTROPIC DIDACTIC VIEW
     let half_width_near_clip_plane = half_height_near_clip_plane;
     let half_depth_ndc_cube = half_height_near_clip_plane;
     let ndc_cube_center = center_near_clip_plane + observed_line_of_sight * half_depth_ndc_cube;
@@ -146,7 +146,7 @@ pub fn world_coord_to_ndc_coord(
     //TODO: everywhere that these calculations are made we need to make it consistent for the didactic visuals
     let half_height_near_clip_plane = near_clip_plane * half_fovy.tan();
 
-    /// ANISOTROPIC this should not use half_height_near_clip_plane alone, because it risks double application of NDC somehow?
+    // ANISOTROPIC this should not use half_height_near_clip_plane alone, because it risks double application of NDC somehow?
     let half_width_near_clip_plane = half_height_near_clip_plane * aspect;
 
     let ray_from_world_to_observer = world_coord - observer.position;
@@ -157,11 +157,11 @@ pub fn world_coord_to_ndc_coord(
     let x_ndc = clip_plane_vector.dot(observed_right) / half_width_near_clip_plane;
     let y_ndc = clip_plane_vector.dot(observed_up) / half_height_near_clip_plane;
 
-    /// OTHOGRAPHIC Z?
+    // OTHOGRAPHIC Z?
     // let z_ndc_linear_orthographic = 2.0 * (signed_depth_component - near_clip_plane) / (far_clip_plane - near_clip_plane) - 1.0;
     // (x_ndc, y_ndc, z_ndc_linear_orthographic)
 
-    ///PERSPECTIVE CORRECT Z?
+    // PERSPECTIVE CORRECT Z?
     let z_ndc_perspective_correct = ((far_clip_plane + near_clip_plane)
         - (2.0 * far_clip_plane * near_clip_plane) / signed_depth_component)
         / (far_clip_plane - near_clip_plane);
