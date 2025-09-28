@@ -1,3 +1,4 @@
+use asset_payload::CUBE_PATH;
 use bath::fixed_func::jugemu::apply_barycentric_palette;
 use bath::fixed_func::silhouette::{ANGULAR_VELOCITY, FOVY_PERSPECTIVE, MODEL_POS, MODEL_SCALE};
 use bath::render::raylib::RaylibRenderer;
@@ -7,7 +8,8 @@ use raylib::camera::Camera3D;
 use raylib::color::Color;
 use raylib::consts::CameraProjection;
 use raylib::drawing::{RaylibDraw, RaylibDraw3D, RaylibMode3DExt};
-use raylib::ffi::{rlSetLineWidth, rlSetPointSize};
+use raylib::ffi::rlSetLineWidth;
+// use raylib::ffi::rlSetPointSize;
 use raylib::math::Vector3;
 use raylib::models::{Mesh, RaylibMesh, RaylibModel, WeakMesh};
 
@@ -29,9 +31,7 @@ fn main() {
         fovy: FOVY_PERSPECTIVE,
         projection: CameraProjection::CAMERA_PERSPECTIVE,
     };
-    // let mut main_model = render.handle.load_model(&render.thread, SPHERE_PATH).unwrap();
-    // let mut cube_mesh = Mesh::try_gen_mesh_cube(&render.thread, 1.0, 1.0, 1.0).unwrap();
-    //
+    let mut main_model = render.handle.load_model(&render.thread, CUBE_PATH).unwrap();
     let mut cube_mesh = Mesh::try_gen_mesh_cube(&render.thread, 1.0, 1.0, 1.0).unwrap();
     dbg_mesh("gen", &*cube_mesh);
     let vertices = cube_mesh.vertices().to_vec();
@@ -41,22 +41,15 @@ fn main() {
         .build(&render.thread)
         .unwrap();
     dbg_mesh("rebuilt", &*rebuilt);
-    let mut main_model = render
-        .handle
-        .load_model_from_mesh(&render.thread, unsafe { rebuilt.make_weak() })
-        .unwrap();
+    // let mut main_model = render
+    //     .handle
+    //     .load_model_from_mesh(&render.thread, unsafe { rebuilt.make_weak() })
+    //     .unwrap();
     dbg_mesh("model", &*main_model.meshes()[0]);
     apply_barycentric_palette(&mut main_model.meshes_mut()[0]);
     dump_vertices(&main_model.meshes()[0]);
     dump_indices(&main_model.meshes()[0]);
     dump_colors(&main_model.meshes()[0]);
-    // let mut silhouette_img = generate_silhouette_texture(N64_WIDTH, N64_WIDTH);
-    // dither(&mut silhouette_img);
-    // let silhouette_texture = render
-    //     .handle
-    //     .load_texture_from_image(&render.thread, &silhouette_img)
-    //     .unwrap();
-    // main_model.materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize].texture = *silhouette_texture;
     while !render.handle.window_should_close() {
         i_time += render.handle.get_frame_time();
         mesh_rotation -= ANGULAR_VELOCITY * render.handle.get_frame_time();
@@ -69,7 +62,7 @@ fn main() {
                 Vector3::Y,
                 mesh_rotation.to_degrees(),
                 MODEL_SCALE,
-                Color::WHITE,
+                Color::BLUE,
             );
             unsafe { rlSetLineWidth(2.0) };
             rl3d.draw_model_wires_ex(
@@ -78,9 +71,9 @@ fn main() {
                 Vector3::Y,
                 mesh_rotation.to_degrees(),
                 MODEL_SCALE,
-                Color::BLACK,
+                Color::RED,
             );
-            unsafe { rlSetPointSize(8.0) };
+            // unsafe { rlSetPointSize(8.0) };
             rl3d.draw_model_points_ex(
                 &main_model,
                 MODEL_POS,

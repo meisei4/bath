@@ -59,7 +59,7 @@ pub fn rotate_silhouette_texture_dither(
     rotate_vertices_in_plane_slice(&mut smooth_vertex_normals, mesh_rotation);
     let observed_line_of_sight = observed_line_of_sight(observer);
     let vertex_count = mesh.vertexCount as usize;
-    let texcoords = mesh.ensure_texcoords().unwrap();
+    let texcoords = mesh.init_texcoords_mut().unwrap();
     let world_to_pixels = screen_h as f32 / FOVY_ORTHOGRAPHIC;
     for i in 0..vertex_count {
         let vertex = vertices[i];
@@ -88,7 +88,7 @@ pub fn rotate_silhouette_texture(model: &mut Model, observer: &Camera3D, mesh_ro
     rotate_vertices_in_plane_slice(&mut smooth_vertex_normals, mesh_rotation);
     let observed_line_of_sight = observed_line_of_sight(observer);
     let vertex_count = mesh.vertexCount as usize;
-    let texcoords = mesh.ensure_texcoords().unwrap();
+    let texcoords = mesh.init_texcoords_mut().unwrap();
     for vertex_index in 0..vertex_count {
         let vertex = vertices[vertex_index];
         let vertex_normal = smooth_vertex_normals[vertex_index];

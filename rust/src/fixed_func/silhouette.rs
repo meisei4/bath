@@ -184,7 +184,7 @@ pub fn rotate_inverted_hull(
         .build();
     let smooth_vertex_normals = topology.vertex_normals_snapshot.unwrap();
     let mut expanded_vertices = Vec::with_capacity(vertex_count);
-    // let inverted_hull_colors = inverted_hull_mesh.ensure_colors().unwrap();
+    // let inverted_hull_colors = inverted_hull_mesh.init_colors_mut().unwrap();
     let mut alpha_faded_colors = Vec::with_capacity(vertex_count);
     for i in 0..vertex_count {
         let vertex = vertices[i];
@@ -200,7 +200,7 @@ pub fn rotate_inverted_hull(
     }
     inverted_hull_mesh.vertices_mut().copy_from_slice(&expanded_vertices);
     inverted_hull_mesh
-        .ensure_colors() //TODO: this is absurd, it demonstrates though that raylib c will auto fill colors during the obj load i think??
+        .init_colors_mut() //TODO: this is absurd, it demonstrates though that raylib c will auto fill colors during the obj load i think??
         .unwrap()
         .copy_from_slice(&alpha_faded_colors);
 }

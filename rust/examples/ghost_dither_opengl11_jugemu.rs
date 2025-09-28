@@ -40,8 +40,8 @@ fn main() {
     let aspect = screen_w as f32 / screen_h as f32;
 
     let jugemu = Camera3D {
-        position: OBSERVER_POS,
-        // position: JUGEMU_POS_ISO,
+        // position: OBSERVER_POS,
+        position: JUGEMU_POS_ISO,
         // position: JUGEMU_POS_ISO_WOBBLE,
         // position: JUGEMU_POS_ISO_NDC_ZOOM,
         target: Vector3::ZERO,

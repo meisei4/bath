@@ -9,9 +9,10 @@ use raylib::camera::Camera3D;
 use raylib::color::Color;
 use raylib::consts::CameraProjection;
 use raylib::drawing::{RaylibDraw, RaylibDraw3D, RaylibMode3DExt};
+// use raylib::ffi::rlSetPointSize;
 use raylib::ffi::{
     rlGetMatrixModelview, rlGetMatrixProjection, rlSetLineWidth, rlSetMatrixModelview, rlSetMatrixProjection,
-    rlSetPointSize, rlViewport,
+    rlViewport,
 };
 use raylib::math::{Matrix, Vector3};
 use raylib::models::{Model, RaylibModel};
@@ -230,7 +231,9 @@ pub fn happo_giri_draw_immediate(
                     MODEL_SCALE,
                     Color::RED,
                 );
-                rlSetPointSize(12.0);
+                // rlSetPointSize(12.0);
+                //TODO: this does not do anything it seems to not even be an opengl1.1 path?
+                //  i dont understand
                 rl3d.draw_model_points_ex(
                     target_model,
                     MODEL_POS,

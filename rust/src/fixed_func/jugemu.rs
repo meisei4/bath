@@ -13,7 +13,8 @@ use crate::fixed_func::topology::{observed_line_of_sight, rotate_vertices_in_pla
 use raylib::camera::Camera3D;
 use raylib::color::Color;
 use raylib::drawing::RaylibDraw3D;
-use raylib::ffi::{rlSetLineWidth, rlSetPointSize};
+use raylib::ffi::rlSetLineWidth;
+// use raylib::ffi::rlSetPointSize;
 use raylib::math::{Vector2, Vector3};
 use raylib::models::{Model, RaylibMesh, RaylibModel, WeakMesh};
 use std::ffi::c_int;
@@ -404,7 +405,7 @@ pub fn draw_near_plane_intersectional_disk_mesh(
             vertex_count,
         );
     }
-    unsafe { rlSetPointSize(3.0) };
+    //unsafe { rlSetPointSize(3.0) };
     rl3d.draw_model_points(
         &near_plane_intersectional_disk_model,
         Vector3::ZERO,
@@ -444,14 +445,18 @@ pub fn observed_orthonormal_basis_vectors(observer: &Camera3D) -> (Vector3, Vect
 
 pub fn apply_barycentric_palette(mesh: &mut WeakMesh) {
     let triangles: Vec<[usize; 3]> = mesh.triangles().collect();
-    //TODO: I do not like this madness
-    let colors = mesh.ensure_colors().unwrap();
+    //TODO: I do not like this madness, why do i always have to ensure...
+    // and should i even provide default in raylilb-rs or just alloc something?
+    // should I be using something like DataBuf? or whatever the fuck is the proper Rusty way???
+    // let colors = mesh.colors_mut().unwrap();
+    let colors = mesh.init_colors_mut().unwrap();
     for [a, b, c] in &triangles {
         colors[*a] = Color::RED;
         colors[*b] = Color::GREEN;
         colors[*c] = Color::BLUE;
     }
-    let texcoords = mesh.ensure_texcoords().unwrap();
+    // let texcoords = mesh.texcoords_mut().unwrap();
+    let texcoords = mesh.init_texcoords_mut().unwrap();
     for [a, b, c] in &triangles {
         texcoords[*a] = Vector2::new(1.0, 0.0);
         texcoords[*b] = Vector2::new(0.0, 1.0);

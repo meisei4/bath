@@ -40,8 +40,8 @@ fn main() {
 
     let jugemu = Camera3D {
         // position: OBSERVER_POS,
-        // position: JUGEMU_POS_ISO,
-        position: JUGEMU_POS_ISO_NDC_ZOOM,
+        position: JUGEMU_POS_ISO,
+        // position: JUGEMU_POS_ISO_NDC_ZOOM,
         target: Vector3::ZERO,
         up: Vector3::Y,
         fovy: FOVY_PERSPECTIVE,

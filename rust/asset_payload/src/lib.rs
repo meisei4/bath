@@ -104,7 +104,9 @@ define_payloads! {
         ROCKS_JPG                => "textures/rocks.jpg",
         VORO_MESH                => "meshes/voro/voro.obj",
         VORO_MESH_CLEAN          => "meshes/voro_clean.obj",
-        SPHERE                   => "meshes/sphere_unit.obj"
+        SPHERE                   => "meshes/sphere_unit.obj",
+        CUBE                     => "meshes/cube_unit.obj"
+
     },
     string: {
         RAYLIB_DEFAULT_VERT_100  => "shaders/glsl/raylib_base_vertex_100.glsl",

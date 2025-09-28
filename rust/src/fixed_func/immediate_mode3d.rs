@@ -1,10 +1,11 @@
 use raylib::camera::Camera3D;
 use raylib::color::Color;
 use raylib::consts::CameraProjection;
+// use raylib::ffi::{rlSetPointSize, rlDisablePointMode, rlEnablePointMode};
 use raylib::ffi::{
-    rlDisablePointMode, rlDisableWireMode, rlDrawRenderBatchActive, rlEnableDepthTest, rlEnablePointMode,
-    rlEnableWireMode, rlFrustum, rlLoadIdentity, rlMatrixMode, rlMultMatrixf, rlOrtho, rlPopMatrix, rlPushMatrix,
-    rlSetLineWidth, rlViewport, DrawModelEx, DrawModelWiresEx, DrawTriangle3D, RL_MODELVIEW, RL_PROJECTION,
+    rlDisableWireMode, rlDrawRenderBatchActive, rlEnableDepthTest, rlEnableWireMode, rlFrustum, rlLoadIdentity,
+    rlMatrixMode, rlMultMatrixf, rlOrtho, rlPopMatrix, rlPushMatrix, rlSetLineWidth, rlViewport, DrawModelEx,
+    DrawModelWiresEx, DrawTriangle3D, RL_MODELVIEW, RL_PROJECTION,
 };
 use raylib::math::Matrix;
 use raylib::{ffi, MintVec3};
@@ -89,7 +90,7 @@ impl Immediate3D {
         tint: impl Into<Color>,
     ) {
         unsafe {
-            rlEnablePointMode();
+            // rlEnablePointMode();
             DrawModelEx(
                 *model.as_ref(),
                 pos.into(),
@@ -98,7 +99,7 @@ impl Immediate3D {
                 scale.into(),
                 tint.into(),
             );
-            rlDisablePointMode();
+            // rlDisablePointMode();
             // DrawModelPointsEx(
             //     *model.as_ref(),
             //     pos.into(),
