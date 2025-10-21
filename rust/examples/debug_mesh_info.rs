@@ -1,4 +1,4 @@
-use asset_payload::CUBE_PATH;
+use asset_payload::CUBE_SIMPLE_PATH;
 use bath::fixed_func::jugemu::apply_barycentric_palette;
 use bath::fixed_func::silhouette::{ANGULAR_VELOCITY, FOVY_PERSPECTIVE, MODEL_POS, MODEL_SCALE};
 use bath::render::raylib::RaylibRenderer;
@@ -9,7 +9,7 @@ use raylib::color::Color;
 use raylib::consts::CameraProjection;
 use raylib::drawing::{RaylibDraw, RaylibDraw3D, RaylibMode3DExt};
 use raylib::ffi::rlSetLineWidth;
-// use raylib::ffi::rlSetPointSize;
+use raylib::ffi::rlSetPointSize;
 use raylib::math::Vector3;
 use raylib::models::{Mesh, RaylibMesh, RaylibModel, WeakMesh};
 
@@ -31,9 +31,10 @@ fn main() {
         fovy: FOVY_PERSPECTIVE,
         projection: CameraProjection::CAMERA_PERSPECTIVE,
     };
-    let mut main_model = render.handle.load_model(&render.thread, CUBE_PATH).unwrap();
+    let mut main_model = render.handle.load_model(&render.thread, CUBE_SIMPLE_PATH).unwrap();
     let mut cube_mesh = Mesh::try_gen_mesh_cube(&render.thread, 1.0, 1.0, 1.0).unwrap();
-    dbg_mesh("gen", &*cube_mesh);
+    dbg_mesh("LOAD", &main_model.meshes()[0]);
+    dbg_mesh("GEN", &*cube_mesh);
     let vertices = cube_mesh.vertices().to_vec();
     let indices = cube_mesh.indices().unwrap().to_vec();
     let mut rebuilt = Mesh::init_mesh(&vertices)
@@ -41,12 +42,22 @@ fn main() {
         .build(&render.thread)
         .unwrap();
     dbg_mesh("rebuilt", &*rebuilt);
-    // let mut main_model = render
-    //     .handle
-    //     .load_model_from_mesh(&render.thread, unsafe { rebuilt.make_weak() })
-    //     .unwrap();
+    let mut main_model_cube_gen = render
+        .handle
+        .load_model_from_mesh(&render.thread, unsafe { rebuilt.make_weak() })
+        .unwrap();
     dbg_mesh("model", &*main_model.meshes()[0]);
     apply_barycentric_palette(&mut main_model.meshes_mut()[0]);
+    apply_barycentric_palette(&mut main_model_cube_gen.meshes_mut()[0]);
+
+    unsafe {
+        main_model.meshes_mut()[0].upload(false);
+    }
+    main_model.meshes_mut()[0].update_color_buffer(&render.thread);
+    main_model.meshes_mut()[0].update_texcoord_buffer(&render.thread);
+    dump_vertices(&main_model_cube_gen.meshes()[0]);
+    dump_indices(&main_model_cube_gen.meshes()[0]);
+    dump_colors(&main_model_cube_gen.meshes()[0]);
     dump_vertices(&main_model.meshes()[0]);
     dump_indices(&main_model.meshes()[0]);
     dump_colors(&main_model.meshes()[0]);
@@ -57,15 +68,18 @@ fn main() {
         draw_handle.clear_background(Color::BLACK);
         draw_handle.draw_mode3D(main_observer, |mut rl3d| {
             rl3d.draw_model_ex(
+                // &main_model_cube_gen,
                 &main_model,
                 MODEL_POS,
                 Vector3::Y,
                 mesh_rotation.to_degrees(),
                 MODEL_SCALE,
-                Color::BLUE,
+                Color::WHITE,
+                // Color { a: 0, ..Color::WHITE },
             );
             unsafe { rlSetLineWidth(2.0) };
             rl3d.draw_model_wires_ex(
+                // &main_model_cube_gen,
                 &main_model,
                 MODEL_POS,
                 Vector3::Y,
@@ -73,8 +87,9 @@ fn main() {
                 MODEL_SCALE,
                 Color::RED,
             );
-            // unsafe { rlSetPointSize(8.0) };
+            unsafe { rlSetPointSize(8.0) };
             rl3d.draw_model_points_ex(
+                // &main_model_cube_gen,
                 &main_model,
                 MODEL_POS,
                 Vector3::Y,

@@ -7,7 +7,7 @@ use raylib::camera::Camera3D;
 use raylib::color::Color;
 use raylib::consts::CameraProjection;
 use raylib::drawing::{RaylibDraw, RaylibDraw3D, RaylibMode3DExt};
-use raylib::ffi::{rlSetLineWidth, rlSetPointSize};
+use raylib::ffi::rlSetLineWidth;
 use raylib::math::Vector3;
 use raylib::models::{Mesh, RaylibMesh, RaylibModel};
 
@@ -61,7 +61,7 @@ fn main() {
                 MODEL_SCALE,
                 Color::RED,
             );
-            unsafe { rlSetPointSize(6.0) };
+            // unsafe { rlSetPointSize(6.0) };
             rl3d.draw_model_points_ex(
                 &main_model,
                 MODEL_POS,

@@ -105,7 +105,8 @@ define_payloads! {
         VORO_MESH                => "meshes/voro/voro.obj",
         VORO_MESH_CLEAN          => "meshes/voro_clean.obj",
         SPHERE                   => "meshes/sphere_unit.obj",
-        CUBE                     => "meshes/cube_unit.obj"
+        CUBE                     => "meshes/ccw_cube.obj",
+        CUBE_SIMPLE              => "meshes/cube_unit.obj"
 
     },
     string: {

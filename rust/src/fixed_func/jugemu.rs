@@ -9,14 +9,18 @@
 //TODO: MORE:
 // 0. test out different meshes and stuff
 // 1. draw two versions of a depth tilted triangle: (a) affine UV (u,v) and (b) perspective-correct (u/w, v/w, 1/w)
-use crate::fixed_func::topology::{observed_line_of_sight, rotate_vertices_in_plane_slice, Topology};
+use crate::fixed_func::topology::{
+    observed_line_of_sight, rotate_point_about_axis, rotate_vertices_in_plane_slice, Topology,
+};
 use raylib::camera::Camera3D;
 use raylib::color::Color;
-use raylib::drawing::RaylibDraw3D;
-use raylib::ffi::rlSetLineWidth;
 // use raylib::ffi::rlSetPointSize;
+use raylib::consts::KeyboardKey::{KEY_A, KEY_D, KEY_DOWN, KEY_LEFT, KEY_RIGHT, KEY_S, KEY_SPACE, KEY_UP, KEY_W};
+use raylib::drawing::RaylibDraw3D;
+use raylib::ffi::{rlSetLineWidth, rlSetPointSize};
 use raylib::math::{Vector2, Vector3};
 use raylib::models::{Model, RaylibMesh, RaylibModel, WeakMesh};
+use std::f32::consts::FRAC_PI_2;
 use std::ffi::c_int;
 
 pub fn draw_observed_axes(rl3d: &mut impl RaylibDraw3D, observer: &Camera3D) {
@@ -38,7 +42,7 @@ pub fn map_frustum_to_ndc_cube(
     observer: &Camera3D,
     near_clip_plane: f32,
     far_clip_plane: f32,
-    src_model: &Model,
+    world_model: &Model,
     ndc_model: &mut Model,
     model_pos: Vector3,
     model_scale: Vector3,
@@ -70,7 +74,7 @@ pub fn map_frustum_to_ndc_cube(
     );
     update_world_to_ndc_mapped_mesh(
         &mut ndc_model.meshes_mut()[0],
-        &src_model.meshes()[0],
+        &world_model.meshes()[0],
         screen_w,
         screen_h,
         observer,
@@ -111,6 +115,12 @@ pub fn update_world_to_ndc_mapped_mesh(
     let half_depth_ndc_cube = half_height_near_clip_plane;
     let ndc_cube_center = center_near_clip_plane + observed_line_of_sight * half_depth_ndc_cube;
 
+    if let (Some(src_indices), Some(dst_indices)) = (world_mesh.indices(), ndc_mesh.indices_mut()) {
+        for i in 0..dst_indices.len() {
+            dst_indices[i] = src_indices[i];
+        }
+        ndc_mesh.as_mut().triangleCount = (dst_indices.len() / 3) as c_int;
+    }
     //TODO: consolidate all these scary mesh updates...
     let world_coords = world_mesh.vertices();
     let ndc_coords = ndc_mesh.vertices_mut();
@@ -131,7 +141,6 @@ pub fn update_world_to_ndc_mapped_mesh(
         ndc_coords[i] =
             apply_inverse_model_translate_rotate_scale(scaled_ndc_coord, model_pos, model_scale, mesh_rotation);
     }
-    ndc_mesh.vertexCount = ndc_vertex_count as c_int;
 }
 
 #[inline]
@@ -321,28 +330,22 @@ pub fn draw_frustum(
     rl3d.draw_line3D(near_top_right, far_top_right, Color::DARKBLUE);
     rl3d.draw_line3D(near_bottom_right, far_bottom_right, Color::DARKBLUE);
     rl3d.draw_line3D(near_bottom_left, far_bottom_left, Color::DARKBLUE);
-
-    let near_plane_color = Color {
-        a: 100,
-        ..Color::SKYBLUE
-    };
-    let far_plane_color = Color { a: 200, ..Color::GRAY };
-    draw_quad(
-        rl3d,
-        near_top_left,
-        near_top_right,
-        near_bottom_right,
-        near_bottom_left,
-        near_plane_color,
-    );
-    draw_quad(
-        rl3d,
-        far_top_left,
-        far_top_right,
-        far_bottom_right,
-        far_bottom_left,
-        far_plane_color,
-    );
+    // draw_quad(
+    //     rl3d,
+    //     near_top_left,
+    //     near_top_right,
+    //     near_bottom_right,
+    //     near_bottom_left,
+    //     Color { a: 0, ..Color::WHITE },
+    // );
+    // draw_quad(
+    //     rl3d,
+    //     far_top_left,
+    //     far_top_right,
+    //     far_bottom_right,
+    //     far_bottom_left,
+    //     Color { a: 0, ..Color::WHITE },
+    // );
 }
 
 pub fn draw_quad(rl3d: &mut impl RaylibDraw3D, a: Vector3, b: Vector3, c: Vector3, d: Vector3, color: Color) {
@@ -386,14 +389,7 @@ pub fn draw_near_plane_intersectional_disk_mesh(
             };
 
             unsafe { rlSetLineWidth(1.0) };
-            rl3d.draw_line3D(
-                world_coord,
-                intersection_coord,
-                Color {
-                    a: 80,
-                    ..Color::WHITESMOKE
-                },
-            );
+            rl3d.draw_line3D(world_coord, intersection_coord, Color { a: 80, ..Color::RED });
             intersection_coordinates.push(intersection_coord);
         }
     }
@@ -405,13 +401,8 @@ pub fn draw_near_plane_intersectional_disk_mesh(
             vertex_count,
         );
     }
-    //unsafe { rlSetPointSize(3.0) };
-    rl3d.draw_model_points(
-        &near_plane_intersectional_disk_model,
-        Vector3::ZERO,
-        1.0,
-        Color::GOLDENROD,
-    );
+    unsafe { rlSetPointSize(6.0) };
+    rl3d.draw_model_points(&near_plane_intersectional_disk_model, Vector3::ZERO, 1.0, Color::GREEN);
     // rl3d.draw_model_wires(&intersection_model, Vector3::ZERO, 1.0, Color::WHITE);
 }
 
@@ -445,17 +436,12 @@ pub fn observed_orthonormal_basis_vectors(observer: &Camera3D) -> (Vector3, Vect
 
 pub fn apply_barycentric_palette(mesh: &mut WeakMesh) {
     let triangles: Vec<[usize; 3]> = mesh.triangles().collect();
-    //TODO: I do not like this madness, why do i always have to ensure...
-    // and should i even provide default in raylilb-rs or just alloc something?
-    // should I be using something like DataBuf? or whatever the fuck is the proper Rusty way???
-    // let colors = mesh.colors_mut().unwrap();
     let colors = mesh.init_colors_mut().unwrap();
     for [a, b, c] in &triangles {
         colors[*a] = Color::RED;
         colors[*b] = Color::GREEN;
         colors[*c] = Color::BLUE;
     }
-    // let texcoords = mesh.texcoords_mut().unwrap();
     let texcoords = mesh.init_texcoords_mut().unwrap();
     for [a, b, c] in &triangles {
         texcoords[*a] = Vector2::new(1.0, 0.0);
@@ -475,4 +461,64 @@ pub fn replace_mesh_vertices(dst_mesh: &mut WeakMesh, src_vertices: &[Vector3], 
     for (i, src_vertex) in src_vertices.iter().take(dst_vertex_count).enumerate() {
         dst_vertices[i] = *src_vertex;
     }
+}
+
+const ROLL_ROTATION_VELOCITY: f32 = 2.0;
+const JUGEMU_LONGITUDINAL_ORBIT_SPEED: f32 = 1.5;
+const JUGEMU_LATITUDINAL_ORBIT_SPEED: f32 = 1.0;
+const JUGEMU_ZOOM_SPEED: f32 = 2.0;
+const JUGEMU_MIN_RADIUS: f32 = 0.25;
+const JUGEMU_MAX_RADIUS: f32 = 25.0;
+
+pub fn move_jugemu_orbital(jugemu: &mut Camera3D, handle: &raylib::RaylibHandle, delta_time: f32) -> bool {
+    let prev_pos = jugemu.position;
+    let mut radius = jugemu.position.length();
+    let mut orbital_azimuth = jugemu.position.z.atan2(jugemu.position.x);
+    let horizontal_radius = (jugemu.position.x * jugemu.position.x + jugemu.position.z * jugemu.position.z).sqrt();
+    let mut orbital_elevation = jugemu.position.y.atan2(horizontal_radius);
+    if handle.is_key_down(KEY_LEFT) {
+        orbital_azimuth += JUGEMU_LONGITUDINAL_ORBIT_SPEED * delta_time;
+    }
+    if handle.is_key_down(KEY_RIGHT) {
+        orbital_azimuth -= JUGEMU_LONGITUDINAL_ORBIT_SPEED * delta_time;
+    }
+    if handle.is_key_down(KEY_UP) {
+        orbital_elevation += JUGEMU_LATITUDINAL_ORBIT_SPEED * delta_time;
+    }
+    if handle.is_key_down(KEY_DOWN) {
+        orbital_elevation -= JUGEMU_LATITUDINAL_ORBIT_SPEED * delta_time;
+    }
+    if handle.is_key_down(KEY_W) {
+        radius -= JUGEMU_ZOOM_SPEED * delta_time;
+    }
+    if handle.is_key_down(KEY_S) {
+        radius += JUGEMU_ZOOM_SPEED * delta_time;
+    }
+    let mut roll_delta = 0.0;
+    if handle.is_key_down(KEY_A) {
+        roll_delta -= ROLL_ROTATION_VELOCITY * delta_time;
+    }
+    if handle.is_key_down(KEY_D) {
+        roll_delta += ROLL_ROTATION_VELOCITY * delta_time;
+    }
+    if handle.is_key_pressed(KEY_SPACE) {
+        jugemu.up = Vector3::Y;
+        roll_delta = 0.0;
+    }
+
+    //TODO: add a way to jump directly to the OBSERVERS position ofc!!!
+    radius = radius.clamp(JUGEMU_MIN_RADIUS, JUGEMU_MAX_RADIUS);
+    const ORBITAL_POLES_EPSILON: f32 = 0.0001; //TODO: ugh
+    let max_polar_orbit = FRAC_PI_2 - ORBITAL_POLES_EPSILON;
+    let min_polar_orbit = -FRAC_PI_2 + ORBITAL_POLES_EPSILON;
+    orbital_elevation = orbital_elevation.clamp(min_polar_orbit, max_polar_orbit);
+    jugemu.position.x = radius * orbital_elevation.cos() * orbital_azimuth.cos();
+    jugemu.position.y = radius * orbital_elevation.sin();
+    jugemu.position.z = radius * orbital_elevation.cos() * orbital_azimuth.sin();
+    let view_direction = (Vector3::ZERO - jugemu.position).normalize_or_zero();
+    let rotated_up =
+        rotate_point_about_axis(jugemu.up, (Vector3::ZERO, view_direction), roll_delta).normalize_or_zero();
+    jugemu.target = Vector3::ZERO;
+    jugemu.up = rotated_up.normalize_or_zero();
+    prev_pos != jugemu.position
 }
