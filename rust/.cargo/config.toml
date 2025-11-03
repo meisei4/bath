@@ -5,7 +5,7 @@
 #linker = "zig"
 #^^ zigbuild doesnt even run this config.toml file, whatever, i give up
 #TODO: hack for opengl_11 at this level or the build.rs level
-#rustflags = ["-C", "link-args=-lGL"]
+rustflags = ["-C", "link-args=-lGL"] #TODO: this is really upsetting that i still dont understand how this works. i need to do a review.
 
 #[env]
 ##BINDGEN_EXTRA_CLANG_ARGS_x86_64-unknown-linux-gnu = "-I/home/adduser/raylib/src"

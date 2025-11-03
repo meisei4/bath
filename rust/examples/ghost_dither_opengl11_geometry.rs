@@ -1,5 +1,5 @@
 use asset_payload::SPHERE_PATH;
-use bath::fixed_func::papercraft::{recompute_unfold_into_existing_mesh, unfold};
+use bath::fixed_func::papercraft::{fold, recompute_unfold_into_existing_mesh, unfold};
 use bath::fixed_func::silhouette::{collect_deformed_vertex_samples, FOVY_ORTHOGRAPHIC};
 use bath::fixed_func::silhouette::{interpolate_between_deformed_vertices, MODEL_POS, MODEL_SCALE};
 use bath::fixed_func::silhouette::{ANGULAR_VELOCITY, TIME_BETWEEN_SAMPLES};
@@ -48,6 +48,7 @@ fn main() {
         let source_mesh: &mut raylib::models::WeakMesh = &mut main_model.meshes_mut()[0];
         let target_mesh: &mut raylib::models::WeakMesh = &mut unfolded_model.meshes_mut()[0];
         recompute_unfold_into_existing_mesh(target_mesh, source_mesh);
+        // *target_mesh = unsafe { fold(&render.thread, source_mesh, i_time, true).make_weak() };
         let unfolded_mesh = target_mesh.clone();
         let mut draw_handle = render.handle.begin_drawing(&render.thread);
         draw_handle.clear_background(Color::BLACK);

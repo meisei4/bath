@@ -14,7 +14,7 @@ use raylib::color::Color;
 use raylib::consts::CameraProjection;
 use raylib::consts::MaterialMapIndex::MATERIAL_MAP_ALBEDO;
 use raylib::drawing::{RaylibDraw, RaylibDraw3D, RaylibMode3DExt};
-use raylib::ffi::rlSetLineWidth;
+use raylib::ffi::{rlSetLineWidth, rlSetPointSize};
 use raylib::math::Vector3;
 use raylib::models::{RaylibMaterial, RaylibMesh, RaylibModel};
 
@@ -57,16 +57,19 @@ fn main() {
                 Vector3::Y,
                 mesh_rotation.to_degrees(),
                 MODEL_SCALE,
-                Color::BLUE,
+                Color::WHITE,
             );
-            unsafe { rlSetLineWidth(5.0) };
+            unsafe { rlSetLineWidth(4.0) };
             rl3d.draw_model_wires_ex(
                 &main_model,
                 MODEL_POS,
                 Vector3::Y,
                 mesh_rotation.to_degrees(),
                 MODEL_SCALE,
-                Color::RED,
+                Color {
+                    a: 80,
+                    ..Color::DARKMAGENTA
+                },
             );
             // unsafe { rlSetPointSize(20.0) };
             rl3d.draw_model_points_ex(
@@ -96,7 +99,10 @@ fn main() {
                 &topology,
                 mesh_rotation,
                 &triangle_set,
-                Some(Color::new(255, 32, 32, 90)),
+                Some(Color {
+                    a: 100,
+                    ..Color::INDIANRED
+                }),
                 true,
                 12,
             );
