@@ -1,25 +1,3 @@
-/*******************************************************************************************
-*
-*   raylib [core] example - Fixed-function didactic
-*
-*   RESOURCES:
-*    - https://en.wikipedia.org/wiki/Fixed-function_(computer_graphics)
-*    - https://en.wikipedia.org/wiki/Texture_mapping#Perspective_correctness
-*    - Etay Meiri (OGLDEV) Perspective Projection Tutorial: https://www.youtube.com/watch?v=LhQ85bPCAJ8
-*    - Keenan Crane Computer Graphics (CMU 15-462/662): https://www.youtube.com/watch?v=_4Q4O2Kgdo4
-*
-*   Example complexity rating: [★★★★] 4/4
-*
-*   Example originally created with raylib 6.0? (target)
-*
-*   Example contributed by IANN (@meisei4) and reviewed by Ramon Santamaria (@raysan5) and community
-*
-*   Example licensed under an unmodified zlib/libpng license, which is an OSI-certified,
-*   BSD-like license that allows static linking with closed source software
-*
-*   Copyright (c) 2025-2025 @meisei4
-*
-********************************************************************************************/
 extern crate core;
 
 use raylib::core::math::{Vector3};
@@ -33,18 +11,19 @@ use raylib::consts::CameraProjection::{CAMERA_ORTHOGRAPHIC, CAMERA_PERSPECTIVE};
 use raylib::consts::KeyboardKey;
 use raylib::consts::MaterialMapIndex::MATERIAL_MAP_ALBEDO;
 use raylib::consts::PixelFormat::{PIXELFORMAT_UNCOMPRESSED_GRAYSCALE, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8};
-use raylib::drawing::{RaylibDraw, RaylibDraw3D, RaylibDrawHandle, RaylibMode3D, RaylibMode3DExt};
-use raylib::ffi::{rlBegin, rlColor4ub, rlDisableTexture, rlDisableWireMode, rlEnableTexture, rlEnableWireMode, rlEnd, rlSetPointSize, rlTexCoord2f, rlVertex3f, IsKeyPressed, UploadMesh, RL_TRIANGLES};
+use raylib::drawing::{RaylibDraw, RaylibDraw3D, RaylibDrawHandle, RaylibMode3D, RaylibMode3DExt, RaylibTextureModeExt};
+use raylib::ffi::{rlBegin, rlColor4ub, rlDisableTexture, rlDisableWireMode, rlDrawRenderBatchActive, rlEnableTexture, rlEnableWireMode, rlEnd, rlGetTextureIdDefault, rlSetPointSize, rlSetTexture, rlTexCoord2f, rlVertex3f, IsKeyPressed, UpdateMeshBuffer, UploadMesh, RL_DEFAULT_SHADER_ATTRIB_LOCATION_POSITION, RL_TRIANGLES};
 use raylib::math::glam::{Mat4};
-use raylib::texture::{Image, RaylibTexture2D, Texture2D};
+use raylib::texture::{Image, Texture2D};
 use std::f32::consts::PI;
-use std::mem::replace;
 use std::ops::{Add, Sub};
 use raylib::math::{lerp, Vector2};
 #[cfg(feature = "opengl-33")] use raylib::texture::RenderTexture2D;
 #[cfg(feature = "opengl-33")] use raylib::shaders::RaylibShader;
 
-#[cfg(feature = "opengl-33")] static VERT: &str = r#"#version 330
+#[cfg(feature = "opengl-33")]
+static VERT: &str = r#"
+#version 330
 in vec3 vertexPosition;
 in vec2 vertexTexCoord;
 in vec3 vertexNormal;
@@ -54,8 +33,7 @@ out vec2 fragTexCoord;
 out vec4 fragColor;
 uniform int useVertexColors;
 uniform int flipTexcoordY;
-void main()
-{
+void main() {
     if (useVertexColors == 1) {
         fragColor = vertexColor;
     } else {
@@ -66,14 +44,15 @@ void main()
 }
 "#;
 
-#[cfg(feature = "opengl-33")] static FRAG: &str = r#"#version 330
+#[cfg(feature = "opengl-33")]
+static FRAG: &str = r#"
+#version 330
 in vec2 fragTexCoord;
 in vec4 fragColor;
 uniform sampler2D texture0;
 uniform vec4 colDiffuse;
 out vec4 finalColor;
-void main()
-{
+void main() {
     vec4 texelColor = texture(texture0, fragTexCoord);
     vec4 outColor = texelColor*fragColor*colDiffuse;
     if (outColor.a <= 0.0) discard;
@@ -164,11 +143,11 @@ fn main() {
         .title("raylib [core] example - fixed function didactic")
         .build();
     #[cfg(feature = "opengl-33")]
-    let custom_shader = handle.load_shader_from_memory(&thread, Some(VERT), Some(FRAG));
+    let mut custom_shader = handle.load_shader_from_memory(&thread, Some(VERT), Some(FRAG));
     #[cfg(feature = "opengl-33")]
-    let use_vertex_colors_loc: i32 = custom_shader.get_shader_location("useVertexColors");
-    #[cfg(feature = "opengl-33")]
-    let flip_texcoord_y_loc: i32 = custom_shader.get_shader_location("flipTexcoordY");
+    let mut perspective_correct_render_texture = handle.load_render_texture(&thread, 800, 450).unwrap();
+    #[cfg(feature = "opengl-11")]
+    let mut perspective_correct_texture = Texture2D::default();
 
     let near = 1.0;
     let far  = 3.0;
@@ -198,7 +177,7 @@ fn main() {
     let texture_config: [i32; NUM_MODELS] = [4, 4, 16, 16, 32];
 
     for i in 0..NUM_MODELS {
-        let mut model = match i {
+        let mut world_model = match i {
             0 => handle.load_model_from_owned_mesh(&thread, Mesh::try_gen_mesh_cube(&thread, 1.0, 1.0, 1.0).unwrap()).unwrap(),
             1 => handle.load_model(&thread, CUBE_PATH).expect("load cube obj"),
             2 => handle.load_model_from_mesh(&thread, unsafe { Mesh::try_gen_mesh_sphere(&thread, 0.5, 8, 8).unwrap().make_weak() }).expect("load model sphere gen"),
@@ -206,7 +185,7 @@ fn main() {
             _ => handle.load_model_from_mesh(&thread, unsafe { Mesh::panic_gen_mesh_knot(&thread, 1.0, 1.0, 16, 128).make_weak() }).expect("load model knot gen"),
         };
 
-        let world_mesh = &mut model.meshes_mut()[0];
+        let world_mesh = &mut world_model.meshes_mut()[0];
 
         fill_planar_texcoords(world_mesh);
         fill_vertex_colors(world_mesh);
@@ -220,65 +199,52 @@ fn main() {
             Color::WHITE,
         );
         let mesh_texture = handle.load_texture_from_image(&thread, &checked_img).unwrap();
-        model.materials_mut()[0].set_material_texture(MATERIAL_MAP_ALBEDO, &mesh_texture);
-        let world_mesh = &model.meshes()[0];
-        let mut ndc_mesh = Mesh::init_mesh(world_mesh.vertices())
+        world_model.materials_mut()[0].set_material_texture(MATERIAL_MAP_ALBEDO, &mesh_texture);
+
+        let ndc_mesh = {
+            let world_mesh = &world_model.meshes()[0]; //TODO: this is an example of immutable borrows simple in these scopes
+            Mesh::init_mesh(world_mesh.vertices())
                 .texcoords_opt(world_mesh.texcoords())
                 .colors_opt(world_mesh.colors())
                 .indices_opt(world_mesh.indices())
-                //.build_raw()
-                .build(&thread)
-                .unwrap();
-
-        ndc_mesh.try_upload_valid(true, &thread); //TODO MUTABLE?????
+                .build_dynamic(&thread)
+                .unwrap()
+        };
         let mut ndc_model = handle.load_model_from_owned_mesh(&thread, ndc_mesh).unwrap();
         ndc_model.materials_mut()[0].set_material_texture(MATERIAL_MAP_ALBEDO, &mesh_texture);
-
         #[cfg(feature = "opengl-33")]
         {
-            //C CODE lol: ndc_model.materials[0].shader = customShader;
-            // let shader = ndc_model.materials_mut()[0].shader_mut(); //TODO figure out the set
+            world_model.materials_mut()[0].set_shader(&custom_shader);
+            ndc_model.materials_mut()[0].set_shader(&custom_shader);
         }
-        let near_plane_points_mesh_vertices = vec![Vector3::default(); world_mesh.triangle_count() * 3]; //FIXME NOTE: *tony soprano voice* again, with the fuckin' cooorrrrnneerrsss
-        let mut near_plane_points_mesh = Mesh::init_mesh(&near_plane_points_mesh_vertices)
-            //.build_raw()
-            .build(&thread)
-            .unwrap();
-        near_plane_points_mesh.try_upload_valid(true, &thread); //TODO MUTABLE???
-        let near_plane_points_model = handle
-            .load_model_from_mesh(&thread, unsafe { near_plane_points_mesh.make_weak() })
+        let near_plane_points_mesh = Mesh::init_mesh(&vec![Vector3::default(); &world_model.meshes()[0].triangle_count() * 3]) //FIXME NOTE: *tony soprano voice* again, with the fuckin' cooorrrrnneerrsss
+            .build_dynamic(&thread)
             .unwrap();
 
-        world_models.push(model);
+        let near_plane_points_model = handle.load_model_from_owned_mesh(&thread, near_plane_points_mesh).unwrap();
+        world_models.push(world_model);
         ndc_models.push(ndc_model);
         near_plane_points_models.push(near_plane_points_model);
         mesh_textures.push(mesh_texture);
     }
 
-    let mut perspective_correct_texture = Texture2D::default();
-    // let mut spatial_frame_model = {
-    //     let mut model = handle.load_model_from_owned_mesh(&thread, Mesh::try_gen_mesh_cube(&thread, 1.0, 1.0, 1.0).unwrap()).unwrap();
-    //     let colors = model.meshes_mut()[0].init_colors_mut().unwrap();
-    //     colors.fill(Color { a: 0, ..Color::WHITE });
-    //     colors.iter_mut().take(4).for_each(|c| c.a = 255);
-    //     model
-    // };
     let mut spatial_frame_model = {
         let mut temp_cube = Mesh::try_gen_mesh_cube(&thread, 1.0, 1.0, 1.0).unwrap();
+        let colors = temp_cube.init_colors_mut().unwrap();
+        colors.fill(Color { a: 0, ..Color::WHITE });
+        colors.iter_mut().take(4).for_each(|c| c.a = 255);
         let spatial_frame_mesh = Mesh::init_mesh(temp_cube.vertices())
             .texcoords_opt(temp_cube.texcoords())
             .colors_opt(temp_cube.colors())
             .indices_opt(temp_cube.indices())
-            .build(&thread)
+            .build_dynamic(&thread)
             .unwrap();
 
         let mut model = handle.load_model_from_owned_mesh(&thread, spatial_frame_mesh).unwrap();
-        let colors = model.meshes_mut()[0].init_colors_mut().unwrap();
-        colors.fill(Color { a: 0, ..Color::WHITE });
-        colors.iter_mut().take(4).for_each(|c| c.a = 255);
-        model.meshes_mut()[0].try_upload_valid(true, &thread);
         model
-    }; //WAIT! WONT TEMP CUBE JUST GET UNLOADED AUTOMATICALLY HERE MAYBE? RUST!!! See Mesh and try_gen_mesh_cube behavior...
+    };//NOTE: see! `temp_cube` gets Unloaded here for real! wow, Weak vs non Weak is really clicking
+    #[cfg(feature = "opengl-33")]
+    spatial_frame_model.materials_mut()[0].set_shader(&custom_shader);
 
     handle.set_target_fps(60);
     //--------------------------------------------------------------------------------------
@@ -318,7 +284,7 @@ fn main() {
 
         main.projection = if ortho_mode!() { CAMERA_ORTHOGRAPHIC } else { CAMERA_PERSPECTIVE };
         main.fovy = if ortho_mode!() { NEAR_PLEAN_HEIGHT_ORTHOGRAPHIC() } else { FOVY_PERSPECTIVE };
-        let target_mesh = unsafe { TARGET_MESH_INDEX }; //FIXME NOTE: just gross, i hate this
+        let target_mesh = unsafe { TARGET_MESH_INDEX }; //FIXME NOTE: i dont like this
         world_to_ndc_space(&mut main, aspect, near, far, &mut world_models[target_mesh], &mut ndc_models[target_mesh], mesh_rotation);
         {
             let world_mesh = &world_models[target_mesh].meshes()[0];
@@ -334,20 +300,25 @@ fn main() {
                 }
             }
         }
+        unsafe { ndc_models[target_mesh].meshes_mut()[0].update_position_buffer(&thread); }
 
         let display_mesh = ndc_models[target_mesh].meshes()[0].clone(); //TODO: clone()??? really???
         let display_model = &mut ndc_models[target_mesh];
 
         update_spatial_frame(&mut main, aspect, near, far, &mut spatial_frame_model.meshes_mut()[0]);
+        unsafe { spatial_frame_model.meshes_mut()[0].update_position_buffer(&thread); }
         //----------------------------------------------------------------------------------
 
         // Draw
         //----------------------------------------------------------------------------------
         let (depth, right, up) = basis_vector(&main);
-        let mut draw_handle = handle.begin_drawing(&thread);
+        let mut draw_handle = handle.begin_drawing(&thread); //TODO: should probably only ever pass all these functions below the handle.. then use draw_mode with the closure
 
         if perspective_correct!() && texture_mode!() {
-            perspective_correct_capture(&mut draw_handle, &thread, &mut main, display_model, &mesh_textures[target_mesh], &mut perspective_correct_texture, mesh_rotation);
+            #[cfg(feature = "opengl-33")]
+            perspective_correct_capture(&thread, &mut draw_handle, &mut main, display_model, &mesh_textures[target_mesh], &mut perspective_correct_render_texture, mesh_rotation);
+            #[cfg(feature = "opengl-11")]
+            perspective_correct_capture(&thread, &mut draw_handle, &mut main, display_model, &mesh_textures[target_mesh], &mut perspective_correct_texture, mesh_rotation);
         }
 
         draw_handle.clear_background(Color::BLACK);
@@ -366,9 +337,25 @@ fn main() {
             }
 
             if perspective_correct!() && texture_mode!() {
-                spatial_frame_model.materials_mut()[0].set_material_texture(MATERIAL_MAP_ALBEDO, &perspective_correct_texture);
-                if jugemu_mode!() {
-                    rl3d.draw_model(&spatial_frame_model, MODEL_POS, 1.0, Color::WHITE);
+                #[cfg(feature = "opengl-33")]
+                {
+                    spatial_frame_model.materials_mut()[0].set_material_texture(MATERIAL_MAP_ALBEDO, &perspective_correct_render_texture);
+                    let use_vertex_colors_loc = custom_shader.get_shader_location("useVertexColors");
+                    custom_shader.set_shader_value_v(use_vertex_colors_loc, &[1]);
+                    let flip_y = if (ndc_space!() && reflect_y!()) { 1 } else { 0 };
+                    let flip_texcoord_y_loc = custom_shader.get_shader_location("flipTexcoordY");
+                    custom_shader.set_shader_value_v(flip_texcoord_y_loc, &[flip_y]);
+                    if jugemu_mode!() {
+                        rl3d.draw_model(&spatial_frame_model, MODEL_POS, 1.0, Color::WHITE);
+                    }
+                    custom_shader.set_shader_value_v(flip_texcoord_y_loc, &[0]);
+                }
+                #[cfg(feature = "opengl-11")]
+                {
+                    spatial_frame_model.materials_mut()[0].set_material_texture(MATERIAL_MAP_ALBEDO, &perspective_correct_texture);
+                    if jugemu_mode!() {
+                        rl3d.draw_model(&spatial_frame_model, MODEL_POS, 1.0, Color::WHITE);
+                    }
                 }
             } else {
                 if jugemu_mode!() {
@@ -462,20 +449,26 @@ fn draw_model_filled(
 ) {
     if !(color_mode!() || texture_mode!()) { return; }
 
+    #[cfg(feature = "opengl-33")]
+    {
+        let shader = model.materials_mut()[0].shader_mut();
+        let loc = shader.get_shader_location("useVertexColors");
+        shader.set_shader_value_v(loc, &[if color_mode!() { 1 } else { 0 }]);
+    }
+
+    #[cfg(feature = "opengl-11")]
     let cache_colors = model.meshes()[0].colors().map(|c| c.to_vec()); //FIXME NOTE: pointer caching vs the whole damn data structure in C vs Rust...
+
+    #[cfg(feature = "opengl-11")]
     if texture_mode!() && !color_mode!() {
         model.meshes_mut()[0].set_colors(None).unwrap();
     }
 
-    if texture_mode!() {
-        model.materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize].texture.id = mesh_texture.id;
-    } else {
-        model.materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize].texture.id = 0;
-    }
-
+    model.materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize].texture.id =
+        if texture_mode!() { mesh_texture.id } else { unsafe { rlGetTextureIdDefault() } };
     rl3d.draw_model_ex(&mut *model, MODEL_POS, Y_AXIS, rotation.to_degrees(), MODEL_SCALE, Color::WHITE);
-
-    model.materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize].texture.id = mesh_texture.id;
+    model.materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize].texture.id = unsafe { rlGetTextureIdDefault() };
+    #[cfg(feature = "opengl-11")]
     model.meshes_mut()[0].set_colors(cache_colors.as_deref()).unwrap();
 }
 
@@ -485,19 +478,27 @@ fn draw_model_wires_and_points(
     model: &mut Model,
     rotation: f32,
 ) {
+    #[cfg(feature = "opengl-33")]
+    {
+        let shader = model.materials_mut()[0].shader_mut();
+        let loc = shader.get_shader_location("useVertexColors");
+        shader.set_shader_value_v(loc, &[if clip_mode!() { 1 } else { 0 }]);
+    }
+    #[cfg(feature = "opengl-11")]
     let cache_colors = model.meshes()[0].colors().map(|c| c.to_vec()); //WHY VEC?? PLEASE COME ONE
+    #[cfg(feature = "opengl-11")]
     if !clip_mode!() {
         model.meshes_mut()[0].set_colors(None).unwrap();
     }
 
     let cache_texture_id = model.materials()[0].maps()[MATERIAL_MAP_ALBEDO as usize].texture().id;
-    model.materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize].texture.id = 0;
-
+    model.materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize].texture.id = unsafe { rlGetTextureIdDefault() };
     rl3d.draw_model_wires_ex(&mut *model, MODEL_POS, Y_AXIS, rotation.to_degrees(), MODEL_SCALE, MARINER);
     unsafe { rlSetPointSize(4.0) }
     rl3d.draw_model_points_ex(&mut *model, MODEL_POS, Y_AXIS, rotation.to_degrees(), MODEL_SCALE, LILAC);
 
     model.materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize].texture.id = cache_texture_id;
+    #[cfg(feature = "opengl-11")]
     model.meshes_mut()[0].set_colors(cache_colors.as_deref()).unwrap();
 }
 
@@ -602,6 +603,7 @@ fn draw_near_plane_points(
     }
 
     near_plane_points_mesh.resize_vertices(count).expect("hope it worked");
+    unsafe { near_plane_points_mesh.update_position_buffer(thread); }
     unsafe { rlSetPointSize(3.0) }
     rl3d.draw_model_points(near_plane_points_model, MODEL_POS, 1.0, LILAC);
 }
@@ -625,9 +627,9 @@ fn perspective_incorrect_capture(
 
     unsafe { rlColor4ub(Color::WHITE.r, Color::WHITE.g, Color::WHITE.b, Color::WHITE.a); }
     if texture_mode!() {
+        unsafe { rlSetTexture(mesh_texture.id); }
         unsafe { rlEnableTexture(mesh_texture.id); }
-    }
-    else {
+    } else {
         unsafe { rlDisableTexture(); }
     }
     if !texture_mode!() && !color_mode!() {
@@ -674,13 +676,39 @@ fn perspective_incorrect_capture(
     }
 
     unsafe { rlEnd(); }
+    unsafe { rlDrawRenderBatchActive(); } //TODO: WHOA
+    unsafe { rlSetTexture(rlGetTextureIdDefault()); }
     unsafe { rlDisableTexture(); }
     unsafe { rlDisableWireMode(); }
 }
 
+#[cfg(feature = "opengl-33")]
 fn perspective_correct_capture(
-    draw_handle: &mut RaylibDrawHandle,
     thread: &RaylibThread,
+    draw_handle: &mut RaylibDrawHandle,
+    camera: &Camera3D,
+    model: &mut Model,
+    mesh_texture: &Texture2D,
+    perspective_correct_render_texture: &mut RenderTexture2D,
+    rotation: f32,
+) {
+     draw_handle.draw_texture_mode(thread, perspective_correct_render_texture, |mut texture_mode|{
+         texture_mode.clear_background(Color::BLANK);
+         texture_mode.draw_mode3D(camera, |mut rl3d| {
+             let shader = model.materials_mut()[0].shader_mut();
+             let location = shader.get_shader_location("useVertexColors");
+             let use_colors: i32 = if color_mode!() { 1 } else { 0 };
+             shader.set_shader_value_v(location, &[use_colors]);
+             model.materials_mut()[0].set_material_texture(MATERIAL_MAP_ALBEDO, mesh_texture);
+             rl3d.draw_model_ex(model, MODEL_POS, Y_AXIS, rotation.to_degrees(), MODEL_SCALE, Color::WHITE);
+         });
+    });
+}
+
+#[cfg(feature = "opengl-11")]
+fn perspective_correct_capture(
+    thread: &RaylibThread,
+    draw_handle: &mut RaylibDrawHandle,
     main: &mut Camera3D,
     model: &mut Model,
     mesh_texture: &Texture2D,
