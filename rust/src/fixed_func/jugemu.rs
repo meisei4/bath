@@ -17,7 +17,7 @@ use raylib::color::Color;
 // use raylib::ffi::rlSetPointSize;
 use raylib::consts::KeyboardKey::{KEY_A, KEY_D, KEY_DOWN, KEY_LEFT, KEY_RIGHT, KEY_S, KEY_SPACE, KEY_UP, KEY_W};
 use raylib::drawing::RaylibDraw3D;
-use raylib::ffi::{rlSetLineWidth, rlSetPointSize};
+use raylib::ffi::{rlSetLineWidth,};
 use raylib::math::{Vector2, Vector3};
 use raylib::models::{Model, RaylibMesh, RaylibModel, WeakMesh};
 use std::f32::consts::FRAC_PI_2;
@@ -401,7 +401,7 @@ pub fn draw_near_plane_intersectional_disk_mesh(
             vertex_count,
         );
     }
-    unsafe { rlSetPointSize(6.0) };
+    // unsafe { rlSetPointSize(6.0) };
     rl3d.draw_model_points(&near_plane_intersectional_disk_model, Vector3::ZERO, 1.0, Color::GREEN);
     // rl3d.draw_model_wires(&intersection_model, Vector3::ZERO, 1.0, Color::WHITE);
 }

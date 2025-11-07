@@ -2,7 +2,7 @@ extern crate core;
 
 use raylib::core::math::{Vector3};
 use raylib::models::{Mesh, Model, RaylibMaterial, RaylibMesh, RaylibModel, WeakMesh};
-use raylib::{RaylibHandle, RaylibThread};
+use raylib::{ffi, RaylibHandle, RaylibThread};
 
 use asset_payload::{CUBE_PATH, SPHERE_PATH};
 use raylib::camera::Camera3D;
@@ -12,10 +12,11 @@ use raylib::consts::KeyboardKey;
 use raylib::consts::MaterialMapIndex::MATERIAL_MAP_ALBEDO;
 use raylib::consts::PixelFormat::{PIXELFORMAT_UNCOMPRESSED_GRAYSCALE, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8};
 use raylib::drawing::{RaylibDraw, RaylibDraw3D, RaylibDrawHandle, RaylibMode3D, RaylibMode3DExt, RaylibTextureModeExt};
-use raylib::ffi::{rlBegin, rlColor4ub, rlDisableTexture, rlDisableWireMode, rlDrawRenderBatchActive, rlEnableTexture, rlEnableWireMode, rlEnd, rlGetTextureIdDefault, rlSetPointSize, rlSetTexture, rlTexCoord2f, rlVertex3f, IsKeyPressed, UpdateMeshBuffer, UploadMesh, RL_DEFAULT_SHADER_ATTRIB_LOCATION_POSITION, RL_TRIANGLES};
+use raylib::ffi::{rlBegin, rlColor4ub, rlDisableTexture, rlDisableWireMode, rlDrawRenderBatchActive, rlEnableTexture, rlEnableWireMode, rlEnd, rlGetTextureIdDefault, rlSetTexture, rlTexCoord2f, rlVertex3f, IsKeyPressed, UpdateMeshBuffer, UploadMesh, RL_DEFAULT_SHADER_ATTRIB_LOCATION_POSITION, RL_TRIANGLES};
 use raylib::math::glam::{Mat4};
 use raylib::texture::{Image, RaylibTexture2D, Texture2D};
 use std::f32::consts::PI;
+use std::ffi::c_void;
 use std::ops::{Add, Sub};
 use std::mem::replace;
 use raylib::math::{lerp, Vector2};
@@ -88,7 +89,6 @@ const GEN_SPHERE: u32               = 1u32<<12;
 const LOAD_SPHERE: u32              = 1u32<<13;
 const GEN_KNOT: u32                 = 1u32<<14;
 
-//FIXME NOTE: I dont like all the static mut stuff in this entire example, all the unsafe stuff seems crazy
 static mut GFLAGS: u32 = FLAG_ASPECT | FLAG_COLOR_MODE | FLAG_JUGEMU | GEN_CUBE;
 macro_rules! ndc_space   { () => { (unsafe{ GFLAGS } & FLAG_NDC) != 0 } }
 macro_rules! reflect_y   { () => { (unsafe{ GFLAGS } & FLAG_REFLECT_Y) != 0 } }
@@ -118,9 +118,26 @@ macro_rules! cycle_mesh {
         }
     }};
 }
+#[cfg(feature = "opengl-11")]
+struct ColorGuard {
+    cached_colors_ptr: *mut std::ffi::c_uchar,
+    restore_target: *mut ffi::Mesh,
+}
+#[cfg(feature = "opengl-11")]
+impl ColorGuard {
+    fn hide(mesh: &mut WeakMesh) -> Self {
+        let mesh_ptr = mesh.as_mut() as *mut ffi::Mesh;
+        let colors_ptr = unsafe { (*mesh_ptr).colors };
+        unsafe { (*mesh_ptr).colors = std::ptr::null_mut(); }
+        Self { cached_colors_ptr: colors_ptr, restore_target: mesh_ptr }
+    }
+}
+#[cfg(feature = "opengl-11")]
+impl Drop for ColorGuard {
+    fn drop(&mut self) { unsafe { (*self.restore_target).colors = self.cached_colors_ptr; } }
+}
 
 const FOVY_PERSPECTIVE: f32 = 60.0;
-//FIXME NOTE: obviously i hate this having to be a function...
 fn NEAR_PLEAN_HEIGHT_ORTHOGRAPHIC() -> f32 { 2.0*(FOVY_PERSPECTIVE*0.5).to_radians().tan() }
 const BLEND_SCALAR: f32 = 5.0;
 
@@ -179,11 +196,13 @@ fn main() {
 
     for i in 0..NUM_MODELS {
         let mut world_model = match i {
-            0 => handle.load_model_from_owned_mesh(&thread, Mesh::try_gen_mesh_cube(&thread, 1.0, 1.0, 1.0).unwrap()).unwrap(),
-            1 => handle.load_model(&thread, CUBE_PATH).expect("load cube obj"),
-            2 => handle.load_model_from_mesh(&thread, unsafe { Mesh::try_gen_mesh_sphere(&thread, 0.5, 8, 8).unwrap().make_weak() }).expect("load model sphere gen"),
-            3 => handle.load_model(&thread, SPHERE_PATH).expect("load sphere obj"),
-            _ => handle.load_model_from_mesh(&thread, unsafe { Mesh::panic_gen_mesh_knot(&thread, 1.0, 1.0, 16, 128).make_weak() }).expect("load model knot gen"),
+            0 => handle.load_model_from_mesh(&thread, Mesh::try_gen_mesh_cube(&thread, 1.0, 1.0, 1.0).unwrap()).unwrap(),
+            1 => handle.load_model_from_mesh(&thread, Mesh::try_gen_mesh_cube(&thread, 1.0, 1.0, 1.0).unwrap()).unwrap(),
+            // 1 => handle.load_model(&thread, CUBE_PATH).expect("load cube obj"),
+            2 => handle.load_model_from_mesh(&thread, Mesh::try_gen_mesh_sphere(&thread, 0.5, 8, 8).unwrap()).expect("load model sphere gen"),
+            // 3 => handle.load_model(&thread, SPHERE_PATH).expect("load sphere obj"),
+            3 => handle.load_model_from_mesh(&thread, Mesh::try_gen_mesh_sphere(&thread, 0.5, 8, 8).unwrap()).expect("load model sphere gen"),
+            _ => handle.load_model_from_mesh(&thread, Mesh::try_gen_mesh_knot(&thread, 1.0, 1.0, 16, 128).unwrap()).expect("load model knot gen"),
         };
 
         let world_mesh = &mut world_model.meshes_mut()[0];
@@ -203,7 +222,7 @@ fn main() {
         world_model.materials_mut()[0].set_material_texture(MATERIAL_MAP_ALBEDO, &mesh_texture);
 
         let ndc_mesh = {
-            let world_mesh = &world_model.meshes()[0]; //TODO: this is an example of immutable borrows simple in these scopes
+            let world_mesh = &world_model.meshes()[0]; //NOTE: this is an example of immutable borrows simple in these scopes
             Mesh::init_mesh(world_mesh.vertices())
                 .texcoords_opt(world_mesh.texcoords())
                 .colors_opt(world_mesh.colors())
@@ -211,18 +230,17 @@ fn main() {
                 .build_dynamic(&thread)
                 .unwrap()
         };
-        let mut ndc_model = handle.load_model_from_owned_mesh(&thread, ndc_mesh).unwrap();
+        let mut ndc_model = handle.load_model_from_mesh(&thread, ndc_mesh).unwrap();
         ndc_model.materials_mut()[0].set_material_texture(MATERIAL_MAP_ALBEDO, &mesh_texture);
-        #[cfg(feature = "opengl-33")]
-        {
+        #[cfg(feature = "opengl-33")] {
             world_model.materials_mut()[0].set_shader(&custom_shader);
             ndc_model.materials_mut()[0].set_shader(&custom_shader);
         }
-        let near_plane_points_mesh = Mesh::init_mesh(&vec![Vector3::default(); &world_model.meshes()[0].triangle_count() * 3]) //FIXME NOTE: *tony soprano voice* again, with the fuckin' cooorrrrnneerrsss
+        let near_plane_points_mesh = Mesh::init_mesh(&vec![Vector3::default(); &world_model.meshes()[0].triangle_count() * 3]) // NOTE: again, with the cooorrrrnneerrsss
             .build_dynamic(&thread)
             .unwrap();
 
-        let near_plane_points_model = handle.load_model_from_owned_mesh(&thread, near_plane_points_mesh).unwrap();
+        let near_plane_points_model = handle.load_model_from_mesh(&thread, near_plane_points_mesh).unwrap();
         world_models.push(world_model);
         ndc_models.push(ndc_model);
         near_plane_points_models.push(near_plane_points_model);
@@ -241,9 +259,9 @@ fn main() {
             .build_dynamic(&thread)
             .unwrap();
 
-        let mut model = handle.load_model_from_owned_mesh(&thread, spatial_frame_mesh).unwrap();
+        let mut model = handle.load_model_from_mesh(&thread, spatial_frame_mesh).unwrap();
         model
-    };//NOTE: see! `temp_cube` gets Unloaded here for real! wow, Weak vs non Weak is really clicking
+    }; // NOTE: see! `temp_cube` gets Unloaded here for real! wow, Weak vs non Weak is really clicking
     #[cfg(feature = "opengl-33")]
     spatial_frame_model.materials_mut()[0].set_shader(&custom_shader);
 
@@ -285,14 +303,14 @@ fn main() {
 
         main.projection = if ortho_mode!() { CAMERA_ORTHOGRAPHIC } else { CAMERA_PERSPECTIVE };
         main.fovy = if ortho_mode!() { NEAR_PLEAN_HEIGHT_ORTHOGRAPHIC() } else { FOVY_PERSPECTIVE };
-        let target_mesh = unsafe { TARGET_MESH_INDEX }; //FIXME NOTE: i dont like this
+        let target_mesh = unsafe { TARGET_MESH_INDEX };
         world_to_ndc_space(&mut main, aspect, near, far, &mut world_models[target_mesh], &mut ndc_models[target_mesh], mesh_rotation);
         {
             let world_mesh = &world_models[target_mesh].meshes()[0];
             let ndc_mesh  = &mut ndc_models[target_mesh].meshes_mut()[0];
             let world_vertices = world_mesh.vertices();
             let ndc_vertices = ndc_mesh.vertices_mut();
-            //FIXME NOTE: WHOA this causes some funky animations during indexed meshes vs unindexed. Indexed meshes are like not all moved together, where as unindexed everything moves together
+            //NOTE: investigate funky animations during indexed meshes vs unindexed. Indexed meshes are like not all moved together, where as unindexed everything moves together
             for [a, b, c] in world_mesh.triangles() {
                 for &i in [a, b, c].iter() {
                     ndc_vertices[i].x = lerp(world_vertices[i].x, ndc_vertices[i].x, s_blend);
@@ -307,7 +325,7 @@ fn main() {
 
         update_spatial_frame(&mut main, aspect, near, far, &mut spatial_frame_model.meshes_mut()[0]);
         unsafe { spatial_frame_model.meshes_mut()[0].update_position_buffer(&thread); }
-        #[cfg(feature = "opengl-33")]
+        #[cfg(feature = "opengl-33")] //NOTE: this CAN be here, see opengl11 differences
         if perspective_correct!() && texture_mode!() {
             perspective_correct_capture(&thread, &mut handle, &mut main, display_model, &mesh_textures[target_mesh], &mut perspective_correct_render_texture, mesh_rotation);
         }
@@ -318,15 +336,11 @@ fn main() {
         //----------------------------------------------------------------------------------
         let (depth, right, up) = basis_vector(&main);
         let mut draw_handle = handle.begin_drawing(&thread);
-        //TODO: this is actually supposed to be in the update section, not the draw section, so for starters i imagine that things can be cleaned up here,
-        //
+        #[cfg(feature = "opengl-11")] //NOTE: this needs to be here, see opengl11 differences
         if perspective_correct!() && texture_mode!() {
-            #[cfg(feature = "opengl-11")]
             perspective_correct_capture(&thread, &mut draw_handle, &mut main, display_model, &mesh_textures[target_mesh], &mut perspective_correct_texture, mesh_rotation);
         }
-
         draw_handle.clear_background(Color::BLACK);
-
         draw_handle.draw_mode3D(if jugemu_mode!() { jugemu } else { main }, |mut rl3d| {
             rl3d.draw_line3D(main.position, Vector3::new(main.position.x + right.x, main.position.y + right.y, main.position.z + right.z), NEON_CARROT);
             rl3d.draw_line3D(main.position, Vector3::new(main.position.x + up.x, main.position.y + up.y, main.position.z + up.z), LILAC);
@@ -373,13 +387,7 @@ fn main() {
         draw_handle.draw_text("W A : ZOOM", 12, 64, FONT_SIZE, NEON_CARROT);
         draw_handle.draw_text("CLIP [ X ]:", 12, 94, FONT_SIZE, SUNFLOWER);
         draw_handle.draw_text(if clip_mode!() { "ON" } else { "OFF" }, 120, 94, FONT_SIZE, if clip_mode!() { BAHAMA_BLUE } else { ANAKIWA });
-        draw_handle.draw_text(match target_mesh {
-            0 => "GEN_CUBE",
-            1 => "LOAD_CUBE",
-            2 => "GEN_SPHERE",
-            3 => "LOAD_SPHERE",
-            _ => "GEN_KNOT",
-        }, 12, 205, FONT_SIZE, NEON_CARROT);
+        draw_handle.draw_text(match target_mesh { 0 => "GEN_CUBE", 1 => "LOAD_CUBE", 2 => "GEN_SPHERE", 3 => "LOAD_SPHERE", _ => "GEN_KNOT", }, 12, 205, FONT_SIZE, NEON_CARROT);
         draw_handle.draw_text("TEXTURE [ T ]:", 570, 12, FONT_SIZE, SUNFLOWER);
         draw_handle.draw_text(if texture_mode!() { "ON" } else { "OFF" }, 740, 12, FONT_SIZE, if texture_mode!() { ANAKIWA } else { CHESTNUT_ROSE });
         draw_handle.draw_text("COLORS [ C ]:", 570, 38, FONT_SIZE, SUNFLOWER);
@@ -400,16 +408,14 @@ fn main() {
     }
 }
 
-fn basis_vector(main: &Camera3D) -> (Vector3, Vector3, Vector3)
-{
+fn basis_vector(main: &Camera3D) -> (Vector3, Vector3, Vector3) {
     let depth = main.target.sub(main.position).normalize();
     let right = depth.cross(main.up).normalize();
     let up = right.cross(depth).normalize();
     (depth, right, up)
 }
 
-fn world_to_ndc_space(main: &mut Camera3D, aspect: f32, near: f32, far: f32, world: &Model, ndc: &mut Model, rotation: f32)
-{
+fn world_to_ndc_space(main: &mut Camera3D, aspect: f32, near: f32, far: f32, world: &Model, ndc: &mut Model, rotation: f32) {
     let (depth, right, up) = basis_vector(&main);
     let half_h_near = lerp(near * (FOVY_PERSPECTIVE*0.5).to_radians().tan(), 0.5* NEAR_PLEAN_HEIGHT_ORTHOGRAPHIC(), ortho_blend_factor(0.0));
     let half_w_near = lerp(half_h_near, half_h_near*aspect, aspect_blend_factor(0.0));
@@ -453,28 +459,23 @@ fn draw_model_filled(
 ) {
     if !(color_mode!() || texture_mode!()) { return; }
 
-    #[cfg(feature = "opengl-33")]
-    {
+    #[cfg(feature = "opengl-33")] {
         let shader = model.materials_mut()[0].shader_mut();
         let loc = shader.get_shader_location("useVertexColors");
         shader.set_shader_value_v(loc, &[if color_mode!() { 1 } else { 0 }]);
     }
 
     #[cfg(feature = "opengl-11")]
-    let cache_colors = model.meshes()[0].colors().map(|c| c.to_vec()); //FIXME NOTE: pointer caching vs the whole damn data structure in C vs Rust...
+    let _color_guard = if texture_mode!() && !color_mode!() {
+        Some(ColorGuard::hide(&mut model.meshes_mut()[0]))
+    } else {
+        None
+    };
 
-    #[cfg(feature = "opengl-11")]
-    if texture_mode!() && !color_mode!() {
-        model.meshes_mut()[0].set_colors(None).unwrap();
-    }
-
-    model.materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize].texture.id =
-        if texture_mode!() { mesh_texture.id } else { unsafe { rlGetTextureIdDefault() } };
+    model.materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize].texture.id = if texture_mode!() { mesh_texture.id } else { unsafe { rlGetTextureIdDefault() } };
     rl3d.draw_model_ex(&mut *model, MODEL_POS, Y_AXIS, rotation.to_degrees(), MODEL_SCALE, Color::WHITE);
     model.materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize].texture.id = unsafe { rlGetTextureIdDefault() };
-    #[cfg(feature = "opengl-11")]
-    model.meshes_mut()[0].set_colors(cache_colors.as_deref()).unwrap();
-}
+} // NOTE!!!!!! Colors automatically restored when _color_guard drops
 
 fn draw_model_wires_and_points(
     thread: &RaylibThread,
@@ -482,29 +483,26 @@ fn draw_model_wires_and_points(
     model: &mut Model,
     rotation: f32,
 ) {
-    #[cfg(feature = "opengl-33")]
-    {
+    #[cfg(feature = "opengl-33")] {
         let shader = model.materials_mut()[0].shader_mut();
         let loc = shader.get_shader_location("useVertexColors");
         shader.set_shader_value_v(loc, &[if clip_mode!() { 1 } else { 0 }]);
     }
     #[cfg(feature = "opengl-11")]
-    let cache_colors = model.meshes()[0].colors().map(|c| c.to_vec()); //WHY VEC?? PLEASE COME ONE
-    #[cfg(feature = "opengl-11")]
-    if !clip_mode!() {
-        model.meshes_mut()[0].set_colors(None).unwrap();
-    }
+    let _color_guard = if !clip_mode!() {
+        Some(ColorGuard::hide(&mut model.meshes_mut()[0]))
+    } else {
+        None
+    };
 
     let cache_texture_id = model.materials()[0].maps()[MATERIAL_MAP_ALBEDO as usize].texture().id;
     model.materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize].texture.id = unsafe { rlGetTextureIdDefault() };
     rl3d.draw_model_wires_ex(&mut *model, MODEL_POS, Y_AXIS, rotation.to_degrees(), MODEL_SCALE, MARINER);
-    unsafe { rlSetPointSize(4.0) }
+    // unsafe { rlSetPointSize(4.0) }
     rl3d.draw_model_points_ex(&mut *model, MODEL_POS, Y_AXIS, rotation.to_degrees(), MODEL_SCALE, LILAC);
 
     model.materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize].texture.id = cache_texture_id;
-    #[cfg(feature = "opengl-11")]
-    model.meshes_mut()[0].set_colors(cache_colors.as_deref()).unwrap();
-}
+} // NOTE!!! Colors automatically restored when _color_guard drops!!!
 
 fn update_spatial_frame(
     main: &mut Camera3D,
@@ -512,8 +510,7 @@ fn update_spatial_frame(
     near: f32,
     far: f32,
     spatial_frame: &mut WeakMesh,
-)
-{
+) {
     let (depth, right, up) = basis_vector(&main);
     let half_h_near = lerp(near * (FOVY_PERSPECTIVE *0.5).to_radians().tan(), 0.5* NEAR_PLEAN_HEIGHT_ORTHOGRAPHIC(), ortho_blend_factor(0.0));
     let half_w_near = lerp(half_h_near, half_h_near*aspect, aspect_blend_factor(0.0));
@@ -525,19 +522,13 @@ fn update_spatial_frame(
     let far_half_h = lerp(half_h_far, half_h_near, space_blend_factor(0.0));
     let center_near = main.position.add(depth * near);
 
-    // FIXME NOTE: god damn... i suck at rust
-    // let spatial_frame_triangles = spatial_frame.triangles();
-    // let spatial_frame_vertices_snapshot = spatial_frame.vertices();
     let spatial_frame_triangles = spatial_frame.triangles().collect::<Vec<[usize; 3]>>();
     let spatial_frame_vertices_snapshot = spatial_frame.vertices().to_vec();
     let spatial_frame_vertices = spatial_frame.vertices_mut();
 
-    // for [a, b, c] in spatial_frame.triangles().collect::<Vec<[usize; 3]>>() {
     for [a, b, c] in spatial_frame_triangles {
         for &i in [a, b, c].iter() {
-            // for i in 0..(spatial_frame.vertexCount as usize) {
             let offset = spatial_frame_vertices_snapshot[i].sub(center_near);
-            // let offset = spatial_frame.vertices()[i].sub(center_near);
             let x_sign = if offset.dot(right) >= 0.0 { 1.0 } else { -1.0 };
             let y_sign = if offset.dot(up) >= 0.0 { 1.0 } else { -1.0 };
             let far_mask = if offset.dot(depth) > half_depth { 1.0 } else { 0.0 };
@@ -545,15 +536,11 @@ fn update_spatial_frame(
             let final_half_h = half_h_near + far_mask * (far_half_h - half_h_near);
             let center = center_near.add(depth * (far_mask * 2.0 * half_depth));
             spatial_frame_vertices[i] = center.add(right * (x_sign * final_half_w)).add(up * (y_sign*final_half_h));
-            // spatial_frame.vertices_mut()[i] = center.add(right * (x_sign * final_half_w)).add(up * (y_sign*final_half_h));
         }
     }
 }
 
-fn draw_spatial_frame(
-    rl3d: &mut RaylibMode3D<RaylibDrawHandle>,
-    spatial_frame: &WeakMesh,
-) {
+fn draw_spatial_frame(rl3d: &mut RaylibMode3D<RaylibDrawHandle>, spatial_frame: &WeakMesh) {
     const FRONT_FACES: [[usize; 2]; 4] = [[0, 1], [1, 2], [2, 3], [3, 0]];
     const BACK_FACES:  [[usize; 2]; 4] = [[4, 5], [5, 6], [6, 7], [7, 4]];
     const RIB_FACES:   [[usize; 2]; 4] = [[0, 4], [1, 7], [2, 6], [3, 5]];
@@ -581,7 +568,7 @@ fn draw_near_plane_points(
     let capacity = display_mesh.triangle_count() * 3;
     let near_plane_points_mesh = &mut near_plane_points_model.meshes_mut()[0];
     // let capacity = near_plane_points_mesh.vertex_count(); //FIXME NOTE: I dare you to spend another 5 hours learning the difference between indexed nd unindexed and what a corner position on a triangle is vs an actual vertex
-    near_plane_points_mesh.resize_vertices(capacity).expect("vertices resized");
+    near_plane_points_mesh.resize(capacity).expect("vertices resized");
 
     let center_near_plane = main.position.add(depth * near) ;
     let x_aspect = lerp(1.0/aspect, 1.0, aspect_blend_factor(0.0));
@@ -607,9 +594,10 @@ fn draw_near_plane_points(
         }
     }
 
-    near_plane_points_mesh.resize_vertices(count).expect("hope it worked");
-    unsafe { near_plane_points_mesh.update_position_buffer(thread); }
-    unsafe { rlSetPointSize(3.0) }
+    // near_plane_points_mesh.resize(count).expect("hope it worked");
+    near_plane_points_mesh.resize_sync(thread, count).expect("hope it worked"); //TODO: test resize_sync on stuff actually visible with opengl33... points are tough to see
+    // unsafe { near_plane_points_mesh.update_position_buffer(thread); }
+    // unsafe { rlSetPointSize(3.0) }
     rl3d.draw_model_points(near_plane_points_model, MODEL_POS, 1.0, LILAC);
 }
 
@@ -682,7 +670,7 @@ fn perspective_incorrect_capture(
     }
 
     unsafe { rlEnd(); }
-    unsafe { rlDrawRenderBatchActive(); } //TODO: WHOA
+    unsafe { rlDrawRenderBatchActive(); } //NOTE: WHOA THIS ALLOWS TRIANGLES IN WIRE MODE, OTHERWISE WILL DRAW FILLED TRIANGLES
     unsafe { rlSetTexture(rlGetTextureIdDefault()); }
     unsafe { rlDisableTexture(); }
     unsafe { rlDisableWireMode(); }
@@ -725,10 +713,11 @@ fn perspective_correct_capture(
     perspective_correct_texture: &mut Texture2D,
     rotation: f32,
 ) {
-    let cache_colors = model.meshes()[0].colors().map(|c| c.to_vec());
-    if texture_mode!() && !color_mode!() {
-        model.meshes_mut()[0].set_colors(None).unwrap();
-    }
+     let _color_guard = if texture_mode!() && !color_mode!() {
+         Some(ColorGuard::hide(&mut model.meshes_mut()[0]))
+     } else {
+         None
+     };
 
     let cache_texture_id = {
         let material_map = &mut model.materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize];
@@ -746,7 +735,8 @@ fn perspective_correct_capture(
 
     let mut rgba = draw_handle.load_image_from_screen(thread);
     Image::set_format(&mut rgba, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
-    model.meshes_mut()[0].set_colors(cache_colors.as_deref()).unwrap();
+    // model.meshes_mut()[0].set_colors(cache_colors.as_deref()).unwrap();
+     // Colors restored here automatically????????????????????????? HOW>?????
 
     let (cache_material_texture_id, cache_material_color) = {
         let material_map = &mut model.materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize];
@@ -831,8 +821,7 @@ fn fill_vertex_colors(mesh: &mut WeakMesh) {
     mesh.init_colors_mut().unwrap().copy_from_slice(&gourand_colors); //TODO: ahh jeez.. wtf is the point of having added set_colors?.. or do we fill?
 }
 
-fn orbit_space(handle: &mut RaylibHandle, jugemu: &mut Camera3D)
-{
+fn orbit_space(handle: &mut RaylibHandle, jugemu: &mut Camera3D) {
     let dt = handle.get_frame_time();
     let mut radius = (jugemu.position.x*jugemu.position.x + jugemu.position.y*jugemu.position.y + jugemu.position.z*jugemu.position.z).sqrt();
     let mut azimuth = jugemu.position.z.atan2(jugemu.position.x);
@@ -851,8 +840,7 @@ fn orbit_space(handle: &mut RaylibHandle, jugemu: &mut Camera3D)
     jugemu.position.z = radius * elevation.cos() * azimuth.sin();
 }
 
-fn aspect_correct_and_reflect_near_plane(intersect: Vector3, center: Vector3, right: Vector3, up: Vector3, x_aspect: f32, y_reflect: f32) -> Vector3
-{
+fn aspect_correct_and_reflect_near_plane(intersect: Vector3, center: Vector3, right: Vector3, up: Vector3, x_aspect: f32, y_reflect: f32) -> Vector3 {
     let center_distance = intersect.sub(center);
     let x = center_distance.dot(right);
     let y = center_distance.dot(up);
@@ -865,8 +853,7 @@ fn translate_rotate_scale(inverse: i32, coord: Vector3, pos: Vector3, scale: Vec
     result.transform_point3(coord)
 }
 
-fn intersect(main: &mut Camera3D, near: f32, world_coord: Vector3) -> Vector3
-{
+fn intersect(main: &mut Camera3D, near: f32, world_coord: Vector3) -> Vector3 {
     let view_dir = main.target.sub(main.position).normalize();
     let main_camera_to_point = world_coord.sub(main.position);
     let depth_along_view = main_camera_to_point.dot(view_dir);
@@ -878,8 +865,7 @@ fn intersect(main: &mut Camera3D, near: f32, world_coord: Vector3) -> Vector3
     Vector3::new(result_perspective.x + (result_ortho.x - result_perspective.x)*ortho_blend_factor(0.0), result_perspective.y + (result_ortho.y - result_perspective.y)*ortho_blend_factor(0.0), result_perspective.z + (result_ortho.z - result_perspective.z)*ortho_blend_factor(0.0))
 }
 
-fn space_blend_factor(dt: f32) -> f32
-{
+fn space_blend_factor(dt: f32) -> f32 {
     static mut BLEND: f32 = 0.0;
     unsafe {
         if dt > 0.0 { BLEND = (BLEND + (if ndc_space!(){1.0}else{-1.0})*BLEND_SCALAR*dt).clamp(0.0, 1.0); }
@@ -887,8 +873,7 @@ fn space_blend_factor(dt: f32) -> f32
     }
 }
 
-fn aspect_blend_factor(dt: f32) -> f32
-{
+fn aspect_blend_factor(dt: f32) -> f32 {
     static mut BLEND: f32 = 0.0;
     unsafe {
         if dt > 0.0 { BLEND = (BLEND + (if aspect_correct!(){1.0}else{-1.0})*BLEND_SCALAR*dt).clamp(0.0, 1.0); }
@@ -896,8 +881,7 @@ fn aspect_blend_factor(dt: f32) -> f32
     }
 }
 
-fn reflect_blend_factor(dt: f32) -> f32
-{
+fn reflect_blend_factor(dt: f32) -> f32 {
     static mut BLEND: f32 = 0.0;
     unsafe {
         if dt > 0.0 {
@@ -909,8 +893,7 @@ fn reflect_blend_factor(dt: f32) -> f32
     }
 }
 
-fn ortho_blend_factor(dt: f32) -> f32
-{
+fn ortho_blend_factor(dt: f32) -> f32 {
     static mut BLEND: f32 = 0.0;
     unsafe {
         if dt > 0.0 { BLEND = (BLEND + (if ortho_mode!(){1.0}else{-1.0})*BLEND_SCALAR*dt).clamp(0.0, 1.0); }

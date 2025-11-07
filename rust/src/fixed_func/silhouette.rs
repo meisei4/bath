@@ -162,7 +162,7 @@ pub fn build_inverted_hull(render: &mut RaylibRenderer, model: &Model) -> Model 
         .build(&render.thread);
     let inverted_hull_model = render
         .handle
-        .load_model_from_mesh(&render.thread, unsafe { inverted_hull_mesh.unwrap().make_weak() });
+        .load_model_from_mesh(&render.thread, inverted_hull_mesh.unwrap());
     inverted_hull_model.unwrap()
 }
 
