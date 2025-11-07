@@ -14,9 +14,10 @@ use raylib::consts::PixelFormat::{PIXELFORMAT_UNCOMPRESSED_GRAYSCALE, PIXELFORMA
 use raylib::drawing::{RaylibDraw, RaylibDraw3D, RaylibDrawHandle, RaylibMode3D, RaylibMode3DExt, RaylibTextureModeExt};
 use raylib::ffi::{rlBegin, rlColor4ub, rlDisableTexture, rlDisableWireMode, rlDrawRenderBatchActive, rlEnableTexture, rlEnableWireMode, rlEnd, rlGetTextureIdDefault, rlSetPointSize, rlSetTexture, rlTexCoord2f, rlVertex3f, IsKeyPressed, UpdateMeshBuffer, UploadMesh, RL_DEFAULT_SHADER_ATTRIB_LOCATION_POSITION, RL_TRIANGLES};
 use raylib::math::glam::{Mat4};
-use raylib::texture::{Image, Texture2D};
+use raylib::texture::{Image, RaylibTexture2D, Texture2D};
 use std::f32::consts::PI;
 use std::ops::{Add, Sub};
+use std::mem::replace;
 use raylib::math::{lerp, Vector2};
 #[cfg(feature = "opengl-33")] use raylib::texture::RenderTexture2D;
 #[cfg(feature = "opengl-33")] use raylib::shaders::RaylibShader;
@@ -302,21 +303,24 @@ fn main() {
         }
         unsafe { ndc_models[target_mesh].meshes_mut()[0].update_position_buffer(&thread); }
 
-        let display_mesh = ndc_models[target_mesh].meshes()[0].clone(); //TODO: clone()??? really???
         let display_model = &mut ndc_models[target_mesh];
 
         update_spatial_frame(&mut main, aspect, near, far, &mut spatial_frame_model.meshes_mut()[0]);
         unsafe { spatial_frame_model.meshes_mut()[0].update_position_buffer(&thread); }
+        #[cfg(feature = "opengl-33")]
+        if perspective_correct!() && texture_mode!() {
+            perspective_correct_capture(&thread, &mut handle, &mut main, display_model, &mesh_textures[target_mesh], &mut perspective_correct_render_texture, mesh_rotation);
+        }
+
         //----------------------------------------------------------------------------------
 
         // Draw
         //----------------------------------------------------------------------------------
         let (depth, right, up) = basis_vector(&main);
-        let mut draw_handle = handle.begin_drawing(&thread); //TODO: should probably only ever pass all these functions below the handle.. then use draw_mode with the closure
-
+        let mut draw_handle = handle.begin_drawing(&thread);
+        //TODO: this is actually supposed to be in the update section, not the draw section, so for starters i imagine that things can be cleaned up here,
+        //
         if perspective_correct!() && texture_mode!() {
-            #[cfg(feature = "opengl-33")]
-            perspective_correct_capture(&thread, &mut draw_handle, &mut main, display_model, &mesh_textures[target_mesh], &mut perspective_correct_render_texture, mesh_rotation);
             #[cfg(feature = "opengl-11")]
             perspective_correct_capture(&thread, &mut draw_handle, &mut main, display_model, &mesh_textures[target_mesh], &mut perspective_correct_texture, mesh_rotation);
         }
@@ -333,7 +337,7 @@ fn main() {
             draw_model_wires_and_points(&thread, &mut rl3d, display_model, mesh_rotation);
 
             if jugemu_mode!() {
-                draw_near_plane_points(&thread, &mut rl3d, &mut main, aspect, near, &mut near_plane_points_models[target_mesh], &display_mesh, mesh_rotation);
+                draw_near_plane_points(&thread, &mut rl3d, &mut main, aspect, near, &mut near_plane_points_models[target_mesh], &display_model, mesh_rotation);
             }
 
             if perspective_correct!() && texture_mode!() {
@@ -359,7 +363,7 @@ fn main() {
                 }
             } else {
                 if jugemu_mode!() {
-                    perspective_incorrect_capture(&mut main, aspect, near, &display_mesh, &mesh_textures[target_mesh], mesh_rotation);
+                    perspective_incorrect_capture(&mut main, aspect, near, &display_model, &mesh_textures[target_mesh], mesh_rotation);
                 }
             }
         });
@@ -568,12 +572,13 @@ fn draw_near_plane_points(
     aspect: f32,
     near: f32,
     near_plane_points_model: &mut Model,
-    mesh: &WeakMesh,
+    display_model: &Model,
     rotation: f32,
 ) {
+    let display_mesh = &display_model.meshes()[0];
     let (depth, right, up) = basis_vector(&main);
     let mut count = 0usize;
-    let capacity = mesh.triangle_count() * 3;
+    let capacity = display_mesh.triangle_count() * 3;
     let near_plane_points_mesh = &mut near_plane_points_model.meshes_mut()[0];
     // let capacity = near_plane_points_mesh.vertex_count(); //FIXME NOTE: I dare you to spend another 5 hours learning the difference between indexed nd unindexed and what a corner position on a triangle is vs an actual vertex
     near_plane_points_mesh.resize_vertices(capacity).expect("vertices resized");
@@ -582,10 +587,10 @@ fn draw_near_plane_points(
     let x_aspect = lerp(1.0/aspect, 1.0, aspect_blend_factor(0.0));
     let y_reflect = lerp(1.0, -1.0, reflect_blend_factor(0.0));
 
-    let vertices = mesh.vertices();
+    let vertices = display_mesh.vertices();
     let near_plane_points_mesh_vertices = near_plane_points_mesh.vertices_mut();
 
-    'tri_loop: for [a, b, c] in mesh.triangles() {
+    'tri_loop: for [a, b, c] in display_mesh.triangles() {
         let vertex_a = translate_rotate_scale(0, vertices[a], MODEL_POS, MODEL_SCALE, rotation);
         let vertex_b = translate_rotate_scale(0, vertices[b], MODEL_POS, MODEL_SCALE, rotation);
         let vertex_c = translate_rotate_scale(0, vertices[c], MODEL_POS, MODEL_SCALE, rotation);
@@ -612,7 +617,7 @@ fn perspective_incorrect_capture(
     main: &mut Camera3D,
     aspect: f32,
     near: f32,
-    mesh: &WeakMesh,
+    display_model: &Model,
     mesh_texture: &Texture2D,
     rotation: f32,
 ) {
@@ -621,9 +626,10 @@ fn perspective_incorrect_capture(
     let x_aspect = lerp(1.0 / aspect, 1.0, aspect_blend_factor(0.0));
     let y_reflect = lerp(1.0, -1.0, reflect_blend_factor(0.0));
 
-    let vertices = mesh.vertices();
-    let colors  = mesh.colors();
-    let texcoords = mesh.texcoords();
+    let display_mesh = &display_model.meshes()[0];
+    let vertices = display_mesh.vertices();
+    let colors  = display_mesh.colors();
+    let texcoords = display_mesh.texcoords();
 
     unsafe { rlColor4ub(Color::WHITE.r, Color::WHITE.g, Color::WHITE.b, Color::WHITE.a); }
     if texture_mode!() {
@@ -638,7 +644,7 @@ fn perspective_incorrect_capture(
     }
     unsafe { rlBegin(RL_TRIANGLES as i32); }
 
-    for [ia, ib, ic] in mesh.triangles() {
+    for [ia, ib, ic] in display_mesh.triangles() {
         let mut a = translate_rotate_scale(0, vertices[ia], MODEL_POS, MODEL_SCALE, rotation);
         let mut b = translate_rotate_scale(0, vertices[ib], MODEL_POS, MODEL_SCALE, rotation);
         let mut c = translate_rotate_scale(0, vertices[ic], MODEL_POS, MODEL_SCALE, rotation);
@@ -685,14 +691,14 @@ fn perspective_incorrect_capture(
 #[cfg(feature = "opengl-33")]
 fn perspective_correct_capture(
     thread: &RaylibThread,
-    draw_handle: &mut RaylibDrawHandle,
+    handle: &mut RaylibHandle,
     camera: &Camera3D,
     model: &mut Model,
     mesh_texture: &Texture2D,
     perspective_correct_render_texture: &mut RenderTexture2D,
     rotation: f32,
 ) {
-     draw_handle.draw_texture_mode(thread, perspective_correct_render_texture, |mut texture_mode|{
+     handle.draw_texture_mode(thread, perspective_correct_render_texture, |mut texture_mode|{
          texture_mode.clear_background(Color::BLANK);
          texture_mode.draw_mode3D(camera, |mut rl3d| {
              let shader = model.materials_mut()[0].shader_mut();
@@ -705,6 +711,10 @@ fn perspective_correct_capture(
     });
 }
 
+ //NOTE: for opengl11, we still need to be in the same draw scope as the main screen draws,
+ // otherwise we drop the scope, EndDraw and actually draw the screenshots to the screen, the order is:
+ // draw screenshot stuff -> save it -> clear the screen once this function is left, then actually draw the stuff we want on screen.
+ // so we just capture it before the final draws
 #[cfg(feature = "opengl-11")]
 fn perspective_correct_capture(
     thread: &RaylibThread,
@@ -727,8 +737,8 @@ fn perspective_correct_capture(
         id
     };
 
-    draw_handle.clear_background(Color::BLACK);
     draw_handle.draw_mode3D(*main, |mut rl3d| {
+        rl3d.clear_background(Color::BLACK);
         rl3d.draw_model_ex(&mut *model, MODEL_POS, Y_AXIS, rotation.to_degrees(), MODEL_SCALE, Color::WHITE);
     });
 
@@ -747,8 +757,8 @@ fn perspective_correct_capture(
         (material_texture_id, material_color)
     };
 
-    draw_handle.clear_background(Color::BLACK);
     draw_handle.draw_mode3D(*main, |mut rl3d| {
+        rl3d.clear_background(Color::BLACK);
         rl3d.draw_model_ex(&mut *model, MODEL_POS, Y_AXIS, rotation.to_degrees(), MODEL_SCALE, Color::WHITE);
     });
 
