@@ -223,3 +223,30 @@ pub fn umbral_mask_strength_uv(uv: Vector2, i_time: f32) -> f32 {
     let shade = smoothstep(UMBRAL_MASK_INNER_RADIUS, UMBRAL_MASK_OUTER_RADIUS, lo * 0.5);
     (mask * shade).clamp(0.0, 1.0)
 }
+
+const N: i32 = 4;
+const BAYER4: [[u8; 4]; 4] = [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]];
+pub const STIPPLE_LEVELS: i32 = 17;
+
+pub fn build_stipple_atlas_rgba() -> Image {
+    let w = N;
+    let h = N * STIPPLE_LEVELS;
+    let mut img = Image::gen_image_color(w, h, Color::BLANK);
+    let total_bytes: usize = (w * h * 4) as usize;
+    let px: &mut [u8] = unsafe { from_raw_parts_mut(img.data as *mut u8, total_bytes) };
+
+    for level in 0..STIPPLE_LEVELS {
+        for y in 0..N {
+            for x in 0..N {
+                let idx = 4 * (((level * N + y) * w + x) as usize);
+                let on = (BAYER4[y as usize][x as usize] as i32) < level;
+                px[idx + 0] = 255;
+                px[idx + 1] = 255;
+                px[idx + 2] = 255;
+                px[idx + 3] = if on { 255 } else { 0 };
+            }
+        }
+    }
+    img.set_format(PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
+    img
+}
