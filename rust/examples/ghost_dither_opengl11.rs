@@ -14,7 +14,7 @@ use raylib::color::Color;
 use raylib::consts::CameraProjection;
 use raylib::consts::MaterialMapIndex::MATERIAL_MAP_ALBEDO;
 use raylib::drawing::{RaylibDraw, RaylibDraw3D, RaylibMode3DExt};
-use raylib::ffi::{rlSetLineWidth, rlSetPointSize};
+use raylib::ffi::{rlSetLineWidth, /* rlSetPointSize */};
 use raylib::math::Vector3;
 use raylib::models::{RaylibMaterial, RaylibMesh, RaylibModel};
 

@@ -198,7 +198,7 @@ fn main() {
         let mut world_model = match i {
             0 => handle.load_model_from_mesh(&thread, Mesh::try_gen_mesh_cube(&thread, 1.0, 1.0, 1.0).unwrap()).unwrap(),
             1 => handle.load_model_from_mesh(&thread, Mesh::try_gen_mesh_cube(&thread, 1.0, 1.0, 1.0).unwrap()).unwrap(),
-            // 1 => handle.load_model(&thread, CUBE_PATH).expect("load cube obj"),
+            // 1 => handle.load_model(&thread, CUBE_PATH).expect("load cube obj"), //TODO: REQUIRES LATEST RAYLIB_SYS PIN!!
             2 => handle.load_model_from_mesh(&thread, Mesh::try_gen_mesh_sphere(&thread, 0.5, 8, 8).unwrap()).expect("load model sphere gen"),
             // 3 => handle.load_model(&thread, SPHERE_PATH).expect("load sphere obj"),
             3 => handle.load_model_from_mesh(&thread, Mesh::try_gen_mesh_sphere(&thread, 0.5, 8, 8).unwrap()).expect("load model sphere gen"),

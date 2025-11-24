@@ -9,7 +9,7 @@ use raylib::color::Color;
 use raylib::consts::CameraProjection;
 use raylib::drawing::{RaylibDraw, RaylibDraw3D, RaylibMode3DExt};
 use raylib::ffi::rlSetLineWidth;
-use raylib::ffi::rlSetPointSize;
+// use raylib::ffi::rlSetPointSize;
 use raylib::math::Vector3;
 use raylib::models::{Mesh, RaylibMesh, RaylibModel, WeakMesh};
 
@@ -44,7 +44,7 @@ fn main() {
     dbg_mesh("rebuilt", &*rebuilt);
     let mut main_model_cube_gen = render
         .handle
-        .load_model_from_mesh(&render.thread, unsafe { rebuilt.make_weak() })
+        .load_model_from_mesh(&render.thread, rebuilt)
         .unwrap();
     dbg_mesh("model", &*main_model.meshes()[0]);
     apply_barycentric_palette(&mut main_model.meshes_mut()[0]);
@@ -52,9 +52,9 @@ fn main() {
 
     unsafe {
         main_model.meshes_mut()[0].upload(false);
+        main_model.meshes_mut()[0].update_color_buffer(&render.thread);
+        main_model.meshes_mut()[0].update_texcoord_buffer(&render.thread);
     }
-    main_model.meshes_mut()[0].update_color_buffer(&render.thread);
-    main_model.meshes_mut()[0].update_texcoord_buffer(&render.thread);
     dump_vertices(&main_model_cube_gen.meshes()[0]);
     dump_indices(&main_model_cube_gen.meshes()[0]);
     dump_colors(&main_model_cube_gen.meshes()[0]);
@@ -87,7 +87,7 @@ fn main() {
                 MODEL_SCALE,
                 Color::RED,
             );
-            unsafe { rlSetPointSize(8.0) };
+            //unsafe { rlSetPointSize(8.0) };
             rl3d.draw_model_points_ex(
                 // &main_model_cube_gen,
                 &main_model,

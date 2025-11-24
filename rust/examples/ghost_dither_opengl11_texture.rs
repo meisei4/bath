@@ -29,7 +29,6 @@ use raylib::models::{RaylibMaterial, RaylibMesh, RaylibModel};
 use raylib::texture::Image;
 use raylib::RaylibHandle;
 
-/// --- Jugemu-style control constants ---
 const ROLL_ROTATION_VELOCITY: f32 = 2.0;
 const JUGEMU_LONGITUDINAL_ORBIT_SPEED: f32 = 1.5;
 const JUGEMU_LATITUDINAL_ORBIT_SPEED: f32 = 1.0;
@@ -37,7 +36,6 @@ const JUGEMU_ZOOM_SPEED: f32 = 2.0;
 const JUGEMU_MIN_RADIUS: f32 = 0.25;
 const JUGEMU_MAX_RADIUS: f32 = 25.0;
 
-// Orthographic “zoom” is fovy (ortho width/height)
 const ORTHO_MIN_FOVY: f32 = 4.0;
 const ORTHO_MAX_FOVY: f32 = 100.0;
 const ORTHO_ZOOM_SPEED: f32 = 35.0;
@@ -45,7 +43,6 @@ const ORTHO_ZOOM_SPEED: f32 = 35.0;
 /// When paused, render a fully-folded snapshot for clarity.
 const FULLY_FOLDED_TIME: f32 = 1_000_000.0;
 
-/// Basic vec helpers
 fn v3_dot(a: Vector3, b: Vector3) -> f32 {
     a.x * b.x + a.y * b.y + a.z * b.z
 }
@@ -73,7 +70,6 @@ fn v3_normalize(a: Vector3) -> Vector3 {
     }
 }
 
-/// Rotate vector `v` around unit axis `axis` by `angle` (Rodrigues)
 fn rotate_vector_about_axis(v: Vector3, axis: Vector3, angle: f32) -> Vector3 {
     let u = v3_normalize(axis);
     let cos_t = angle.cos();
@@ -84,7 +80,6 @@ fn rotate_vector_about_axis(v: Vector3, axis: Vector3, angle: f32) -> Vector3 {
     v3_add(v3_add(term1, term2), term3)
 }
 
-/// Initial camera state for resetting
 #[derive(Clone, Copy)]
 struct InitialCam {
     position: Vector3,
@@ -93,9 +88,7 @@ struct InitialCam {
     projection: CameraProjection,
 }
 
-/// Jugemu controls (works in both projections; ortho zoom edits fovy)
 fn jugemu_controls(cam: &mut Camera3D, rl: &RaylibHandle, dt: f32, initial: InitialCam) {
-    // Reset to initial camera state
     if rl.is_key_pressed(KEY_SPACE) {
         cam.position = initial.position;
         cam.target = Vector3::ZERO;
@@ -105,13 +98,11 @@ fn jugemu_controls(cam: &mut Camera3D, rl: &RaylibHandle, dt: f32, initial: Init
         return;
     }
 
-    // Read spherical from current position
     let mut radius = v3_len(cam.position);
     let mut az = cam.position.z.atan2(cam.position.x);
     let hr = (cam.position.x * cam.position.x + cam.position.z * cam.position.z).sqrt();
     let mut el = cam.position.y.atan2(hr);
 
-    // az/el
     if rl.is_key_down(KEY_LEFT) {
         az += JUGEMU_LONGITUDINAL_ORBIT_SPEED * dt;
     }
@@ -125,7 +116,6 @@ fn jugemu_controls(cam: &mut Camera3D, rl: &RaylibHandle, dt: f32, initial: Init
         el -= JUGEMU_LATITUDINAL_ORBIT_SPEED * dt;
     }
 
-    // roll about view axis
     let mut roll_delta = 0.0;
     if rl.is_key_down(KEY_A) {
         roll_delta -= ROLL_ROTATION_VELOCITY * dt;
@@ -134,7 +124,6 @@ fn jugemu_controls(cam: &mut Camera3D, rl: &RaylibHandle, dt: f32, initial: Init
         roll_delta += ROLL_ROTATION_VELOCITY * dt;
     }
 
-    // zoom: keyboard + mouse wheel
     let wheel = rl.get_mouse_wheel_move();
     match cam.projection {
         CameraProjection::CAMERA_ORTHOGRAPHIC => {
@@ -165,7 +154,6 @@ fn jugemu_controls(cam: &mut Camera3D, rl: &RaylibHandle, dt: f32, initial: Init
         _ => {},
     }
 
-    // clamp & rebuild position
     radius = radius.clamp(JUGEMU_MIN_RADIUS, JUGEMU_MAX_RADIUS);
     const EPS: f32 = 0.0001;
     el = el.clamp(-FRAC_PI_2 + EPS, FRAC_PI_2 - EPS);
@@ -174,7 +162,6 @@ fn jugemu_controls(cam: &mut Camera3D, rl: &RaylibHandle, dt: f32, initial: Init
     cam.position.y = radius * el.sin();
     cam.position.z = radius * el.cos() * az.sin();
 
-    // re-aim at origin, apply roll
     let view_dir = v3_normalize(v3_sub(Vector3::ZERO, cam.position));
     let new_up = v3_normalize(rotate_vector_about_axis(cam.up, view_dir, roll_delta));
     cam.target = Vector3::ZERO;
@@ -182,19 +169,15 @@ fn jugemu_controls(cam: &mut Camera3D, rl: &RaylibHandle, dt: f32, initial: Init
 }
 
 fn main() {
-    // --- time / state ---
     let mut i_time: f32 = 0.0;
     let mut mesh_rotation: f32 = 0.0;
 
-    // Toggles
     let mut show_texture = true; // [T]
     let mut show_hull = true; // [H]
     let mut paused = false; // [P]  (folding only pauses; rotation continues)
 
-    // --- renderer/window ---
     let mut render = RaylibRenderer::init(N64_WIDTH, N64_WIDTH);
 
-    // --- camera: start ORTHO, but allow runtime toggle with [O] ---
     let mut observer = Camera3D {
         position: Vector3::new(0.0, 0.0, 2.0),
         target: Vector3::ZERO,
@@ -209,7 +192,6 @@ fn main() {
         projection: observer.projection,
     };
 
-    // --- source model + animation samples ---
     let mut main_model = render
         .handle
         .load_model(&render.thread, SPHERE_PATH)
@@ -217,14 +199,12 @@ fn main() {
     let mesh_samples = collect_deformed_vertex_samples(main_model.meshes()[0].vertices());
     interpolate_between_deformed_vertices(&mut main_model, i_time, &mesh_samples);
 
-    // --- unfolded target model (we draw this) ---
     let initial_unfolded_mesh = unfold(&render.thread, &mut main_model.meshes_mut()[0]);
     let mut unfolded_model = render
         .handle
-        .load_model_from_mesh(&render.thread, unsafe { initial_unfolded_mesh.make_weak() })
+        .load_model_from_mesh(&render.thread, initial_unfolded_mesh)
         .expect("failed to build unfolded model");
 
-    // --- procedural silhouette texture (dithered) applied to unfolded model ---
     let mut silhouette_img = generate_silhouette_texture(N64_WIDTH, N64_WIDTH);
     dither(&mut silhouette_img);
     let silhouette_texture = render
@@ -233,7 +213,6 @@ fn main() {
         .expect("load_texture_from_image failed");
     unfolded_model.materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize].texture = *silhouette_texture;
 
-    // --- full-screen dither staging (for the screen-space pass) ---
     let mut blank_image = Image::gen_image_color(
         render.handle.get_screen_width(),
         render.handle.get_screen_height(),
@@ -253,11 +232,9 @@ fn main() {
         staging_rgba_bytes: Vec::new(),
     };
 
-    // --- inverted hull built from the source model ---
     let mut inverted_hull = build_inverted_hull(&mut render, &main_model);
 
     while !render.handle.window_should_close() {
-        // edge toggles
         if render.handle.is_key_pressed(KEY_T) {
             show_texture = !show_texture;
         }
@@ -281,37 +258,30 @@ fn main() {
         }
 
         let dt = render.handle.get_frame_time();
-
-        // Jugemu controls (Space resets to original camera view position)
         jugemu_controls(&mut observer, &render.handle, dt, initial_cam);
 
-        // ---- IMPORTANT: rotation always runs; folding time freezes when paused
-        mesh_rotation -= ANGULAR_VELOCITY * dt; // keep spinning even when paused
+        mesh_rotation -= ANGULAR_VELOCITY * dt;
         if !paused {
-            i_time += dt; // folding timeline advances only when not paused
+            i_time += dt;
         }
 
-        // Animate the SOURCE model vertices (deformation tied to i_time)
         let duration = mesh_samples.len() as f32 * TIME_BETWEEN_SAMPLES;
         let time = i_time % duration;
         let _current_frame = (time / TIME_BETWEEN_SAMPLES).floor() as usize % mesh_samples.len();
         interpolate_between_deformed_vertices(&mut main_model, i_time, &mesh_samples);
 
-        // Update inverted hull with current camera LOS
         if show_hull {
             let observed_los = observed_line_of_sight(&observer);
             rotate_inverted_hull(&main_model.meshes()[0], &mut inverted_hull, observed_los, mesh_rotation);
         }
 
-        // Fold source -> unfolded target
         {
             let source_mesh: &mut raylib::models::WeakMesh = &mut main_model.meshes_mut()[0];
             let target_mesh: &mut raylib::models::WeakMesh = &mut unfolded_model.meshes_mut()[0];
             let fold_time = if paused { FULLY_FOLDED_TIME } else { i_time }; // paused shows fully-folded snapshot
             *target_mesh = unsafe { fold(&render.thread, source_mesh, fold_time, true).make_weak() };
-        } // borrow ends here
+        }
 
-        // Dithered texture rotation (match reference). Keep updating while paused so it tracks rotation.
         rotate_silhouette_texture_dither(
             &mut unfolded_model,
             &observer,
@@ -319,8 +289,6 @@ fn main() {
             render.handle.get_screen_width(),
             render.handle.get_screen_height(),
         );
-
-        // draw
         let mut draw_handle = render.handle.begin_drawing(&render.thread);
         draw_handle.clear_background(Color::BLACK);
 
@@ -364,10 +332,8 @@ fn main() {
             }
         });
 
-        // Final screen-space dither pass (gives the stippled look)
         screen_pass_dither(&mut draw_handle, &mut dither_staging);
 
-        // HUD
         let help = format!(
             "[T] Texture:{}  [H] Hull:{}  [P] Paused:{}  [O] Ortho/Persp  [Space] Reset View\nW/S zoom | ←/→/↑/↓ orbit | A/D roll | MouseWheel zoom",
             if show_texture { "ON" } else { "OFF" },

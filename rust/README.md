@@ -1,45 +1,21 @@
-Purpose:  
-Build a minimal, inspectable rendering and collision testbed for a game using procedural and signal-based logic Focus is
-on GPU-driven rendering, stepwise visual composition, and full debuggability at each stage
+CONCERNING:
+cargo run --example raylib_test_1 --features tests-only
+cargo run --example drekker_effect --features tests-only
+cargo run --example feedback_buffer --features tests-only,glsl-330 (identical to raylib_test_1, but probably using trait wrapper)
+cargo run --example ghost_dither_glsl100 --features tests-only,glsl-100
 
-### Features
 
-1 Simple Shader Scoping:
--Render simple geometry - quads, strips? simple tessellated surfaces
--Vertex shader handles macro space: projection, subdivision/meshes, macro motion
--Fragment shader handles micro space: color, reflection, blur/resolution, micro motion
-
-2 Affine Projection notes (Mode 7):
--Projecting geometry vs UVs in vertex shader vs just UVs fragment shader
--Must be deterministic, invertible, and synchronizable with CPU physics logic in the future
-
-3 Fragment Shader Effects:
--Procedural textures vs prebaked textures
--Depth-based effects (color ramps, particles, dithering)
--Debug shaders (flat color maps, tiling visualizers, wire frames, barycentric color gradients)
-
-4 Space Debugger:
-- Visualize each transformation step
-- Overlays for raw UVs, "virtual pixel outlines?", depth gradients, tile lines, collision masks
-- Toggleable effects to isolate rendering or logic issues
-
-5 Ultimate goal:
-
-- just learn how tf the render pipeline at a simple level works
-- geometry vs uv, clipping, affine, non-affine, linear non-linear, bilinear, blending, masks, feedback channels, etc
-  etc)
-
-### Design
-
-- Procedural Input → 2D Illusion Output:  
-  Simple signals become visual effects through projection and layering
-
-- Fully Inspectable Pipeline:  
-  All transforms are simple, reversible, and traceable for debugging in cpu scanline mock-rasterization (physics),
-  vertex staging, and fragment staging
-
-- CPU–GPU Synchronization:  
-  physics and gameplay logic share a feedback loop with shader rendering
-
-- Incremental Composition:  
-  Build and debug effects step by step with isolated control
+KIND OF FINE?
+cargo run --example raylib_test_0 --features tests-only
+cargo run --example ice_sheets --features tests-only
+cargo run --example fft_visualizer --features tests-only
+cargo run --example debug_space --features tests-only
+cargo run --example rlgl_test --features tests-only
+cargo run --example ghost_dither_cpu_shader --features tests-only
+cargo run --example ghost_dither_opengl11_geometry --features tests-only,opengl-11
+cargo run --example ghost_dither_opengl11_texture --features tests-only,opengl-11
+cargo run --example core_3d_fixed_function_didactic --features tests-only,opengl-11
+cargo run --example debug_mesh_info --features tests-only,opengl-11
+cargo run --example ghost_dither_opengl11 --features tests-only,opengl-11
+cargo run --example ghost_dither_opengl11_observation --features tests-only,opengl-11
+cargo run --example music_ball --features tests-only

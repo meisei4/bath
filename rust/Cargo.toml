@@ -22,9 +22,9 @@ terminal_size = { version = "0.4.2", optional = true }
 fftw2-sys = { git = "https://github.com/meisei4/fftw2-rs.git", branch = "main" }
 once_cell = "1.21.3"
 
-#raylib = { git = "https://github.com/meisei4/raylib-rs.git", branch = "meshbuilder_ideas", features = [], optional = true }
+raylib = { git = "https://github.com/meisei4/raylib-rs.git", branch = "models-soundess-safety-idea", features = [], optional = true }
 #raylib = { git = "https://github.com/raylib-rs/raylib-rs.git", branch = "unstable", features = [], optional = true }
-raylib = { path = "/home/adduser/raylib-rs/raylib", features = [], optional = true }
+#raylib = { path = "/home/adduser/raylib-rs/raylib", features = [], optional = true }
 #[patch."https://github.com/raylib-rs/raylib-rs.git"]
 #raylib = { path = "/home/adduser/raylib-rs/raylib" }
 #raylib-sys = { path = "/home/adduser/raylib-rs/raylib-sys" }

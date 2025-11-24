@@ -32,7 +32,7 @@ fn main() {
     let initial_unfolded_mesh = unfold(&render.thread, &mut main_model.meshes_mut()[0]);
     let mut unfolded_model = render
         .handle
-        .load_model_from_mesh(&render.thread, unsafe { initial_unfolded_mesh.make_weak() })
+        .load_model_from_mesh(&render.thread, initial_unfolded_mesh)
         .unwrap();
 
     while !render.handle.window_should_close() {
