@@ -17,7 +17,7 @@ use raylib::color::Color;
 // use raylib::ffi::rlSetPointSize;
 use raylib::consts::KeyboardKey::{KEY_A, KEY_D, KEY_DOWN, KEY_LEFT, KEY_RIGHT, KEY_S, KEY_SPACE, KEY_UP, KEY_W};
 use raylib::drawing::RaylibDraw3D;
-use raylib::ffi::{rlSetLineWidth,};
+use raylib::ffi::rlSetLineWidth;
 use raylib::math::{Vector2, Vector3};
 use raylib::models::{Model, RaylibMesh, RaylibModel, WeakMesh};
 use std::f32::consts::FRAC_PI_2;

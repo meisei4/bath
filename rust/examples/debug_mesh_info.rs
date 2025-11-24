@@ -42,10 +42,7 @@ fn main() {
         .build(&render.thread)
         .unwrap();
     dbg_mesh("rebuilt", &*rebuilt);
-    let mut main_model_cube_gen = render
-        .handle
-        .load_model_from_mesh(&render.thread, rebuilt)
-        .unwrap();
+    let mut main_model_cube_gen = render.handle.load_model_from_mesh(&render.thread, rebuilt).unwrap();
     dbg_mesh("model", &*main_model.meshes()[0]);
     apply_barycentric_palette(&mut main_model.meshes_mut()[0]);
     apply_barycentric_palette(&mut main_model_cube_gen.meshes_mut()[0]);

@@ -1,5 +1,5 @@
 use asset_payload::SPHERE_PATH;
-use bath::fixed_func::papercraft::{fold, recompute_unfold_into_existing_mesh, unfold};
+use bath::fixed_func::papercraft::{recompute_unfold_into_existing_mesh, unfold};
 use bath::fixed_func::silhouette::{collect_deformed_vertex_samples, FOVY_ORTHOGRAPHIC};
 use bath::fixed_func::silhouette::{interpolate_between_deformed_vertices, MODEL_POS, MODEL_SCALE};
 use bath::fixed_func::silhouette::{ANGULAR_VELOCITY, TIME_BETWEEN_SAMPLES};

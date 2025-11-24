@@ -1,7 +1,6 @@
 use asset_payload::payloads::{DEBUG_VERT, FFT_FRAG, MIDI_FILE, SOUND_FONT_FILE};
 #[cfg(not(feature = "nasa-embed"))]
 use asset_payload::{CACHED_WAV_PATH, DEBUG_VERT_PATH, FFT_FRAG_PATH};
-use bath::midi::debug::render;
 use bath::midi::pitch::PitchDimension;
 use bath::render::raylib::RaylibRenderer;
 use bath::render::raylib_util::{EXPERIMENTAL_WINDOW_HEIGHT, EXPERIMENTAL_WINDOW_WIDTH};

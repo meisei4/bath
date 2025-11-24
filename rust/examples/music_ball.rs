@@ -1,7 +1,6 @@
-use asset_payload::payloads::{BAYER_PNG, MIDI_FILE, MUSIC_BALL_FRAG_100, MUSIC_BALL_FRAG_330, SOUND_FONT_FILE};
+use asset_payload::payloads::{BAYER_PNG, MIDI_FILE, MUSIC_BALL_FRAG_330, SOUND_FONT_FILE};
 #[cfg(not(feature = "nasa-embed"))]
 use asset_payload::CACHED_WAV_PATH;
-use bath::midi::debug::render;
 use bath::midi::pitch::{PitchDimension, HSV_BUFFER_LEN};
 use bath::render::raylib::RaylibRenderer;
 use bath::render::raylib_util::{N64_HEIGHT, N64_WIDTH};

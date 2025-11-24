@@ -4,7 +4,6 @@ use aubio_rs::{OnsetMode::SpecFlux, Smpl, Tempo};
 use godot::global::godot_print;
 #[cfg(all(not(target_arch = "wasm32"), not(target_os = "linux")))]
 use hound::WavReader;
-use midly::MetaMessage::Tempo;
 #[cfg(all(not(target_arch = "wasm32"), not(target_os = "linux")))]
 use std::io::Cursor;
 
