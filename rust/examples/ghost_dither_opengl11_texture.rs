@@ -5,8 +5,7 @@ use bath::fixed_func::silhouette::{
 };
 use bath::fixed_func::silhouette::{ANGULAR_VELOCITY, MODEL_POS, MODEL_SCALE};
 use bath::fixed_func::texture::{
-    build_stipple_atlas_rgba, dither, generate_silhouette_texture, rotate_silhouette_texture,
-    rotate_silhouette_texture_dither, screen_pass_dither, ScreenPassDither,
+    dither, generate_silhouette_texture, rotate_silhouette_texture, rotate_silhouette_texture_dither, ScreenPassDither,
 };
 use bath::fixed_func::topology::observed_line_of_sight;
 use bath::render::raylib::RaylibRenderer;
@@ -91,14 +90,14 @@ fn main() {
                 MODEL_SCALE,
                 Color::WHITE,
             );
-            rl3d.draw_model_wires_ex(
-                &main_model,
-                MODEL_POS,
-                Vector3::Y,
-                mesh_rotation.to_degrees(),
-                MODEL_SCALE,
-                Color::BLACK,
-            );
+            // rl3d.draw_model_wires_ex(
+            //     &main_model,
+            //     MODEL_POS,
+            //     Vector3::Y,
+            //     mesh_rotation.to_degrees(),
+            //     MODEL_SCALE,
+            //     Color::BLACK,
+            // );
             unsafe {
                 rlDisableDepthMask();
             }

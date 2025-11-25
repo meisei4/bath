@@ -11,9 +11,9 @@ use raylib::models::{Mesh, Model, RaylibMesh, RaylibModel, WeakMesh};
 use std::f32::consts::TAU;
 
 pub const MODEL_POS: Vector3 = Vector3::ZERO;
-pub const MODEL_SCALE: Vector3 = Vector3::ONE;
-pub const SCALE_ELEMENT: f32 = 0.5;
-// pub const MODEL_SCALE: Vector3 = Vector3::new(SCALE_ELEMENT, SCALE_ELEMENT, SCALE_ELEMENT);
+// pub const MODEL_SCALE: Vector3 = Vector3::ONE;
+pub const SCALE_ELEMENT: f32 = 1.5;
+pub const MODEL_SCALE: Vector3 = Vector3::new(SCALE_ELEMENT, SCALE_ELEMENT, SCALE_ELEMENT);
 pub const MODEL_SCALE_NDC: Vector3 = Vector3::ONE;
 
 pub const HALF: f32 = 0.5;
@@ -58,16 +58,16 @@ pub const ROTATIONAL_SAMPLES_FOR_INV_PROJ: usize = 40;
 pub const TEXTURE_MAPPING_BOUNDARY_FADE: f32 = 0.05;
 pub const SILHOUETTE_TEXTURE_RES: i32 = 256 / 2;
 
-pub const INVERTED_HULL_EXPANSION_SCALAR: f32 = 0.18;
+pub const INVERTED_HULL_EXPANSION_SCALAR: f32 = 0.10;
 pub const ALPHA_FADE_RAMP_MIN: f32 = 0.0;
-pub const ALPHA_FADE_RAMP_MAX: f32 = 0.5;
+pub const ALPHA_FADE_RAMP_MAX: f32 = 0.6;
 pub const ALPHA_FADE_RAMP_STRENGTH: f32 = 1.0;
 
 pub const FOVY_ORTHOGRAPHIC: f32 = 2.0;
 pub const FOVY_PERSPECTIVE: f32 = 60.0;
 
 pub const GAUSSIAN_ALPHA_FADE_THICKNESS_IN_PIXELS: f32 = 24.0;
-pub const GAUSSIAN_STACK_SIZE: usize = 3;
+pub const GAUSSIAN_STACK_SIZE: usize = 4;
 fn pascal_pass(passes: usize) -> &'static [u32] {
     match passes {
         2 => &[1, 1],          // super cheap, very hard falloff

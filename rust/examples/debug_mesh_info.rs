@@ -1,5 +1,4 @@
-use asset_payload::CUBE_SIMPLE_PATH;
-use bath::fixed_func::jugemu::apply_barycentric_palette;
+use asset_payload::CCW_CUBE_PATH;
 use bath::fixed_func::silhouette::{ANGULAR_VELOCITY, FOVY_PERSPECTIVE, MODEL_POS, MODEL_SCALE};
 use bath::render::raylib::RaylibRenderer;
 use bath::render::raylib_util::N64_WIDTH;
@@ -31,7 +30,7 @@ fn main() {
         fovy: FOVY_PERSPECTIVE,
         projection: CameraProjection::CAMERA_PERSPECTIVE,
     };
-    let mut main_model = render.handle.load_model(&render.thread, CUBE_SIMPLE_PATH).unwrap();
+    let mut main_model = render.handle.load_model(&render.thread, CCW_CUBE_PATH).unwrap();
     let mut cube_mesh = Mesh::try_gen_mesh_cube(&render.thread, 1.0, 1.0, 1.0).unwrap();
     dbg_mesh("LOAD", &main_model.meshes()[0]);
     dbg_mesh("GEN", &*cube_mesh);
@@ -44,8 +43,6 @@ fn main() {
     dbg_mesh("rebuilt", &*rebuilt);
     let mut main_model_cube_gen = render.handle.load_model_from_mesh(&render.thread, rebuilt).unwrap();
     dbg_mesh("model", &*main_model.meshes()[0]);
-    apply_barycentric_palette(&mut main_model.meshes_mut()[0]);
-    apply_barycentric_palette(&mut main_model_cube_gen.meshes_mut()[0]);
 
     unsafe {
         main_model.meshes_mut()[0].upload(false);

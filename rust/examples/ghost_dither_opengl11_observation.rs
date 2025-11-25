@@ -1,4 +1,4 @@
-use asset_payload::SPHERE_PATH;
+use asset_payload::SPHERE_UNIT_PATH;
 use bath::fixed_func::happo_giri::{happo_giri_draw_immediate, happo_giri_setup};
 use bath::fixed_func::silhouette::{build_inverted_hull, FOVY_PERSPECTIVE};
 use bath::fixed_func::silhouette::{
@@ -34,7 +34,7 @@ fn main() {
         projection: CameraProjection::CAMERA_PERSPECTIVE,
     };
     let (observers, labels) = happo_giri_setup();
-    let mut main_model = render.handle.load_model(&render.thread, SPHERE_PATH).unwrap();
+    let mut main_model = render.handle.load_model(&render.thread, SPHERE_UNIT_PATH).unwrap();
     let mut inverted_hull = build_inverted_hull(&mut render, &main_model);
     let mesh_samples = collect_deformed_vertex_samples(main_model.meshes()[0].vertices());
     interpolate_between_deformed_vertices(&mut main_model, i_time, &mesh_samples);

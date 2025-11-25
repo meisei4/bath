@@ -102,11 +102,10 @@ define_payloads! {
         MOON_WATER_PNG           => "textures/moon_water.png",
         PEBBLES_PNG              => "textures/pebbles.png",
         ROCKS_JPG                => "textures/rocks.jpg",
-        VORO_MESH                => "meshes/voro/voro.obj",
-        VORO_MESH_CLEAN          => "meshes/voro_clean.obj",
-        SPHERE                   => "meshes/sphere_unit.obj",
+        SPHERE_UNIT              => "meshes/sphere_unit.obj",
+        SPHERE                   => "meshes/sphere.obj",
         CUBE                     => "meshes/cube_unit.obj",
-        CUBE_SIMPLE              => "meshes/ccw_cube.obj"
+        CCW_CUBE                 => "meshes/ccw_cube.obj"
 
     },
     string: {

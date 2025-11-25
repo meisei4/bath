@@ -3,13 +3,9 @@ mod dsu;
 pub mod happo_giri;
 mod immediate_mode3d;
 #[cfg(feature = "tests-only")]
-pub mod jugemu;
-#[cfg(feature = "tests-only")]
 pub mod papercraft;
 #[cfg(feature = "tests-only")]
 pub mod silhouette;
-#[cfg(feature = "tests-only")]
-pub mod software_render;
 #[cfg(feature = "tests-only")]
 pub mod texture;
 #[cfg(feature = "tests-only")]

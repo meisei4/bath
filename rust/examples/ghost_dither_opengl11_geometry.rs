@@ -1,4 +1,4 @@
-use asset_payload::SPHERE_PATH;
+use asset_payload::SPHERE_UNIT_PATH;
 use bath::fixed_func::papercraft::{recompute_unfold_into_existing_mesh, unfold};
 use bath::fixed_func::silhouette::{collect_deformed_vertex_samples, FOVY_ORTHOGRAPHIC};
 use bath::fixed_func::silhouette::{interpolate_between_deformed_vertices, MODEL_POS, MODEL_SCALE};
@@ -25,7 +25,7 @@ fn main() {
         fovy: FOVY_ORTHOGRAPHIC,
         projection: CameraProjection::CAMERA_ORTHOGRAPHIC,
     };
-    let mut main_model = render.handle.load_model(&render.thread, SPHERE_PATH).unwrap();
+    let mut main_model = render.handle.load_model(&render.thread, SPHERE_UNIT_PATH).unwrap();
     let mesh_samples = collect_deformed_vertex_samples(main_model.meshes()[0].vertices());
     interpolate_between_deformed_vertices(&mut main_model, i_time, &mesh_samples);
     _mesh_rotation = 0.0;

@@ -100,10 +100,6 @@ pub fn rotate_silhouette_texture(model: &mut Model, observer: &Camera3D, mesh_ro
         texcoords[vertex_index].x = s;
         texcoords[vertex_index].y = t;
     }
-    // unsafe {
-    // let texcoord_data = from_raw_parts(texcoords.as_ptr() as *const u8, texcoords.len() * size_of::<Vector2>());
-    // mesh.update_buffer(RL_DEFAULT_SHADER_ATTRIB_LOCATION_TEXCOORD as i32, texcoord_data, 0);
-    // }
 }
 
 const BAYER_SIZE: usize = 8;
