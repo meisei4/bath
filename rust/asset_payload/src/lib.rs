@@ -104,6 +104,7 @@ define_payloads! {
         ROCKS_JPG                => "textures/rocks.jpg",
         SPHERE_UNIT              => "meshes/sphere_unit.obj",
         SPHERE                   => "meshes/sphere.obj",
+        SPHERE_MIN               => "meshes/sphere_min.obj",
         CUBE                     => "meshes/cube_unit.obj",
         CCW_CUBE                 => "meshes/ccw_cube.obj"
 

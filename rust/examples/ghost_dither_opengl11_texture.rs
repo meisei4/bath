@@ -41,7 +41,7 @@ fn main() {
     // let mut silhouette_img = build_stipple_atlas_rgba();
     // let mut silhouette_img = generate_silhouette_texture(128, 128);
     let mut silhouette_img = generate_silhouette_texture(N64_WIDTH, N64_WIDTH);
-    dither(&mut silhouette_img);
+    // dither(&mut silhouette_img);
     let mut blank_image = Image::gen_image_color(
         render.handle.get_screen_width(),
         render.handle.get_screen_height(),
@@ -72,13 +72,13 @@ fn main() {
         interpolate_between_deformed_vertices(&mut main_model, i_time, &mesh_samples);
         rotate_inverted_hull(&main_model.meshes()[0], &mut inverted_hull, observed_los, mesh_rotation);
         rotate_silhouette_texture(&mut main_model, &main_observer, mesh_rotation);
-        rotate_silhouette_texture_dither(
-            &mut main_model,
-            &main_observer,
-            mesh_rotation,
-            render.handle.get_screen_width(),
-            render.handle.get_screen_height(),
-        );
+        // rotate_silhouette_texture_dither(
+        //     &mut main_model,
+        //     &main_observer,
+        //     mesh_rotation,
+        //     render.handle.get_screen_width(),
+        //     render.handle.get_screen_height(),
+        // );
         let mut draw_handle = render.handle.begin_drawing(&render.thread);
         draw_handle.clear_background(Color::BLACK);
         draw_handle.draw_mode3D(main_observer, |mut rl3d| {
@@ -101,7 +101,7 @@ fn main() {
             unsafe {
                 rlDisableDepthMask();
             }
-            draw_inverted_hull_guassian_silhouette_stack(&mut rl3d, &inverted_hull, mesh_rotation);
+            // draw_inverted_hull_guassian_silhouette_stack(&mut rl3d, &inverted_hull, mesh_rotation);
             unsafe {
                 rlEnableDepthMask();
             }
