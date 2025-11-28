@@ -77,6 +77,7 @@ struct ViewState {
     texture_mode: bool,
     jugemu_mode: bool,
     ortho_mode: bool,
+    jugemu_ortho_mode: bool,
     target_mesh_index: usize,
 }
 
@@ -90,6 +91,7 @@ impl ViewState {
             texture_mode: false,
             jugemu_mode: true,
             ortho_mode: false,
+            jugemu_ortho_mode: true,
             target_mesh_index: 1,
         }
     }
@@ -114,6 +116,9 @@ impl ViewState {
     }
     fn toggle_ortho(&mut self) {
         self.ortho_mode = !self.ortho_mode;
+    }
+    fn toggle_jugemu_ortho(&mut self) {
+        self.jugemu_ortho_mode = !self.jugemu_ortho_mode;
     }
 
     fn set_mesh(&mut self, index: usize) {
@@ -180,9 +185,14 @@ fn main() {
         position: JUGEMU_POS_ISO,
         target: MODEL_POS,
         up: Y_AXIS,
-        fovy: FOVY_PERSPECTIVE,
-        projection: CAMERA_PERSPECTIVE,
+        fovy: FOVY_ORTHOGRAPHIC,
+        projection: CAMERA_ORTHOGRAPHIC,
+        // fovy: FOVY_PERSPECTIVE,
+        // projection: CAMERA_PERSPECTIVE,
     };
+
+    let mut prev_fovy_ortho = FOVY_ORTHOGRAPHIC;
+    let mut prev_fovy_perspective = FOVY_PERSPECTIVE;
 
     let mut world_models: Vec<Model> = Vec::new();
     let mut ndc_models: Vec<Model> = Vec::new();
@@ -323,7 +333,16 @@ fn main() {
         if handle.is_key_pressed(KeyboardKey::KEY_O) {
             view_state.toggle_ortho();
         }
-
+        if handle.is_key_pressed(KeyboardKey::KEY_P) {
+            if view_state.jugemu_ortho_mode {
+                prev_fovy_ortho = jugemu.fovy;
+                jugemu.fovy = prev_fovy_perspective;
+            } else {
+                prev_fovy_perspective = jugemu.fovy;
+                jugemu.fovy = prev_fovy_ortho;
+            }
+            view_state.toggle_jugemu_ortho();
+        }
         if handle.is_key_pressed(KeyboardKey::KEY_ONE) {
             view_state.set_mesh(0);
         }
@@ -341,6 +360,12 @@ fn main() {
         if !view_state.paused {
             mesh_rotation -= ANGULAR_VELOCITY * handle.get_frame_time();
         }
+
+        jugemu.projection = if view_state.jugemu_ortho_mode {
+            CAMERA_ORTHOGRAPHIC
+        } else {
+            CAMERA_PERSPECTIVE
+        };
 
         orbit_space(&mut handle, &mut jugemu);
 
@@ -454,14 +479,12 @@ fn main() {
             draw_model_wires_and_points(&mut rl3d, display_model, mesh_rotation);
         });
 
-        draw_handle.draw_text("[1]: GHOST [2]: CUBE [3]: SPHERE", 12, 12, FONT_SIZE, NEON_CARROT);
-        draw_handle.draw_text("ARROWS: MOVE | SPACEBAR: PAUSE", 12, 38, FONT_SIZE, NEON_CARROT);
-        draw_handle.draw_text("W A : ZOOM", 12, 64, FONT_SIZE, NEON_CARROT);
+        draw_handle.draw_text("W S : ZOOM | + - : FOV", 12, 12, FONT_SIZE, NEON_CARROT);
         draw_handle.draw_text(
             match target_mesh {
                 0 => "GHOST",
-                1 => "GEN_CUBE",
-                2 => "LOAD_SPHERE",
+                1 => "CUBE",
+                2 => "SPHERE",
                 _ => "",
             },
             12,
@@ -469,6 +492,43 @@ fn main() {
             FONT_SIZE,
             NEON_CARROT,
         );
+
+        let jugemu_distance = {
+            let offset = Vector3::new(
+                jugemu.position.x - jugemu.target.x,
+                jugemu.position.y - jugemu.target.y,
+                jugemu.position.z - jugemu.target.z,
+            );
+            (offset.x * offset.x + offset.y * offset.y + offset.z * offset.z).sqrt()
+        };
+
+        draw_handle.draw_text("JUGEMU [ P ]:", 12, 32, FONT_SIZE, SUNFLOWER);
+        draw_handle.draw_text(
+            if view_state.jugemu_ortho_mode {
+                "ORTHOGRAPHIC"
+            } else {
+                "PERSPECTIVE"
+            },
+            160,
+            32,
+            FONT_SIZE,
+            if view_state.jugemu_ortho_mode {
+                BAHAMA_BLUE
+            } else {
+                ANAKIWA
+            },
+        );
+
+        draw_handle.draw_text(&format!("{} {:.2}", "FOVY: ", jugemu.fovy), 12, 52, FONT_SIZE, LILAC);
+
+        draw_handle.draw_text(
+            &format!("JUGEMU DISTANCE: {:.2}", jugemu_distance),
+            12,
+            72,
+            FONT_SIZE,
+            HOPBUSH,
+        );
+
         draw_handle.draw_text("TEXTURE [ T ]:", 570, 12, FONT_SIZE, SUNFLOWER);
         draw_handle.draw_text(
             if view_state.texture_mode { "ON" } else { "OFF" },
@@ -796,15 +856,34 @@ fn orbit_space(handle: &mut RaylibHandle, camera: &mut Camera3D) {
     if handle.is_key_down(KeyboardKey::KEY_DOWN) {
         elevation -= 1.0 * dt;
     }
+
     if handle.is_key_down(KeyboardKey::KEY_W) {
         radius -= 1.0 * dt;
     }
     if handle.is_key_down(KeyboardKey::KEY_S) {
         radius += 1.0 * dt;
     }
+    radius = radius.clamp(0.25, 10.0);
+
+    if camera.projection == CAMERA_ORTHOGRAPHIC {
+        if handle.is_key_down(KeyboardKey::KEY_SEMICOLON) {
+            camera.fovy += 6.0 * dt;
+        }
+        if handle.is_key_down(KeyboardKey::KEY_MINUS) {
+            camera.fovy -= 6.0 * dt;
+        }
+        camera.fovy = camera.fovy.clamp(1.0, 30.0);
+    } else {
+        if handle.is_key_down(KeyboardKey::KEY_SEMICOLON) {
+            camera.fovy += 35.0 * dt;
+        }
+        if handle.is_key_down(KeyboardKey::KEY_MINUS) {
+            camera.fovy -= 35.0 * dt;
+        }
+        camera.fovy = camera.fovy.clamp(1.0, 130.0);
+    }
 
     elevation = elevation.clamp(-PI / 2.0 + 0.1, PI / 2.0 - 0.1);
-    radius = radius.clamp(0.25, 10.0);
 
     camera.position.x = camera.target.x + radius * elevation.cos() * azimuth.cos();
     camera.position.y = camera.target.y + radius * elevation.sin();
@@ -992,7 +1071,7 @@ fn update_spatial_frame(
                 .add(up * (y_sign * final_half_h));
         }
     }
-} // NOTE!!!!!! Colors automatically restored when _color_guard drops
+}
 
 fn draw_model_wires_and_points(rl3d: &mut RaylibMode3D<RaylibDrawHandle>, model: &mut Model, rotation: f32) {
     let _color_guard = ColorGuard::hide(&mut model.meshes_mut()[0]);
