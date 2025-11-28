@@ -59,7 +59,7 @@ pub const ROTATIONAL_SAMPLES_FOR_INV_PROJ: usize = 40;
 
 pub const FOVY_ORTHOGRAPHIC: f32 = 2.0;
 pub const MODEL_POS: Vector3 = Vector3::ZERO;
-pub const SCALE_ELEMENT: f32 = 1.5;
+pub const SCALE_ELEMENT: f32 = 1.0;
 pub const MODEL_SCALE: Vector3 = Vector3::new(SCALE_ELEMENT, SCALE_ELEMENT, SCALE_ELEMENT);
 
 fn main() {
