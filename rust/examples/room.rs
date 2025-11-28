@@ -40,7 +40,7 @@ pub const ANGULAR_VELOCITY: f32 = TAU * ROTATION_FREQUENCY_HZ;
 pub const TIME_BETWEEN_SAMPLES: f32 = 0.5;
 pub const ROTATIONAL_SAMPLES_FOR_INV_PROJ: usize = 40;
 
-const FOVY_PERSPECTIVE: f32 = 60.0;
+const FOVY_PERSPECTIVE: f32 = 50.0;
 fn NEAR_PLANE_HEIGHT_ORTHOGRAPHIC() -> f32 {
     2.0 * (FOVY_PERSPECTIVE * 0.5).to_radians().tan()
 }
@@ -48,12 +48,23 @@ const BLEND_SCALAR: f32 = 5.0;
 
 const Y_AXIS: Vector3 = Vector3::new(0.0, 1.0, 0.0);
 const MAIN_POS: Vector3 = Vector3::new(0.0, 0.0, 2.0);
-const JUGEMU_POS_ISO: Vector3 = Vector3::new(3.0, 1.0, 3.0);
+const JUGEMU_POS_ISO: Vector3 = Vector3::new(1.0, 1.0, 1.0);
+const JUGEMU_DISTANCE_ORTHO: f32 = 6.5;
+const JUGEMU_DISTANCE_PERSPECTIVE: f32 = 9.0;
 
-pub const FOVY_ORTHOGRAPHIC: f32 = 2.0;
+pub const FOVY_ORTHOGRAPHIC: f32 = 9.0;
 pub const MODEL_POS: Vector3 = Vector3::ZERO;
 pub const SCALE_ELEMENT: f32 = 1.0;
 pub const MODEL_SCALE: Vector3 = Vector3::new(SCALE_ELEMENT, SCALE_ELEMENT, SCALE_ELEMENT);
+
+const RES_SCALE: f32 = 1.5;
+const DC_WIDTH_BASE: f32 = 640.0;
+const DC_HEIGHT_BASE: f32 = 480.0;
+const DC_WIDTH: i32 = (DC_WIDTH_BASE * RES_SCALE) as i32;
+const DC_HEIGHT: i32 = (DC_HEIGHT_BASE * RES_SCALE) as i32;
+
+const HUD_MARGIN: i32 = 12;
+const HUD_LINE_HEIGHT: i32 = 22;
 
 const FONT_SIZE: i32 = 20;
 const BAHAMA_BLUE: Color = Color::new(0, 102, 153, 255);
@@ -155,8 +166,8 @@ fn main() {
     let mut i_time = 0.0f32;
     let mut view_state = ViewState::new();
 
-    let (mut handle, thread) = raylib::init()
-        .size(800, 450)
+    let (mut handle, thread) = init()
+        .size(DC_WIDTH, DC_HEIGHT)
         .title("raylib [core] example - fixed function didactic")
         .build();
 
@@ -180,9 +191,13 @@ fn main() {
             CAMERA_PERSPECTIVE
         },
     };
-
     let mut jugemu = Camera3D {
-        position: JUGEMU_POS_ISO,
+        position: JUGEMU_POS_ISO.normalize()
+            * if view_state.jugemu_ortho_mode {
+                JUGEMU_DISTANCE_ORTHO
+            } else {
+                JUGEMU_DISTANCE_PERSPECTIVE
+            },
         target: MODEL_POS,
         up: Y_AXIS,
         fovy: FOVY_ORTHOGRAPHIC,
@@ -193,11 +208,13 @@ fn main() {
 
     let mut prev_fovy_ortho = FOVY_ORTHOGRAPHIC;
     let mut prev_fovy_perspective = FOVY_PERSPECTIVE;
+    let mut prev_distance_ortho = JUGEMU_DISTANCE_ORTHO;
+    let mut prev_distance_perspective = JUGEMU_DISTANCE_PERSPECTIVE;
 
     let mut world_models: Vec<Model> = Vec::new();
     let mut ndc_models: Vec<Model> = Vec::new();
     let mut mesh_textures = Vec::new();
-
+    //TODO: WHEN YOU TOGGLE BETWEEN THE GHOST MODEL AND OTHER MESHES ITS DEFORMATION CYCLES GETS MESSED UP!!!!!! LOL
     let mut ghost_model = handle.load_model(&thread, SPHERE_GLTF_PATH).unwrap();
     let checked_img = Image::gen_image_checked(16, 16, 1, 1, Color::BLACK, Color::WHITE);
     let mesh_texture = handle.load_texture_from_image(&thread, &checked_img).unwrap();
@@ -307,6 +324,8 @@ fn main() {
         handle.load_model_from_mesh(&thread, spatial_frame_mesh).unwrap()
     };
 
+    let mut hovered_cell_center: Option<Vector3> = None;
+
     handle.set_target_fps(60);
 
     while !handle.window_should_close() {
@@ -335,11 +354,37 @@ fn main() {
         }
         if handle.is_key_pressed(KeyboardKey::KEY_P) {
             if view_state.jugemu_ortho_mode {
+                // Switching FROM ortho TO perspective
                 prev_fovy_ortho = jugemu.fovy;
+                let current_distance = {
+                    let offset = Vector3::new(
+                        jugemu.position.x - jugemu.target.x,
+                        jugemu.position.y - jugemu.target.y,
+                        jugemu.position.z - jugemu.target.z,
+                    );
+                    (offset.x * offset.x + offset.y * offset.y + offset.z * offset.z).sqrt()
+                };
+                prev_distance_ortho = current_distance;
+
                 jugemu.fovy = prev_fovy_perspective;
+                let dir = jugemu.position.normalize();
+                jugemu.position = dir * prev_distance_perspective;
             } else {
+                // Switching FROM perspective TO ortho
                 prev_fovy_perspective = jugemu.fovy;
+                let current_distance = {
+                    let offset = Vector3::new(
+                        jugemu.position.x - jugemu.target.x,
+                        jugemu.position.y - jugemu.target.y,
+                        jugemu.position.z - jugemu.target.z,
+                    );
+                    (offset.x * offset.x + offset.y * offset.y + offset.z * offset.z).sqrt()
+                };
+                prev_distance_perspective = current_distance;
+
                 jugemu.fovy = prev_fovy_ortho;
+                let dir = jugemu.position.normalize();
+                jugemu.position = dir * prev_distance_ortho;
             }
             view_state.toggle_jugemu_ortho();
         }
@@ -438,6 +483,8 @@ fn main() {
             o_blend,
         );
 
+        hovered_cell_center = get_hovered_room_floor_cell(&handle, &jugemu);
+
         let (depth, right, up) = basis_vector(&main);
         let mut draw_handle = handle.begin_drawing(&thread);
         draw_handle.clear_background(Color::BLACK);
@@ -469,6 +516,14 @@ fn main() {
             if view_state.jugemu_mode {
                 draw_spatial_frame(&mut rl3d, &spatial_frame_model.meshes_mut()[0]);
             }
+
+            draw_room_floor_grid(&mut rl3d);
+            rl3d.draw_cube_wires(MODEL_POS, ROOM_W as f32, ROOM_H as f32, ROOM_D as f32, RED_DAMASK);
+
+            if let Some(center) = hovered_cell_center {
+                rl3d.draw_cube_wires(center, 1.0, 1.0, 1.0, NEON_CARROT);
+            }
+
             draw_model_filled(
                 &mut rl3d,
                 display_model,
@@ -479,7 +534,13 @@ fn main() {
             draw_model_wires_and_points(&mut rl3d, display_model, mesh_rotation);
         });
 
-        draw_handle.draw_text("W S : ZOOM | + - : FOV", 12, 12, FONT_SIZE, NEON_CARROT);
+        let screen_width = draw_handle.get_screen_width();
+        let screen_height = draw_handle.get_screen_height();
+
+        const LABEL_COL: i32 = HUD_MARGIN;
+        const VALUE_COL: i32 = LABEL_COL + 200;
+
+        let mut line_y = HUD_MARGIN;
         draw_handle.draw_text(
             match target_mesh {
                 0 => "GHOST",
@@ -487,12 +548,33 @@ fn main() {
                 2 => "SPHERE",
                 _ => "",
             },
-            12,
-            205,
+            LABEL_COL + 450,
+            line_y,
             FONT_SIZE,
             NEON_CARROT,
         );
 
+        draw_handle.draw_text("JUGEMU [ P ]:", LABEL_COL, line_y, FONT_SIZE, SUNFLOWER);
+        draw_handle.draw_text(
+            if view_state.jugemu_ortho_mode {
+                "ORTHOGRAPHIC"
+            } else {
+                "PERSPECTIVE"
+            },
+            VALUE_COL,
+            line_y,
+            FONT_SIZE,
+            if view_state.jugemu_ortho_mode {
+                BAHAMA_BLUE
+            } else {
+                ANAKIWA
+            },
+        );
+        line_y += HUD_LINE_HEIGHT;
+        draw_handle.draw_text("FOVY[ + - ]:", LABEL_COL, line_y, FONT_SIZE, SUNFLOWER);
+        draw_handle.draw_text(&format!("{:.2}", jugemu.fovy), VALUE_COL, line_y, FONT_SIZE, LILAC);
+        line_y += HUD_LINE_HEIGHT;
+        draw_handle.draw_text("DISTANCE [ W S ]:", LABEL_COL, line_y, FONT_SIZE, SUNFLOWER);
         let jugemu_distance = {
             let offset = Vector3::new(
                 jugemu.position.x - jugemu.target.x,
@@ -501,39 +583,28 @@ fn main() {
             );
             (offset.x * offset.x + offset.y * offset.y + offset.z * offset.z).sqrt()
         };
-
-        draw_handle.draw_text("JUGEMU [ P ]:", 12, 32, FONT_SIZE, SUNFLOWER);
         draw_handle.draw_text(
-            if view_state.jugemu_ortho_mode {
-                "ORTHOGRAPHIC"
-            } else {
-                "PERSPECTIVE"
-            },
-            160,
-            32,
-            FONT_SIZE,
-            if view_state.jugemu_ortho_mode {
-                BAHAMA_BLUE
-            } else {
-                ANAKIWA
-            },
-        );
-
-        draw_handle.draw_text(&format!("{} {:.2}", "FOVY: ", jugemu.fovy), 12, 52, FONT_SIZE, LILAC);
-
-        draw_handle.draw_text(
-            &format!("JUGEMU DISTANCE: {:.2}", jugemu_distance),
-            12,
-            72,
+            &format!("{:.2}", jugemu_distance),
+            VALUE_COL,
+            line_y,
             FONT_SIZE,
             HOPBUSH,
         );
 
-        draw_handle.draw_text("TEXTURE [ T ]:", 570, 12, FONT_SIZE, SUNFLOWER);
+        const RIGHT_LABEL_COL: i32 = 250;
+        const RIGHT_VALUE_COL: i32 = 80;
+        line_y = HUD_MARGIN;
+        draw_handle.draw_text(
+            "TEXTURE [ T ]:",
+            screen_width - RIGHT_LABEL_COL,
+            line_y,
+            FONT_SIZE,
+            SUNFLOWER,
+        );
         draw_handle.draw_text(
             if view_state.texture_mode { "ON" } else { "OFF" },
-            740,
-            12,
+            screen_width - RIGHT_VALUE_COL,
+            line_y,
             FONT_SIZE,
             if view_state.texture_mode {
                 ANAKIWA
@@ -541,23 +612,32 @@ fn main() {
                 CHESTNUT_ROSE
             },
         );
-        draw_handle.draw_text("COLORS [ C ]:", 570, 38, FONT_SIZE, SUNFLOWER);
+        line_y += HUD_LINE_HEIGHT;
+        draw_handle.draw_text(
+            "COLORS [ C ]:",
+            screen_width - RIGHT_LABEL_COL,
+            line_y,
+            FONT_SIZE,
+            SUNFLOWER,
+        );
         draw_handle.draw_text(
             if view_state.color_mode { "ON" } else { "OFF" },
-            740,
-            38,
+            screen_width - RIGHT_VALUE_COL,
+            line_y,
             FONT_SIZE,
             if view_state.color_mode { ANAKIWA } else { CHESTNUT_ROSE },
         );
-        draw_handle.draw_text("ASPECT [ Q ]:", 12, 392, FONT_SIZE, SUNFLOWER);
+
+        line_y = screen_height - HUD_MARGIN - HUD_LINE_HEIGHT * 3;
+        draw_handle.draw_text("ASPECT [ Q ]:", LABEL_COL, line_y, FONT_SIZE, SUNFLOWER);
         draw_handle.draw_text(
             if view_state.aspect_correct {
                 "CORRECT"
             } else {
                 "INCORRECT"
             },
-            230,
-            392,
+            VALUE_COL,
+            line_y,
             FONT_SIZE,
             if view_state.aspect_correct {
                 ANAKIWA
@@ -565,23 +645,25 @@ fn main() {
                 CHESTNUT_ROSE
             },
         );
-        draw_handle.draw_text("LENS [ O ]:", 510, 366, FONT_SIZE, SUNFLOWER);
+        line_y += HUD_LINE_HEIGHT;
+        draw_handle.draw_text("LENS [ O ]:", LABEL_COL, line_y, FONT_SIZE, SUNFLOWER);
         draw_handle.draw_text(
             if view_state.ortho_mode {
                 "ORTHOGRAPHIC"
             } else {
                 "PERSPECTIVE"
             },
-            630,
-            366,
+            VALUE_COL,
+            line_y,
             FONT_SIZE,
             if view_state.ortho_mode { BAHAMA_BLUE } else { ANAKIWA },
         );
-        draw_handle.draw_text("SPACE [ N ]:", 520, 392, FONT_SIZE, SUNFLOWER);
+        line_y += HUD_LINE_HEIGHT;
+        draw_handle.draw_text("SPACE [ N ]:", LABEL_COL, line_y, FONT_SIZE, SUNFLOWER);
         draw_handle.draw_text(
             if view_state.ndc_space { "NDC" } else { "WORLD" },
-            655,
-            392,
+            VALUE_COL,
+            line_y,
             FONT_SIZE,
             if view_state.ndc_space { BAHAMA_BLUE } else { ANAKIWA },
         );
@@ -739,7 +821,6 @@ pub fn interpolate_between_deformed_vertices(model: &mut Model, i_time: f32, ver
     let current_frame = frame.floor() as usize % vertex_samples.len();
     let next_frame = (current_frame + 1) % vertex_samples.len();
     let weight = frame.fract();
-    // let vertices = target_mesh.anim_vertices_mut();
     let vertices = target_mesh.vertices_mut();
     for ((dst_vertex, src_vertex), next_vertex) in vertices
         .iter_mut()
@@ -1189,4 +1270,71 @@ fn ortho_blend_factor(dt: f32, ortho_mode: bool) -> f32 {
         }
         BLEND
     }
+}
+
+fn draw_room_floor_grid(rl3d: &mut RaylibMode3D<RaylibDrawHandle>) {
+    let origin = room_origin();
+    let floor_y = origin.y;
+
+    for x in 0..=ROOM_W {
+        let x_world = origin.x + x as f32;
+        let start = Vector3::new(x_world, floor_y, origin.z);
+        let end = Vector3::new(x_world, floor_y, origin.z + ROOM_D as f32);
+        rl3d.draw_line3D(start, end, HOPBUSH);
+    }
+
+    for z in 0..=ROOM_D {
+        let z_world = origin.z + z as f32;
+        let start = Vector3::new(origin.x, floor_y, z_world);
+        let end = Vector3::new(origin.x + ROOM_W as f32, floor_y, z_world);
+        rl3d.draw_line3D(start, end, HOPBUSH);
+    }
+}
+fn get_hovered_room_floor_cell(handle: &RaylibHandle, camera: &Camera3D) -> Option<Vector3> {
+    let mouse = handle.get_mouse_position();
+    let ray = handle.get_screen_to_world_ray(mouse, *camera);
+
+    if ray.direction.y.abs() < 1e-5 {
+        return None;
+    }
+
+    // FLOOR is at -(ROOM_H as f32) / 2.0, which is -1.5
+    let floor_y = -(ROOM_H as f32) / 2.0;
+    let t = (floor_y - ray.position.y) / ray.direction.y;
+    if t <= 0.0 {
+        return None;
+    }
+
+    let hit = Vector3::new(
+        ray.position.x + ray.direction.x * t,
+        floor_y, // Use floor_y, not 0.0
+        ray.position.z + ray.direction.z * t,
+    );
+
+    let origin = room_origin();
+    let local_x = hit.x - origin.x;
+    let local_z = hit.z - origin.z;
+
+    if local_x < 0.0 || local_z < 0.0 || local_x >= ROOM_W as f32 || local_z >= ROOM_D as f32 {
+        return None;
+    }
+
+    let cell_x = local_x.floor() as i32;
+    let cell_z = local_z.floor() as i32;
+    let cell_y = 0;
+
+    Some(cell_center(cell_x, cell_y, cell_z))
+}
+
+fn cell_center(ix: i32, iy: i32, iz: i32) -> Vector3 {
+    let origin = room_origin();
+    Vector3::new(
+        origin.x + ix as f32 + 0.5,
+        origin.y + iy as f32 + 0.5,
+        origin.z + iz as f32 + 0.5,
+    )
+}
+
+fn room_origin() -> Vector3 {
+    Vector3::new(-(ROOM_W as f32) / 2.0, -(ROOM_H as f32) / 2.0, -(ROOM_D as f32) / 2.0)
 }
