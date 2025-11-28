@@ -57,10 +57,101 @@ fn main() {
     println!("\n=== Step 2: Converting OBJ to GLTF ===");
     run_gltfpack();
 
-    println!("\n=== Step 3: Adding vertex colors to GLTF ===");
+    println!("\n=== Step 3: Verifying GLTF after conversion ===");
+    verify_gltf_attributes(GLTF_OUT, "after OBJ->GLTF conversion");
+
+    println!("\n=== Step 4: Adding vertex colors to GLTF ===");
     fill_vertex_colors_gltf();
 
+    println!("\n=== Step 5: Verifying GLTF after adding colors ===");
+    verify_gltf_attributes(GLTF_OUT, "after adding vertex colors");
+
+    println!("\n=== Step 6: Converting GLTF to GLB ===");
+    convert_to_glb();
+
+    println!("\n=== Step 7: Verifying final GLB ===");
+    verify_glb_attributes();
+
     println!("\n=== DONE ===");
+}
+
+fn verify_gltf_attributes(path: &str, stage: &str) {
+    println!("Verifying GLTF attributes ({}):", stage);
+    let gltf = Gltf::from_slice(&fs::read(path).unwrap()).unwrap();
+    let (_, buffers, _) = gltf::import(path).unwrap();
+
+    for (i, mesh) in gltf.meshes().enumerate() {
+        for primitive in mesh.primitives() {
+            let reader = primitive.reader(|buffer| Some(&buffers[buffer.index()]));
+
+            // Check texcoords
+            let has_texcoords = primitive.get(&mesh::Semantic::TexCoords(0)).is_some();
+            println!("  Mesh {}: Has TEXCOORD_0 attribute: {}", i, has_texcoords);
+
+            if let Some(texcoords_iter) = reader.read_tex_coords(0) {
+                let texcoords: Vec<[f32; 2]> = texcoords_iter.into_f32().collect();
+                println!(
+                    "    Found {} texcoords (first: {:?})",
+                    texcoords.len(),
+                    texcoords.get(0)
+                );
+            } else if has_texcoords {
+                println!("    TEXCOORD_0 attribute exists but couldn't read texcoords!");
+            }
+
+            // Check colors
+            let has_colors = primitive.get(&mesh::Semantic::Colors(0)).is_some();
+            println!("  Mesh {}: Has COLOR_0 attribute: {}", i, has_colors);
+
+            if let Some(colors_iter) = reader.read_colors(0) {
+                let colors: Vec<[u8; 4]> = colors_iter.into_rgba_u8().collect();
+                println!("    Found {} colors (first: {:?})", colors.len(), colors.get(0));
+            } else if has_colors {
+                println!("    COLOR_0 attribute exists but couldn't read colors!");
+            }
+        }
+    }
+}
+
+fn verify_glb_attributes() {
+    println!("Verifying final GLB attributes:");
+    let final_glb = Gltf::from_slice(&fs::read(GLB_OUT).unwrap()).unwrap();
+
+    for (i, mesh) in final_glb.meshes().enumerate() {
+        for primitive in mesh.primitives() {
+            let reader = primitive.reader(|_| final_glb.blob.as_ref().map(|b| &b[..]));
+
+            // Check texcoords
+            let has_texcoords = primitive.get(&mesh::Semantic::TexCoords(0)).is_some();
+            println!("  Mesh {}: Has TEXCOORD_0 attribute: {}", i, has_texcoords);
+
+            if let Some(texcoords_iter) = reader.read_tex_coords(0) {
+                let texcoords: Vec<[f32; 2]> = texcoords_iter.into_f32().collect();
+                println!(
+                    "    Found {} texcoords in GLB! (first: {:?})",
+                    texcoords.len(),
+                    texcoords.get(0)
+                );
+            } else if has_texcoords {
+                println!("    TEXCOORD_0 attribute exists but couldn't read texcoords!");
+            }
+
+            // Check colors
+            let has_colors = primitive.get(&mesh::Semantic::Colors(0)).is_some();
+            println!("  Mesh {}: Has COLOR_0 attribute: {}", i, has_colors);
+
+            if let Some(colors_iter) = reader.read_colors(0) {
+                let colors: Vec<[u8; 4]> = colors_iter.into_rgba_u8().collect();
+                println!(
+                    "    Found {} vertex colors in GLB! (first: {:?})",
+                    colors.len(),
+                    colors.get(0)
+                );
+            } else if has_colors {
+                println!("    COLOR_0 attribute exists but couldn't read colors!");
+            }
+        }
+    }
 }
 
 fn emit_sphere_normals(file: &mut File, verts: &[[f64; 3]]) {
@@ -220,6 +311,7 @@ fn run_gltfpack() {
         .arg(OBJ_OUT)
         .arg("-o")
         .arg(GLTF_OUT)
+        .arg("-kv")
         .arg("-noq")
         .output()
         .expect("Failed to run gltfpack");
@@ -228,6 +320,25 @@ fn run_gltfpack() {
         println!("gltfpack OBJ->GLTF: SUCCESS");
     } else {
         eprintln!("gltfpack OBJ->GLTF: FAILED");
+        eprintln!("{}", String::from_utf8_lossy(&output.stderr));
+    }
+}
+
+fn convert_to_glb() {
+    let output = Command::new("gltfpack")
+        .arg("-i")
+        .arg(GLTF_OUT)
+        .arg("-o")
+        .arg(GLB_OUT)
+        .arg("-kv")
+        .arg("-noq")
+        .output()
+        .expect("Failed to convert to GLB");
+
+    if output.status.success() {
+        println!("gltfpack GLTF->GLB: SUCCESS");
+    } else {
+        eprintln!("gltfpack GLTF->GLB: FAILED");
         eprintln!("{}", String::from_utf8_lossy(&output.stderr));
     }
 }
@@ -342,53 +453,4 @@ fn fill_vertex_colors_gltf() {
     println!("  Binary size: {} -> {} bytes", original_bin_size, bin_data.len());
     fs::write(&bin_path, &bin_data).unwrap();
     fs::write(gltf_path, to_string_pretty(&root).unwrap()).unwrap();
-
-    println!("\n=== Step 4: Verifying colors were added to GLTF ===");
-    let verify_gltf = Gltf::from_slice(&fs::read(GLTF_OUT).unwrap()).unwrap();
-    for (i, mesh) in verify_gltf.meshes().enumerate() {
-        for primitive in mesh.primitives() {
-            let has_colors = primitive.get(&mesh::Semantic::Colors(0)).is_some();
-            println!("  Mesh {}: Has COLOR_0 attribute: {}", i, has_colors);
-        }
-    }
-
-    println!("\n=== Step 5: Converting GLTF to GLB ===");
-    let output = Command::new("gltfpack")
-        .arg("-i")
-        .arg(GLTF_OUT)
-        .arg("-o")
-        .arg(GLB_OUT)
-        .arg("-noq")
-        .output()
-        .expect("Failed to convert to GLB");
-
-    if output.status.success() {
-        println!("gltfpack GLTF->GLB: SUCCESS");
-    } else {
-        eprintln!("gltfpack GLTF->GLB: FAILED");
-        eprintln!("{}", String::from_utf8_lossy(&output.stderr));
-    }
-
-    println!("\n=== Step 6: Verifying colors in final GLB ===");
-    let final_glb = Gltf::from_slice(&fs::read(GLB_OUT).unwrap()).unwrap();
-    for (i, mesh) in final_glb.meshes().enumerate() {
-        for primitive in mesh.primitives() {
-            let reader = primitive.reader(|_| final_glb.blob.as_ref().map(|b| &b[..]));
-            if let Some(colors_accessor) = primitive.get(&mesh::Semantic::Colors(0)) {
-                if let Some(colors_iter) = reader.read_colors(0) {
-                    let colors: Vec<[u8; 4]> = colors_iter.into_rgba_u8().collect();
-                    println!(
-                        "  Mesh {}: Found {} vertex colors in GLB! (first: {:?})",
-                        i,
-                        colors.len(),
-                        colors[0]
-                    );
-                } else {
-                    println!("  Mesh {}: COLOR_0 attribute exists but couldn't read colors!", i);
-                }
-            } else {
-                println!("  Mesh {}: NO COLOR_0 attribute in GLB!", i);
-            }
-        }
-    }
 }

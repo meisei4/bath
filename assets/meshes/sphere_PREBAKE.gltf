@@ -3,7 +3,7 @@
     {
       "bufferView": 0,
       "byteOffset": 0,
-      "count": 58,
+      "count": 79,
       "componentType": 5126,
       "type": "VEC3",
       "min": [
@@ -20,21 +20,28 @@
     {
       "bufferView": 1,
       "byteOffset": 0,
-      "count": 58,
+      "count": 79,
       "componentType": 5126,
       "type": "VEC3"
     },
     {
       "bufferView": 2,
       "byteOffset": 0,
+      "count": 79,
+      "componentType": 5126,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 3,
+      "byteOffset": 0,
       "count": 336,
       "componentType": 5123,
       "type": "SCALAR"
     },
     {
-      "bufferView": 3,
+      "bufferView": 4,
       "byteOffset": 0,
-      "count": 58,
+      "count": 79,
       "componentType": 5121,
       "type": "VEC4",
       "normalized": true
@@ -46,35 +53,42 @@
   },
   "buffers": [
     {
-      "byteLength": 2296,
+      "byteLength": 3516,
       "uri": "sphere_PREBAKE.bin"
     }
   ],
   "bufferViews": [
     {
       "buffer": 0,
-      "byteLength": 696,
+      "byteLength": 948,
       "byteOffset": 0,
       "byteStride": 12,
       "target": 34962
     },
     {
       "buffer": 0,
-      "byteLength": 696,
-      "byteOffset": 696,
+      "byteLength": 948,
+      "byteOffset": 948,
       "byteStride": 12,
       "target": 34962
     },
     {
       "buffer": 0,
+      "byteLength": 632,
+      "byteOffset": 1896,
+      "byteStride": 8,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
       "byteLength": 672,
-      "byteOffset": 1392,
+      "byteOffset": 2528,
       "target": 34963
     },
     {
       "buffer": 0,
-      "byteLength": 232,
-      "byteOffset": 2064,
+      "byteLength": 316,
+      "byteOffset": 3200,
       "byteStride": 4,
       "target": 34962
     }
@@ -87,9 +101,10 @@
           "attributes": {
             "POSITION": 0,
             "NORMAL": 1,
-            "COLOR_0": 3
+            "COLOR_0": 4,
+            "TEXCOORD_0": 2
           },
-          "indices": 2
+          "indices": 3
         }
       ]
     }

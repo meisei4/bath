@@ -44,8 +44,8 @@ pub const GRID_ORIGIN_UV_OFFSET: Vector2 = Vector2::new(
 
 pub const LIGHT_WAVE_SPATIAL_FREQ_X: f32 = 8.0;
 pub const LIGHT_WAVE_SPATIAL_FREQ_Y: f32 = 8.0;
-pub const LIGHT_WAVE_TEMPORAL_FREQ_X: f32 = 80.0;
-pub const LIGHT_WAVE_TEMPORAL_FREQ_Y: f32 = 2.3;
+pub const LIGHT_WAVE_TEMPORAL_FREQ_X: f32 = (255.0 * PI / 10.0) as f32;
+pub const LIGHT_WAVE_TEMPORAL_FREQ_Y: f32 = (7.0 * PI / 10.0) as f32;
 pub const LIGHT_WAVE_AMPLITUDE_X: f32 = 0.0;
 pub const LIGHT_WAVE_AMPLITUDE_Y: f32 = 0.1;
 pub const UMBRAL_MASK_OUTER_RADIUS: f32 = 0.40;
@@ -129,7 +129,6 @@ pub fn observed_line_of_sight(observer: &Camera3D) -> Vec3 {
     .normalize_or_zero()
 }
 
-//TODO: if this is used it should update anim_normals i think?
 fn update_normals_for_silhouette(mesh: &mut WeakMesh) {
     let vertices = mesh.vertices();
     let mut normals = vec![Vec3::ZERO; vertices.len()];
@@ -148,7 +147,7 @@ fn update_normals_for_silhouette(mesh: &mut WeakMesh) {
         normals[i] = normals[i].normalize_or_zero();
     }
 
-    mesh.normals_mut().unwrap().copy_from_slice(&normals);
+    mesh.anim_normals_mut().unwrap().copy_from_slice(&normals);
 }
 
 fn fade_vertex_colors_silhouette_rim(mesh: &mut WeakMesh, observer: &Camera3D, mesh_rotation: f32) {

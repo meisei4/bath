@@ -1,7 +1,6 @@
 use asset_payload::SPHERE_PATH;
 use bath::render::raylib::RaylibRenderer;
 use bath::render::renderer::Renderer;
-use raylib::consts::MaterialMapIndex::MATERIAL_MAP_ALBEDO;
 use raylib::math::glam::Vec3;
 use raylib::prelude::*;
 use std::f32::consts::TAU;
@@ -88,7 +87,7 @@ fn main() {
         .handle
         .load_texture_from_image(&render.thread, &checked_img)
         .unwrap();
-    main_model.materials_mut()[0].set_material_texture(MATERIAL_MAP_ALBEDO, &mesh_texture);
+    // main_model.materials_mut()[0].set_material_texture(MATERIAL_MAP_ALBEDO, &mesh_texture);
 
     fill_vertex_normals(&mut main_model.meshes_mut()[0]);
     fill_vertex_colors(&mut main_model.meshes_mut()[0]);

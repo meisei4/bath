@@ -1,12 +1,10 @@
 use asset_payload::SPHERE_PATH;
 use bath::fixed_func::silhouette::{
-    build_inverted_hull, collect_deformed_vertex_samples, draw_inverted_hull_guassian_silhouette_stack,
-    interpolate_between_deformed_vertices, rotate_inverted_hull, FOVY_ORTHOGRAPHIC,
+    build_inverted_hull, collect_deformed_vertex_samples, interpolate_between_deformed_vertices, rotate_inverted_hull,
+    FOVY_ORTHOGRAPHIC,
 };
 use bath::fixed_func::silhouette::{ANGULAR_VELOCITY, MODEL_POS, MODEL_SCALE};
-use bath::fixed_func::texture::{
-    dither, generate_silhouette_texture, rotate_silhouette_texture, rotate_silhouette_texture_dither, ScreenPassDither,
-};
+use bath::fixed_func::texture::{generate_silhouette_texture, rotate_silhouette_texture, ScreenPassDither};
 use bath::fixed_func::topology::observed_line_of_sight;
 use bath::render::raylib::RaylibRenderer;
 use bath::render::raylib_util::N64_WIDTH;
