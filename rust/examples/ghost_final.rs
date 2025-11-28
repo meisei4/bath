@@ -1,4 +1,4 @@
-use asset_payload::SPHERE_PATH;
+use asset_payload::SPHERE_GLTF_PATH;
 use bath::render::raylib::RaylibRenderer;
 use bath::render::renderer::Renderer;
 use raylib::consts::MaterialMapIndex::MATERIAL_MAP_ALBEDO;
@@ -73,15 +73,7 @@ fn main() {
         fovy: FOVY_ORTHOGRAPHIC,
         projection: CameraProjection::CAMERA_ORTHOGRAPHIC,
     };
-    let mut main_model = render.handle.load_model(&render.thread, SPHERE_PATH).unwrap();
-    // let mut main_model = render.handle.load_model(&render.thread, SPHERE_MIN_PATH).unwrap();
-    debug_iter_vertices(&mut main_model.meshes_mut()[0]);
-    let indexed_mesh = indexed_mesh(&main_model.meshes_mut()[0]);
-    let mut main_model = render
-        .handle
-        .load_model_from_mesh(&render.thread, indexed_mesh)
-        .unwrap();
-    debug_iter_vertices(&mut main_model.meshes_mut()[0]);
+    let mut main_model = render.handle.load_model(&render.thread, SPHERE_GLTF_PATH).unwrap();
 
     let checked_img = Image::gen_image_checked(16, 16, 1, 1, Color::BLACK, Color::WHITE);
     let mesh_texture = render
@@ -89,9 +81,6 @@ fn main() {
         .load_texture_from_image(&render.thread, &checked_img)
         .unwrap();
     main_model.materials_mut()[0].set_material_texture(MATERIAL_MAP_ALBEDO, &mesh_texture);
-
-    fill_vertex_normals(&mut main_model.meshes_mut()[0]);
-    fill_vertex_colors(&mut main_model.meshes_mut()[0]);
 
     let mesh_samples = collect_deformed_vertex_samples(main_model.meshes()[0].vertices());
     interpolate_between_deformed_vertices(&mut main_model, i_time, &mesh_samples);
@@ -109,7 +98,6 @@ fn main() {
         draw_handle.draw_mode3D(main_observer, |mut rl3d| {
             rl3d.draw_model_ex(
                 &main_model,
-                // &indexed_model,
                 MODEL_POS,
                 Vector3::Y,
                 mesh_rotation.to_degrees(),
@@ -120,7 +108,6 @@ fn main() {
                 let _color_guard = ColorGuard::hide(&mut main_model.meshes_mut()[0]);
                 rl3d.draw_model_wires_ex(
                     &main_model,
-                    // &indexed_model,
                     MODEL_POS,
                     Vector3::Y,
                     mesh_rotation.to_degrees(),
@@ -142,138 +129,7 @@ pub fn observed_line_of_sight(observer: &Camera3D) -> Vec3 {
     .normalize_or_zero()
 }
 
-fn fill_vertex_normals(mesh: &mut WeakMesh) {
-    let vertices = mesh.vertices();
-    let mut normals = vec![Vec3::ZERO; vertices.len()];
-    for [a, b, c] in mesh.triangles() {
-        let vertex_a = vertices[a];
-        let vertex_b = vertices[b];
-        let vertex_c = vertices[c];
-        let face_normal = triangle_normal(vertex_a, vertex_b, vertex_c);
-        normals[a] += face_normal;
-        normals[b] += face_normal;
-        normals[c] += face_normal;
-    }
-    //NOTE this is the second pass to actually smooth out the normals based on surrounding faces
-    for i in mesh.triangles().iter_vertices() {
-        normals[i] = normals[i].normalize_or_zero();
-    }
-    mesh.init_normals_mut().unwrap().copy_from_slice(&normals);
-}
-
-fn fill_vertex_colors(mesh: &mut WeakMesh) {
-    let bounds = mesh.get_mesh_bounding_box();
-    let vertices = mesh.vertices().to_vec();
-    let mut colors = mesh.init_colors_mut().unwrap().to_vec();
-
-    for i in mesh.triangles().iter_vertices() {
-        let vertex = vertices[i];
-        let nx = (vertex.x - 0.5 * (bounds.min.x + bounds.max.x)) / (0.5 * (bounds.max.x - bounds.min.x));
-        let ny = (vertex.y - 0.5 * (bounds.min.y + bounds.max.y)) / (0.5 * (bounds.max.y - bounds.min.y));
-        let nz = (vertex.z - 0.5 * (bounds.min.z + bounds.max.z)) / (0.5 * (bounds.max.z - bounds.min.z));
-        let len = (nx * nx + ny * ny + nz * nz).sqrt();
-        colors[i] = Color::new(
-            (127.5 * (nx / len + 1.0)).round() as u8,
-            (127.5 * (ny / len + 1.0)).round() as u8,
-            (127.5 * (nz / len + 1.0)).round() as u8,
-            255,
-        );
-    }
-    mesh.colors_mut().unwrap().copy_from_slice(&colors);
-}
-
-fn indexed_mesh(mesh: &WeakMesh) -> Mesh {
-    let vertices = mesh.vertices();
-    let texcoords = mesh.texcoords();
-    let vertex_count = vertices.len();
-
-    let mut indexed_vertices: Vec<Vector3> = Vec::new();
-    let mut indexed_texcoords: Option<Vec<Vector2>> = texcoords.map(|_| Vec::new());
-    let mut indices: Vec<u16> = Vec::with_capacity(vertex_count);
-
-    for i in 0..vertex_count {
-        let identical = |a: usize, b: usize| -> bool {
-            if vertices[a] != indexed_vertices[b] {
-                return false;
-            }
-            match (texcoords, &indexed_texcoords) {
-                (Some(src), Some(dst)) => src[a] == dst[b],
-                _ => true,
-            }
-        };
-
-        let mut existing = None;
-
-        for j in 0..indexed_vertices.len() {
-            if identical(i, j) {
-                existing = Some(j);
-                break;
-            }
-        }
-
-        let index = match existing {
-            Some(j) => j,
-            None => {
-                let j = indexed_vertices.len();
-                indexed_vertices.push(vertices[i]);
-                if let (Some(src), Some(dst)) = (texcoords, indexed_texcoords.as_mut()) {
-                    dst.push(src[i]);
-                }
-                j
-            },
-        };
-
-        indices.push(index as u16);
-    }
-
-    let mesh = Mesh::init_mesh(&indexed_vertices)
-        .texcoords_opt(indexed_texcoords.as_deref())
-        .indices(&indices)
-        .build_cpu();
-
-    mesh.unwrap()
-}
-
-fn debug_iter_vertices(mesh: &WeakMesh) {
-    let vertices = mesh.vertices();
-    let vertex_count = vertices.len();
-    let is_indexed = mesh.is_indexed();
-    let triangle_count = mesh.triangle_count();
-
-    let mut visits = vec![0u32; vertex_count];
-    let mut iter_vertex_count = 0usize;
-
-    for i in mesh.triangles().iter_vertices() {
-        iter_vertex_count += 1;
-        visits[i] += 1;
-    }
-
-    let mut unique_visited = 0usize;
-    let mut duplicates = 0usize;
-    let mut never_visited = 0usize;
-
-    for (i, count) in visits.iter().enumerate() {
-        if *count == 0 {
-            never_visited += 1;
-        } else {
-            unique_visited += 1;
-            if *count > 1 {
-                duplicates += 1;
-                println!("debug_iter_vertices: vertex {} visited {} times", i, count);
-            }
-        }
-    }
-    println!("debug_iter_vertices:");
-    println!("  is_indexed          = {}", is_indexed);
-    println!("  vertex_count        = {}", vertex_count);
-    println!("  triangle_count      = {}", triangle_count);
-    println!("  total_index_slots   = {}", triangle_count * 3);
-    println!("  iter_vertices_count = {}", iter_vertex_count);
-    println!("  unique_visited      = {}", unique_visited);
-    println!("  never_visited       = {}", never_visited);
-    println!("  vertices_with_dupes = {}", duplicates);
-}
-
+//TODO: if this is used it should update anim_normals i think?
 fn update_normals_for_silhouette(mesh: &mut WeakMesh) {
     let vertices = mesh.vertices();
     let mut normals = vec![Vec3::ZERO; vertices.len()];
@@ -302,44 +158,33 @@ fn fade_vertex_colors_silhouette_rim(mesh: &mut WeakMesh, observer: &Camera3D, m
         -mesh_rotation,
     )
     .normalize_or_zero();
-    const FADE_RATE: f32 = 4.0; // UNUSED, BUT KEPT FOR REFERENCE AS TO HOW MANY mutiplications to do
-                                // 0° straight toward camera ~ 90° orthogonal to camera (i.e. silhouette rim)
+
+    // UNUSED, BUT KEPT FOR REFERENCE AS TO HOW MANY mutiplications to do
+    const _FADE_RATE: f32 = 4.0;
+
+    // 0° straight toward camera ~ 90° orthogonal to camera (i.e. silhouette rim)
     const OUTER_FADE_ANGLE: f32 = 70.0_f32.to_radians(); // 70°~90° becomes the silhouette fade area
+
     let cos_fade_angle: f32 = OUTER_FADE_ANGLE.cos();
 
     let vertices = mesh.vertices();
     let mut alpha_buffer = vec![0u8; vertices.len()];
-    // let mut silhouette_colors = mesh.colors().unwrap().to_vec();
-    // let mut silhouette_colors = mesh.init_colors_mut().unwrap(); //TODO: all sorts of collecting and veccing stuff
-    // let mut silhouette_colors = vec![Color::WHITE; vertices.len()];
-
     for i in mesh.triangles().iter_vertices() {
-        // let model_center_to_vertex = normals[i]; // this is for like a cellshading feel? idk how it works
         let model_center_to_vertex = vertices[i].normalize_or_zero();
         let cos_theta = model_center_to_vertex.dot(model_center_to_camera);
         if cos_theta <= 0.0 {
-            // silhouette_colors[i].a = 0; // BACKFACING VERTICES
             alpha_buffer[i] = 0;
             continue;
         }
         let fade_scalar = (cos_theta / cos_fade_angle).clamp(0.0, 1.0);
-        // let alpha = fade_scalar.powf(FADE_RATE);
         let alpha = fade_scalar * fade_scalar * fade_scalar * fade_scalar; //powf 4
-                                                                           // silhouette_colors[i].a = (alpha * 255.0).round() as u8;
         alpha_buffer[i] = (alpha * 255.0).round() as u8;
     }
 
-    // mesh.colors_mut().unwrap().copy_from_slice(&silhouette_colors);
     let colors = mesh.colors_mut().unwrap();
     for i in 0..alpha_buffer.len() {
         colors[i].a = alpha_buffer[i];
     }
-}
-
-#[inline]
-pub fn smoothstep(edge0: f32, edge1: f32, x: f32) -> f32 {
-    let t = ((x - edge0) / (edge1 - edge0)).clamp(0.0, 1.0);
-    t * t * (3.0 - 2.0 * t)
 }
 
 pub fn collect_deformed_vertex_samples(base_vertices: &[Vector3]) -> Vec<Vec<Vector3>> {
@@ -390,7 +235,7 @@ pub fn interpolate_between_deformed_vertices(model: &mut Model, i_time: f32, ver
     let current_frame = frame.floor() as usize % vertex_samples.len();
     let next_frame = (current_frame + 1) % vertex_samples.len();
     let weight = frame.fract();
-    let vertices = target_mesh.vertices_mut();
+    let vertices = target_mesh.anim_vertices_mut();
     for ((dst_vertex, src_vertex), next_vertex) in vertices
         .iter_mut()
         .zip(vertex_samples[current_frame].iter())

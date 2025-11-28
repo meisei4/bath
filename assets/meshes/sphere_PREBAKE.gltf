@@ -1,0 +1,109 @@
+{
+  "accessors": [
+    {
+      "bufferView": 0,
+      "byteOffset": 0,
+      "count": 58,
+      "componentType": 5126,
+      "type": "VEC3",
+      "min": [
+        -0.5,
+        -0.5,
+        -0.5
+      ],
+      "max": [
+        0.5,
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "bufferView": 1,
+      "byteOffset": 0,
+      "count": 58,
+      "componentType": 5126,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 0,
+      "count": 336,
+      "componentType": 5123,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 3,
+      "byteOffset": 0,
+      "count": 58,
+      "componentType": 5121,
+      "type": "VEC4",
+      "normalized": true
+    }
+  ],
+  "asset": {
+    "generator": "gltfpack 0.25",
+    "version": "2.0"
+  },
+  "buffers": [
+    {
+      "byteLength": 2296,
+      "uri": "sphere_PREBAKE.bin"
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteLength": 696,
+      "byteOffset": 0,
+      "byteStride": 12,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 696,
+      "byteOffset": 696,
+      "byteStride": 12,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 672,
+      "byteOffset": 1392,
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteLength": 232,
+      "byteOffset": 2064,
+      "byteStride": 4,
+      "target": 34962
+    }
+  ],
+  "scene": 0,
+  "meshes": [
+    {
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "COLOR_0": 3
+          },
+          "indices": 2
+        }
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "mesh": 0
+    }
+  ],
+  "scenes": [
+    {
+      "nodes": [
+        0
+      ]
+    }
+  ]
+}
