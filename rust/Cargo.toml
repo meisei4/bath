@@ -27,6 +27,7 @@ once_cell = "1.21.3"
 #raylib = { git = "https://github.com/raylib-rs/raylib-rs.git", branch = "unstable", features = [], optional = true }
 raylib = { path = "/home/adduser/raylib-rs/raylib", features = [], optional = true }
 gltf = "1.4.1"
+ttf-parser = "0.25.1"
 #[patch."https://github.com/raylib-rs/raylib-rs.git"]
 #raylib = { path = "/home/adduser/raylib-rs/raylib" }
 #raylib-sys = { path = "/home/adduser/raylib-rs/raylib-sys" }

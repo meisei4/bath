@@ -1,19 +1,60 @@
-use asset_payload::{SPHERE_GLTF_PATH, SPHERE_PATH};
+use asset_payload::{FONT_PATH, SPHERE_GLTF_PATH, SPHERE_PATH};
 use raylib::consts::CameraProjection::{CAMERA_ORTHOGRAPHIC, CAMERA_PERSPECTIVE};
 use raylib::consts::MaterialMapIndex::MATERIAL_MAP_ALBEDO;
-use raylib::ffi::{rlGetTextureIdDefault, rlSetPointSize};
+use raylib::ffi::rlSetPointSize;
 use raylib::math::glam::{Mat4, Vec3};
 use raylib::prelude::*;
 use std::f32::consts::{PI, TAU};
 use std::ops::{Add, Sub};
+use ttf_parser::{name_id, Face};
 
 const ROOM_W: i32 = 9;
 const ROOM_H: i32 = 3;
 const ROOM_D: i32 = 9;
 
-const ROOM_CENTER_X: i32 = ROOM_W / 2;
-const ROOM_CENTER_Y: i32 = ROOM_H / 2;
-const ROOM_CENTER_Z: i32 = ROOM_D / 2;
+const Y_AXIS: Vector3 = Vector3::new(0.0, 1.0, 0.0);
+const MAIN_POS: Vector3 = Vector3::new(0.0, 0.0, 2.0);
+const JUGEMU_POS_ISO: Vector3 = Vector3::new(1.0, 1.0, 1.0);
+const JUGEMU_DISTANCE_ORTHO: f32 = 6.5;
+const JUGEMU_DISTANCE_PERSPECTIVE: f32 = 9.0;
+
+const MODEL_POS: Vector3 = Vector3::ZERO;
+const MODEL_SCALE: Vector3 = Vector3::new(1.0, 1.0, 1.0);
+
+const PLACEMENT_ANIM_DUR_SECONDS: f32 = 0.15;
+const HINT_SCALE: f32 = 0.66;
+const HINT_SCALE_VEC: Vector3 = Vector3::new(HINT_SCALE, HINT_SCALE, HINT_SCALE);
+
+const FOVY_PERSPECTIVE: f32 = 50.0;
+const FOVY_ORTHOGRAPHIC: f32 = 9.0;
+fn NEAR_PLANE_HEIGHT_ORTHOGRAPHIC() -> f32 {
+    2.0 * (FOVY_PERSPECTIVE * 0.5).to_radians().tan()
+}
+
+const BLEND_SCALAR: f32 = 5.0;
+
+const RES_SCALE: f32 = 1.5;
+const DC_WIDTH_BASE: f32 = 640.0;
+const DC_HEIGHT_BASE: f32 = 480.0;
+const DC_WIDTH: i32 = (DC_WIDTH_BASE * RES_SCALE) as i32;
+const DC_HEIGHT: i32 = (DC_HEIGHT_BASE * RES_SCALE) as i32;
+
+const HUD_MARGIN: i32 = 12;
+const HUD_LINE_HEIGHT: i32 = 22;
+const FONT_SIZE: i32 = 20;
+
+const BAHAMA_BLUE: Color = Color::new(0, 102, 153, 255);
+const SUNFLOWER: Color = Color::new(255, 204, 153, 255);
+const ANAKIWA: Color = Color::new(153, 204, 255, 255);
+const MARINER: Color = Color::new(51, 102, 204, 255);
+const NEON_CARROT: Color = Color::new(255, 153, 51, 255);
+const EGGPLANT: Color = Color::new(102, 68, 102, 255);
+const HOPBUSH: Color = Color::new(204, 102, 153, 255);
+const LILAC: Color = Color::new(204, 153, 204, 255);
+const RED_DAMASK: Color = Color::new(221, 102, 68, 255);
+const CHESTNUT_ROSE: Color = Color::new(204, 102, 102, 255);
+
+const NUM_MODELS: usize = 2;
 
 pub const HALF: f32 = 0.5;
 pub const GRID_SCALE: f32 = 4.0;
@@ -24,7 +65,6 @@ pub const GRID_ORIGIN_UV_OFFSET: Vector2 = Vector2::new(
     (GRID_ORIGIN_INDEX.x + GRID_ORIGIN_OFFSET_CELLS.x) * GRID_CELL_SIZE,
     (GRID_ORIGIN_INDEX.y + GRID_ORIGIN_OFFSET_CELLS.y) * GRID_CELL_SIZE,
 );
-
 pub const LIGHT_WAVE_SPATIAL_FREQ_X: f32 = 8.0;
 pub const LIGHT_WAVE_SPATIAL_FREQ_Y: f32 = 8.0;
 pub const LIGHT_WAVE_TEMPORAL_FREQ_X: f32 = 255.0 * PI / 10.0;
@@ -40,48 +80,6 @@ pub const ANGULAR_VELOCITY: f32 = TAU * ROTATION_FREQUENCY_HZ;
 pub const TIME_BETWEEN_SAMPLES: f32 = 0.5;
 pub const ROTATIONAL_SAMPLES_FOR_INV_PROJ: usize = 40;
 
-const FOVY_PERSPECTIVE: f32 = 50.0;
-fn NEAR_PLANE_HEIGHT_ORTHOGRAPHIC() -> f32 {
-    2.0 * (FOVY_PERSPECTIVE * 0.5).to_radians().tan()
-}
-const BLEND_SCALAR: f32 = 5.0;
-
-const Y_AXIS: Vector3 = Vector3::new(0.0, 1.0, 0.0);
-const MAIN_POS: Vector3 = Vector3::new(0.0, 0.0, 2.0);
-const JUGEMU_POS_ISO: Vector3 = Vector3::new(1.0, 1.0, 1.0);
-const JUGEMU_DISTANCE_ORTHO: f32 = 6.5;
-const JUGEMU_DISTANCE_PERSPECTIVE: f32 = 9.0;
-
-pub const FOVY_ORTHOGRAPHIC: f32 = 9.0;
-pub const MODEL_POS: Vector3 = Vector3::ZERO;
-pub const SCALE_ELEMENT: f32 = 1.0;
-pub const MODEL_SCALE: Vector3 = Vector3::new(SCALE_ELEMENT, SCALE_ELEMENT, SCALE_ELEMENT);
-
-const RES_SCALE: f32 = 1.5;
-const DC_WIDTH_BASE: f32 = 640.0;
-const DC_HEIGHT_BASE: f32 = 480.0;
-const DC_WIDTH: i32 = (DC_WIDTH_BASE * RES_SCALE) as i32;
-const DC_HEIGHT: i32 = (DC_HEIGHT_BASE * RES_SCALE) as i32;
-
-const HUD_MARGIN: i32 = 12;
-const HUD_LINE_HEIGHT: i32 = 22;
-
-const FONT_SIZE: i32 = 20;
-const BAHAMA_BLUE: Color = Color::new(0, 102, 153, 255);
-const SUNFLOWER: Color = Color::new(255, 204, 153, 255);
-const ANAKIWA: Color = Color::new(153, 204, 255, 255);
-const MARINER: Color = Color::new(51, 102, 204, 255);
-const NEON_CARROT: Color = Color::new(255, 153, 51, 255);
-const EGGPLANT: Color = Color::new(102, 68, 102, 255);
-const HOPBUSH: Color = Color::new(204, 102, 153, 255);
-const LILAC: Color = Color::new(204, 153, 204, 255);
-const RED_DAMASK: Color = Color::new(221, 102, 68, 255);
-const CHESTNUT_ROSE: Color = Color::new(204, 102, 102, 255);
-
-const NUM_MODELS: usize = 2;
-
-const PLACEMENT_SCALE_DURATION: f32 = 0.15;
-const HINT_SCALE: f32 = 0.66;
 struct PlacedCell {
     ix: i32,
     iy: i32,
@@ -93,10 +91,10 @@ struct PlacedCell {
     color_enabled: bool,
 }
 
-fn is_cell_occupied(placed_cells: &[PlacedCell], ix: i32, iy: i32, iz: i32) -> bool {
-    placed_cells
-        .iter()
-        .any(|cell| cell.ix == ix && cell.iy == iy && cell.iz == iz)
+impl PlacedCell {
+    fn age(&self, i_time: f32) -> f32 {
+        i_time - self.placed_time
+    }
 }
 
 struct ViewState {
@@ -109,6 +107,9 @@ struct ViewState {
     ortho_mode: bool,
     jugemu_ortho_mode: bool,
     target_mesh_index: usize,
+    space_blend: f32,
+    aspect_blend: f32,
+    ortho_blend: f32,
 }
 
 impl ViewState {
@@ -123,36 +124,10 @@ impl ViewState {
             ortho_mode: false,
             jugemu_ortho_mode: true,
             target_mesh_index: 1,
+            space_blend: 0.0,
+            aspect_blend: 1.0,
+            ortho_blend: 0.0,
         }
-    }
-
-    fn toggle_ndc(&mut self) {
-        self.ndc_space = !self.ndc_space;
-    }
-    fn toggle_aspect(&mut self) {
-        self.aspect_correct = !self.aspect_correct;
-    }
-    fn toggle_pause(&mut self) {
-        self.paused = !self.paused;
-    }
-    fn toggle_color(&mut self) {
-        self.color_mode = !self.color_mode;
-    }
-    fn toggle_texture(&mut self) {
-        self.texture_mode = !self.texture_mode;
-    }
-    fn toggle_jugemu(&mut self) {
-        self.jugemu_mode = !self.jugemu_mode;
-    }
-    fn toggle_ortho(&mut self) {
-        self.ortho_mode = !self.ortho_mode;
-    }
-    fn toggle_jugemu_ortho(&mut self) {
-        self.jugemu_ortho_mode = !self.jugemu_ortho_mode;
-    }
-
-    fn set_mesh(&mut self, index: usize) {
-        self.target_mesh_index = index;
     }
 }
 
@@ -174,6 +149,7 @@ impl ColorGuard {
         }
     }
 }
+
 impl Drop for ColorGuard {
     fn drop(&mut self) {
         unsafe {
@@ -181,6 +157,7 @@ impl Drop for ColorGuard {
         }
     }
 }
+
 struct TextureGuard {
     cached_texture_id: std::ffi::c_uint,
     restore_target: *mut Model,
@@ -199,6 +176,19 @@ impl TextureGuard {
             restore_target: model as *mut Model,
         }
     }
+
+    fn set_texture(model: &mut Model, texture_id: u32) -> Self {
+        let cached_id = model.materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize]
+            .texture
+            .id;
+        model.materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize]
+            .texture
+            .id = texture_id;
+        Self {
+            cached_texture_id: cached_id,
+            restore_target: model as *mut Model,
+        }
+    }
 }
 
 impl Drop for TextureGuard {
@@ -211,6 +201,18 @@ impl Drop for TextureGuard {
     }
 }
 
+struct HoverState {
+    indices: Option<(i32, i32, i32)>,
+    center: Option<Vector3>,
+    placed_cell_index: Option<usize>,
+}
+
+impl HoverState {
+    fn is_occupied(&self) -> bool {
+        self.placed_cell_index.is_some()
+    }
+}
+
 fn main() {
     let mut i_time = 0.0f32;
     let mut total_time = 0.0f32;
@@ -220,6 +222,10 @@ fn main() {
         .size(DC_WIDTH, DC_HEIGHT)
         .title("raylib [core] example - fixed function didactic")
         .build();
+    let font = handle
+        // .load_font(&thread, FONT_PATH)
+        .load_font_ex(&thread, FONT_PATH, 32, None)
+        .expect("Failed to load font");
 
     let near = 1.0;
     let far = 3.0;
@@ -377,80 +383,29 @@ fn main() {
     handle.set_target_fps(60);
 
     while !handle.window_should_close() {
+        let dt = handle.get_frame_time();
         aspect = handle.get_screen_width() as f32 / handle.get_screen_height() as f32;
 
-        if handle.is_key_pressed(KeyboardKey::KEY_N) {
-            view_state.toggle_ndc();
-        }
-        if handle.is_key_pressed(KeyboardKey::KEY_Q) {
-            view_state.toggle_aspect();
-        }
-        if handle.is_key_pressed(KeyboardKey::KEY_SPACE) {
-            view_state.toggle_pause();
-        }
-        if handle.is_key_pressed(KeyboardKey::KEY_C) {
-            view_state.toggle_color();
-        }
-        if handle.is_key_pressed(KeyboardKey::KEY_T) {
-            view_state.toggle_texture();
-        }
-        if handle.is_key_pressed(KeyboardKey::KEY_J) {
-            view_state.toggle_jugemu();
-        }
-        if handle.is_key_pressed(KeyboardKey::KEY_O) {
-            view_state.toggle_ortho();
-        }
-        if handle.is_key_pressed(KeyboardKey::KEY_P) {
-            if view_state.jugemu_ortho_mode {
-                prev_fovy_ortho = jugemu.fovy;
-                let current_distance = {
-                    let offset = Vector3::new(
-                        jugemu.position.x - jugemu.target.x,
-                        jugemu.position.y - jugemu.target.y,
-                        jugemu.position.z - jugemu.target.z,
-                    );
-                    (offset.x * offset.x + offset.y * offset.y + offset.z * offset.z).sqrt()
-                };
-                prev_distance_ortho = current_distance;
+        handle_view_toggles(&handle, &mut view_state);
+        handle_jugemu_projection_toggle(
+            &handle,
+            &mut view_state,
+            &mut jugemu,
+            &mut prev_fovy_ortho,
+            &mut prev_fovy_perspective,
+            &mut prev_distance_ortho,
+            &mut prev_distance_perspective,
+        );
+        handle_mesh_selection(&handle, &mut view_state);
 
-                jugemu.fovy = prev_fovy_perspective;
-                let dir = jugemu.position.normalize();
-                jugemu.position = dir * prev_distance_perspective;
-            } else {
-                prev_fovy_perspective = jugemu.fovy;
-                let current_distance = {
-                    let offset = Vector3::new(
-                        jugemu.position.x - jugemu.target.x,
-                        jugemu.position.y - jugemu.target.y,
-                        jugemu.position.z - jugemu.target.z,
-                    );
-                    (offset.x * offset.x + offset.y * offset.y + offset.z * offset.z).sqrt()
-                };
-                prev_distance_perspective = current_distance;
-
-                jugemu.fovy = prev_fovy_ortho;
-                let dir = jugemu.position.normalize();
-                jugemu.position = dir * prev_distance_ortho;
-            }
-            view_state.toggle_jugemu_ortho();
-        }
-        if handle.is_key_pressed(KeyboardKey::KEY_ONE) {
-            view_state.set_mesh(0);
-        }
-        if handle.is_key_pressed(KeyboardKey::KEY_TWO) {
-            view_state.set_mesh(1);
-        }
-        if handle.is_key_pressed(KeyboardKey::KEY_THREE) {
-            view_state.set_mesh(2);
-        }
-
-        let s_blend = space_blend_factor(handle.get_frame_time(), view_state.ndc_space);
-        let a_blend = aspect_blend_factor(handle.get_frame_time(), view_state.aspect_correct);
-        let o_blend = ortho_blend_factor(handle.get_frame_time(), view_state.ortho_mode);
+        update_blend(&mut view_state.space_blend, dt, view_state.ndc_space);
+        update_blend(&mut view_state.aspect_blend, dt, view_state.aspect_correct);
+        update_blend(&mut view_state.ortho_blend, dt, view_state.ortho_mode);
 
         if !view_state.paused {
-            mesh_rotation -= ANGULAR_VELOCITY * handle.get_frame_time();
-            total_time += handle.get_frame_time(); //TODO this might need to just be i_time? the ghost mesh is confusing here
+            mesh_rotation -= ANGULAR_VELOCITY * dt;
+            total_time += dt;
+            i_time += dt;
         }
 
         jugemu.projection = if view_state.jugemu_ortho_mode {
@@ -473,16 +428,15 @@ fn main() {
         };
 
         let target_mesh = view_state.target_mesh_index;
-        if target_mesh == 0 {
-            if !view_state.paused {
-                i_time += handle.get_frame_time();
-            }
-            interpolate_between_deformed_vertices(&mut ndc_models[0], i_time, &mesh_samples);
-            interpolate_between_deformed_vertices(&mut world_models[0], i_time, &mesh_samples);
-            update_normals_for_silhouette(&mut ndc_models[0].meshes_mut()[0]);
-            update_normals_for_silhouette(&mut world_models[0].meshes_mut()[0]);
-            fade_vertex_colors_silhouette_rim(&mut ndc_models[0].meshes_mut()[0], &main, mesh_rotation);
-            fade_vertex_colors_silhouette_rim(&mut world_models[0].meshes_mut()[0], &main, mesh_rotation);
+        if target_mesh == 0 && !view_state.paused {
+            update_ghost_mesh(
+                &mut ndc_models[0],
+                &mut world_models[0],
+                i_time,
+                &mesh_samples,
+                &main,
+                mesh_rotation,
+            );
         }
 
         world_to_ndc_space(
@@ -493,30 +447,26 @@ fn main() {
             &mut world_models[target_mesh],
             &mut ndc_models[target_mesh],
             mesh_rotation,
-            o_blend,
-            a_blend,
+            view_state.ortho_blend,
+            view_state.aspect_blend,
         );
-        {
-            let world_mesh = &world_models[target_mesh].meshes()[0];
-            let ndc_mesh = &mut ndc_models[target_mesh].meshes_mut()[0];
-            let world_vertices = world_mesh.vertices();
-            let ndc_vertices = ndc_mesh.vertices_mut();
 
-            for [a, b, c] in world_mesh.triangles() {
-                for &i in [a, b, c].iter() {
-                    ndc_vertices[i].x = lerp(world_vertices[i].x, ndc_vertices[i].x, s_blend);
-                    ndc_vertices[i].y = lerp(world_vertices[i].y, ndc_vertices[i].y, s_blend);
-                    ndc_vertices[i].z = lerp(world_vertices[i].z, ndc_vertices[i].z, s_blend);
-                }
-            }
-        }
+        blend_world_and_ndc_vertices(
+            &world_models[target_mesh],
+            &mut ndc_models[target_mesh],
+            view_state.space_blend,
+        );
 
         let z_shift_for_aspect = lerp(
             cached_ndc_z_shifts_isotropic[target_mesh],
             cached_ndc_z_shifts_anisotropic[target_mesh],
-            a_blend,
+            view_state.aspect_blend,
         );
-        jugemu.target = Vector3::new(MODEL_POS.x, MODEL_POS.y, lerp(MODEL_POS.z, z_shift_for_aspect, s_blend));
+        jugemu.target = Vector3::new(
+            MODEL_POS.x,
+            MODEL_POS.y,
+            lerp(MODEL_POS.z, z_shift_for_aspect, view_state.space_blend),
+        );
 
         update_spatial_frame(
             &mut main,
@@ -524,36 +474,14 @@ fn main() {
             near,
             far,
             &mut spatial_frame_model.meshes_mut()[0],
-            s_blend,
-            a_blend,
-            o_blend,
+            view_state.space_blend,
+            view_state.aspect_blend,
+            view_state.ortho_blend,
         );
 
-        let hovered_cell_indices = get_hovered_room_floor_cell(&handle, &jugemu);
+        let hover_state = compute_hover_state(&handle, &jugemu, &placed_cells);
 
-        let hovered_cell_center = if hovered_cell_indices.is_some() {
-            let indices = hovered_cell_indices.unwrap();
-            Some(cell_center(indices.0, indices.1, indices.2))
-        } else {
-            None
-        };
-
-        let hovered_cell_occupied = if hovered_cell_indices.is_some() {
-            let indices = hovered_cell_indices.unwrap();
-            is_cell_occupied(&placed_cells, indices.0, indices.1, indices.2)
-        } else {
-            false
-        };
-
-        let hovered_placed_cell_index = if hovered_cell_indices.is_some() && hovered_cell_occupied {
-            let indices = hovered_cell_indices.unwrap();
-            placed_cells
-                .iter()
-                .position(|cell| cell.ix == indices.0 && cell.iy == indices.1 && cell.iz == indices.2)
-        } else {
-            None
-        };
-        if let Some(cell_idx) = hovered_placed_cell_index {
+        if let Some(cell_idx) = hover_state.placed_cell_index {
             if handle.is_key_pressed(KeyboardKey::KEY_T) {
                 placed_cells[cell_idx].texture_enabled = !placed_cells[cell_idx].texture_enabled;
             }
@@ -563,12 +491,11 @@ fn main() {
         }
 
         if handle.is_mouse_button_pressed(MouseButton::MOUSE_BUTTON_LEFT) {
-            if hovered_cell_indices.is_some() && !hovered_cell_occupied {
-                let indices = hovered_cell_indices.unwrap();
+            if let (Some((ix, iy, iz)), false) = (hover_state.indices, hover_state.is_occupied()) {
                 placed_cells.push(PlacedCell {
-                    ix: indices.0,
-                    iy: indices.1,
-                    iz: indices.2,
+                    ix,
+                    iy,
+                    iz,
                     mesh_index: view_state.target_mesh_index,
                     placed_time: total_time,
                     settled: false,
@@ -577,33 +504,12 @@ fn main() {
                 });
             }
         }
+
         let (depth, right, up) = basis_vector(&main);
         let mut draw_handle = handle.begin_drawing(&thread);
         draw_handle.clear_background(Color::BLACK);
         draw_handle.draw_mode3D(if view_state.jugemu_mode { jugemu } else { main }, |mut rl3d| {
-            rl3d.draw_line3D(
-                main.position,
-                Vector3::new(
-                    main.position.x + right.x,
-                    main.position.y + right.y,
-                    main.position.z + right.z,
-                ),
-                NEON_CARROT,
-            );
-            rl3d.draw_line3D(
-                main.position,
-                Vector3::new(main.position.x + up.x, main.position.y + up.y, main.position.z + up.z),
-                LILAC,
-            );
-            rl3d.draw_line3D(
-                main.position,
-                Vector3::new(
-                    main.position.x + depth.x,
-                    main.position.y + depth.y,
-                    main.position.z + depth.z,
-                ),
-                MARINER,
-            );
+            draw_camera_basis(&mut rl3d, &main, depth, right, up);
 
             if view_state.jugemu_mode {
                 draw_spatial_frame(&mut rl3d, &spatial_frame_model.meshes_mut()[0]);
@@ -612,265 +518,785 @@ fn main() {
             draw_room_floor_grid(&mut rl3d);
             rl3d.draw_cube_wires(MODEL_POS, ROOM_W as f32, ROOM_H as f32, ROOM_D as f32, RED_DAMASK);
 
-            for placed_cell in placed_cells.iter_mut() {
-                let cell_pos = cell_center(placed_cell.ix, placed_cell.iy, placed_cell.iz);
-                let age = total_time - placed_cell.placed_time;
-                let scale_progress = (age / PLACEMENT_SCALE_DURATION).clamp(0.0, 1.0);
-                let current_scale = lerp(HINT_SCALE, 1.0, scale_progress);
-
-                if scale_progress >= 1.0 {
-                    placed_cell.settled = true;
-                }
-
-                let placed_model = &mut ndc_models[placed_cell.mesh_index];
-
-                if placed_cell.settled {
-                    if placed_cell.color_enabled || placed_cell.texture_enabled {
-                        let _color_guard = if placed_cell.texture_enabled && !placed_cell.color_enabled {
-                            Some(ColorGuard::hide(&mut placed_model.meshes_mut()[0]))
-                        } else {
-                            None
-                        };
-
-                        placed_model.materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize]
-                            .texture
-                            .id = if placed_cell.texture_enabled {
-                            mesh_textures[placed_cell.mesh_index].id
-                        } else {
-                            unsafe { rlGetTextureIdDefault() }
-                        };
-
-                        rl3d.draw_model_ex(&mut *placed_model, cell_pos, Y_AXIS, 0.0, MODEL_SCALE, Color::WHITE);
-
-                        placed_model.materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize]
-                            .texture
-                            .id = unsafe { rlGetTextureIdDefault() };
-                    }
-
-                    let _color_guard = ColorGuard::hide(&mut placed_model.meshes_mut()[0]);
-                    let cache_texture_id = placed_model.materials()[0].maps()[MATERIAL_MAP_ALBEDO as usize]
-                        .texture()
-                        .id;
-                    placed_model.materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize]
-                        .texture
-                        .id = unsafe { rlGetTextureIdDefault() };
-
-                    rl3d.draw_model_wires_ex(&mut *placed_model, cell_pos, Y_AXIS, 0.0, MODEL_SCALE, MARINER);
-
-                    unsafe { rlSetPointSize(4.0) }
-                    rl3d.draw_model_points_ex(&mut *placed_model, cell_pos, Y_AXIS, 0.0, MODEL_SCALE, LILAC);
-
-                    placed_model.materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize]
-                        .texture
-                        .id = cache_texture_id;
-                } else {
-                    let _color_guard = ColorGuard::hide(&mut placed_model.meshes_mut()[0]);
-                    let cache_texture_id = placed_model.materials()[0].maps()[MATERIAL_MAP_ALBEDO as usize]
-                        .texture()
-                        .id;
-                    placed_model.materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize]
-                        .texture
-                        .id = unsafe { rlGetTextureIdDefault() };
-
-                    rl3d.draw_model_wires_ex(
-                        &mut *placed_model,
-                        cell_pos,
-                        Y_AXIS,
-                        0.0,
-                        Vector3::new(current_scale, current_scale, current_scale),
-                        ANAKIWA,
-                    );
-
-                    placed_model.materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize]
-                        .texture
-                        .id = cache_texture_id;
-                }
+            if let Some(center) = hover_state.center {
+                rl3d.draw_cube_wires(center, 1.0, 1.0, 1.0, NEON_CARROT);
             }
 
-            draw_model_filled(
+            draw_placed_cells(
+                &mut rl3d,
+                &mut ndc_models,
+                &mesh_textures,
+                &mut placed_cells,
+                total_time,
+            );
+
+            draw_model_filled_at(
                 &mut rl3d,
                 &mut ndc_models[target_mesh],
                 &mesh_textures[target_mesh],
-                mesh_rotation,
-                &view_state,
+                MODEL_POS,
+                mesh_rotation.to_degrees(),
+                MODEL_SCALE,
+                view_state.color_mode,
+                view_state.texture_mode,
             );
-            draw_model_wires_and_points(&mut rl3d, &mut ndc_models[target_mesh], mesh_rotation);
-            if let Some(center) = hovered_cell_center {
-                rl3d.draw_cube_wires(center, 1.0, 1.0, 1.0, NEON_CARROT);
+            draw_model_wires_and_points_at(
+                &mut rl3d,
+                &mut ndc_models[target_mesh],
+                MODEL_POS,
+                mesh_rotation.to_degrees(),
+                MODEL_SCALE,
+                MARINER,
+                LILAC,
+            );
 
-                let hint_model = &mut ndc_models[target_mesh];
-                let _color_guard = ColorGuard::hide(&mut hint_model.meshes_mut()[0]);
-                let cache_texture_id = hint_model.materials()[0].maps()[MATERIAL_MAP_ALBEDO as usize]
-                    .texture()
-                    .id;
-                hint_model.materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize]
-                    .texture
-                    .id = unsafe { rlGetTextureIdDefault() };
-
-                let hint_color = if hovered_cell_occupied { RED_DAMASK } else { ANAKIWA };
-
-                unsafe { ffi::rlDisableDepthTest() };
-
-                rl3d.draw_model_wires_ex(
-                    &mut *hint_model,
+            if let Some(center) = hover_state.center {
+                draw_hint_mesh(
+                    &mut rl3d,
+                    &mut ndc_models[target_mesh],
                     center,
-                    Y_AXIS,
-                    mesh_rotation.to_degrees(),
-                    Vector3::new(HINT_SCALE, HINT_SCALE, HINT_SCALE),
-                    hint_color,
+                    mesh_rotation,
+                    hover_state.is_occupied(),
                 );
-
-                hint_model.materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize]
-                    .texture
-                    .id = cache_texture_id;
             }
-            unsafe { ffi::rlEnableDepthTest() };
         });
 
-        let screen_width = draw_handle.get_screen_width();
-        let screen_height = draw_handle.get_screen_height();
-
-        const LABEL_COL: i32 = HUD_MARGIN;
-        const VALUE_COL: i32 = LABEL_COL + 200;
-
-        let mut line_y = HUD_MARGIN;
-        draw_handle.draw_text(
-            match target_mesh {
-                0 => "GHOST",
-                1 => "CUBE",
-                2 => "SPHERE",
-                _ => "",
-            },
-            LABEL_COL + 450,
-            line_y,
-            FONT_SIZE,
-            NEON_CARROT,
-        );
-
-        draw_handle.draw_text("JUGEMU [ P ]:", LABEL_COL, line_y, FONT_SIZE, SUNFLOWER);
-        draw_handle.draw_text(
-            if view_state.jugemu_ortho_mode {
-                "ORTHOGRAPHIC"
-            } else {
-                "PERSPECTIVE"
-            },
-            VALUE_COL,
-            line_y,
-            FONT_SIZE,
-            if view_state.jugemu_ortho_mode {
-                BAHAMA_BLUE
-            } else {
-                ANAKIWA
-            },
-        );
-        line_y += HUD_LINE_HEIGHT;
-        draw_handle.draw_text("FOVY[ + - ]:", LABEL_COL, line_y, FONT_SIZE, SUNFLOWER);
-        draw_handle.draw_text(&format!("{:.2}", jugemu.fovy), VALUE_COL, line_y, FONT_SIZE, LILAC);
-        line_y += HUD_LINE_HEIGHT;
-        draw_handle.draw_text("DISTANCE [ W S ]:", LABEL_COL, line_y, FONT_SIZE, SUNFLOWER);
-        let jugemu_distance = {
-            let offset = Vector3::new(
-                jugemu.position.x - jugemu.target.x,
-                jugemu.position.y - jugemu.target.y,
-                jugemu.position.z - jugemu.target.z,
-            );
-            (offset.x * offset.x + offset.y * offset.y + offset.z * offset.z).sqrt()
-        };
-        draw_handle.draw_text(
-            &format!("{:.2}", jugemu_distance),
-            VALUE_COL,
-            line_y,
-            FONT_SIZE,
-            HOPBUSH,
-        );
-
-        const RIGHT_LABEL_COL: i32 = 250;
-        const RIGHT_VALUE_COL: i32 = 80;
-        line_y = HUD_MARGIN;
-        draw_handle.draw_text(
-            "TEXTURE [ T ]:",
-            screen_width - RIGHT_LABEL_COL,
-            line_y,
-            FONT_SIZE,
-            SUNFLOWER,
-        );
-        draw_handle.draw_text(
-            if view_state.texture_mode { "ON" } else { "OFF" },
-            screen_width - RIGHT_VALUE_COL,
-            line_y,
-            FONT_SIZE,
-            if view_state.texture_mode {
-                ANAKIWA
-            } else {
-                CHESTNUT_ROSE
-            },
-        );
-        line_y += HUD_LINE_HEIGHT;
-        draw_handle.draw_text(
-            "COLORS [ C ]:",
-            screen_width - RIGHT_LABEL_COL,
-            line_y,
-            FONT_SIZE,
-            SUNFLOWER,
-        );
-        draw_handle.draw_text(
-            if view_state.color_mode { "ON" } else { "OFF" },
-            screen_width - RIGHT_VALUE_COL,
-            line_y,
-            FONT_SIZE,
-            if view_state.color_mode { ANAKIWA } else { CHESTNUT_ROSE },
-        );
-
-        line_y = screen_height - HUD_MARGIN - HUD_LINE_HEIGHT * 3;
-        draw_handle.draw_text("ASPECT [ Q ]:", LABEL_COL, line_y, FONT_SIZE, SUNFLOWER);
-        draw_handle.draw_text(
-            if view_state.aspect_correct {
-                "CORRECT"
-            } else {
-                "INCORRECT"
-            },
-            VALUE_COL,
-            line_y,
-            FONT_SIZE,
-            if view_state.aspect_correct {
-                ANAKIWA
-            } else {
-                CHESTNUT_ROSE
-            },
-        );
-        line_y += HUD_LINE_HEIGHT;
-        draw_handle.draw_text("LENS [ O ]:", LABEL_COL, line_y, FONT_SIZE, SUNFLOWER);
-        draw_handle.draw_text(
-            if view_state.ortho_mode {
-                "ORTHOGRAPHIC"
-            } else {
-                "PERSPECTIVE"
-            },
-            VALUE_COL,
-            line_y,
-            FONT_SIZE,
-            if view_state.ortho_mode { BAHAMA_BLUE } else { ANAKIWA },
-        );
-        line_y += HUD_LINE_HEIGHT;
-        draw_handle.draw_text("SPACE [ N ]:", LABEL_COL, line_y, FONT_SIZE, SUNFLOWER);
-        draw_handle.draw_text(
-            if view_state.ndc_space { "NDC" } else { "WORLD" },
-            VALUE_COL,
-            line_y,
-            FONT_SIZE,
-            if view_state.ndc_space { BAHAMA_BLUE } else { ANAKIWA },
+        draw_hud(
+            &mut draw_handle,
+            &font,
+            &view_state,
+            &jugemu,
+            target_mesh,
+            &hover_state,
+            &placed_cells,
+            i_time,
         );
     }
 }
 
-#[inline]
-pub fn observed_line_of_sight(observer: &Camera3D) -> Vec3 {
-    Vec3::new(
-        observer.target.x - observer.position.x,
-        observer.target.y - observer.position.y,
-        observer.target.z - observer.position.z,
+fn update_blend(blend: &mut f32, dt: f32, target_on: bool) {
+    if dt > 0.0 {
+        let dir = if target_on { 1.0 } else { -1.0 };
+        *blend = (*blend + dir * BLEND_SCALAR * dt).clamp(0.0, 1.0);
+    }
+}
+
+fn compute_hover_state(handle: &RaylibHandle, jugemu: &Camera3D, placed_cells: &[PlacedCell]) -> HoverState {
+    if let Some((ix, iy, iz)) = get_hovered_room_floor_cell(handle, jugemu) {
+        let center = cell_center(ix, iy, iz);
+        let placed_cell_index = placed_cells.iter().position(|c| c.ix == ix && c.iy == iy && c.iz == iz);
+        HoverState {
+            indices: Some((ix, iy, iz)),
+            center: Some(center),
+            placed_cell_index,
+        }
+    } else {
+        HoverState {
+            indices: None,
+            center: None,
+            placed_cell_index: None,
+        }
+    }
+}
+
+fn handle_view_toggles(handle: &RaylibHandle, view_state: &mut ViewState) {
+    if handle.is_key_pressed(KeyboardKey::KEY_N) {
+        view_state.ndc_space = !view_state.ndc_space;
+    }
+    if handle.is_key_pressed(KeyboardKey::KEY_Q) {
+        view_state.aspect_correct = !view_state.aspect_correct;
+    }
+    if handle.is_key_pressed(KeyboardKey::KEY_SPACE) {
+        view_state.paused = !view_state.paused;
+    }
+    if handle.is_key_pressed(KeyboardKey::KEY_C) {
+        view_state.color_mode = !view_state.color_mode;
+    }
+    if handle.is_key_pressed(KeyboardKey::KEY_T) {
+        view_state.texture_mode = !view_state.texture_mode;
+    }
+    if handle.is_key_pressed(KeyboardKey::KEY_J) {
+        view_state.jugemu_mode = !view_state.jugemu_mode;
+    }
+    if handle.is_key_pressed(KeyboardKey::KEY_O) {
+        view_state.ortho_mode = !view_state.ortho_mode;
+    }
+}
+
+fn handle_jugemu_projection_toggle(
+    handle: &RaylibHandle,
+    view_state: &mut ViewState,
+    jugemu: &mut Camera3D,
+    prev_fovy_ortho: &mut f32,
+    prev_fovy_perspective: &mut f32,
+    prev_distance_ortho: &mut f32,
+    prev_distance_perspective: &mut f32,
+) {
+    if handle.is_key_pressed(KeyboardKey::KEY_P) {
+        if view_state.jugemu_ortho_mode {
+            *prev_fovy_ortho = jugemu.fovy;
+            *prev_distance_ortho = camera_distance(jugemu);
+
+            jugemu.fovy = *prev_fovy_perspective;
+            let dir = jugemu.position.normalize();
+            jugemu.position = dir * *prev_distance_perspective;
+        } else {
+            *prev_fovy_perspective = jugemu.fovy;
+            *prev_distance_perspective = camera_distance(jugemu);
+
+            jugemu.fovy = *prev_fovy_ortho;
+            let dir = jugemu.position.normalize();
+            jugemu.position = dir * *prev_distance_ortho;
+        }
+        view_state.jugemu_ortho_mode = !view_state.jugemu_ortho_mode;
+    }
+}
+
+fn handle_mesh_selection(handle: &RaylibHandle, view_state: &mut ViewState) {
+    if handle.is_key_pressed(KeyboardKey::KEY_ONE) {
+        view_state.target_mesh_index = 0;
+    }
+    if handle.is_key_pressed(KeyboardKey::KEY_TWO) {
+        view_state.target_mesh_index = 1;
+    }
+    if handle.is_key_pressed(KeyboardKey::KEY_THREE) {
+        view_state.target_mesh_index = 2;
+    }
+}
+
+fn update_ghost_mesh(
+    ndc_model: &mut Model,
+    world_model: &mut Model,
+    i_time: f32,
+    mesh_samples: &[Vec<Vector3>],
+    main: &Camera3D,
+    mesh_rotation: f32,
+) {
+    interpolate_between_deformed_vertices(ndc_model, i_time, mesh_samples);
+    interpolate_between_deformed_vertices(world_model, i_time, mesh_samples);
+    update_normals_for_silhouette(&mut ndc_model.meshes_mut()[0]);
+    update_normals_for_silhouette(&mut world_model.meshes_mut()[0]);
+    fade_vertex_colors_silhouette_rim(&mut ndc_model.meshes_mut()[0], main, mesh_rotation);
+    fade_vertex_colors_silhouette_rim(&mut world_model.meshes_mut()[0], main, mesh_rotation);
+}
+
+fn blend_world_and_ndc_vertices(world_model: &Model, ndc_model: &mut Model, s_blend: f32) {
+    let world_mesh = &world_model.meshes()[0];
+    let ndc_mesh = &mut ndc_model.meshes_mut()[0];
+    let world_vertices = world_mesh.vertices();
+    let ndc_vertices = ndc_mesh.vertices_mut();
+
+    for [a, b, c] in world_mesh.triangles() {
+        for &i in [a, b, c].iter() {
+            ndc_vertices[i].x = lerp(world_vertices[i].x, ndc_vertices[i].x, s_blend);
+            ndc_vertices[i].y = lerp(world_vertices[i].y, ndc_vertices[i].y, s_blend);
+            ndc_vertices[i].z = lerp(world_vertices[i].z, ndc_vertices[i].z, s_blend);
+        }
+    }
+}
+
+fn draw_camera_basis(
+    rl3d: &mut RaylibMode3D<RaylibDrawHandle>,
+    main: &Camera3D,
+    depth: Vector3,
+    right: Vector3,
+    up: Vector3,
+) {
+    rl3d.draw_line3D(
+        main.position,
+        Vector3::new(
+            main.position.x + right.x,
+            main.position.y + right.y,
+            main.position.z + right.z,
+        ),
+        NEON_CARROT,
+    );
+    rl3d.draw_line3D(
+        main.position,
+        Vector3::new(main.position.x + up.x, main.position.y + up.y, main.position.z + up.z),
+        LILAC,
+    );
+    rl3d.draw_line3D(
+        main.position,
+        Vector3::new(
+            main.position.x + depth.x,
+            main.position.y + depth.y,
+            main.position.z + depth.z,
+        ),
+        MARINER,
+    );
+}
+
+fn draw_model_filled_at(
+    rl3d: &mut RaylibMode3D<RaylibDrawHandle>,
+    model: &mut Model,
+    texture: &Texture2D,
+    position: Vector3,
+    rotation_deg: f32,
+    scale: Vector3,
+    color_enabled: bool,
+    texture_enabled: bool,
+) {
+    if !(color_enabled || texture_enabled) {
+        return;
+    }
+
+    let _color_guard = if texture_enabled && !color_enabled {
+        Some(ColorGuard::hide(&mut model.meshes_mut()[0]))
+    } else {
+        None
+    };
+
+    let texture_id = if texture_enabled { texture.id } else { 0 };
+    let _texture_guard = TextureGuard::set_texture(model, texture_id);
+
+    rl3d.draw_model_ex(model, position, Y_AXIS, rotation_deg, scale, Color::WHITE);
+}
+
+fn draw_model_wires_and_points_at(
+    rl3d: &mut RaylibMode3D<RaylibDrawHandle>,
+    model: &mut Model,
+    position: Vector3,
+    rotation_deg: f32,
+    scale: Vector3,
+    wire_color: Color,
+    point_color: Color,
+) {
+    let _color_guard = ColorGuard::hide(&mut model.meshes_mut()[0]);
+    let _texture_guard = TextureGuard::hide(model);
+
+    rl3d.draw_model_wires_ex(&model, position, Y_AXIS, rotation_deg, scale, wire_color);
+
+    unsafe { rlSetPointSize(4.0) }
+    rl3d.draw_model_points_ex(&model, position, Y_AXIS, rotation_deg, scale, point_color);
+}
+
+fn draw_placed_cells(
+    rl3d: &mut RaylibMode3D<RaylibDrawHandle>,
+    ndc_models: &mut [Model],
+    mesh_textures: &[Texture2D],
+    placed_cells: &mut [PlacedCell],
+    total_time: f32,
+) {
+    for placed_cell in placed_cells.iter_mut() {
+        let cell_pos = cell_center(placed_cell.ix, placed_cell.iy, placed_cell.iz);
+        let age = total_time - placed_cell.placed_time;
+        let scale_progress = (age / PLACEMENT_ANIM_DUR_SECONDS).clamp(0.0, 1.0);
+        let current_scale = lerp(HINT_SCALE, 1.0, scale_progress);
+
+        if scale_progress >= 1.0 {
+            placed_cell.settled = true;
+        }
+
+        let placed_model = &mut ndc_models[placed_cell.mesh_index];
+
+        if placed_cell.settled {
+            draw_model_filled_at(
+                rl3d,
+                placed_model,
+                &mesh_textures[placed_cell.mesh_index],
+                cell_pos,
+                0.0,
+                MODEL_SCALE,
+                placed_cell.color_enabled,
+                placed_cell.texture_enabled,
+            );
+
+            draw_model_wires_and_points_at(rl3d, placed_model, cell_pos, 0.0, MODEL_SCALE, MARINER, LILAC);
+        } else {
+            draw_model_wires_and_points_at(
+                rl3d,
+                placed_model,
+                cell_pos,
+                0.0,
+                Vector3::new(current_scale, current_scale, current_scale),
+                ANAKIWA,
+                ANAKIWA,
+            );
+        }
+    }
+}
+
+fn draw_hint_mesh(
+    rl3d: &mut RaylibMode3D<RaylibDrawHandle>,
+    model: &mut Model,
+    center: Vector3,
+    mesh_rotation: f32,
+    occupied: bool,
+) {
+    let _color_guard = ColorGuard::hide(&mut model.meshes_mut()[0]);
+    let _texture_guard = TextureGuard::hide(model);
+
+    let hint_color = if occupied { RED_DAMASK } else { ANAKIWA };
+
+    unsafe { ffi::rlDisableDepthTest() };
+
+    rl3d.draw_model_wires_ex(
+        model,
+        center,
+        Y_AXIS,
+        mesh_rotation.to_degrees(),
+        HINT_SCALE_VEC,
+        hint_color,
+    );
+
+    unsafe { ffi::rlEnableDepthTest() };
+}
+
+fn draw_spatial_frame(rl3d: &mut RaylibMode3D<RaylibDrawHandle>, spatial_frame: &WeakMesh) {
+    const FRONT_FACES: [[usize; 2]; 4] = [[0, 1], [1, 2], [2, 3], [3, 0]];
+    const BACK_FACES: [[usize; 2]; 4] = [[4, 5], [5, 6], [6, 7], [7, 4]];
+    const RIB_FACES: [[usize; 2]; 4] = [[0, 4], [1, 7], [2, 6], [3, 5]];
+    const FACES: [[[usize; 2]; 4]; 3] = [FRONT_FACES, BACK_FACES, RIB_FACES];
+
+    for (i, face) in FACES.iter().enumerate() {
+        for [start_pos, end_pos] in *face {
+            rl3d.draw_line3D(
+                spatial_frame.vertices()[start_pos],
+                spatial_frame.vertices()[end_pos],
+                if i == 0 {
+                    NEON_CARROT
+                } else if i == 1 {
+                    EGGPLANT
+                } else {
+                    HOPBUSH
+                },
+            );
+        }
+    }
+}
+
+fn draw_room_floor_grid(rl3d: &mut RaylibMode3D<RaylibDrawHandle>) {
+    let origin = room_origin();
+    let floor_y = origin.y;
+
+    for x in 0..=ROOM_W {
+        let x_world = origin.x + x as f32;
+        let start = Vector3::new(x_world, floor_y, origin.z);
+        let end = Vector3::new(x_world, floor_y, origin.z + ROOM_D as f32);
+        rl3d.draw_line3D(start, end, HOPBUSH);
+    }
+
+    for z in 0..=ROOM_D {
+        let z_world = origin.z + z as f32;
+        let start = Vector3::new(origin.x, floor_y, z_world);
+        let end = Vector3::new(origin.x + ROOM_W as f32, floor_y, z_world);
+        rl3d.draw_line3D(start, end, HOPBUSH);
+    }
+}
+
+fn draw_hud(
+    draw_handle: &mut RaylibDrawHandle,
+    font: &Font,
+    view_state: &ViewState,
+    jugemu: &Camera3D,
+    target_mesh: usize,
+    hover_state: &HoverState,
+    placed_cells: &[PlacedCell],
+    i_time: f32,
+) {
+    let screen_width = draw_handle.get_screen_width();
+    let screen_height = draw_handle.get_screen_height();
+
+    const LABEL_COL: i32 = HUD_MARGIN;
+    const VALUE_COL: i32 = LABEL_COL + 200;
+
+    let mut line_y = HUD_MARGIN;
+
+    hud_text(
+        draw_handle,
+        font,
+        match target_mesh {
+            0 => "GHOST",
+            1 => "CUBE",
+            2 => "SPHERE",
+            _ => "",
+        },
+        LABEL_COL + 450,
+        line_y,
+        FONT_SIZE,
+        NEON_CARROT,
+    );
+
+    hud_text(
+        draw_handle,
+        font,
+        "JUGEMU [ P ]:",
+        LABEL_COL,
+        line_y,
+        FONT_SIZE,
+        SUNFLOWER,
+    );
+    hud_text(
+        draw_handle,
+        font,
+        if view_state.jugemu_ortho_mode {
+            "ORTHOGRAPHIC"
+        } else {
+            "PERSPECTIVE"
+        },
+        VALUE_COL,
+        line_y,
+        FONT_SIZE,
+        if view_state.jugemu_ortho_mode {
+            BAHAMA_BLUE
+        } else {
+            ANAKIWA
+        },
+    );
+    line_y += HUD_LINE_HEIGHT;
+
+    hud_text(
+        draw_handle,
+        font,
+        "FOVY[ + - ]:",
+        LABEL_COL,
+        line_y,
+        FONT_SIZE,
+        SUNFLOWER,
+    );
+    hud_text(
+        draw_handle,
+        font,
+        &format!("{:.2}", jugemu.fovy),
+        VALUE_COL,
+        line_y,
+        FONT_SIZE,
+        LILAC,
+    );
+    line_y += HUD_LINE_HEIGHT;
+
+    hud_text(
+        draw_handle,
+        font,
+        "DISTANCE [ W S ]:",
+        LABEL_COL,
+        line_y,
+        FONT_SIZE,
+        SUNFLOWER,
+    );
+    let jugemu_distance = camera_distance(jugemu);
+    hud_text(
+        draw_handle,
+        font,
+        &format!("{:.2}", jugemu_distance),
+        VALUE_COL,
+        line_y,
+        FONT_SIZE,
+        HOPBUSH,
+    );
+
+    const RIGHT_LABEL_COL: i32 = 250;
+    const RIGHT_VALUE_COL: i32 = 80;
+    line_y = HUD_MARGIN;
+
+    hud_text(
+        draw_handle,
+        font,
+        "TEXTURE [ T ]:",
+        screen_width - RIGHT_LABEL_COL,
+        line_y,
+        FONT_SIZE,
+        SUNFLOWER,
+    );
+    hud_text(
+        draw_handle,
+        font,
+        if view_state.texture_mode { "ON" } else { "OFF" },
+        screen_width - RIGHT_VALUE_COL,
+        line_y,
+        FONT_SIZE,
+        if view_state.texture_mode {
+            ANAKIWA
+        } else {
+            CHESTNUT_ROSE
+        },
+    );
+    line_y += HUD_LINE_HEIGHT;
+
+    hud_text(
+        draw_handle,
+        font,
+        "COLORS [ C ]:",
+        screen_width - RIGHT_LABEL_COL,
+        line_y,
+        FONT_SIZE,
+        SUNFLOWER,
+    );
+    hud_text(
+        draw_handle,
+        font,
+        if view_state.color_mode { "ON" } else { "OFF" },
+        screen_width - RIGHT_VALUE_COL,
+        line_y,
+        FONT_SIZE,
+        if view_state.color_mode { ANAKIWA } else { CHESTNUT_ROSE },
+    );
+
+    line_y = screen_height - HUD_MARGIN - HUD_LINE_HEIGHT * 3;
+
+    hud_text(
+        draw_handle,
+        font,
+        "ASPECT [ Q ]:",
+        LABEL_COL,
+        line_y,
+        FONT_SIZE,
+        SUNFLOWER,
+    );
+    hud_text(
+        draw_handle,
+        font,
+        if view_state.aspect_correct {
+            "CORRECT"
+        } else {
+            "INCORRECT"
+        },
+        VALUE_COL,
+        line_y,
+        FONT_SIZE,
+        if view_state.aspect_correct {
+            ANAKIWA
+        } else {
+            CHESTNUT_ROSE
+        },
+    );
+    line_y += HUD_LINE_HEIGHT;
+
+    hud_text(
+        draw_handle,
+        font,
+        "LENS [ O ]:",
+        LABEL_COL,
+        line_y,
+        FONT_SIZE,
+        SUNFLOWER,
+    );
+    hud_text(
+        draw_handle,
+        font,
+        if view_state.ortho_mode {
+            "ORTHOGRAPHIC"
+        } else {
+            "PERSPECTIVE"
+        },
+        VALUE_COL,
+        line_y,
+        FONT_SIZE,
+        if view_state.ortho_mode { BAHAMA_BLUE } else { ANAKIWA },
+    );
+    line_y += HUD_LINE_HEIGHT;
+
+    hud_text(
+        draw_handle,
+        font,
+        "SPACE [ N ]:",
+        LABEL_COL,
+        line_y,
+        FONT_SIZE,
+        SUNFLOWER,
+    );
+    hud_text(
+        draw_handle,
+        font,
+        if view_state.ndc_space { "NDC" } else { "WORLD" },
+        VALUE_COL,
+        line_y,
+        FONT_SIZE,
+        if view_state.ndc_space { BAHAMA_BLUE } else { ANAKIWA },
+    );
+
+    if let Some(cell_idx) = hover_state.placed_cell_index {
+        let cell = &placed_cells[cell_idx];
+        let corner_world = cell_top_right_front_corner(cell.ix, cell.iy, cell.iz, jugemu);
+        let screen_pos = draw_handle.get_world_to_screen(corner_world, *jugemu);
+
+        const DEBUG_WIDTH: i32 = 90;
+        const DEBUG_HEIGHT: i32 = 60;
+        const DEBUG_LINE_HEIGHT: i32 = 10;
+        const DEBUG_FONT_SIZE: i32 = 10;
+
+        let anchor_x = screen_pos.x as i32;
+        let anchor_y = screen_pos.y as i32;
+
+        let mut rect_x = anchor_x;
+        let mut rect_y = anchor_y - DEBUG_HEIGHT;
+
+        if rect_y < 0 {
+            rect_y = anchor_y;
+        }
+
+        if rect_x + DEBUG_WIDTH > screen_width {
+            rect_x = anchor_x - DEBUG_WIDTH;
+        }
+
+        draw_handle.draw_rectangle_lines(rect_x, rect_y, DEBUG_WIDTH, DEBUG_HEIGHT, SUNFLOWER);
+
+        let text_x = rect_x + 4;
+        let mut text_y = rect_y + 4;
+
+        let mesh_name = match cell.mesh_index {
+            0 => "GHOST",
+            1 => "CUBE",
+            2 => "SPHERE",
+            _ => "UNKNOWN",
+        };
+
+        hud_text(
+            draw_handle,
+            font,
+            &format!("MESH: {}", mesh_name),
+            text_x,
+            text_y,
+            DEBUG_FONT_SIZE,
+            SUNFLOWER,
+        );
+        text_y += DEBUG_LINE_HEIGHT;
+
+        hud_text(
+            draw_handle,
+            font,
+            &format!("GRID: ({}, {}, {})", cell.ix, cell.iy, cell.iz),
+            text_x,
+            text_y,
+            DEBUG_FONT_SIZE,
+            SUNFLOWER,
+        );
+        text_y += DEBUG_LINE_HEIGHT;
+
+        hud_text(
+            draw_handle,
+            font,
+            &format!("PLACED: {:.2}s", cell.placed_time),
+            text_x,
+            text_y,
+            DEBUG_FONT_SIZE,
+            SUNFLOWER,
+        );
+        text_y += DEBUG_LINE_HEIGHT;
+
+        hud_text(
+            draw_handle,
+            font,
+            &format!("TEXTURE: {}", if cell.texture_enabled { "ON" } else { "OFF" }),
+            text_x,
+            text_y,
+            DEBUG_FONT_SIZE,
+            if cell.texture_enabled { ANAKIWA } else { CHESTNUT_ROSE },
+        );
+        text_y += DEBUG_LINE_HEIGHT;
+
+        hud_text(
+            draw_handle,
+            font,
+            &format!("COLOR: {}", if cell.color_enabled { "ON" } else { "OFF" }),
+            text_x,
+            text_y,
+            DEBUG_FONT_SIZE,
+            if cell.color_enabled { ANAKIWA } else { CHESTNUT_ROSE },
+        );
+        // draw_handle.draw_rectangle(anchor_x - 2, anchor_y - 2, 4, 4, RED_DAMASK);
+    }
+}
+
+const HUD_CHAR_SPACING: f32 = 0.0; // tweak later if you want, but 0 keeps things tight
+
+fn hud_text(draw_handle: &mut RaylibDrawHandle, font: &Font, text: &str, x: i32, y: i32, font_size: i32, color: Color) {
+    draw_handle.draw_text_ex(
+        font,
+        text,
+        Vector2::new(x as f32, y as f32),
+        font_size as f32,
+        HUD_CHAR_SPACING,
+        color,
+    );
+}
+
+fn get_hovered_room_floor_cell(handle: &RaylibHandle, camera: &Camera3D) -> Option<(i32, i32, i32)> {
+    let mouse = handle.get_mouse_position();
+    let ray = handle.get_screen_to_world_ray(mouse, *camera);
+
+    if ray.direction.y.abs() < 1e-5 {
+        return None;
+    }
+
+    let floor_y = -(ROOM_H as f32) / 2.0;
+    let t = (floor_y - ray.position.y) / ray.direction.y;
+    if t <= 0.0 {
+        return None;
+    }
+
+    let hit = Vector3::new(
+        ray.position.x + ray.direction.x * t,
+        floor_y,
+        ray.position.z + ray.direction.z * t,
+    );
+
+    let origin = room_origin();
+    let local_x = hit.x - origin.x;
+    let local_z = hit.z - origin.z;
+
+    if local_x < 0.0 || local_z < 0.0 || local_x >= ROOM_W as f32 || local_z >= ROOM_D as f32 {
+        return None;
+    }
+
+    let cell_x = local_x.floor() as i32;
+    let cell_z = local_z.floor() as i32;
+    let cell_y = 0;
+
+    Some((cell_x, cell_y, cell_z))
+}
+
+fn cell_center(ix: i32, iy: i32, iz: i32) -> Vector3 {
+    let origin = room_origin();
+    Vector3::new(
+        origin.x + ix as f32 + 0.5,
+        origin.y + iy as f32 + 0.5,
+        origin.z + iz as f32 + 0.5,
     )
-    .normalize_or_zero()
+}
+
+fn cell_top_right_front_corner(ix: i32, iy: i32, iz: i32, camera: &Camera3D) -> Vector3 {
+    let center = cell_center(ix, iy, iz);
+    let half = 0.5_f32;
+    let offsets = [
+        Vector3::new(-half, -half, -half),
+        Vector3::new(-half, -half, half),
+        Vector3::new(-half, half, -half),
+        Vector3::new(-half, half, half),
+        Vector3::new(half, -half, -half),
+        Vector3::new(half, -half, half),
+        Vector3::new(half, half, -half),
+        Vector3::new(half, half, half),
+    ];
+
+    let (depth, right, up) = basis_vector(camera);
+    let cam_pos = camera.position;
+    fn to_camera_space(p: Vector3, cam_pos: Vector3, right: Vector3, up: Vector3, depth: Vector3) -> Vector3 {
+        let v = p.sub(cam_pos);
+        Vector3::new(v.dot(right), v.dot(up), v.dot(depth))
+    }
+    let mut best_world = center.add(offsets[0]);
+    let mut best_cam = to_camera_space(best_world, cam_pos, right, up, depth);
+    let eps = 1e-4_f32;
+
+    for &offset in offsets.iter().skip(1) {
+        let world = center.add(offset);
+        let cam = to_camera_space(world, cam_pos, right, up, depth);
+        let better = cam.x > best_cam.x + eps
+            || ((cam.x - best_cam.x).abs() <= eps && cam.y > best_cam.y + eps)
+            || ((cam.x - best_cam.x).abs() <= eps && (cam.y - best_cam.y).abs() <= eps && cam.z < best_cam.z - eps);
+
+        if better {
+            best_cam = cam;
+            best_world = world;
+        }
+    }
+    best_world
+}
+
+fn room_origin() -> Vector3 {
+    Vector3::new(-(ROOM_W as f32) / 2.0, -(ROOM_H as f32) / 2.0, -(ROOM_D as f32) / 2.0)
 }
 
 fn fill_planar_texcoords(mesh: &mut WeakMesh) {
@@ -956,7 +1382,7 @@ fn fade_vertex_colors_silhouette_rim(mesh: &mut WeakMesh, observer: &Camera3D, m
             continue;
         }
         let fade_scalar = (cos_theta / cos_fade_angle).clamp(0.0, 1.0);
-        let alpha = fade_scalar * fade_scalar * fade_scalar * fade_scalar; //powf 4
+        let alpha = fade_scalar * fade_scalar * fade_scalar * fade_scalar;
         alpha_buffer[i] = (alpha * 255.0).round() as u8;
     }
 
@@ -1104,6 +1530,13 @@ pub fn add_phase(phase: Vector2) -> Vector2 {
     )
 }
 
+fn camera_distance(cam: &Camera3D) -> f32 {
+    let dx = cam.position.x - cam.target.x;
+    let dy = cam.position.y - cam.target.y;
+    let dz = cam.position.z - cam.target.z;
+    (dx * dx + dy * dy + dz * dz).sqrt()
+}
+
 fn orbit_space(handle: &mut RaylibHandle, camera: &mut Camera3D) {
     let dt = handle.get_frame_time();
 
@@ -1165,6 +1598,16 @@ fn orbit_space(handle: &mut RaylibHandle, camera: &mut Camera3D) {
 }
 
 #[inline]
+pub fn observed_line_of_sight(observer: &Camera3D) -> Vec3 {
+    Vec3::new(
+        observer.target.x - observer.position.x,
+        observer.target.y - observer.position.y,
+        observer.target.z - observer.position.z,
+    )
+    .normalize_or_zero()
+}
+
+#[inline]
 pub fn triangle_normal(a: Vec3, b: Vec3, c: Vec3) -> Vec3 {
     (b - a).cross(c - a).normalize_or_zero()
 }
@@ -1191,6 +1634,7 @@ fn basis_vector(main: &Camera3D) -> (Vector3, Vector3, Vector3) {
     let up = right.cross(depth).normalize();
     (depth, right, up)
 }
+
 fn world_to_ndc_space(
     main: &mut Camera3D,
     aspect: f32,
@@ -1261,43 +1705,6 @@ fn calculate_average_ndc_z_shift(world_model: &Model, ndc_model: &Model) -> f32 
     }
 }
 
-fn draw_model_filled(
-    rl3d: &mut RaylibMode3D<RaylibDrawHandle>,
-    model: &mut Model,
-    mesh_texture: &Texture2D,
-    rotation: f32,
-    view_state: &ViewState,
-) {
-    if !(view_state.color_mode || view_state.texture_mode) {
-        return;
-    }
-    let _color_guard = if view_state.texture_mode && !view_state.color_mode {
-        Some(ColorGuard::hide(&mut model.meshes_mut()[0]))
-    } else {
-        None
-    };
-
-    model.materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize]
-        .texture
-        .id = if view_state.texture_mode {
-        mesh_texture.id
-    } else {
-        unsafe { rlGetTextureIdDefault() }
-    };
-
-    rl3d.draw_model_ex(
-        &mut *model,
-        MODEL_POS,
-        Y_AXIS,
-        rotation.to_degrees(),
-        MODEL_SCALE,
-        Color::WHITE,
-    );
-    model.materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize]
-        .texture
-        .id = unsafe { rlGetTextureIdDefault() };
-}
-
 fn update_spatial_frame(
     main: &mut Camera3D,
     aspect: f32,
@@ -1347,76 +1754,12 @@ fn update_spatial_frame(
     }
 }
 
-fn draw_model_wires_and_points(rl3d: &mut RaylibMode3D<RaylibDrawHandle>, model: &mut Model, rotation: f32) {
-    let _color_guard = ColorGuard::hide(&mut model.meshes_mut()[0]);
-    let cache_texture_id = model.materials()[0].maps()[MATERIAL_MAP_ALBEDO as usize].texture().id;
-    model.materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize]
-        .texture
-        .id = unsafe { rlGetTextureIdDefault() };
-    rl3d.draw_model_wires_ex(
-        &mut *model,
-        MODEL_POS,
-        Y_AXIS,
-        rotation.to_degrees(),
-        MODEL_SCALE,
-        MARINER,
-    );
-    unsafe { rlSetPointSize(4.0) }
-    rl3d.draw_model_points_ex(
-        &mut *model,
-        MODEL_POS,
-        Y_AXIS,
-        rotation.to_degrees(),
-        MODEL_SCALE,
-        LILAC,
-    );
-
-    model.materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize]
-        .texture
-        .id = cache_texture_id;
-} // NOTE!!! Colors automatically restored when _color_guard drops!!!
-
-fn draw_spatial_frame(rl3d: &mut RaylibMode3D<RaylibDrawHandle>, spatial_frame: &WeakMesh) {
-    const FRONT_FACES: [[usize; 2]; 4] = [[0, 1], [1, 2], [2, 3], [3, 0]];
-    const BACK_FACES: [[usize; 2]; 4] = [[4, 5], [5, 6], [6, 7], [7, 4]];
-    const RIB_FACES: [[usize; 2]; 4] = [[0, 4], [1, 7], [2, 6], [3, 5]];
-    const FACES: [[[usize; 2]; 4]; 3] = [FRONT_FACES, BACK_FACES, RIB_FACES];
-    for (i, face) in FACES.iter().enumerate() {
-        for [start_pos, end_pos] in *face {
-            rl3d.draw_line3D(
-                spatial_frame.vertices()[start_pos],
-                spatial_frame.vertices()[end_pos],
-                if i == 0 {
-                    NEON_CARROT
-                } else if i == 1 {
-                    EGGPLANT
-                } else {
-                    HOPBUSH
-                },
-            );
-        }
-    }
-}
-
-fn aspect_correct_and_reflect_near_plane(
-    intersect: Vector3,
-    center: Vector3,
-    right: Vector3,
-    up: Vector3,
-    x_aspect: f32,
-    y_reflect: f32,
-) -> Vector3 {
-    let center_distance = intersect.sub(center);
-    let x = center_distance.dot(right);
-    let y = center_distance.dot(up);
-    center.add(right * (x * x_aspect)).add(up * (y * y_reflect))
-}
-
 fn translate_rotate_scale(inverse: i32, coord: Vector3, pos: Vector3, scale: Vector3, rotation: f32) -> Vector3 {
     let matrix = Mat4::from_scale(scale) * Mat4::from_rotation_y(rotation) * Mat4::from_translation(pos);
     let result = if inverse != 0 { matrix.inverse() } else { matrix };
     result.transform_point3(coord)
 }
+
 fn intersect(main: &mut Camera3D, near: f32, world_coord: Vector3, ortho_factor: f32) -> Vector3 {
     let view_dir = main.target.sub(main.position).normalize();
     let main_camera_to_point = world_coord.sub(main.position);
@@ -1433,101 +1776,4 @@ fn intersect(main: &mut Camera3D, near: f32, world_coord: Vector3, ortho_factor:
         result_perspective.y + (result_ortho.y - result_perspective.y) * ortho_factor,
         result_perspective.z + (result_ortho.z - result_perspective.z) * ortho_factor,
     )
-}
-
-fn space_blend_factor(dt: f32, ndc_space: bool) -> f32 {
-    static mut BLEND: f32 = 0.0;
-    unsafe {
-        if dt > 0.0 {
-            BLEND = (BLEND + (if ndc_space { 1.0 } else { -1.0 }) * BLEND_SCALAR * dt).clamp(0.0, 1.0);
-        }
-        BLEND
-    }
-}
-
-fn aspect_blend_factor(dt: f32, aspect_correct: bool) -> f32 {
-    static mut BLEND: f32 = 0.0;
-    unsafe {
-        if dt > 0.0 {
-            BLEND = (BLEND + (if aspect_correct { 1.0 } else { -1.0 }) * BLEND_SCALAR * dt).clamp(0.0, 1.0);
-        }
-        BLEND
-    }
-}
-
-fn ortho_blend_factor(dt: f32, ortho_mode: bool) -> f32 {
-    static mut BLEND: f32 = 0.0;
-    unsafe {
-        if dt > 0.0 {
-            BLEND = (BLEND + (if ortho_mode { 1.0 } else { -1.0 }) * BLEND_SCALAR * dt).clamp(0.0, 1.0);
-        }
-        BLEND
-    }
-}
-
-fn draw_room_floor_grid(rl3d: &mut RaylibMode3D<RaylibDrawHandle>) {
-    let origin = room_origin();
-    let floor_y = origin.y;
-
-    for x in 0..=ROOM_W {
-        let x_world = origin.x + x as f32;
-        let start = Vector3::new(x_world, floor_y, origin.z);
-        let end = Vector3::new(x_world, floor_y, origin.z + ROOM_D as f32);
-        rl3d.draw_line3D(start, end, HOPBUSH);
-    }
-
-    for z in 0..=ROOM_D {
-        let z_world = origin.z + z as f32;
-        let start = Vector3::new(origin.x, floor_y, z_world);
-        let end = Vector3::new(origin.x + ROOM_W as f32, floor_y, z_world);
-        rl3d.draw_line3D(start, end, HOPBUSH);
-    }
-}
-
-fn get_hovered_room_floor_cell(handle: &RaylibHandle, camera: &Camera3D) -> Option<(i32, i32, i32)> {
-    let mouse = handle.get_mouse_position();
-    let ray = handle.get_screen_to_world_ray(mouse, *camera);
-
-    if ray.direction.y.abs() < 1e-5 {
-        return None;
-    }
-
-    let floor_y = -(ROOM_H as f32) / 2.0;
-    let t = (floor_y - ray.position.y) / ray.direction.y;
-    if t <= 0.0 {
-        return None;
-    }
-
-    let hit = Vector3::new(
-        ray.position.x + ray.direction.x * t,
-        floor_y,
-        ray.position.z + ray.direction.z * t,
-    );
-
-    let origin = room_origin();
-    let local_x = hit.x - origin.x;
-    let local_z = hit.z - origin.z;
-
-    if local_x < 0.0 || local_z < 0.0 || local_x >= ROOM_W as f32 || local_z >= ROOM_D as f32 {
-        return None;
-    }
-
-    let cell_x = local_x.floor() as i32;
-    let cell_z = local_z.floor() as i32;
-    let cell_y = 0;
-
-    Some((cell_x, cell_y, cell_z))
-}
-
-fn cell_center(ix: i32, iy: i32, iz: i32) -> Vector3 {
-    let origin = room_origin();
-    Vector3::new(
-        origin.x + ix as f32 + 0.5,
-        origin.y + iy as f32 + 0.5,
-        origin.z + iz as f32 + 0.5,
-    )
-}
-
-fn room_origin() -> Vector3 {
-    Vector3::new(-(ROOM_W as f32) / 2.0, -(ROOM_H as f32) / 2.0, -(ROOM_D as f32) / 2.0)
 }
