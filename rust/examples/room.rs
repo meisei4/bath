@@ -6,6 +6,7 @@ use raylib::math::glam::{Mat4, Vec3};
 use raylib::prelude::*;
 use std::f32::consts::{PI, TAU};
 use std::ops::{Add, Sub};
+use std::mem::size_of;
 
 const ROOM_W: i32 = 9;
 const ROOM_H: i32 = 3;
@@ -168,7 +169,6 @@ impl MeshMetrics {
         }
     }
 }
-use std::mem::size_of; // you already use this elsewhere
 
 fn gpu_vertex_stride_bytes(metrics: &MeshMetrics) -> usize {
     let mut stride = size_of::<Vector3>();
