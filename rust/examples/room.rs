@@ -5,8 +5,8 @@ use raylib::ffi::rlSetPointSize;
 use raylib::math::glam::{Mat4, Vec3};
 use raylib::prelude::*;
 use std::f32::consts::{PI, TAU};
-use std::ops::{Add, Sub};
 use std::mem::size_of;
+use std::ops::{Add, Sub};
 
 const ROOM_W: i32 = 9;
 const ROOM_H: i32 = 3;
@@ -42,6 +42,24 @@ const DC_HEIGHT: i32 = (DC_HEIGHT_BASE * RES_SCALE) as i32;
 const HUD_MARGIN: i32 = 12;
 const HUD_LINE_HEIGHT: i32 = 22;
 const FONT_SIZE: i32 = 20;
+const HUD_CHAR_SPACING: f32 = 2.0;
+
+struct HudLayout {
+    font_size_main: i32,
+    font_size_debug: i32,
+    line_height_main: i32,
+    line_height_debug: i32,
+    margin: i32,
+    left_label_x: i32,
+    left_value_x: i32,
+    right_label_x: i32,
+    right_value_x: i32,
+    right_value_max_width: i32,
+    bottom_block_start_y: i32,
+    perf_x: i32,
+    perf_y: i32,
+    debug_padding: i32,
+}
 
 const BAHAMA_BLUE: Color = Color::new(0, 102, 153, 255);
 const SUNFLOWER: Color = Color::new(255, 204, 153, 255);
@@ -357,9 +375,12 @@ fn main() {
         .build();
 
     let font_image = Image::load_image(FONT_IMAGE_PATH).unwrap();
-    let font = handle
-        .load_font_ex(&thread, FONT_PATH, 32, None)
-        .expect("Failed to load font");
+    let font = unsafe {
+        handle
+            .load_font_ex(&thread, FONT_PATH, 32, None)
+            .expect("Failed to load font")
+            .make_weak()
+    };
 
     let font = handle.get_font_default();
 
@@ -1057,6 +1078,76 @@ fn draw_room_floor_grid(rl3d: &mut RaylibMode3D<RaylibDrawHandle>) {
     }
 }
 
+fn compute_hud_layout(draw_handle: &RaylibDrawHandle, font: &WeakFont) -> HudLayout {
+    let screen_width = draw_handle.get_screen_width();
+    let screen_height = draw_handle.get_screen_height();
+
+    let font_size_main = FONT_SIZE;
+    let font_size_debug = (FONT_SIZE as f32 * 0.5).round() as i32;
+
+    let line_height_main = HUD_LINE_HEIGHT;
+    let line_height_debug = font_size_debug;
+
+    let margin = HUD_MARGIN;
+
+    let left_labels = ["JUGEMU [ P ]:", "FOVY[ + - ]:", "ZOOM [ W S ]:"];
+    let mut max_left_label_width = 0;
+    for label in &left_labels {
+        let w = font.measure_text(label, font_size_main as f32, HUD_CHAR_SPACING).x as i32;
+        max_left_label_width = max_left_label_width.max(w);
+    }
+
+    let col_gap_px = (font_size_main as f32 * 0.75).round() as i32;
+
+    let left_label_x = margin;
+    let left_value_x = left_label_x + max_left_label_width + col_gap_px;
+
+    let right_labels = ["TXTR [ T ]:", "CLR [ C ]:"];
+    let mut max_right_label_width = 0;
+    for label in &right_labels {
+        let w = font.measure_text(label, font_size_main as f32, HUD_CHAR_SPACING).x as i32;
+        max_right_label_width = max_right_label_width.max(w);
+    }
+
+    let possible_values = ["ORTHOGRAPHIC", "PERSPECTIVE", "WORLD", "NDC", "ON", "OFF"];
+    let mut max_value_width = 0;
+    for value in &possible_values {
+        let w = font.measure_text(value, font_size_main as f32, HUD_CHAR_SPACING).x as i32;
+        max_value_width = max_value_width.max(w);
+    }
+
+    let right_margin = margin;
+    let right_value_x = screen_width - right_margin - max_value_width;
+
+    let right_label_gap_px = (font_size_main as f32 * 0.5).round() as i32;
+    let right_label_x = right_value_x - right_label_gap_px - max_right_label_width;
+
+    let bottom_rows = 3;
+    let bottom_block_start_y = screen_height - margin - line_height_main * bottom_rows as i32;
+
+    let perf_x = margin;
+    let perf_y = (screen_height as f32 * (200.0 / 720.0)).round() as i32;
+
+    let debug_padding = 4;
+
+    HudLayout {
+        font_size_main,
+        font_size_debug,
+        line_height_main,
+        line_height_debug,
+        margin,
+        left_label_x,
+        left_value_x,
+        right_label_x,
+        right_value_x,
+        right_value_max_width: max_value_width,
+        bottom_block_start_y,
+        perf_x,
+        perf_y,
+        debug_padding,
+    }
+}
+
 fn draw_hud(
     draw_handle: &mut RaylibDrawHandle,
     font: &WeakFont,
@@ -1074,17 +1165,17 @@ fn draw_hud(
     let screen_width = draw_handle.get_screen_width();
     let screen_height = draw_handle.get_screen_height();
 
-    const LABEL_COL: i32 = HUD_MARGIN;
-    const VALUE_COL: i32 = LABEL_COL + 150;
+    let layout = compute_hud_layout(draw_handle, font);
 
-    let mut line_y = HUD_MARGIN;
+    let mut line_y = layout.margin;
+
     hud_text(
         draw_handle,
         font,
         "JUGEMU [ P ]:",
-        LABEL_COL,
+        layout.left_label_x,
         line_y,
-        FONT_SIZE,
+        layout.font_size_main,
         SUNFLOWER,
     );
     hud_text(
@@ -1095,44 +1186,44 @@ fn draw_hud(
         } else {
             "PERSPECTIVE"
         },
-        VALUE_COL,
+        layout.left_value_x,
         line_y,
-        FONT_SIZE,
+        layout.font_size_main,
         if view_state.jugemu_ortho_mode {
             BAHAMA_BLUE
         } else {
             ANAKIWA
         },
     );
-    line_y += HUD_LINE_HEIGHT;
+    line_y += layout.line_height_main;
 
     hud_text(
         draw_handle,
         font,
         "FOVY[ + - ]:",
-        LABEL_COL,
+        layout.left_label_x,
         line_y,
-        FONT_SIZE,
+        layout.font_size_main,
         SUNFLOWER,
     );
     hud_text(
         draw_handle,
         font,
         &format!("{:.2}", jugemu.fovy),
-        VALUE_COL,
+        layout.left_value_x,
         line_y,
-        FONT_SIZE,
+        layout.font_size_main,
         LILAC,
     );
-    line_y += HUD_LINE_HEIGHT;
+    line_y += layout.line_height_main;
 
     hud_text(
         draw_handle,
         font,
         "ZOOM [ W S ]:",
-        LABEL_COL,
+        layout.left_label_x,
         line_y,
-        FONT_SIZE,
+        layout.font_size_main,
         SUNFLOWER,
     );
     let jugemu_distance = camera_distance(jugemu);
@@ -1140,68 +1231,94 @@ fn draw_hud(
         draw_handle,
         font,
         &format!("{:.2}", jugemu_distance),
-        VALUE_COL,
+        layout.left_value_x,
         line_y,
-        FONT_SIZE,
+        layout.font_size_main,
         HOPBUSH,
     );
 
-    const RIGHT_LABEL_COL: i32 = 250;
-    const RIGHT_VALUE_COL: i32 = 80;
-    line_y = HUD_MARGIN;
+    let mut right_line_y = layout.margin;
+    let right_margin = layout.margin;
+    let gap_px = (layout.font_size_main as f32 * 0.75).round() as i32;
+
+    let txtr_label = "TXTR [ T ]:";
+    let txtr_value = if view_state.texture_mode { "ON" } else { "OFF" };
+
+    let txtr_label_w = font
+        .measure_text(txtr_label, layout.font_size_main as f32, HUD_CHAR_SPACING)
+        .x as i32;
+    let txtr_value_w = font
+        .measure_text(txtr_value, layout.font_size_main as f32, HUD_CHAR_SPACING)
+        .x as i32;
+
+    let txtr_value_x = screen_width - right_margin - txtr_value_w;
+    let txtr_label_x = txtr_value_x - gap_px - txtr_label_w;
 
     hud_text(
         draw_handle,
         font,
-        "TXTR [ T ]:",
-        screen_width - RIGHT_LABEL_COL,
-        line_y,
-        FONT_SIZE,
+        txtr_label,
+        txtr_label_x,
+        right_line_y,
+        layout.font_size_main,
         SUNFLOWER,
     );
     hud_text(
         draw_handle,
         font,
-        if view_state.texture_mode { "ON" } else { "OFF" },
-        screen_width - RIGHT_VALUE_COL,
-        line_y,
-        FONT_SIZE,
+        txtr_value,
+        txtr_value_x,
+        right_line_y,
+        layout.font_size_main,
         if view_state.texture_mode {
             ANAKIWA
         } else {
             CHESTNUT_ROSE
         },
     );
-    line_y += HUD_LINE_HEIGHT;
+    right_line_y += layout.line_height_main;
+
+    let clr_label = "CLR [ C ]:";
+    let clr_value = if view_state.color_mode { "ON" } else { "OFF" };
+
+    let clr_label_w = font
+        .measure_text(clr_label, layout.font_size_main as f32, HUD_CHAR_SPACING)
+        .x as i32;
+    let clr_value_w = font
+        .measure_text(clr_value, layout.font_size_main as f32, HUD_CHAR_SPACING)
+        .x as i32;
+
+    let clr_value_x = screen_width - right_margin - clr_value_w;
+    let clr_label_x = clr_value_x - gap_px - clr_label_w;
 
     hud_text(
         draw_handle,
         font,
-        "CLR [ C ]:",
-        screen_width - RIGHT_LABEL_COL,
-        line_y,
-        FONT_SIZE,
+        clr_label,
+        clr_label_x,
+        right_line_y,
+        layout.font_size_main,
         SUNFLOWER,
     );
     hud_text(
         draw_handle,
         font,
-        if view_state.color_mode { "ON" } else { "OFF" },
-        screen_width - RIGHT_VALUE_COL,
-        line_y,
-        FONT_SIZE,
+        clr_value,
+        clr_value_x,
+        right_line_y,
+        layout.font_size_main,
         if view_state.color_mode { ANAKIWA } else { CHESTNUT_ROSE },
     );
 
-    line_y = screen_height - HUD_MARGIN - HUD_LINE_HEIGHT * 3;
+    let mut bottom_line_y = layout.bottom_block_start_y;
 
     hud_text(
         draw_handle,
         font,
         "ASPECT [ Q ]:",
-        LABEL_COL,
-        line_y,
-        FONT_SIZE,
+        layout.left_label_x,
+        bottom_line_y,
+        layout.font_size_main,
         SUNFLOWER,
     );
     hud_text(
@@ -1212,24 +1329,24 @@ fn draw_hud(
         } else {
             "INCORRECT"
         },
-        VALUE_COL,
-        line_y,
-        FONT_SIZE,
+        layout.left_value_x,
+        bottom_line_y,
+        layout.font_size_main,
         if view_state.aspect_correct {
             ANAKIWA
         } else {
             CHESTNUT_ROSE
         },
     );
-    line_y += HUD_LINE_HEIGHT;
+    bottom_line_y += layout.line_height_main;
 
     hud_text(
         draw_handle,
         font,
         "LENS [ O ]:",
-        LABEL_COL,
-        line_y,
-        FONT_SIZE,
+        layout.left_label_x,
+        bottom_line_y,
+        layout.font_size_main,
         SUNFLOWER,
     );
     hud_text(
@@ -1240,35 +1357,36 @@ fn draw_hud(
         } else {
             "PERSPECTIVE"
         },
-        VALUE_COL,
-        line_y,
-        FONT_SIZE,
+        layout.left_value_x,
+        bottom_line_y,
+        layout.font_size_main,
         if view_state.ortho_mode { BAHAMA_BLUE } else { ANAKIWA },
     );
-    line_y += HUD_LINE_HEIGHT;
+    bottom_line_y += layout.line_height_main;
 
     hud_text(
         draw_handle,
         font,
         "SPACE [ N ]:",
-        LABEL_COL,
-        line_y,
-        FONT_SIZE,
+        layout.left_label_x,
+        bottom_line_y,
+        layout.font_size_main,
         SUNFLOWER,
     );
     hud_text(
         draw_handle,
         font,
         if view_state.ndc_space { "NDC" } else { "WORLD" },
-        VALUE_COL,
-        line_y,
-        FONT_SIZE,
+        layout.left_value_x,
+        bottom_line_y,
+        layout.font_size_main,
         if view_state.ndc_space { BAHAMA_BLUE } else { ANAKIWA },
     );
 
     draw_perf_hud(
         draw_handle,
         font,
+        &layout,
         view_state,
         placed_cells,
         world_models,
@@ -1282,29 +1400,8 @@ fn draw_hud(
         let corner_world = cell_top_right_front_corner(cell.ix, cell.iy, cell.iz, jugemu);
         let screen_pos = draw_handle.get_world_to_screen(corner_world, *jugemu);
 
-        const DEBUG_WIDTH: i32 = 130;
-        const DEBUG_HEIGHT: i32 = 80;
-        const DEBUG_LINE_HEIGHT: i32 = 10;
-        const DEBUG_FONT_SIZE: i32 = 10;
-
         let anchor_x = screen_pos.x as i32;
         let anchor_y = screen_pos.y as i32;
-
-        let mut rect_x = anchor_x;
-        let mut rect_y = anchor_y - DEBUG_HEIGHT;
-
-        if rect_y < 0 {
-            rect_y = anchor_y;
-        }
-
-        if rect_x + DEBUG_WIDTH > screen_width {
-            rect_x = anchor_x - DEBUG_WIDTH;
-        }
-
-        draw_handle.draw_rectangle_lines(rect_x, rect_y, DEBUG_WIDTH, DEBUG_HEIGHT, SUNFLOWER);
-
-        let text_x = rect_x + 4;
-        let mut text_y = rect_y + 4;
 
         let mesh_name = match cell.mesh_index {
             0 => "GHOST",
@@ -1316,76 +1413,75 @@ fn draw_hud(
         let age_seconds = i_time - cell.placed_time;
         let state_label = if cell.settled { "SETTLED" } else { "ANIM" };
 
-        hud_text(
-            draw_handle,
-            font,
-            &format!("MESH: {}", mesh_name),
-            text_x,
-            text_y,
-            DEBUG_FONT_SIZE,
-            SUNFLOWER,
-        );
-        text_y += DEBUG_LINE_HEIGHT;
+        let debug_lines = [
+            format!("MESH: {}", mesh_name),
+            format!("GRID: ({}, {}, {})", cell.ix, cell.iy, cell.iz),
+            format!("AGE: {:.2}s", age_seconds),
+            format!("STATE: {}", state_label),
+            format!("TXTR: {}", if cell.texture_enabled { "ON" } else { "OFF" }),
+            format!("CLR: {}", if cell.color_enabled { "ON" } else { "OFF" }),
+        ];
 
-        hud_text(
-            draw_handle,
-            font,
-            &format!("GRID: ({}, {}, {})", cell.ix, cell.iy, cell.iz),
-            text_x,
-            text_y,
-            DEBUG_FONT_SIZE,
-            SUNFLOWER,
-        );
-        text_y += DEBUG_LINE_HEIGHT;
+        let mut max_line_w = 0;
+        for line in &debug_lines {
+            let w = font
+                .measure_text(line, layout.font_size_debug as f32, HUD_CHAR_SPACING)
+                .x as i32;
+            max_line_w = max_line_w.max(w);
+        }
 
-        hud_text(
-            draw_handle,
-            font,
-            &format!("AGE: {:.2}s", age_seconds),
-            text_x,
-            text_y,
-            DEBUG_FONT_SIZE,
-            SUNFLOWER,
-        );
-        text_y += DEBUG_LINE_HEIGHT;
+        let debug_width = max_line_w + layout.debug_padding * 2;
+        let debug_height = layout.line_height_debug * debug_lines.len() as i32 + layout.debug_padding * 2;
 
-        hud_text(
-            draw_handle,
-            font,
-            &format!("STATE: {}", state_label),
-            text_x,
-            text_y,
-            DEBUG_FONT_SIZE,
-            if cell.settled { ANAKIWA } else { NEON_CARROT },
-        );
-        text_y += DEBUG_LINE_HEIGHT;
+        let mut rect_x = anchor_x;
+        let mut rect_y = anchor_y - debug_height;
 
-        hud_text(
-            draw_handle,
-            font,
-            &format!("TXTR: {}", if cell.texture_enabled { "ON" } else { "OFF" }),
-            text_x,
-            text_y,
-            DEBUG_FONT_SIZE,
-            if cell.texture_enabled { ANAKIWA } else { CHESTNUT_ROSE },
-        );
-        text_y += DEBUG_LINE_HEIGHT;
+        if rect_y < 0 {
+            rect_y = anchor_y;
+        }
+        if rect_x + debug_width > screen_width {
+            rect_x = anchor_x - debug_width;
+        }
 
-        hud_text(
-            draw_handle,
-            font,
-            &format!("CLR: {}", if cell.color_enabled { "ON" } else { "OFF" }),
-            text_x,
-            text_y,
-            DEBUG_FONT_SIZE,
-            if cell.color_enabled { ANAKIWA } else { CHESTNUT_ROSE },
-        );
+        draw_handle.draw_rectangle_lines(rect_x, rect_y, debug_width, debug_height, SUNFLOWER);
+
+        let mut text_y = rect_y + layout.debug_padding;
+
+        for (idx, line) in debug_lines.iter().enumerate() {
+            let text_x = rect_x + layout.debug_padding;
+            let color = match idx {
+                3 => {
+                    if cell.settled {
+                        ANAKIWA
+                    } else {
+                        NEON_CARROT
+                    }
+                },
+                4 => {
+                    if cell.texture_enabled {
+                        ANAKIWA
+                    } else {
+                        CHESTNUT_ROSE
+                    }
+                },
+                5 => {
+                    if cell.color_enabled {
+                        ANAKIWA
+                    } else {
+                        CHESTNUT_ROSE
+                    }
+                },
+                _ => SUNFLOWER,
+            };
+            hud_text(draw_handle, font, line, text_x, text_y, layout.font_size_debug, color);
+            text_y += layout.line_height_debug;
+        }
     }
 }
-
 fn draw_perf_hud(
     draw_handle: &mut RaylibDrawHandle,
     font: &WeakFont,
+    layout: &HudLayout,
     view_state: &ViewState,
     placed_cells: &[PlacedCell],
     world_models: &[Model],
@@ -1393,12 +1489,16 @@ fn draw_perf_hud(
     mesh_samples: &[Vec<Vector3>],
     frame_dynamic_metrics: &FrameDynamicMetrics,
 ) {
-    let perf_x = 10;
-    let mut y = 200;
-    const LINE: i32 = FONT_SIZE;
+    let screen_width = draw_handle.get_screen_width();
 
-    hud_text(draw_handle, font, "LAYER 3 METRICS", perf_x, y, FONT_SIZE, NEON_CARROT);
-    y += LINE;
+    let perf_x = layout.perf_x;
+    let mut y = layout.perf_y;
+    let line = layout.line_height_main;
+    let font_sz = layout.font_size_main;
+
+    hud_text(draw_handle, font, "LAYER 3 METRICS", perf_x, y, font_sz, NEON_CARROT);
+    y += line;
+
     let mesh_count = ndc_models.len();
     let mut per_mesh_instance_counts = vec![0usize; mesh_count];
     for cell in placed_cells {
@@ -1424,6 +1524,7 @@ fn draw_perf_hud(
         per_mesh_ndc_metrics.push(ndc_metrics);
         per_mesh_combined_bytes.push(combined_bytes);
     }
+
     let mut filled_draws_per_mesh = vec![0usize; mesh_count];
     let mut overlay_calls_per_mesh = vec![0usize; mesh_count];
 
@@ -1484,27 +1585,31 @@ fn draw_perf_hud(
 
         let gpu_bytes_per_frame = gpu_bytes_from_tri_draws + gpu_bytes_from_overlay_draws;
 
-        let mut header_y = HUD_MARGIN;
+        let active_x = (screen_width as f32 * 0.45).round() as i32;
+        let mut header_y = layout.margin;
+
         hud_text(
             draw_handle,
             font,
             "ACTIVE MESH:",
-            HUD_MARGIN + 420,
+            active_x,
             header_y,
-            FONT_SIZE,
+            font_sz,
             SUNFLOWER,
         );
-        header_y += LINE;
+        header_y += line;
+
         hud_text(
             draw_handle,
             font,
             &format!("{} ({} INST)", active_name, active_instances),
-            HUD_MARGIN + 420,
+            active_x,
             header_y,
-            FONT_SIZE,
+            font_sz,
             NEON_CARROT,
         );
-        header_y += LINE;
+        header_y += line;
+
         hud_text(
             draw_handle,
             font,
@@ -1512,12 +1617,13 @@ fn draw_perf_hud(
                 "WORLD V/T/I: {}/{}/{}",
                 active_world.vertex_count, active_world.triangle_count, active_world.index_count
             ),
-            HUD_MARGIN + 420,
+            active_x,
             header_y,
-            FONT_SIZE,
+            font_sz,
             ANAKIWA,
         );
-        header_y += LINE;
+        header_y += line;
+
         hud_text(
             draw_handle,
             font,
@@ -1525,85 +1631,92 @@ fn draw_perf_hud(
                 "NDC   V/T/I: {}/{}/{}",
                 active_ndc.vertex_count, active_ndc.triangle_count, active_ndc.index_count
             ),
-            HUD_MARGIN + 420,
+            active_x,
             header_y,
-            FONT_SIZE,
+            font_sz,
             ANAKIWA,
         );
-        header_y += LINE;
+        header_y += line;
+
         hud_text(
             draw_handle,
             font,
-            &format!("GEOM BYTES (W+N): {} B", active_bytes),
-            HUD_MARGIN + 420,
+            &format!("GEOM BYTES (W+N): {}", format_bytes(active_bytes)),
+            active_x,
             header_y,
-            FONT_SIZE,
+            font_sz,
             LILAC,
         );
-        header_y += LINE;
+        header_y += line;
 
         hud_text(
             draw_handle,
             font,
             "GPU SUBMISSION (EST):",
-            HUD_MARGIN + 420,
+            active_x,
             header_y,
-            FONT_SIZE,
+            font_sz,
             SUNFLOWER,
         );
-        header_y += LINE;
+        header_y += line;
+
         hud_text(
             draw_handle,
             font,
             &format!("FILLED DRAWS: {}", active_filled_draws),
-            HUD_MARGIN + 420,
+            active_x,
             header_y,
-            FONT_SIZE,
+            font_sz,
             ANAKIWA,
         );
-        header_y += LINE;
+        header_y += line;
+
         hud_text(
             draw_handle,
             font,
             &format!("WIRES+PTS CALLS: {} (2 passes ea.)", active_overlay_calls),
-            HUD_MARGIN + 420,
+            active_x,
             header_y,
-            FONT_SIZE,
+            font_sz,
             ANAKIWA,
         );
-        header_y += LINE;
+        header_y += line;
+
         hud_text(
             draw_handle,
             font,
             &format!("GPU VERTS/FRAME: {}", gpu_verts_per_frame),
-            HUD_MARGIN + 420,
+            active_x,
             header_y,
-            FONT_SIZE,
+            font_sz,
             ANAKIWA,
         );
-        header_y += LINE;
+        header_y += line;
+
         hud_text(
             draw_handle,
             font,
             &format!("GPU TRIS/FRAME:  {}", gpu_tris_per_frame),
-            HUD_MARGIN + 420,
+            active_x,
             header_y,
-            FONT_SIZE,
+            font_sz,
             ANAKIWA,
         );
-        header_y += LINE;
+        header_y += line;
+
         hud_text(
             draw_handle,
             font,
-            &format!("~GPU BYTES/FRAME: {} B", gpu_bytes_per_frame),
-            HUD_MARGIN + 420,
+            &format!("~GPU BYTES/FRAME: {}", format_bytes(gpu_bytes_per_frame)),
+            active_x,
             header_y,
-            FONT_SIZE,
+            font_sz,
             LILAC,
         );
     }
-    hud_text(draw_handle, font, "STATIC MESHES:", perf_x, y, FONT_SIZE, SUNFLOWER);
-    y += LINE;
+
+    hud_text(draw_handle, font, "STATIC MESHES:", perf_x, y, font_sz, SUNFLOWER);
+    y += line;
 
     for i in 0..mesh_count {
         let mesh_name = match i {
@@ -1625,23 +1738,23 @@ fn draw_perf_hud(
             ),
             perf_x,
             y,
-            FONT_SIZE,
+            font_sz,
             ANAKIWA,
         );
-        y += LINE;
+        y += line;
     }
 
     hud_text(
         draw_handle,
         font,
-        &format!("GEOM MEM (W+N): {} B", total_geom_bytes_shared),
+        &format!("GEOM MEM (W+N): {}", format_bytes(total_geom_bytes_shared)),
         perf_x,
         y,
-        FONT_SIZE,
+        font_sz,
         LILAC,
     );
-    y += LINE;
-    y += LINE;
+    y += line;
+    y += line;
 
     if let Some(anim_metrics) = AnimationMetrics::measure(mesh_samples) {
         hud_text(
@@ -1650,91 +1763,101 @@ fn draw_perf_hud(
             &format!("ANIM SAMPLES: {}", anim_metrics.sample_count),
             perf_x,
             y,
-            FONT_SIZE,
+            font_sz,
             ANAKIWA,
         );
-        y += LINE;
+        y += line;
+
         hud_text(
             draw_handle,
             font,
             &format!("VERTS/SAMPLE: {}", anim_metrics.verts_per_sample),
             perf_x,
             y,
-            FONT_SIZE,
+            font_sz,
             ANAKIWA,
         );
-        y += LINE;
+        y += line;
+
         hud_text(
             draw_handle,
             font,
-            &format!("ANIM MEM: {} B", anim_metrics.total_bytes),
+            &format!("ANIM MEM: {}", format_bytes(anim_metrics.total_bytes)),
             perf_x,
             y,
-            FONT_SIZE,
+            font_sz,
             LILAC,
         );
-        y += LINE;
+        y += line;
 
         let total_layer3_bytes = total_geom_bytes_shared + anim_metrics.total_bytes;
         hud_text(
             draw_handle,
             font,
-            &format!("LAYER3 MEM: {} B", total_layer3_bytes),
+            &format!("LAYER3 MEM: {}", format_bytes(total_layer3_bytes)),
             perf_x,
             y,
-            FONT_SIZE,
+            font_sz,
             LILAC,
         );
-        y += LINE;
-        y += LINE;
+        y += line;
+        y += line;
     }
+
     hud_text(
         draw_handle,
         font,
         "DYNAMIC WRITES/FRAME:",
         perf_x,
         y,
-        FONT_SIZE,
+        font_sz,
         SUNFLOWER,
     );
-    y += LINE;
+    y += line;
+
     hud_text(
         draw_handle,
         font,
         &format!("POS: {}", frame_dynamic_metrics.vertex_positions_written),
         perf_x,
         y,
-        FONT_SIZE,
+        font_sz,
         ANAKIWA,
     );
-    y += LINE;
+    y += line;
+
     hud_text(
         draw_handle,
         font,
         &format!("NRM: {}", frame_dynamic_metrics.vertex_normals_written),
         perf_x,
         y,
-        FONT_SIZE,
+        font_sz,
         ANAKIWA,
     );
-    y += LINE;
+    y += line;
+
     hud_text(
         draw_handle,
         font,
         &format!("CLR: {}", frame_dynamic_metrics.vertex_colors_written),
         perf_x,
         y,
-        FONT_SIZE,
+        font_sz,
         ANAKIWA,
     );
-    y += LINE;
+    y += line;
+
     hud_text(
         draw_handle,
         font,
-        &format!("BYTES WR: {} B", frame_dynamic_metrics.total_bytes_written()),
+        &format!(
+            "BYTES WR: {}",
+            format_bytes(frame_dynamic_metrics.total_bytes_written())
+        ),
         perf_x,
         y,
-        FONT_SIZE,
+        font_sz,
         LILAC,
     );
 }
@@ -1748,7 +1871,6 @@ fn hud_text(
     font_size: i32,
     color: Color,
 ) {
-    const HUD_CHAR_SPACING: f32 = 2.0;
     draw_handle.draw_text_ex(
         font,
         text,
@@ -1757,6 +1879,35 @@ fn hud_text(
         HUD_CHAR_SPACING,
         color,
     );
+}
+
+fn format_bytes(bytes: usize) -> String {
+    const KB: f64 = 1024.0;
+    const MB: f64 = 1024.0 * 1024.0;
+
+    let b = bytes as f64;
+
+    if b < KB {
+        format!("{bytes} B")
+    } else if b < MB {
+        let kb = b / KB;
+        if kb < 10.0 {
+            format!("{:.2} kB", kb)
+        } else if kb < 100.0 {
+            format!("{:.1} kB", kb)
+        } else {
+            format!("{:.0} kB", kb)
+        }
+    } else {
+        let mb = b / MB;
+        if mb < 10.0 {
+            format!("{:.2} MB", mb)
+        } else if mb < 100.0 {
+            format!("{:.1} MB", mb)
+        } else {
+            format!("{:.0} MB", mb)
+        }
+    }
 }
 
 fn get_hovered_room_floor_cell(handle: &RaylibHandle, camera: &Camera3D) -> Option<(i32, i32, i32)> {
