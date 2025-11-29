@@ -108,7 +108,8 @@ define_payloads! {
         SPHERE_MIN               => "meshes/sphere_min.obj",
         CUBE                     => "meshes/cube_unit.obj",
         CCW_CUBE                 => "meshes/ccw_cube.obj",
-        FONT                     => "fonts/font.ttf"
+        FONT                     => "fonts/font.ttf",
+        FONT_IMAGE               => "fonts/raylib_default_font.png"
     },
     string: {
         RAYLIB_DEFAULT_VERT_100  => "shaders/glsl/raylib_base_vertex_100.glsl",

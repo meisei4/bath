@@ -1,4 +1,4 @@
-use asset_payload::{FONT_PATH, SPHERE_GLTF_PATH, SPHERE_PATH};
+use asset_payload::{FONT_IMAGE_PATH, FONT_PATH, SPHERE_GLTF_PATH, SPHERE_PATH};
 use raylib::consts::CameraProjection::{CAMERA_ORTHOGRAPHIC, CAMERA_PERSPECTIVE};
 use raylib::consts::MaterialMapIndex::MATERIAL_MAP_ALBEDO;
 use raylib::ffi::rlSetPointSize;
@@ -6,7 +6,6 @@ use raylib::math::glam::{Mat4, Vec3};
 use raylib::prelude::*;
 use std::f32::consts::{PI, TAU};
 use std::ops::{Add, Sub};
-use ttf_parser::{name_id, Face};
 
 const ROOM_W: i32 = 9;
 const ROOM_H: i32 = 3;
@@ -131,6 +130,113 @@ impl ViewState {
     }
 }
 
+struct MeshMetrics {
+    vertex_count: usize,
+    normal_count: usize,
+    texcoord_count: usize,
+    color_count: usize,
+    index_count: usize,
+    total_bytes: usize,
+}
+
+impl MeshMetrics {
+    fn measure(mesh: &WeakMesh) -> Self {
+        let vertex_count = mesh.vertices().len();
+        let normal_count = mesh.normals().map(|n| n.len()).unwrap_or(0);
+        let texcoord_count = mesh.texcoords().map(|t| t.len()).unwrap_or(0);
+        let color_count = mesh.colors().map(|c| c.len()).unwrap_or(0);
+        let index_count = mesh.indices().map(|i| i.len()).unwrap_or(0);
+
+        let mut total_bytes = 0;
+        total_bytes += vertex_count * size_of::<Vector3>();
+        total_bytes += normal_count * size_of::<Vector3>();
+        total_bytes += texcoord_count * size_of::<Vector2>();
+        total_bytes += color_count * size_of::<Color>();
+        total_bytes += index_count * size_of::<u16>();
+
+        MeshMetrics {
+            vertex_count,
+            normal_count,
+            texcoord_count,
+            color_count,
+            index_count,
+            total_bytes,
+        }
+    }
+}
+
+struct InstanceCounts {
+    ghost_count: usize,
+    cube_count: usize,
+    sphere_count: usize,
+}
+
+impl InstanceCounts {
+    fn count(placed_cells: &[PlacedCell]) -> Self {
+        let ghost_count = placed_cells.iter().filter(|c| c.mesh_index == 0).count();
+        let cube_count = placed_cells.iter().filter(|c| c.mesh_index == 1).count();
+        let sphere_count = placed_cells.iter().filter(|c| c.mesh_index == 2).count();
+
+        InstanceCounts {
+            ghost_count,
+            cube_count,
+            sphere_count,
+        }
+    }
+}
+
+struct AnimationMetrics {
+    sample_count: usize,
+    verts_per_sample: usize,
+    total_bytes: usize,
+}
+
+impl AnimationMetrics {
+    fn measure(mesh_samples: &[Vec<Vector3>]) -> Option<Self> {
+        if mesh_samples.is_empty() {
+            return None;
+        }
+
+        let sample_count = mesh_samples.len();
+        let verts_per_sample = mesh_samples[0].len();
+        let total_bytes = sample_count * verts_per_sample * size_of::<Vector3>();
+
+        Some(AnimationMetrics {
+            sample_count,
+            verts_per_sample,
+            total_bytes,
+        })
+    }
+}
+
+struct DynamicGeometryOps {
+    vertices_touched: usize,
+    bytes_modified: usize,
+    operations_performed: usize,
+}
+
+impl DynamicGeometryOps {
+    fn calculate(view_state: &ViewState, placed_cells: &[PlacedCell], ghost_vertex_count: usize) -> Self {
+        let active_ghosts = if view_state.paused {
+            0
+        } else {
+            placed_cells.iter().filter(|c| c.mesh_index == 0).count()
+                + if view_state.target_mesh_index == 0 { 1 } else { 0 }
+        };
+
+        let vertices_touched = active_ghosts * ghost_vertex_count;
+        let bytes_modified = vertices_touched * size_of::<Vector3>();
+
+        let operations_performed = vertices_touched * 3;
+
+        DynamicGeometryOps {
+            vertices_touched,
+            bytes_modified,
+            operations_performed,
+        }
+    }
+}
+
 struct ColorGuard {
     cached_colors_ptr: *mut std::ffi::c_uchar,
     restore_target: *mut ffi::Mesh,
@@ -222,10 +328,15 @@ fn main() {
         .size(DC_WIDTH, DC_HEIGHT)
         .title("raylib [core] example - fixed function didactic")
         .build();
+
+    let font_image = Image::load_image(FONT_IMAGE_PATH).unwrap();
     let font = handle
         // .load_font(&thread, FONT_PATH)
+        // .load_font_from_image(&thread, &font_image, Color::BLACK,0)
         .load_font_ex(&thread, FONT_PATH, 32, None)
         .expect("Failed to load font");
+
+    let font = handle.get_font_default();
 
     let near = 1.0;
     let far = 3.0;
@@ -270,7 +381,7 @@ fn main() {
     let mut world_models: Vec<Model> = Vec::new();
     let mut ndc_models: Vec<Model> = Vec::new();
     let mut mesh_textures = Vec::new();
-    //TODO: WHEN YOU TOGGLE BETWEEN THE GHOST MODEL AND OTHER MESHES ITS DEFORMATION CYCLES GETS MESSED UP! I THINK ITS RELATED TO i_time and how that is updated...
+
     let mut ghost_model = handle.load_model(&thread, SPHERE_GLTF_PATH).unwrap();
     let checked_img = Image::gen_image_checked(16, 16, 1, 1, Color::BLACK, Color::WHITE);
     let mesh_texture = handle.load_texture_from_image(&thread, &checked_img).unwrap();
@@ -570,6 +681,8 @@ fn main() {
             &hover_state,
             &placed_cells,
             i_time,
+            &ndc_models,
+            &mesh_samples,
         );
     }
 }
@@ -887,13 +1000,15 @@ fn draw_room_floor_grid(rl3d: &mut RaylibMode3D<RaylibDrawHandle>) {
 
 fn draw_hud(
     draw_handle: &mut RaylibDrawHandle,
-    font: &Font,
+    font: &WeakFont,
     view_state: &ViewState,
     jugemu: &Camera3D,
     target_mesh: usize,
     hover_state: &HoverState,
     placed_cells: &[PlacedCell],
     i_time: f32,
+    ndc_models: &[Model],
+    mesh_samples: &[Vec<Vector3>],
 ) {
     let screen_width = draw_handle.get_screen_width();
     let screen_height = draw_handle.get_screen_height();
@@ -1106,6 +1221,8 @@ fn draw_hud(
         if view_state.ndc_space { BAHAMA_BLUE } else { ANAKIWA },
     );
 
+    draw_perf_hud(draw_handle, font, view_state, placed_cells, ndc_models, mesh_samples);
+
     if let Some(cell_idx) = hover_state.placed_cell_index {
         let cell = &placed_cells[cell_idx];
         let corner_world = cell_top_right_front_corner(cell.ix, cell.iy, cell.iz, jugemu);
@@ -1199,9 +1316,182 @@ fn draw_hud(
     }
 }
 
-const HUD_CHAR_SPACING: f32 = 0.0; // tweak later if you want, but 0 keeps things tight
+fn draw_perf_hud(
+    draw_handle: &mut RaylibDrawHandle,
+    font: &WeakFont,
+    view_state: &ViewState,
+    placed_cells: &[PlacedCell],
+    ndc_models: &[Model],
+    mesh_samples: &[Vec<Vector3>],
+) {
+    let perf_x = DC_WIDTH - 200;
+    let mut y = 80;
+    const LINE: i32 = FONT_SIZE;
 
-fn hud_text(draw_handle: &mut RaylibDrawHandle, font: &Font, text: &str, x: i32, y: i32, font_size: i32, color: Color) {
+    hud_text(draw_handle, font, "LAYER 3 METRICS", perf_x, y, FONT_SIZE, NEON_CARROT);
+    y += LINE;
+    hud_text(draw_handle, font, "STATIC MESHES:", perf_x, y, FONT_SIZE, SUNFLOWER);
+    y += LINE;
+
+    let mut total_mesh_bytes = 0;
+    for (i, model) in ndc_models.iter().enumerate() {
+        let metrics = MeshMetrics::measure(&model.meshes()[0]);
+        total_mesh_bytes += metrics.total_bytes;
+
+        let mesh_name = match i {
+            0 => "GHOST",
+            1 => "CUBE",
+            2 => "SPHERE",
+            _ => "OTHER",
+        };
+
+        hud_text(
+            draw_handle,
+            font,
+            &format!("{}: {} B ({} v)", mesh_name, metrics.total_bytes, metrics.vertex_count),
+            perf_x,
+            y,
+            FONT_SIZE,
+            ANAKIWA,
+        );
+        y += LINE;
+    }
+
+    hud_text(
+        draw_handle,
+        font,
+        &format!("MESHES MEM: {} B", total_mesh_bytes),
+        perf_x,
+        y,
+        FONT_SIZE,
+        LILAC,
+    );
+    y += LINE;
+    y += LINE;
+
+    if let Some(anim_metrics) = AnimationMetrics::measure(mesh_samples) {
+        hud_text(
+            draw_handle,
+            font,
+            &format!("ANIM SAMPLES: {}", anim_metrics.sample_count),
+            perf_x,
+            y,
+            FONT_SIZE,
+            ANAKIWA,
+        );
+        y += LINE;
+        hud_text(
+            draw_handle,
+            font,
+            &format!("VERTS/SAMPLE: {}", anim_metrics.verts_per_sample),
+            perf_x,
+            y,
+            FONT_SIZE,
+            ANAKIWA,
+        );
+        y += LINE;
+        hud_text(
+            draw_handle,
+            font,
+            &format!("ANIM MEM: {} B", anim_metrics.total_bytes),
+            perf_x,
+            y,
+            FONT_SIZE,
+            LILAC,
+        );
+        y += LINE;
+        y += LINE;
+    }
+
+    let ghost_vertex_count = ndc_models[0].meshes()[0].vertices().len();
+    let dyn_ops = DynamicGeometryOps::calculate(view_state, placed_cells, ghost_vertex_count);
+
+    hud_text(
+        draw_handle,
+        font,
+        "DYNAMIC GEOM/FRAME:",
+        perf_x,
+        y,
+        FONT_SIZE,
+        SUNFLOWER,
+    );
+    y += LINE;
+    hud_text(
+        draw_handle,
+        font,
+        &format!("VERT OPS: {}", dyn_ops.vertices_touched),
+        perf_x,
+        y,
+        FONT_SIZE,
+        ANAKIWA,
+    );
+    y += LINE;
+    hud_text(
+        draw_handle,
+        font,
+        &format!("BYTES MUT: {}", dyn_ops.bytes_modified),
+        perf_x,
+        y,
+        FONT_SIZE,
+        ANAKIWA,
+    );
+    y += LINE;
+    hud_text(
+        draw_handle,
+        font,
+        &format!("CPU OPS: {}", dyn_ops.operations_performed),
+        perf_x,
+        y,
+        FONT_SIZE,
+        LILAC,
+    );
+    y += LINE;
+    y += LINE;
+
+    let counts = InstanceCounts::count(placed_cells);
+    hud_text(draw_handle, font, "PLACED INSTANCES:", perf_x, y, FONT_SIZE, SUNFLOWER);
+    y += LINE;
+    hud_text(
+        draw_handle,
+        font,
+        &format!("GHOST CNT: {}", counts.ghost_count),
+        perf_x,
+        y,
+        FONT_SIZE,
+        ANAKIWA,
+    );
+    y += LINE;
+    hud_text(
+        draw_handle,
+        font,
+        &format!("CUBE CNT: {}", counts.cube_count),
+        perf_x,
+        y,
+        FONT_SIZE,
+        ANAKIWA,
+    );
+    y += LINE;
+    hud_text(
+        draw_handle,
+        font,
+        &format!("SPHERE CNT: {}", counts.sphere_count),
+        perf_x,
+        y,
+        FONT_SIZE,
+        ANAKIWA,
+    );
+}
+
+fn hud_text(
+    draw_handle: &mut RaylibDrawHandle,
+    font: &WeakFont,
+    text: &str,
+    x: i32,
+    y: i32,
+    font_size: i32,
+    color: Color,
+) {
+    const HUD_CHAR_SPACING: f32 = 2.0;
     draw_handle.draw_text_ex(
         font,
         text,
