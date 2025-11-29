@@ -130,8 +130,10 @@ impl ViewState {
     }
 }
 
+#[derive(Copy, Clone)]
 struct MeshMetrics {
     vertex_count: usize,
+    triangle_count: usize,
     normal_count: usize,
     texcoord_count: usize,
     color_count: usize,
@@ -142,6 +144,7 @@ struct MeshMetrics {
 impl MeshMetrics {
     fn measure(mesh: &WeakMesh) -> Self {
         let vertex_count = mesh.vertices().len();
+        let triangle_count = mesh.triangles().count();
         let normal_count = mesh.normals().map(|n| n.len()).unwrap_or(0);
         let texcoord_count = mesh.texcoords().map(|t| t.len()).unwrap_or(0);
         let color_count = mesh.colors().map(|c| c.len()).unwrap_or(0);
@@ -156,6 +159,7 @@ impl MeshMetrics {
 
         MeshMetrics {
             vertex_count,
+            triangle_count,
             normal_count,
             texcoord_count,
             color_count,
@@ -164,24 +168,47 @@ impl MeshMetrics {
         }
     }
 }
+use std::mem::size_of; // you already use this elsewhere
 
-struct InstanceCounts {
-    ghost_count: usize,
-    cube_count: usize,
-    sphere_count: usize,
+fn gpu_vertex_stride_bytes(metrics: &MeshMetrics) -> usize {
+    let mut stride = size_of::<Vector3>();
+    if metrics.normal_count > 0 {
+        stride += size_of::<Vector3>();
+    }
+    if metrics.texcoord_count > 0 {
+        stride += size_of::<Vector2>();
+    }
+    if metrics.color_count > 0 {
+        stride += size_of::<Color>();
+    }
+    stride
 }
 
-impl InstanceCounts {
-    fn count(placed_cells: &[PlacedCell]) -> Self {
-        let ghost_count = placed_cells.iter().filter(|c| c.mesh_index == 0).count();
-        let cube_count = placed_cells.iter().filter(|c| c.mesh_index == 1).count();
-        let sphere_count = placed_cells.iter().filter(|c| c.mesh_index == 2).count();
+struct FrameDynamicMetrics {
+    vertex_positions_written: usize,
+    vertex_normals_written: usize,
+    vertex_colors_written: usize,
+}
 
-        InstanceCounts {
-            ghost_count,
-            cube_count,
-            sphere_count,
+impl FrameDynamicMetrics {
+    fn new() -> Self {
+        FrameDynamicMetrics {
+            vertex_positions_written: 0,
+            vertex_normals_written: 0,
+            vertex_colors_written: 0,
         }
+    }
+
+    fn reset(&mut self) {
+        self.vertex_positions_written = 0;
+        self.vertex_normals_written = 0;
+        self.vertex_colors_written = 0;
+    }
+
+    fn total_bytes_written(&self) -> usize {
+        self.vertex_positions_written * size_of::<Vector3>()
+            + self.vertex_normals_written * size_of::<Vector3>()
+            + self.vertex_colors_written * size_of::<Color>()
     }
 }
 
@@ -331,8 +358,6 @@ fn main() {
 
     let font_image = Image::load_image(FONT_IMAGE_PATH).unwrap();
     let font = handle
-        // .load_font(&thread, FONT_PATH)
-        // .load_font_from_image(&thread, &font_image, Color::BLACK,0)
         .load_font_ex(&thread, FONT_PATH, 32, None)
         .expect("Failed to load font");
 
@@ -369,8 +394,6 @@ fn main() {
         up: Y_AXIS,
         fovy: FOVY_ORTHOGRAPHIC,
         projection: CAMERA_ORTHOGRAPHIC,
-        // fovy: FOVY_PERSPECTIVE,
-        // projection: CAMERA_PERSPECTIVE,
     };
 
     let mut prev_fovy_ortho = FOVY_ORTHOGRAPHIC;
@@ -388,7 +411,13 @@ fn main() {
     ghost_model.materials_mut()[0].set_material_texture(MATERIAL_MAP_ALBEDO, &mesh_texture);
 
     let mesh_samples = collect_deformed_vertex_samples(ghost_model.meshes()[0].vertices());
-    interpolate_between_deformed_vertices(&mut ghost_model, i_time, &mesh_samples);
+    let mut preload_dynamic_metrics_for_ghost = FrameDynamicMetrics::new();
+    interpolate_between_deformed_vertices(
+        &mut ghost_model,
+        i_time,
+        &mesh_samples,
+        &mut preload_dynamic_metrics_for_ghost,
+    );
 
     let ghost_ndc_mesh = {
         let world_mesh = &ghost_model.meshes()[0];
@@ -444,6 +473,8 @@ fn main() {
         mesh_textures.push(mesh_texture);
     }
 
+    let mut preload_dynamic_metrics = FrameDynamicMetrics::new();
+
     let mut cached_ndc_z_shifts_anisotropic = Vec::new();
     let mut cached_ndc_z_shifts_isotropic = Vec::new();
 
@@ -458,6 +489,7 @@ fn main() {
             0.0,
             0.0,
             1.0,
+            &mut preload_dynamic_metrics,
         );
         let z_shift_aniso = calculate_average_ndc_z_shift(&world_models[i], &ndc_models[i]);
         cached_ndc_z_shifts_anisotropic.push(z_shift_aniso);
@@ -471,6 +503,7 @@ fn main() {
             0.0,
             0.0,
             0.0,
+            &mut preload_dynamic_metrics,
         );
         let z_shift_iso = calculate_average_ndc_z_shift(&world_models[i], &ndc_models[i]);
         cached_ndc_z_shifts_isotropic.push(z_shift_iso);
@@ -492,10 +525,12 @@ fn main() {
     };
 
     handle.set_target_fps(60);
+    let mut frame_dynamic_metrics = FrameDynamicMetrics::new();
 
     while !handle.window_should_close() {
         let dt = handle.get_frame_time();
         aspect = handle.get_screen_width() as f32 / handle.get_screen_height() as f32;
+        frame_dynamic_metrics.reset();
 
         handle_view_toggles(&handle, &mut view_state);
         handle_jugemu_projection_toggle(
@@ -547,6 +582,7 @@ fn main() {
                 &mesh_samples,
                 &main,
                 mesh_rotation,
+                &mut frame_dynamic_metrics,
             );
         }
 
@@ -560,12 +596,14 @@ fn main() {
             mesh_rotation,
             view_state.ortho_blend,
             view_state.aspect_blend,
+            &mut frame_dynamic_metrics,
         );
 
         blend_world_and_ndc_vertices(
             &world_models[target_mesh],
             &mut ndc_models[target_mesh],
             view_state.space_blend,
+            &mut frame_dynamic_metrics,
         );
 
         let z_shift_for_aspect = lerp(
@@ -681,8 +719,10 @@ fn main() {
             &hover_state,
             &placed_cells,
             i_time,
+            &world_models,
             &ndc_models,
             &mesh_samples,
+            &frame_dynamic_metrics,
         );
     }
 }
@@ -784,16 +824,34 @@ fn update_ghost_mesh(
     mesh_samples: &[Vec<Vector3>],
     main: &Camera3D,
     mesh_rotation: f32,
+    frame_dynamic_metrics: &mut FrameDynamicMetrics,
 ) {
-    interpolate_between_deformed_vertices(ndc_model, i_time, mesh_samples);
-    interpolate_between_deformed_vertices(world_model, i_time, mesh_samples);
-    update_normals_for_silhouette(&mut ndc_model.meshes_mut()[0]);
-    update_normals_for_silhouette(&mut world_model.meshes_mut()[0]);
-    fade_vertex_colors_silhouette_rim(&mut ndc_model.meshes_mut()[0], main, mesh_rotation);
-    fade_vertex_colors_silhouette_rim(&mut world_model.meshes_mut()[0], main, mesh_rotation);
+    interpolate_between_deformed_vertices(ndc_model, i_time, mesh_samples, frame_dynamic_metrics);
+    interpolate_between_deformed_vertices(world_model, i_time, mesh_samples, frame_dynamic_metrics);
+
+    update_normals_for_silhouette(&mut ndc_model.meshes_mut()[0], frame_dynamic_metrics);
+    update_normals_for_silhouette(&mut world_model.meshes_mut()[0], frame_dynamic_metrics);
+
+    fade_vertex_colors_silhouette_rim(
+        &mut ndc_model.meshes_mut()[0],
+        main,
+        mesh_rotation,
+        frame_dynamic_metrics,
+    );
+    fade_vertex_colors_silhouette_rim(
+        &mut world_model.meshes_mut()[0],
+        main,
+        mesh_rotation,
+        frame_dynamic_metrics,
+    );
 }
 
-fn blend_world_and_ndc_vertices(world_model: &Model, ndc_model: &mut Model, s_blend: f32) {
+fn blend_world_and_ndc_vertices(
+    world_model: &Model,
+    ndc_model: &mut Model,
+    s_blend: f32,
+    frame_dynamic_metrics: &mut FrameDynamicMetrics,
+) {
     let world_mesh = &world_model.meshes()[0];
     let ndc_mesh = &mut ndc_model.meshes_mut()[0];
     let world_vertices = world_mesh.vertices();
@@ -804,6 +862,7 @@ fn blend_world_and_ndc_vertices(world_model: &Model, ndc_model: &mut Model, s_bl
             ndc_vertices[i].x = lerp(world_vertices[i].x, ndc_vertices[i].x, s_blend);
             ndc_vertices[i].y = lerp(world_vertices[i].y, ndc_vertices[i].y, s_blend);
             ndc_vertices[i].z = lerp(world_vertices[i].z, ndc_vertices[i].z, s_blend);
+            frame_dynamic_metrics.vertex_positions_written += 1;
         }
     }
 }
@@ -1007,32 +1066,18 @@ fn draw_hud(
     hover_state: &HoverState,
     placed_cells: &[PlacedCell],
     i_time: f32,
+    world_models: &[Model],
     ndc_models: &[Model],
     mesh_samples: &[Vec<Vector3>],
+    frame_dynamic_metrics: &FrameDynamicMetrics,
 ) {
     let screen_width = draw_handle.get_screen_width();
     let screen_height = draw_handle.get_screen_height();
 
     const LABEL_COL: i32 = HUD_MARGIN;
-    const VALUE_COL: i32 = LABEL_COL + 200;
+    const VALUE_COL: i32 = LABEL_COL + 150;
 
     let mut line_y = HUD_MARGIN;
-
-    hud_text(
-        draw_handle,
-        font,
-        match target_mesh {
-            0 => "GHOST",
-            1 => "CUBE",
-            2 => "SPHERE",
-            _ => "",
-        },
-        LABEL_COL + 450,
-        line_y,
-        FONT_SIZE,
-        NEON_CARROT,
-    );
-
     hud_text(
         draw_handle,
         font,
@@ -1084,7 +1129,7 @@ fn draw_hud(
     hud_text(
         draw_handle,
         font,
-        "DISTANCE [ W S ]:",
+        "ZOOM [ W S ]:",
         LABEL_COL,
         line_y,
         FONT_SIZE,
@@ -1108,7 +1153,7 @@ fn draw_hud(
     hud_text(
         draw_handle,
         font,
-        "TEXTURE [ T ]:",
+        "TXTR [ T ]:",
         screen_width - RIGHT_LABEL_COL,
         line_y,
         FONT_SIZE,
@@ -1132,7 +1177,7 @@ fn draw_hud(
     hud_text(
         draw_handle,
         font,
-        "COLORS [ C ]:",
+        "CLR [ C ]:",
         screen_width - RIGHT_LABEL_COL,
         line_y,
         FONT_SIZE,
@@ -1221,15 +1266,24 @@ fn draw_hud(
         if view_state.ndc_space { BAHAMA_BLUE } else { ANAKIWA },
     );
 
-    draw_perf_hud(draw_handle, font, view_state, placed_cells, ndc_models, mesh_samples);
+    draw_perf_hud(
+        draw_handle,
+        font,
+        view_state,
+        placed_cells,
+        world_models,
+        ndc_models,
+        mesh_samples,
+        frame_dynamic_metrics,
+    );
 
     if let Some(cell_idx) = hover_state.placed_cell_index {
         let cell = &placed_cells[cell_idx];
         let corner_world = cell_top_right_front_corner(cell.ix, cell.iy, cell.iz, jugemu);
         let screen_pos = draw_handle.get_world_to_screen(corner_world, *jugemu);
 
-        const DEBUG_WIDTH: i32 = 90;
-        const DEBUG_HEIGHT: i32 = 60;
+        const DEBUG_WIDTH: i32 = 130;
+        const DEBUG_HEIGHT: i32 = 80;
         const DEBUG_LINE_HEIGHT: i32 = 10;
         const DEBUG_FONT_SIZE: i32 = 10;
 
@@ -1259,6 +1313,9 @@ fn draw_hud(
             _ => "UNKNOWN",
         };
 
+        let age_seconds = i_time - cell.placed_time;
+        let state_label = if cell.settled { "SETTLED" } else { "ANIM" };
+
         hud_text(
             draw_handle,
             font,
@@ -1284,7 +1341,7 @@ fn draw_hud(
         hud_text(
             draw_handle,
             font,
-            &format!("PLACED: {:.2}s", cell.placed_time),
+            &format!("AGE: {:.2}s", age_seconds),
             text_x,
             text_y,
             DEBUG_FONT_SIZE,
@@ -1295,7 +1352,18 @@ fn draw_hud(
         hud_text(
             draw_handle,
             font,
-            &format!("TEXTURE: {}", if cell.texture_enabled { "ON" } else { "OFF" }),
+            &format!("STATE: {}", state_label),
+            text_x,
+            text_y,
+            DEBUG_FONT_SIZE,
+            if cell.settled { ANAKIWA } else { NEON_CARROT },
+        );
+        text_y += DEBUG_LINE_HEIGHT;
+
+        hud_text(
+            draw_handle,
+            font,
+            &format!("TXTR: {}", if cell.texture_enabled { "ON" } else { "OFF" }),
             text_x,
             text_y,
             DEBUG_FONT_SIZE,
@@ -1306,13 +1374,12 @@ fn draw_hud(
         hud_text(
             draw_handle,
             font,
-            &format!("COLOR: {}", if cell.color_enabled { "ON" } else { "OFF" }),
+            &format!("CLR: {}", if cell.color_enabled { "ON" } else { "OFF" }),
             text_x,
             text_y,
             DEBUG_FONT_SIZE,
             if cell.color_enabled { ANAKIWA } else { CHESTNUT_ROSE },
         );
-        // draw_handle.draw_rectangle(anchor_x - 2, anchor_y - 2, 4, 4, RED_DAMASK);
     }
 }
 
@@ -1321,34 +1388,241 @@ fn draw_perf_hud(
     font: &WeakFont,
     view_state: &ViewState,
     placed_cells: &[PlacedCell],
+    world_models: &[Model],
     ndc_models: &[Model],
     mesh_samples: &[Vec<Vector3>],
+    frame_dynamic_metrics: &FrameDynamicMetrics,
 ) {
-    let perf_x = DC_WIDTH - 200;
-    let mut y = 80;
+    let perf_x = 10;
+    let mut y = 200;
     const LINE: i32 = FONT_SIZE;
 
     hud_text(draw_handle, font, "LAYER 3 METRICS", perf_x, y, FONT_SIZE, NEON_CARROT);
     y += LINE;
-    hud_text(draw_handle, font, "STATIC MESHES:", perf_x, y, FONT_SIZE, SUNFLOWER);
-    y += LINE;
+    let mesh_count = ndc_models.len();
+    let mut per_mesh_instance_counts = vec![0usize; mesh_count];
+    for cell in placed_cells {
+        if cell.mesh_index < mesh_count {
+            per_mesh_instance_counts[cell.mesh_index] += 1;
+        }
+    }
 
-    let mut total_mesh_bytes = 0;
-    for (i, model) in ndc_models.iter().enumerate() {
-        let metrics = MeshMetrics::measure(&model.meshes()[0]);
-        total_mesh_bytes += metrics.total_bytes;
+    let mut per_mesh_world_metrics: Vec<MeshMetrics> = Vec::with_capacity(mesh_count);
+    let mut per_mesh_ndc_metrics: Vec<MeshMetrics> = Vec::with_capacity(mesh_count);
+    let mut per_mesh_combined_bytes: Vec<usize> = Vec::with_capacity(mesh_count);
+    let mut total_geom_bytes_shared = 0usize;
 
-        let mesh_name = match i {
+    for i in 0..mesh_count {
+        let world_mesh = &world_models[i].meshes()[0];
+        let ndc_mesh = &ndc_models[i].meshes()[0];
+        let world_metrics = MeshMetrics::measure(world_mesh);
+        let ndc_metrics = MeshMetrics::measure(ndc_mesh);
+        let combined_bytes = world_metrics.total_bytes + ndc_metrics.total_bytes;
+        total_geom_bytes_shared += combined_bytes;
+
+        per_mesh_world_metrics.push(world_metrics);
+        per_mesh_ndc_metrics.push(ndc_metrics);
+        per_mesh_combined_bytes.push(combined_bytes);
+    }
+    let mut filled_draws_per_mesh = vec![0usize; mesh_count];
+    let mut overlay_calls_per_mesh = vec![0usize; mesh_count];
+
+    if view_state.target_mesh_index < mesh_count {
+        let i = view_state.target_mesh_index;
+
+        if view_state.color_mode || view_state.texture_mode {
+            filled_draws_per_mesh[i] += 1;
+        }
+
+        overlay_calls_per_mesh[i] += 1;
+    }
+
+    for cell in placed_cells {
+        if cell.mesh_index >= mesh_count {
+            continue;
+        }
+        let i = cell.mesh_index;
+
+        if cell.settled && (cell.color_enabled || cell.texture_enabled) {
+            filled_draws_per_mesh[i] += 1;
+        }
+        overlay_calls_per_mesh[i] += 1;
+    }
+
+    let active_index = view_state.target_mesh_index;
+    if active_index < mesh_count {
+        let active_name = match active_index {
             0 => "GHOST",
             1 => "CUBE",
             2 => "SPHERE",
-            _ => "OTHER",
+            _ => "MESH",
         };
+
+        let active_world = per_mesh_world_metrics[active_index];
+        let active_ndc = per_mesh_ndc_metrics[active_index];
+        let active_bytes = per_mesh_combined_bytes[active_index];
+        let active_instances = per_mesh_instance_counts[active_index];
+
+        let active_filled_draws = filled_draws_per_mesh[active_index];
+        let active_overlay_calls = overlay_calls_per_mesh[active_index];
+
+        let active_total_vertex_passes = active_filled_draws + active_overlay_calls * 2;
+
+        let active_verts_per_draw = active_ndc.vertex_count;
+        let active_tris_per_draw = active_ndc.triangle_count;
+        let active_indices_per_draw = active_ndc.index_count;
+
+        let gpu_verts_per_frame = active_verts_per_draw * active_total_vertex_passes;
+        let gpu_tris_per_frame = active_tris_per_draw * active_filled_draws;
+
+        let vertex_stride = gpu_vertex_stride_bytes(&active_ndc);
+        let vertex_bytes_per_draw = vertex_stride * active_verts_per_draw;
+        let index_bytes_per_draw = active_indices_per_draw * size_of::<u16>();
+
+        let gpu_bytes_from_tri_draws = active_filled_draws * (vertex_bytes_per_draw + index_bytes_per_draw);
+        let gpu_bytes_from_overlay_draws = active_overlay_calls * 2 * vertex_bytes_per_draw;
+
+        let gpu_bytes_per_frame = gpu_bytes_from_tri_draws + gpu_bytes_from_overlay_draws;
+
+        let mut header_y = HUD_MARGIN;
+        hud_text(
+            draw_handle,
+            font,
+            "ACTIVE MESH:",
+            HUD_MARGIN + 420,
+            header_y,
+            FONT_SIZE,
+            SUNFLOWER,
+        );
+        header_y += LINE;
+        hud_text(
+            draw_handle,
+            font,
+            &format!("{} ({} INST)", active_name, active_instances),
+            HUD_MARGIN + 420,
+            header_y,
+            FONT_SIZE,
+            NEON_CARROT,
+        );
+        header_y += LINE;
+        hud_text(
+            draw_handle,
+            font,
+            &format!(
+                "WORLD V/T/I: {}/{}/{}",
+                active_world.vertex_count, active_world.triangle_count, active_world.index_count
+            ),
+            HUD_MARGIN + 420,
+            header_y,
+            FONT_SIZE,
+            ANAKIWA,
+        );
+        header_y += LINE;
+        hud_text(
+            draw_handle,
+            font,
+            &format!(
+                "NDC   V/T/I: {}/{}/{}",
+                active_ndc.vertex_count, active_ndc.triangle_count, active_ndc.index_count
+            ),
+            HUD_MARGIN + 420,
+            header_y,
+            FONT_SIZE,
+            ANAKIWA,
+        );
+        header_y += LINE;
+        hud_text(
+            draw_handle,
+            font,
+            &format!("GEOM BYTES (W+N): {} B", active_bytes),
+            HUD_MARGIN + 420,
+            header_y,
+            FONT_SIZE,
+            LILAC,
+        );
+        header_y += LINE;
 
         hud_text(
             draw_handle,
             font,
-            &format!("{}: {} B ({} v)", mesh_name, metrics.total_bytes, metrics.vertex_count),
+            "GPU SUBMISSION (EST):",
+            HUD_MARGIN + 420,
+            header_y,
+            FONT_SIZE,
+            SUNFLOWER,
+        );
+        header_y += LINE;
+        hud_text(
+            draw_handle,
+            font,
+            &format!("FILLED DRAWS: {}", active_filled_draws),
+            HUD_MARGIN + 420,
+            header_y,
+            FONT_SIZE,
+            ANAKIWA,
+        );
+        header_y += LINE;
+        hud_text(
+            draw_handle,
+            font,
+            &format!("WIRES+PTS CALLS: {} (2 passes ea.)", active_overlay_calls),
+            HUD_MARGIN + 420,
+            header_y,
+            FONT_SIZE,
+            ANAKIWA,
+        );
+        header_y += LINE;
+        hud_text(
+            draw_handle,
+            font,
+            &format!("GPU VERTS/FRAME: {}", gpu_verts_per_frame),
+            HUD_MARGIN + 420,
+            header_y,
+            FONT_SIZE,
+            ANAKIWA,
+        );
+        header_y += LINE;
+        hud_text(
+            draw_handle,
+            font,
+            &format!("GPU TRIS/FRAME:  {}", gpu_tris_per_frame),
+            HUD_MARGIN + 420,
+            header_y,
+            FONT_SIZE,
+            ANAKIWA,
+        );
+        header_y += LINE;
+        hud_text(
+            draw_handle,
+            font,
+            &format!("~GPU BYTES/FRAME: {} B", gpu_bytes_per_frame),
+            HUD_MARGIN + 420,
+            header_y,
+            FONT_SIZE,
+            LILAC,
+        );
+    }
+    hud_text(draw_handle, font, "STATIC MESHES:", perf_x, y, FONT_SIZE, SUNFLOWER);
+    y += LINE;
+
+    for i in 0..mesh_count {
+        let mesh_name = match i {
+            0 => "GHOST",
+            1 => "CUBE",
+            2 => "SPHERE",
+            _ => "MESH",
+        };
+        let metrics_world = per_mesh_world_metrics[i];
+        let metrics_ndc = per_mesh_ndc_metrics[i];
+        let combined_bytes = per_mesh_combined_bytes[i];
+
+        hud_text(
+            draw_handle,
+            font,
+            &format!(
+                "{}: {} B (W {}v, N {}v)",
+                mesh_name, combined_bytes, metrics_world.vertex_count, metrics_ndc.vertex_count
+            ),
             perf_x,
             y,
             FONT_SIZE,
@@ -1360,7 +1634,7 @@ fn draw_perf_hud(
     hud_text(
         draw_handle,
         font,
-        &format!("MESHES MEM: {} B", total_mesh_bytes),
+        &format!("GEOM MEM (W+N): {} B", total_geom_bytes_shared),
         perf_x,
         y,
         FONT_SIZE,
@@ -1400,16 +1674,24 @@ fn draw_perf_hud(
             LILAC,
         );
         y += LINE;
+
+        let total_layer3_bytes = total_geom_bytes_shared + anim_metrics.total_bytes;
+        hud_text(
+            draw_handle,
+            font,
+            &format!("LAYER3 MEM: {} B", total_layer3_bytes),
+            perf_x,
+            y,
+            FONT_SIZE,
+            LILAC,
+        );
+        y += LINE;
         y += LINE;
     }
-
-    let ghost_vertex_count = ndc_models[0].meshes()[0].vertices().len();
-    let dyn_ops = DynamicGeometryOps::calculate(view_state, placed_cells, ghost_vertex_count);
-
     hud_text(
         draw_handle,
         font,
-        "DYNAMIC GEOM/FRAME:",
+        "DYNAMIC WRITES/FRAME:",
         perf_x,
         y,
         FONT_SIZE,
@@ -1419,7 +1701,7 @@ fn draw_perf_hud(
     hud_text(
         draw_handle,
         font,
-        &format!("VERT OPS: {}", dyn_ops.vertices_touched),
+        &format!("POS: {}", frame_dynamic_metrics.vertex_positions_written),
         perf_x,
         y,
         FONT_SIZE,
@@ -1429,7 +1711,7 @@ fn draw_perf_hud(
     hud_text(
         draw_handle,
         font,
-        &format!("BYTES MUT: {}", dyn_ops.bytes_modified),
+        &format!("NRM: {}", frame_dynamic_metrics.vertex_normals_written),
         perf_x,
         y,
         FONT_SIZE,
@@ -1439,46 +1721,21 @@ fn draw_perf_hud(
     hud_text(
         draw_handle,
         font,
-        &format!("CPU OPS: {}", dyn_ops.operations_performed),
+        &format!("CLR: {}", frame_dynamic_metrics.vertex_colors_written),
+        perf_x,
+        y,
+        FONT_SIZE,
+        ANAKIWA,
+    );
+    y += LINE;
+    hud_text(
+        draw_handle,
+        font,
+        &format!("BYTES WR: {} B", frame_dynamic_metrics.total_bytes_written()),
         perf_x,
         y,
         FONT_SIZE,
         LILAC,
-    );
-    y += LINE;
-    y += LINE;
-
-    let counts = InstanceCounts::count(placed_cells);
-    hud_text(draw_handle, font, "PLACED INSTANCES:", perf_x, y, FONT_SIZE, SUNFLOWER);
-    y += LINE;
-    hud_text(
-        draw_handle,
-        font,
-        &format!("GHOST CNT: {}", counts.ghost_count),
-        perf_x,
-        y,
-        FONT_SIZE,
-        ANAKIWA,
-    );
-    y += LINE;
-    hud_text(
-        draw_handle,
-        font,
-        &format!("CUBE CNT: {}", counts.cube_count),
-        perf_x,
-        y,
-        FONT_SIZE,
-        ANAKIWA,
-    );
-    y += LINE;
-    hud_text(
-        draw_handle,
-        font,
-        &format!("SPHERE CNT: {}", counts.sphere_count),
-        perf_x,
-        y,
-        FONT_SIZE,
-        ANAKIWA,
     );
 }
 
@@ -1632,7 +1889,7 @@ fn fill_vertex_colors(mesh: &mut WeakMesh) {
     mesh.init_colors_mut().unwrap().copy_from_slice(&colors);
 }
 
-fn update_normals_for_silhouette(mesh: &mut WeakMesh) {
+fn update_normals_for_silhouette(mesh: &mut WeakMesh, frame_dynamic_metrics: &mut FrameDynamicMetrics) {
     let vertices = mesh.vertices();
     let mut normals = vec![Vec3::ZERO; vertices.len()];
 
@@ -1651,9 +1908,15 @@ fn update_normals_for_silhouette(mesh: &mut WeakMesh) {
     }
 
     mesh.normals_mut().unwrap().copy_from_slice(&normals);
+    frame_dynamic_metrics.vertex_normals_written += normals.len();
 }
 
-fn fade_vertex_colors_silhouette_rim(mesh: &mut WeakMesh, observer: &Camera3D, mesh_rotation: f32) {
+fn fade_vertex_colors_silhouette_rim(
+    mesh: &mut WeakMesh,
+    observer: &Camera3D,
+    mesh_rotation: f32,
+    frame_dynamic_metrics: &mut FrameDynamicMetrics,
+) {
     let model_center_to_camera = rotate_point_about_axis(
         -1.0 * observed_line_of_sight(observer),
         (Vec3::ZERO, Vec3::Y),
@@ -1680,6 +1943,7 @@ fn fade_vertex_colors_silhouette_rim(mesh: &mut WeakMesh, observer: &Camera3D, m
     for i in 0..alpha_buffer.len() {
         colors[i].a = alpha_buffer[i];
     }
+    frame_dynamic_metrics.vertex_colors_written += alpha_buffer.len();
 }
 
 pub fn collect_deformed_vertex_samples(base_vertices: &[Vector3]) -> Vec<Vec<Vector3>> {
@@ -1722,7 +1986,12 @@ pub fn deform_vertices_with_radial_field(vertices: &mut [Vector3], radial_field:
     }
 }
 
-pub fn interpolate_between_deformed_vertices(model: &mut Model, i_time: f32, vertex_samples: &[Vec<Vector3>]) {
+pub fn interpolate_between_deformed_vertices(
+    model: &mut Model,
+    i_time: f32,
+    vertex_samples: &[Vec<Vector3>],
+    frame_dynamic_metrics: &mut FrameDynamicMetrics,
+) {
     let target_mesh = &mut model.meshes_mut()[0];
     let duration = vertex_samples.len() as f32 * TIME_BETWEEN_SAMPLES;
     let time = i_time % duration;
@@ -1731,6 +2000,7 @@ pub fn interpolate_between_deformed_vertices(model: &mut Model, i_time: f32, ver
     let next_frame = (current_frame + 1) % vertex_samples.len();
     let weight = frame.fract();
     let vertices = target_mesh.vertices_mut();
+    let vertex_count = vertices.len();
     for ((dst_vertex, src_vertex), next_vertex) in vertices
         .iter_mut()
         .zip(vertex_samples[current_frame].iter())
@@ -1740,6 +2010,7 @@ pub fn interpolate_between_deformed_vertices(model: &mut Model, i_time: f32, ver
         dst_vertex.y = src_vertex.y * (1.0 - weight) + next_vertex.y * weight;
         dst_vertex.z = src_vertex.z * (1.0 - weight) + next_vertex.z * weight;
     }
+    frame_dynamic_metrics.vertex_positions_written += vertex_count;
 }
 
 pub fn interpolate_between_radial_field_elements(sample_x: f32, sample_y: f32, radial_field: &[f32]) -> f32 {
@@ -1935,6 +2206,7 @@ fn world_to_ndc_space(
     rotation: f32,
     ortho_factor: f32,
     aspect_factor: f32,
+    frame_dynamic_metrics: &mut FrameDynamicMetrics,
 ) {
     let (depth, right, up) = basis_vector(&main);
     let half_h_near = lerp(
@@ -1972,6 +2244,7 @@ fn world_to_ndc_space(
             let offset = scaled_right.add(scaled_up).add(scaled_depth);
             let scaled_ndc_coord = center_ndc_cube.add(offset);
             ndc_vertices[i] = translate_rotate_scale(1, scaled_ndc_coord, MODEL_POS, MODEL_SCALE, rotation);
+            frame_dynamic_metrics.vertex_positions_written += 1;
         }
     }
 }
