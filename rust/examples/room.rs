@@ -11,9 +11,9 @@ const ROOM_W: i32 = 9;
 const ROOM_H: i32 = 3;
 const ROOM_D: i32 = 9;
 
-const ROOM_CENTER_X: i32 = ROOM_W / 2; // 4
-const ROOM_CENTER_Y: i32 = ROOM_H / 2; // 1
-const ROOM_CENTER_Z: i32 = ROOM_D / 2; // 4;
+const ROOM_CENTER_X: i32 = ROOM_W / 2;
+const ROOM_CENTER_Y: i32 = ROOM_H / 2;
+const ROOM_CENTER_Z: i32 = ROOM_D / 2;
 
 pub const HALF: f32 = 0.5;
 pub const GRID_SCALE: f32 = 4.0;
@@ -79,6 +79,25 @@ const RED_DAMASK: Color = Color::new(221, 102, 68, 255);
 const CHESTNUT_ROSE: Color = Color::new(204, 102, 102, 255);
 
 const NUM_MODELS: usize = 2;
+
+const PLACEMENT_SCALE_DURATION: f32 = 0.15;
+const HINT_SCALE: f32 = 0.66;
+struct PlacedCell {
+    ix: i32,
+    iy: i32,
+    iz: i32,
+    mesh_index: usize,
+    placed_time: f32,
+    settled: bool,
+    texture_enabled: bool,
+    color_enabled: bool,
+}
+
+fn is_cell_occupied(placed_cells: &[PlacedCell], ix: i32, iy: i32, iz: i32) -> bool {
+    placed_cells
+        .iter()
+        .any(|cell| cell.ix == ix && cell.iy == iy && cell.iz == iz)
+}
 
 struct ViewState {
     ndc_space: bool,
@@ -162,10 +181,41 @@ impl Drop for ColorGuard {
         }
     }
 }
+struct TextureGuard {
+    cached_texture_id: std::ffi::c_uint,
+    restore_target: *mut Model,
+}
+
+impl TextureGuard {
+    fn hide(model: &mut Model) -> Self {
+        let cached_id = model.materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize]
+            .texture
+            .id;
+        model.materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize]
+            .texture
+            .id = 0;
+        Self {
+            cached_texture_id: cached_id,
+            restore_target: model as *mut Model,
+        }
+    }
+}
+
+impl Drop for TextureGuard {
+    fn drop(&mut self) {
+        unsafe {
+            (*self.restore_target).materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize]
+                .texture
+                .id = self.cached_texture_id;
+        }
+    }
+}
+
 fn main() {
     let mut i_time = 0.0f32;
+    let mut total_time = 0.0f32;
     let mut view_state = ViewState::new();
-
+    let mut placed_cells: Vec<PlacedCell> = Vec::new();
     let (mut handle, thread) = init()
         .size(DC_WIDTH, DC_HEIGHT)
         .title("raylib [core] example - fixed function didactic")
@@ -214,7 +264,7 @@ fn main() {
     let mut world_models: Vec<Model> = Vec::new();
     let mut ndc_models: Vec<Model> = Vec::new();
     let mut mesh_textures = Vec::new();
-    //TODO: WHEN YOU TOGGLE BETWEEN THE GHOST MODEL AND OTHER MESHES ITS DEFORMATION CYCLES GETS MESSED UP!!!!!! LOL
+    //TODO: WHEN YOU TOGGLE BETWEEN THE GHOST MODEL AND OTHER MESHES ITS DEFORMATION CYCLES GETS MESSED UP! I THINK ITS RELATED TO i_time and how that is updated...
     let mut ghost_model = handle.load_model(&thread, SPHERE_GLTF_PATH).unwrap();
     let checked_img = Image::gen_image_checked(16, 16, 1, 1, Color::BLACK, Color::WHITE);
     let mesh_texture = handle.load_texture_from_image(&thread, &checked_img).unwrap();
@@ -324,8 +374,6 @@ fn main() {
         handle.load_model_from_mesh(&thread, spatial_frame_mesh).unwrap()
     };
 
-    let mut hovered_cell_center: Option<Vector3> = None;
-
     handle.set_target_fps(60);
 
     while !handle.window_should_close() {
@@ -354,7 +402,6 @@ fn main() {
         }
         if handle.is_key_pressed(KeyboardKey::KEY_P) {
             if view_state.jugemu_ortho_mode {
-                // Switching FROM ortho TO perspective
                 prev_fovy_ortho = jugemu.fovy;
                 let current_distance = {
                     let offset = Vector3::new(
@@ -370,7 +417,6 @@ fn main() {
                 let dir = jugemu.position.normalize();
                 jugemu.position = dir * prev_distance_perspective;
             } else {
-                // Switching FROM perspective TO ortho
                 prev_fovy_perspective = jugemu.fovy;
                 let current_distance = {
                     let offset = Vector3::new(
@@ -404,6 +450,7 @@ fn main() {
 
         if !view_state.paused {
             mesh_rotation -= ANGULAR_VELOCITY * handle.get_frame_time();
+            total_time += handle.get_frame_time(); //TODO this might need to just be i_time? the ghost mesh is confusing here
         }
 
         jugemu.projection = if view_state.jugemu_ortho_mode {
@@ -470,7 +517,6 @@ fn main() {
             a_blend,
         );
         jugemu.target = Vector3::new(MODEL_POS.x, MODEL_POS.y, lerp(MODEL_POS.z, z_shift_for_aspect, s_blend));
-        let display_model = &mut ndc_models[target_mesh];
 
         update_spatial_frame(
             &mut main,
@@ -483,8 +529,54 @@ fn main() {
             o_blend,
         );
 
-        hovered_cell_center = get_hovered_room_floor_cell(&handle, &jugemu);
+        let hovered_cell_indices = get_hovered_room_floor_cell(&handle, &jugemu);
 
+        let hovered_cell_center = if hovered_cell_indices.is_some() {
+            let indices = hovered_cell_indices.unwrap();
+            Some(cell_center(indices.0, indices.1, indices.2))
+        } else {
+            None
+        };
+
+        let hovered_cell_occupied = if hovered_cell_indices.is_some() {
+            let indices = hovered_cell_indices.unwrap();
+            is_cell_occupied(&placed_cells, indices.0, indices.1, indices.2)
+        } else {
+            false
+        };
+
+        let hovered_placed_cell_index = if hovered_cell_indices.is_some() && hovered_cell_occupied {
+            let indices = hovered_cell_indices.unwrap();
+            placed_cells
+                .iter()
+                .position(|cell| cell.ix == indices.0 && cell.iy == indices.1 && cell.iz == indices.2)
+        } else {
+            None
+        };
+        if let Some(cell_idx) = hovered_placed_cell_index {
+            if handle.is_key_pressed(KeyboardKey::KEY_T) {
+                placed_cells[cell_idx].texture_enabled = !placed_cells[cell_idx].texture_enabled;
+            }
+            if handle.is_key_pressed(KeyboardKey::KEY_C) {
+                placed_cells[cell_idx].color_enabled = !placed_cells[cell_idx].color_enabled;
+            }
+        }
+
+        if handle.is_mouse_button_pressed(MouseButton::MOUSE_BUTTON_LEFT) {
+            if hovered_cell_indices.is_some() && !hovered_cell_occupied {
+                let indices = hovered_cell_indices.unwrap();
+                placed_cells.push(PlacedCell {
+                    ix: indices.0,
+                    iy: indices.1,
+                    iz: indices.2,
+                    mesh_index: view_state.target_mesh_index,
+                    placed_time: total_time,
+                    settled: false,
+                    texture_enabled: view_state.texture_mode,
+                    color_enabled: view_state.color_mode,
+                });
+            }
+        }
         let (depth, right, up) = basis_vector(&main);
         let mut draw_handle = handle.begin_drawing(&thread);
         draw_handle.clear_background(Color::BLACK);
@@ -520,18 +612,119 @@ fn main() {
             draw_room_floor_grid(&mut rl3d);
             rl3d.draw_cube_wires(MODEL_POS, ROOM_W as f32, ROOM_H as f32, ROOM_D as f32, RED_DAMASK);
 
-            if let Some(center) = hovered_cell_center {
-                rl3d.draw_cube_wires(center, 1.0, 1.0, 1.0, NEON_CARROT);
+            for placed_cell in placed_cells.iter_mut() {
+                let cell_pos = cell_center(placed_cell.ix, placed_cell.iy, placed_cell.iz);
+                let age = total_time - placed_cell.placed_time;
+                let scale_progress = (age / PLACEMENT_SCALE_DURATION).clamp(0.0, 1.0);
+                let current_scale = lerp(HINT_SCALE, 1.0, scale_progress);
+
+                if scale_progress >= 1.0 {
+                    placed_cell.settled = true;
+                }
+
+                let placed_model = &mut ndc_models[placed_cell.mesh_index];
+
+                if placed_cell.settled {
+                    if placed_cell.color_enabled || placed_cell.texture_enabled {
+                        let _color_guard = if placed_cell.texture_enabled && !placed_cell.color_enabled {
+                            Some(ColorGuard::hide(&mut placed_model.meshes_mut()[0]))
+                        } else {
+                            None
+                        };
+
+                        placed_model.materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize]
+                            .texture
+                            .id = if placed_cell.texture_enabled {
+                            mesh_textures[placed_cell.mesh_index].id
+                        } else {
+                            unsafe { rlGetTextureIdDefault() }
+                        };
+
+                        rl3d.draw_model_ex(&mut *placed_model, cell_pos, Y_AXIS, 0.0, MODEL_SCALE, Color::WHITE);
+
+                        placed_model.materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize]
+                            .texture
+                            .id = unsafe { rlGetTextureIdDefault() };
+                    }
+
+                    let _color_guard = ColorGuard::hide(&mut placed_model.meshes_mut()[0]);
+                    let cache_texture_id = placed_model.materials()[0].maps()[MATERIAL_MAP_ALBEDO as usize]
+                        .texture()
+                        .id;
+                    placed_model.materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize]
+                        .texture
+                        .id = unsafe { rlGetTextureIdDefault() };
+
+                    rl3d.draw_model_wires_ex(&mut *placed_model, cell_pos, Y_AXIS, 0.0, MODEL_SCALE, MARINER);
+
+                    unsafe { rlSetPointSize(4.0) }
+                    rl3d.draw_model_points_ex(&mut *placed_model, cell_pos, Y_AXIS, 0.0, MODEL_SCALE, LILAC);
+
+                    placed_model.materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize]
+                        .texture
+                        .id = cache_texture_id;
+                } else {
+                    let _color_guard = ColorGuard::hide(&mut placed_model.meshes_mut()[0]);
+                    let cache_texture_id = placed_model.materials()[0].maps()[MATERIAL_MAP_ALBEDO as usize]
+                        .texture()
+                        .id;
+                    placed_model.materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize]
+                        .texture
+                        .id = unsafe { rlGetTextureIdDefault() };
+
+                    rl3d.draw_model_wires_ex(
+                        &mut *placed_model,
+                        cell_pos,
+                        Y_AXIS,
+                        0.0,
+                        Vector3::new(current_scale, current_scale, current_scale),
+                        ANAKIWA,
+                    );
+
+                    placed_model.materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize]
+                        .texture
+                        .id = cache_texture_id;
+                }
             }
 
             draw_model_filled(
                 &mut rl3d,
-                display_model,
+                &mut ndc_models[target_mesh],
                 &mesh_textures[target_mesh],
                 mesh_rotation,
                 &view_state,
             );
-            draw_model_wires_and_points(&mut rl3d, display_model, mesh_rotation);
+            draw_model_wires_and_points(&mut rl3d, &mut ndc_models[target_mesh], mesh_rotation);
+            if let Some(center) = hovered_cell_center {
+                rl3d.draw_cube_wires(center, 1.0, 1.0, 1.0, NEON_CARROT);
+
+                let hint_model = &mut ndc_models[target_mesh];
+                let _color_guard = ColorGuard::hide(&mut hint_model.meshes_mut()[0]);
+                let cache_texture_id = hint_model.materials()[0].maps()[MATERIAL_MAP_ALBEDO as usize]
+                    .texture()
+                    .id;
+                hint_model.materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize]
+                    .texture
+                    .id = unsafe { rlGetTextureIdDefault() };
+
+                let hint_color = if hovered_cell_occupied { RED_DAMASK } else { ANAKIWA };
+
+                unsafe { ffi::rlDisableDepthTest() };
+
+                rl3d.draw_model_wires_ex(
+                    &mut *hint_model,
+                    center,
+                    Y_AXIS,
+                    mesh_rotation.to_degrees(),
+                    Vector3::new(HINT_SCALE, HINT_SCALE, HINT_SCALE),
+                    hint_color,
+                );
+
+                hint_model.materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize]
+                    .texture
+                    .id = cache_texture_id;
+            }
+            unsafe { ffi::rlEnableDepthTest() };
         });
 
         let screen_width = draw_handle.get_screen_width();
@@ -1290,7 +1483,8 @@ fn draw_room_floor_grid(rl3d: &mut RaylibMode3D<RaylibDrawHandle>) {
         rl3d.draw_line3D(start, end, HOPBUSH);
     }
 }
-fn get_hovered_room_floor_cell(handle: &RaylibHandle, camera: &Camera3D) -> Option<Vector3> {
+
+fn get_hovered_room_floor_cell(handle: &RaylibHandle, camera: &Camera3D) -> Option<(i32, i32, i32)> {
     let mouse = handle.get_mouse_position();
     let ray = handle.get_screen_to_world_ray(mouse, *camera);
 
@@ -1298,7 +1492,6 @@ fn get_hovered_room_floor_cell(handle: &RaylibHandle, camera: &Camera3D) -> Opti
         return None;
     }
 
-    // FLOOR is at -(ROOM_H as f32) / 2.0, which is -1.5
     let floor_y = -(ROOM_H as f32) / 2.0;
     let t = (floor_y - ray.position.y) / ray.direction.y;
     if t <= 0.0 {
@@ -1307,7 +1500,7 @@ fn get_hovered_room_floor_cell(handle: &RaylibHandle, camera: &Camera3D) -> Opti
 
     let hit = Vector3::new(
         ray.position.x + ray.direction.x * t,
-        floor_y, // Use floor_y, not 0.0
+        floor_y,
         ray.position.z + ray.direction.z * t,
     );
 
@@ -1323,7 +1516,7 @@ fn get_hovered_room_floor_cell(handle: &RaylibHandle, camera: &Camera3D) -> Opti
     let cell_z = local_z.floor() as i32;
     let cell_y = 0;
 
-    Some(cell_center(cell_x, cell_y, cell_z))
+    Some((cell_x, cell_y, cell_z))
 }
 
 fn cell_center(ix: i32, iy: i32, iz: i32) -> Vector3 {
