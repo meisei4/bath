@@ -1,12 +1,14 @@
-use asset_payload::{FONT_IMAGE_PATH, FONT_PATH, SPHERE_GLTF_PATH, SPHERE_PATH};
+use asset_payload::{CHI_CONFIG_PATH, FONT_IMAGE_PATH, FONT_PATH, SPHERE_GLTF_PATH, SPHERE_PATH};
 use raylib::consts::CameraProjection::{CAMERA_ORTHOGRAPHIC, CAMERA_PERSPECTIVE};
 use raylib::consts::MaterialMapIndex::MATERIAL_MAP_ALBEDO;
 use raylib::ffi::{rlSetLineWidth, rlSetPointSize};
 use raylib::math::glam::{Mat4, Vec3};
 use raylib::prelude::*;
 use std::f32::consts::{PI, TAU};
+use std::fs;
 use std::mem::size_of;
 use std::ops::{Add, Sub};
+use std::time::SystemTime;
 
 const ROOM_W: i32 = 9;
 const ROOM_H: i32 = 3;
@@ -409,12 +411,100 @@ struct FieldSample {
     magnitude: f32,
 }
 
+#[derive(Clone, Debug)]
+struct FieldConfig {
+    door_reach: f32,
+    lateral_spread: f32,
+    window_influence_radius: f32,
+    window_curve_power: f32,
+    window_magnitude_pull: f32,
+    wall_tangent_strength: f32,
+    wall_influence_distance: f32,
+}
+
+impl Default for FieldConfig {
+    fn default() -> Self {
+        Self {
+            door_reach: 7.0,
+            lateral_spread: 0.1,
+            window_influence_radius: 5.0,
+            window_curve_power: 2.0,
+            window_magnitude_pull: 0.0,
+            wall_tangent_strength: 0.0,
+            wall_influence_distance: 1.5,
+        }
+    }
+}
+
+impl FieldConfig {
+    fn load_from_file(path: &str) -> Self {
+        let mut config = Self::default();
+
+        if let Ok(content) = fs::read_to_string(path) {
+            for line in content.lines() {
+                let line = line.trim();
+                if line.is_empty() || line.starts_with('#') {
+                    continue;
+                }
+
+                let parts: Vec<&str> = line.split_whitespace().collect();
+                if parts.len() != 2 {
+                    continue;
+                }
+
+                let key = parts[0];
+                let value = parts[1].parse::<f32>().unwrap_or(0.0);
+
+                match key {
+                    "DOOR_REACH" => config.door_reach = value,
+                    "LATERAL_SPREAD" => config.lateral_spread = value,
+                    "WINDOW_INFLUENCE_RADIUS" => config.window_influence_radius = value,
+                    "WINDOW_CURVE_POWER" => config.window_curve_power = value,
+                    "WINDOW_MAGNITUDE_PULL" => config.window_magnitude_pull = value,
+                    "WALL_TANGENT_STRENGTH" => config.wall_tangent_strength = value,
+                    "WALL_INFLUENCE_DISTANCE" => config.wall_influence_distance = value,
+                    _ => {},
+                }
+            }
+        }
+
+        config
+    }
+}
+
+struct ConfigWatcher {
+    path: String,
+    last_modified: Option<SystemTime>,
+}
+
+impl ConfigWatcher {
+    fn new(path: &str) -> Self {
+        Self {
+            path: path.to_string(),
+            last_modified: None,
+        }
+    }
+
+    fn check_reload(&mut self) -> Option<FieldConfig> {
+        if let Ok(metadata) = fs::metadata(&self.path) {
+            if let Ok(modified) = metadata.modified() {
+                if self.last_modified.is_none() || Some(modified) != self.last_modified {
+                    self.last_modified = Some(modified);
+                    return Some(FieldConfig::load_from_file(&self.path));
+                }
+            }
+        }
+        None
+    }
+}
+
 struct Room {
     room_w: i32,
     room_d: i32,
     doors: Vec<Door>,
     windows: Vec<Window>,
     field_samples: Vec<FieldSample>,
+    config: FieldConfig,
 }
 
 impl Default for Room {
@@ -439,6 +529,7 @@ impl Default for Room {
             doors: vec![door],
             windows: vec![window],
             field_samples: Vec::new(),
+            config: FieldConfig::default(),
         };
 
         room.generate_field();
@@ -447,30 +538,23 @@ impl Default for Room {
 }
 
 impl Room {
+    fn reload_config(&mut self, config: FieldConfig) {
+        self.config = config;
+        self.generate_field();
+    }
+
     fn generate_field(&mut self) {
         self.field_samples.clear();
-
         let origin = room_origin();
-
-        let primary_door = self
-            .doors
-            .iter()
-            .find(|d| d.is_primary)
-            .expect("Need at least one primary door");
-        let door_center = primary_door.center();
-
-        let window_center = if !self.windows.is_empty() {
-            Some(self.windows[0].center())
-        } else {
-            None
-        };
+        let primary_door = self.doors.iter().find(|d| d.is_primary).expect("Need primary door");
+        let window_center = self.windows.first().map(|w| w.center());
 
         for iz in 0..self.room_d {
             for ix in 0..self.room_w {
                 let center_x = origin.x + ix as f32 + 0.5;
                 let center_z = origin.z + iz as f32 + 0.5;
                 let center_pos = Vector3::new(center_x, origin.y + CHI_FIELD_SAMPLE_HEIGHT, center_z);
-                let (center_dir, center_mag) = self.compute_energy_at_point(center_pos, door_center, window_center);
+                let (center_dir, center_mag) = self.compute_energy_at_point(center_pos, primary_door, window_center);
 
                 self.field_samples.push(FieldSample {
                     position: center_pos,
@@ -482,7 +566,8 @@ impl Room {
                     let corner_x = origin.x + ix as f32 + 0.5 + dx;
                     let corner_z = origin.z + iz as f32 + 0.5 + dz;
                     let corner_pos = Vector3::new(corner_x, origin.y + CHI_FIELD_SAMPLE_HEIGHT, corner_z);
-                    let (corner_dir, corner_mag) = self.compute_energy_at_point(corner_pos, door_center, window_center);
+                    let (corner_dir, corner_mag) =
+                        self.compute_energy_at_point(corner_pos, primary_door, window_center);
 
                     self.field_samples.push(FieldSample {
                         position: corner_pos,
@@ -494,51 +579,75 @@ impl Room {
         }
     }
 
-    fn compute_energy_at_point(
-        &self,
-        point: Vector3,
-        door_center: Vector3,
-        window_center: Option<Vector3>,
-    ) -> (Vector2, f32) {
-        let door_normal = Vector2::new(0.0, -1.0);
-        let door_to_point = Vector2::new(point.x - door_center.x, point.z - door_center.z);
-        let dist_from_door = door_to_point.length();
+    fn compute_energy_at_point(&self, point: Vector3, door: &Door, window_center: Option<Vector3>) -> (Vector2, f32) {
+        let origin = room_origin();
+        let door_center = door.center();
+        let to_point = Vector2::new(point.x - door_center.x, point.z - door_center.z);
+        let distance = to_point.length();
 
-        if dist_from_door < 0.01 {
-            return (door_normal, 1.0);
+        let base_magnitude = 1.0 / (1.0 + distance / self.config.door_reach);
+
+        let door_normal = Vector2::new(0.0, -1.0);
+        let lateral_offset = point.x - door_center.x;
+        let lateral_component = lateral_offset * self.config.lateral_spread;
+        let mut door_dir = Vector2::new(lateral_component, door_normal.y);
+        if door_dir.length() > 0.0 {
+            door_dir = door_dir.normalize();
         }
 
-        let lateral_offset = point.x - door_center.x;
-        let lateral_spread = lateral_offset * 0.05 / (1.0 + dist_from_door * 2.0);
-        let door_energy = Vector2::new(lateral_spread, door_normal.y);
-        let door_strength = 1.0 / (1.0 + dist_from_door * 0.15);
+        let depth_from_door = (door_center.z - point.z).max(0.0);
+        let depth_ratio = (depth_from_door / (self.room_d as f32)).clamp(0.0, 1.0);
 
-        let (window_energy, window_strength) = if let Some(win_center) = window_center {
-            let point_to_window = Vector2::new(win_center.x - point.x, win_center.z - point.z);
-            let dist_to_window = point_to_window.length();
+        let (window_dir_contribution, window_mag_contribution) = if let Some(win_center) = window_center {
+            let to_window = Vector2::new(win_center.x - point.x, win_center.z - point.z);
+            let win_dist = to_window.length();
 
-            if dist_to_window < 0.01 {
-                (Vector2::ZERO, 0.0)
+            if win_dist > 0.01 && win_dist < self.config.window_influence_radius {
+                let local_strength = 1.0 - (win_dist / self.config.window_influence_radius);
+                let window_weight = (local_strength * depth_ratio).powf(self.config.window_curve_power);
+
+                let win_dir = to_window.normalize();
+                let window_mag_boost = window_weight * self.config.window_magnitude_pull * (1.0 / (1.0 + win_dist));
+
+                (win_dir * window_weight, window_mag_boost)
             } else {
-                let depth_ratio = (dist_from_door / (ROOM_D as f32 * 0.7)).clamp(0.0, 1.0);
-                let depth_boost = depth_ratio * depth_ratio;
-                let strength = depth_boost * 2.0;
-                (point_to_window.normalize(), strength)
+                (Vector2::ZERO, 0.0)
             }
         } else {
             (Vector2::ZERO, 0.0)
         };
 
-        let weighted_door = door_energy * door_strength;
-        let weighted_window = window_energy * window_strength;
-        let total_energy = weighted_door + weighted_window;
-        let total_magnitude = total_energy.length();
+        let back_wall_z = origin.z;
+        let dist_to_back_wall = (point.z - back_wall_z).abs();
 
-        if total_magnitude > 0.001 {
-            (total_energy.normalize(), total_magnitude)
+        let wall_tangent_contribution =
+            if dist_to_back_wall < self.config.wall_influence_distance && self.config.wall_tangent_strength > 0.0 {
+                let wall_proximity = 1.0 - (dist_to_back_wall / self.config.wall_influence_distance);
+                let wall_strength = wall_proximity * self.config.wall_tangent_strength;
+
+                let lateral_from_center = point.x - (origin.x + self.room_w as f32 * 0.5);
+                let tangent_sign = if lateral_from_center.abs() < 0.1 {
+                    0.0
+                } else {
+                    lateral_from_center.signum()
+                };
+                let wall_tangent = Vector2::new(tangent_sign, 0.0);
+
+                wall_tangent * wall_strength
+            } else {
+                Vector2::ZERO
+            };
+
+        let combined_direction = door_dir + window_dir_contribution + wall_tangent_contribution;
+        let final_direction = if combined_direction.length() > 0.01 {
+            combined_direction.normalize()
         } else {
-            (door_energy.normalize(), total_magnitude)
-        }
+            door_dir
+        };
+
+        let final_magnitude = (base_magnitude + window_mag_contribution).min(2.0);
+
+        (final_direction, final_magnitude)
     }
 }
 
@@ -546,28 +655,25 @@ fn draw_chi_field(rl3d: &mut RaylibMode3D<RaylibDrawHandle>, room: &Room) {
     unsafe {
         rlSetLineWidth(2.0);
     }
+
     for sample in &room.field_samples {
         let center = sample.position;
-        let scaled_length = CHI_ARROW_LENGTH * sample.magnitude.clamp(0.0, 1.0);
-        let half_length = scaled_length * 0.5;
+        let m = sample.magnitude.clamp(0.0, 1.0);
+        let scaled_length = CHI_ARROW_LENGTH * m;
+        let half = scaled_length * 0.5;
 
-        if scaled_length < 0.3 {
-            let tiny = 0.05;
-            rl3d.draw_cube(center, tiny, tiny, tiny, SUNFLOWER);
-        } else {
-            let start = Vector3::new(
-                center.x - sample.direction.x * half_length,
-                center.y,
-                center.z - sample.direction.y * half_length,
-            );
-            let end = Vector3::new(
-                center.x + sample.direction.x * half_length,
-                center.y,
-                center.z + sample.direction.y * half_length,
-            );
+        let start = Vector3::new(
+            center.x - sample.direction.x * half,
+            center.y,
+            center.z - sample.direction.y * half,
+        );
+        let end = Vector3::new(
+            center.x + sample.direction.x * half,
+            center.y,
+            center.z + sample.direction.y * half,
+        );
 
-            rl3d.draw_line3D(start, end, SUNFLOWER);
-        }
+        rl3d.draw_line3D(start, end, SUNFLOWER);
     }
 
     for door in &room.doors {
@@ -580,6 +686,7 @@ fn draw_chi_field(rl3d: &mut RaylibMode3D<RaylibDrawHandle>, room: &Room) {
         rl3d.draw_line3D(window.p1, window.p2, PALE_CANARY);
         rl3d.draw_sphere(window.center(), 0.25, PALE_CANARY);
     }
+
     unsafe {
         rlSetLineWidth(1.0);
     }
@@ -770,8 +877,11 @@ fn main() {
     let mut frame_dynamic_metrics = FrameDynamicMetrics::new();
 
     let mut room = Room::default();
-
+    let mut config_watcher = ConfigWatcher::new(CHI_CONFIG_PATH);
     while !handle.window_should_close() {
+        if let Some(new_config) = config_watcher.check_reload() {
+            room.reload_config(new_config);
+        }
         let dt = handle.get_frame_time();
         aspect = handle.get_screen_width() as f32 / handle.get_screen_height() as f32;
         frame_dynamic_metrics.reset();
