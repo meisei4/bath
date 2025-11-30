@@ -366,11 +366,8 @@ impl HoverState {
         self.placed_cell_index.is_some()
     }
 }
-
 const CHI_FIELD_SAMPLE_HEIGHT: f32 = 0.1;
 const CHI_ARROW_LENGTH: f32 = 0.3;
-const DOOR_INFLUENCE_WEIGHT: f32 = 0.7;
-const WINDOW_INFLUENCE_WEIGHT: f32 = 0.3;
 
 #[derive(Clone)]
 struct Door {
@@ -411,72 +408,6 @@ struct FieldSample {
     magnitude: f32,
 }
 
-#[derive(Clone, Debug)]
-struct FieldConfig {
-    door_reach: f32,
-    lateral_spread: f32,
-    window_influence_radius: f32,
-    window_curve_power: f32,
-    window_magnitude_pull: f32,
-    wall_tangent_strength: f32,
-    wall_influence_distance: f32,
-}
-
-impl Default for FieldConfig {
-    fn default() -> Self {
-        Self {
-            door_reach: 7.0,
-            lateral_spread: 0.1,
-            window_influence_radius: 5.0,
-            window_curve_power: 2.0,
-            window_magnitude_pull: 0.0,
-            wall_tangent_strength: 0.0,
-            wall_influence_distance: 1.5,
-        }
-    }
-}
-
-impl FieldConfig {
-    fn load_from_file(path: &str) -> Self {
-        let mut config = Self::default();
-
-        if let Ok(content) = fs::read_to_string(path) {
-            for line in content.lines() {
-                let line = line.trim();
-                if line.is_empty() || line.starts_with('#') {
-                    continue;
-                }
-
-                let parts: Vec<&str> = line.split_whitespace().collect();
-                if parts.len() != 2 {
-                    continue;
-                }
-
-                let key = parts[0];
-                let value = parts[1].parse::<f32>().unwrap_or(0.0);
-
-                match key {
-                    "DOOR_REACH" => config.door_reach = value,
-                    "LATERAL_SPREAD" => config.lateral_spread = value,
-                    "WINDOW_INFLUENCE_RADIUS" => config.window_influence_radius = value,
-                    "WINDOW_CURVE_POWER" => config.window_curve_power = value,
-                    "WINDOW_MAGNITUDE_PULL" => config.window_magnitude_pull = value,
-                    "WALL_TANGENT_STRENGTH" => config.wall_tangent_strength = value,
-                    "WALL_INFLUENCE_DISTANCE" => config.wall_influence_distance = value,
-                    _ => {},
-                }
-            }
-        }
-
-        config
-    }
-}
-
-struct ConfigWatcher {
-    path: String,
-    last_modified: Option<SystemTime>,
-}
-
 impl ConfigWatcher {
     fn new(path: &str) -> Self {
         Self {
@@ -496,6 +427,54 @@ impl ConfigWatcher {
         }
         None
     }
+}
+
+#[derive(Clone, Debug, Default)]
+struct FieldConfig {
+    base_strength: f32,
+    window_siphon_strength: f32,
+    window_siphon_radius: f32,
+    wall_redirect_strength: f32,
+    wall_redirect_distance: f32,
+}
+
+impl FieldConfig {
+    fn load_from_file(path: &str) -> Self {
+        let mut config = FieldConfig::default();
+
+        if let Ok(content) = std::fs::read_to_string(path) {
+            for line in content.lines() {
+                let line = line.trim();
+                if line.is_empty() || line.starts_with('#') {
+                    continue;
+                }
+
+                let parts: Vec<&str> = line.split(' ').map(|s| s.trim()).collect();
+                if parts.len() != 2 {
+                    continue;
+                }
+
+                let key = parts[0];
+                let value: f32 = parts[1].parse().unwrap_or(0.0);
+
+                match key {
+                    "BASE_STRENGTH" => config.base_strength = value,
+                    "WINDOW_SIPHON_STRENGTH" => config.window_siphon_strength = value,
+                    "WINDOW_SIPHON_RADIUS" => config.window_siphon_radius = value,
+                    "WALL_REDIRECT_STRENGTH" => config.wall_redirect_strength = value,
+                    "WALL_REDIRECT_DISTANCE" => config.wall_redirect_distance = value,
+                    _ => {},
+                }
+            }
+        }
+
+        config
+    }
+}
+
+struct ConfigWatcher {
+    path: String,
+    last_modified: Option<SystemTime>,
 }
 
 struct Room {
@@ -537,10 +516,78 @@ impl Default for Room {
     }
 }
 
+fn blend_directions(current: Vector2, desired: Vector2, weight: f32) -> Vector2 {
+    let w = weight.clamp(0.0, 1.0);
+    let c = current.normalize_or_zero();
+    let d = desired.normalize_or_zero();
+    c.lerp(d, w).normalize_or_zero()
+}
+
 impl Room {
     fn reload_config(&mut self, config: FieldConfig) {
         self.config = config;
+        println!(
+            "BASE_STRENGTH = {}\n\
+             WINDOW_SIPHON_STRENGTH = {}\n\
+             WINDOW_SIPHON_RADIUS = {}\n\
+             WALL_REDIRECT_STRENGTH = {}\n\
+             WALL_REDIRECT_DISTANCE = {}",
+            self.config.base_strength,
+            self.config.window_siphon_strength,
+            self.config.window_siphon_radius,
+            self.config.wall_redirect_strength,
+            self.config.wall_redirect_distance,
+        );
         self.generate_field();
+        self.log_debug_samples();
+    }
+
+    fn base_field_from_door(&self, point: Vector3, door: &Door) -> (Vector2, f32) {
+        let door_center = door.center();
+        let to_point = Vector2::new(point.x - door_center.x, point.z - door_center.z);
+        let dir = to_point.normalize_or_zero();
+        let mag = self.config.base_strength;
+        (dir, mag)
+    }
+
+    fn apply_window_siphon(&self, point: Vector3, dir: Vector2, mag: f32, window_center: Vector3) -> (Vector2, f32) {
+        let window_pos = Vector2::new(window_center.x, window_center.z);
+        let p = Vector2::new(point.x, point.z);
+        let to_window = window_pos - p;
+        let dist = to_window.length();
+        let radius = self.config.window_siphon_radius;
+        if radius <= 0.0 || dist >= radius {
+            return (dir, mag);
+        }
+        let base_strength = self.config.window_siphon_strength.clamp(0.0, 1.0);
+        let falloff = 1.0 - (dist / radius);
+        let weight = base_strength * falloff;
+        let desired_dir = to_window.normalize_or_zero();
+        let new_dir = blend_directions(dir, desired_dir, weight);
+        (new_dir, mag)
+    }
+
+    fn apply_back_wall_redirect(&self, point: Vector3, dir: Vector2, mag: f32) -> (Vector2, f32) {
+        let origin = room_origin();
+        let back_wall_z = origin.z;
+        let dist = (point.z - back_wall_z).abs();
+        let max_dist = self.config.wall_redirect_distance;
+        if max_dist <= 0.0 || dist >= max_dist {
+            return (dir, mag);
+        }
+
+        let base_strength = self.config.wall_redirect_strength.clamp(0.0, 1.0);
+        let falloff = 1.0 - (dist / max_dist);
+        let weight = base_strength * falloff;
+
+        let center_x = origin.x + self.room_w as f32 * 0.5;
+        let lateral = point.x - center_x;
+        let sign = if lateral >= 0.0 { 1.0 } else { -1.0 };
+
+        let desired_dir = Vector2::new(sign, 0.0);
+        let new_dir = blend_directions(dir, desired_dir, weight);
+
+        (new_dir, mag)
     }
 
     fn generate_field(&mut self) {
@@ -580,74 +627,93 @@ impl Room {
     }
 
     fn compute_energy_at_point(&self, point: Vector3, door: &Door, window_center: Option<Vector3>) -> (Vector2, f32) {
-        let origin = room_origin();
-        let door_center = door.center();
-        let to_point = Vector2::new(point.x - door_center.x, point.z - door_center.z);
-        let distance = to_point.length();
-
-        let base_magnitude = 1.0 / (1.0 + distance / self.config.door_reach);
-
-        let door_normal = Vector2::new(0.0, -1.0);
-        let lateral_offset = point.x - door_center.x;
-        let lateral_component = lateral_offset * self.config.lateral_spread;
-        let mut door_dir = Vector2::new(lateral_component, door_normal.y);
-        if door_dir.length() > 0.0 {
-            door_dir = door_dir.normalize();
+        let (mut dir, mut mag) = self.base_field_from_door(point, door);
+        if let Some(win_center) = window_center {
+            let (d, m) = self.apply_window_siphon(point, dir, mag, win_center);
+            dir = d;
+            mag = m;
         }
+        let (d, m) = self.apply_back_wall_redirect(point, dir, mag);
+        dir = d;
+        mag = m;
+        let dir = dir.normalize_or_zero();
+        (dir, mag)
+    }
 
-        let depth_from_door = (door_center.z - point.z).max(0.0);
-        let depth_ratio = (depth_from_door / (self.room_d as f32)).clamp(0.0, 1.0);
+    fn log_debug_samples(&self) {
+        let origin = room_origin();
+        let primary_door = self.doors.iter().find(|d| d.is_primary);
+        if primary_door.is_none() {
+            return;
+        }
+        let primary_door = primary_door.unwrap();
+        let window_center = self.windows.first().map(|w| w.center());
 
-        let (window_dir_contribution, window_mag_contribution) = if let Some(win_center) = window_center {
-            let to_window = Vector2::new(win_center.x - point.x, win_center.z - point.z);
-            let win_dist = to_window.length();
+        let center_x = origin.x + self.room_w as f32 * 0.5;
+        let center_z = origin.z + self.room_d as f32 * 0.5;
 
-            if win_dist > 0.01 && win_dist < self.config.window_influence_radius {
-                let local_strength = 1.0 - (win_dist / self.config.window_influence_radius);
-                let window_weight = (local_strength * depth_ratio).powf(self.config.window_curve_power);
+        let center_pos = Vector3::new(center_x, origin.y + CHI_FIELD_SAMPLE_HEIGHT, center_z);
 
-                let win_dir = to_window.normalize();
-                let window_mag_boost = window_weight * self.config.window_magnitude_pull * (1.0 / (1.0 + win_dist));
-
-                (win_dir * window_weight, window_mag_boost)
-            } else {
-                (Vector2::ZERO, 0.0)
-            }
-        } else {
-            (Vector2::ZERO, 0.0)
+        let near_door_pos = {
+            let c = primary_door.center();
+            Vector3::new(c.x, origin.y + CHI_FIELD_SAMPLE_HEIGHT, c.z - 1.0)
         };
 
-        let back_wall_z = origin.z;
-        let dist_to_back_wall = (point.z - back_wall_z).abs();
-
-        let wall_tangent_contribution =
-            if dist_to_back_wall < self.config.wall_influence_distance && self.config.wall_tangent_strength > 0.0 {
-                let wall_proximity = 1.0 - (dist_to_back_wall / self.config.wall_influence_distance);
-                let wall_strength = wall_proximity * self.config.wall_tangent_strength;
-
-                let lateral_from_center = point.x - (origin.x + self.room_w as f32 * 0.5);
-                let tangent_sign = if lateral_from_center.abs() < 0.1 {
-                    0.0
-                } else {
-                    lateral_from_center.signum()
-                };
-                let wall_tangent = Vector2::new(tangent_sign, 0.0);
-
-                wall_tangent * wall_strength
-            } else {
-                Vector2::ZERO
-            };
-
-        let combined_direction = door_dir + window_dir_contribution + wall_tangent_contribution;
-        let final_direction = if combined_direction.length() > 0.01 {
-            combined_direction.normalize()
+        let near_window_pos = if let Some(win) = window_center {
+            Vector3::new(win.x + 1.0, origin.y + CHI_FIELD_SAMPLE_HEIGHT, win.z)
         } else {
-            door_dir
+            center_pos
         };
 
-        let final_magnitude = (base_magnitude + window_mag_contribution).min(2.0);
+        let near_back_wall_pos = Vector3::new(center_x, origin.y + CHI_FIELD_SAMPLE_HEIGHT, origin.z + 0.5);
 
-        (final_direction, final_magnitude)
+        let quarter_w = self.room_w as f32 * 0.25;
+        let quarter_d = self.room_d as f32 * 0.25;
+
+        let nw_pos = Vector3::new(
+            center_x - quarter_w,
+            origin.y + CHI_FIELD_SAMPLE_HEIGHT,
+            center_z + quarter_d,
+        );
+
+        let ne_pos = Vector3::new(
+            center_x + quarter_w,
+            origin.y + CHI_FIELD_SAMPLE_HEIGHT,
+            center_z + quarter_d,
+        );
+
+        let sw_pos = Vector3::new(
+            center_x - quarter_w,
+            origin.y + CHI_FIELD_SAMPLE_HEIGHT,
+            center_z - quarter_d,
+        );
+
+        let se_pos = Vector3::new(
+            center_x + quarter_w,
+            origin.y + CHI_FIELD_SAMPLE_HEIGHT,
+            center_z - quarter_d,
+        );
+
+        let probes = [
+            ("MID", center_pos),
+            ("DOOR", near_door_pos),
+            ("WINDOW", near_window_pos),
+            ("BACKWALL", near_back_wall_pos),
+            ("NW", nw_pos),
+            ("NE", ne_pos),
+            ("SW", sw_pos),
+            ("SE", se_pos),
+        ];
+
+        println!("--- chi debug samples ---");
+        for (name, pos) in probes {
+            let (dir, mag) = self.compute_energy_at_point(pos, primary_door, window_center);
+            let angle_deg = dir.y.atan2(dir.x).to_degrees();
+            println!(
+                "[chi] {:>12}: pos=({:5.2}, {:5.2}) dir=({:5.2}, {:5.2}) angle={:6.1}° mag={:4.2}",
+                name, pos.x, pos.z, dir.x, dir.y, angle_deg, mag,
+            );
+        }
     }
 }
 
