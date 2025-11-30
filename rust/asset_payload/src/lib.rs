@@ -110,7 +110,7 @@ define_payloads! {
         CCW_CUBE                 => "meshes/ccw_cube.obj",
         FONT                     => "fonts/font.ttf",
         FONT_IMAGE               => "fonts/raylib_default_font.png",
-        CHI_CONFIG               => "custom/chi_config.txt"
+        CHI_CONFIG               => "custom/field.config"
     },
     string: {
         RAYLIB_DEFAULT_VERT_100  => "shaders/glsl/raylib_base_vertex_100.glsl",
