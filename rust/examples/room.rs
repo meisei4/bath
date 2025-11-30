@@ -384,6 +384,29 @@ impl Door {
             (self.p1.z + self.p2.z) * 0.5,
         )
     }
+
+    // Get the door's normal vector (points into the room)
+    fn normal(&self) -> Vector2 {
+        let dx = self.p2.x - self.p1.x;
+        let dz = self.p2.z - self.p1.z;
+        // Perpendicular vector (rotate 90 degrees)
+        // Assumes door faces inward when rotated counterclockwise
+        // Vector2::new(-dz, dx).normalize_or_zero()
+        Vector2::new(dz, -dx).normalize_or_zero()
+    }
+
+    fn width(&self) -> f32 {
+        let dx = self.p2.x - self.p1.x;
+        let dz = self.p2.z - self.p1.z;
+        (dx * dx + dz * dz).sqrt()
+    }
+
+    // Get the tangent vector along the door (from p1 to p2)
+    fn tangent(&self) -> Vector2 {
+        let dx = self.p2.x - self.p1.x;
+        let dz = self.p2.z - self.p1.z;
+        Vector2::new(dx, dz).normalize_or_zero()
+    }
 }
 
 #[derive(Clone)]
@@ -399,6 +422,28 @@ impl Window {
             (self.p1.y + self.p2.y) * 0.5,
             (self.p1.z + self.p2.z) * 0.5,
         )
+    }
+
+    fn width(&self) -> f32 {
+        let dx = self.p2.x - self.p1.x;
+        let dz = self.p2.z - self.p1.z;
+        (dx * dx + dz * dz).sqrt()
+    }
+
+    // Get the window's normal vector (points into the room)
+    fn normal(&self) -> Vector2 {
+        let dx = self.p2.x - self.p1.x;
+        let dz = self.p2.z - self.p1.z;
+        // Perpendicular vector (rotate 90 degrees clockwise)
+        // Vector2::new(-dz, dx).normalize_or_zero()
+        Vector2::new(dz, -dx).normalize_or_zero()
+    }
+
+    // Get the tangent vector along the window (from p1 to p2)
+    fn tangent(&self) -> Vector2 {
+        let dx = self.p2.x - self.p1.x;
+        let dz = self.p2.z - self.p1.z;
+        Vector2::new(dx, dz).normalize_or_zero()
     }
 }
 
@@ -429,13 +474,38 @@ impl ConfigWatcher {
     }
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 struct FieldConfig {
-    base_strength: f32,
-    window_siphon_strength: f32,
-    window_siphon_radius: f32,
+    // Door - Rectangular Jet Flow
+    jet_strength: f32,
+    jet_spread_angle: f32, // Degrees - how much the jet widens (0 = parallel beam)
+    jet_max_distance: f32, // How far the jet extends
+
+    // Window - Converging Duct Flow
+    funnel_strength: f32,       // Overall funnel influence strength
+    funnel_mouth_distance: f32, // How far out the funnel extends
+    funnel_mouth_width: f32,    // Width of the funnel entrance (multiple of window width)
+    funnel_curve_power: f32,    // Controls convergence curve (1.0 = linear, >1 = sharper curve)
+
+    // Back Wall Redirect
     wall_redirect_strength: f32,
     wall_redirect_distance: f32,
+}
+
+impl Default for FieldConfig {
+    fn default() -> Self {
+        Self {
+            jet_strength: 1.0,
+            jet_spread_angle: 5.0,
+            jet_max_distance: 6.0,
+            funnel_strength: 0.8,
+            funnel_mouth_distance: 5.0,
+            funnel_mouth_width: 2.5,
+            funnel_curve_power: 1.5,
+            wall_redirect_strength: 0.8,
+            wall_redirect_distance: 2.0,
+        }
+    }
 }
 
 impl FieldConfig {
@@ -458,9 +528,13 @@ impl FieldConfig {
                 let value: f32 = parts[1].parse().unwrap_or(0.0);
 
                 match key {
-                    "BASE_STRENGTH" => config.base_strength = value,
-                    "WINDOW_SIPHON_STRENGTH" => config.window_siphon_strength = value,
-                    "WINDOW_SIPHON_RADIUS" => config.window_siphon_radius = value,
+                    "JET_STRENGTH" => config.jet_strength = value,
+                    "JET_SPREAD_ANGLE" => config.jet_spread_angle = value,
+                    "JET_MAX_DISTANCE" => config.jet_max_distance = value,
+                    "FUNNEL_STRENGTH" => config.funnel_strength = value,
+                    "FUNNEL_MOUTH_DISTANCE" => config.funnel_mouth_distance = value,
+                    "FUNNEL_MOUTH_WIDTH" => config.funnel_mouth_width = value,
+                    "FUNNEL_CURVE_POWER" => config.funnel_curve_power = value,
                     "WALL_REDIRECT_STRENGTH" => config.wall_redirect_strength = value,
                     "WALL_REDIRECT_DISTANCE" => config.wall_redirect_distance = value,
                     _ => {},
@@ -527,14 +601,22 @@ impl Room {
     fn reload_config(&mut self, config: FieldConfig) {
         self.config = config;
         println!(
-            "BASE_STRENGTH = {}\n\
-             WINDOW_SIPHON_STRENGTH = {}\n\
-             WINDOW_SIPHON_RADIUS = {}\n\
+            "JET_STRENGTH = {}\n\
+             JET_SPREAD_ANGLE = {}\n\
+             JET_MAX_DISTANCE = {}\n\
+             FUNNEL_STRENGTH = {}\n\
+             FUNNEL_MOUTH_DISTANCE = {}\n\
+             FUNNEL_MOUTH_WIDTH = {}\n\
+             FUNNEL_CURVE_POWER = {}\n\
              WALL_REDIRECT_STRENGTH = {}\n\
              WALL_REDIRECT_DISTANCE = {}",
-            self.config.base_strength,
-            self.config.window_siphon_strength,
-            self.config.window_siphon_radius,
+            self.config.jet_strength,
+            self.config.jet_spread_angle,
+            self.config.jet_max_distance,
+            self.config.funnel_strength,
+            self.config.funnel_mouth_distance,
+            self.config.funnel_mouth_width,
+            self.config.funnel_curve_power,
             self.config.wall_redirect_strength,
             self.config.wall_redirect_distance,
         );
@@ -542,29 +624,117 @@ impl Room {
         self.log_debug_samples();
     }
 
-    fn base_field_from_door(&self, point: Vector3, door: &Door) -> (Vector2, f32) {
-        let door_center = door.center();
-        let to_point = Vector2::new(point.x - door_center.x, point.z - door_center.z);
-        let dir = to_point.normalize_or_zero();
-        let mag = self.config.base_strength;
+    // RECTANGULAR JET FLOW from door
+    fn rectangular_jet_from_door(&self, point: Vector3, door: &Door) -> (Vector2, f32) {
+        let door_center_2d = Vector2::new(door.center().x, door.center().z);
+        let point_2d = Vector2::new(point.x, point.z);
+        let to_point = point_2d - door_center_2d;
+
+        let jet_normal = door.normal();
+        let jet_tangent = door.tangent();
+
+        // Project point onto jet coordinate system
+        let forward_dist = to_point.dot(jet_normal); // Distance along jet direction
+        let lateral_offset = to_point.dot(jet_tangent); // Distance perpendicular to jet
+
+        // Check if point is behind the door (upstream)
+        if forward_dist <= 0.0 {
+            return (Vector2::ZERO, 0.0);
+        }
+
+        // Check if point is beyond jet max distance
+        if forward_dist > self.config.jet_max_distance {
+            return (Vector2::ZERO, 0.0);
+        }
+
+        // Calculate jet width at this distance (with spreading)
+        let spread_radians = self.config.jet_spread_angle.to_radians();
+        let half_door_width = door.width() * 0.5;
+        let spread_amount = forward_dist * spread_radians.tan();
+        let jet_half_width = half_door_width + spread_amount;
+
+        // Check if point is outside jet bounds laterally
+        if lateral_offset.abs() > jet_half_width {
+            return (Vector2::ZERO, 0.0);
+        }
+
+        // Point is inside jet - give it parallel flow direction
+        let dir = jet_normal;
+
+        // Optional: reduce strength near edges for smoother falloff
+        let edge_falloff = 1.0 - (lateral_offset.abs() / jet_half_width).powf(2.0);
+        let distance_falloff = 1.0 - (forward_dist / self.config.jet_max_distance);
+
+        let mag = self.config.jet_strength * edge_falloff * distance_falloff;
+
         (dir, mag)
     }
 
-    fn apply_window_siphon(&self, point: Vector3, dir: Vector2, mag: f32, window_center: Vector3) -> (Vector2, f32) {
-        let window_pos = Vector2::new(window_center.x, window_center.z);
-        let p = Vector2::new(point.x, point.z);
-        let to_window = window_pos - p;
-        let dist = to_window.length();
-        let radius = self.config.window_siphon_radius;
-        if radius <= 0.0 || dist >= radius {
+    // CONVERGING DUCT FLOW toward window
+    fn converging_duct_to_window(&self, point: Vector3, dir: Vector2, mag: f32, window: &Window) -> (Vector2, f32) {
+        let window_center_2d = Vector2::new(window.center().x, window.center().z);
+        let point_2d = Vector2::new(point.x, point.z);
+
+        let window_normal = window.normal(); // Points into room
+        let window_tangent = window.tangent(); // Along window line
+
+        let to_point = point_2d - window_center_2d;
+
+        // Project point onto window coordinate system
+        let distance_from_window = to_point.dot(window_normal); // Perpendicular distance
+        let lateral_position = to_point.dot(window_tangent); // Position along window line
+
+        // Check if point is on the wrong side of window (behind it)
+        if distance_from_window <= 0.0 {
             return (dir, mag);
         }
-        let base_strength = self.config.window_siphon_strength.clamp(0.0, 1.0);
-        let falloff = 1.0 - (dist / radius);
-        let weight = base_strength * falloff;
-        let desired_dir = to_window.normalize_or_zero();
+
+        // Check if point is beyond funnel influence distance
+        if distance_from_window > self.config.funnel_mouth_distance {
+            return (dir, mag);
+        }
+
+        // Calculate funnel geometry at this distance
+        // At window: width = window.width()
+        // At mouth: width = window.width() * funnel_mouth_width
+        let normalized_dist = distance_from_window / self.config.funnel_mouth_distance;
+        let width_interp = normalized_dist.powf(1.0 / self.config.funnel_curve_power);
+
+        let half_window_width = window.width() * 0.5;
+        let half_mouth_width = half_window_width * self.config.funnel_mouth_width;
+
+        let funnel_half_width_at_point = half_window_width + (half_mouth_width - half_window_width) * width_interp;
+
+        // Check if point is outside funnel bounds
+        if lateral_position.abs() > funnel_half_width_at_point {
+            return (dir, mag);
+        }
+
+        // Calculate target point on window that this streamline converges to
+        // Map from current lateral position to target on window
+        let target_lateral = lateral_position * (half_window_width / funnel_half_width_at_point);
+        let target_point = window_center_2d + window_tangent * target_lateral;
+
+        // Direction toward target point (creates curved streamlines)
+        let to_target = target_point - point_2d;
+        let desired_dir = to_target.normalize_or_zero();
+
+        // Strength increases as we get closer to window
+        let proximity_factor = 1.0 - normalized_dist;
+        let lateral_factor = 1.0 - (lateral_position.abs() / funnel_half_width_at_point).powf(2.0);
+
+        let weight = self.config.funnel_strength * proximity_factor * lateral_factor;
+
+        // If no existing flow (outside jet), funnel creates its own base flow
+        let new_mag = if mag == 0.0 {
+            weight // Funnel creates flow
+        } else {
+            mag // Funnel just redirects existing flow
+        };
+
         let new_dir = blend_directions(dir, desired_dir, weight);
-        (new_dir, mag)
+
+        (new_dir, new_mag)
     }
 
     fn apply_back_wall_redirect(&self, point: Vector3, dir: Vector2, mag: f32) -> (Vector2, f32) {
@@ -594,14 +764,14 @@ impl Room {
         self.field_samples.clear();
         let origin = room_origin();
         let primary_door = self.doors.iter().find(|d| d.is_primary).expect("Need primary door");
-        let window_center = self.windows.first().map(|w| w.center());
+        let primary_window = self.windows.first();
 
         for iz in 0..self.room_d {
             for ix in 0..self.room_w {
                 let center_x = origin.x + ix as f32 + 0.5;
                 let center_z = origin.z + iz as f32 + 0.5;
                 let center_pos = Vector3::new(center_x, origin.y + CHI_FIELD_SAMPLE_HEIGHT, center_z);
-                let (center_dir, center_mag) = self.compute_energy_at_point(center_pos, primary_door, window_center);
+                let (center_dir, center_mag) = self.compute_energy_at_point(center_pos, primary_door, primary_window);
 
                 self.field_samples.push(FieldSample {
                     position: center_pos,
@@ -614,7 +784,7 @@ impl Room {
                     let corner_z = origin.z + iz as f32 + 0.5 + dz;
                     let corner_pos = Vector3::new(corner_x, origin.y + CHI_FIELD_SAMPLE_HEIGHT, corner_z);
                     let (corner_dir, corner_mag) =
-                        self.compute_energy_at_point(corner_pos, primary_door, window_center);
+                        self.compute_energy_at_point(corner_pos, primary_door, primary_window);
 
                     self.field_samples.push(FieldSample {
                         position: corner_pos,
@@ -626,16 +796,22 @@ impl Room {
         }
     }
 
-    fn compute_energy_at_point(&self, point: Vector3, door: &Door, window_center: Option<Vector3>) -> (Vector2, f32) {
-        let (mut dir, mut mag) = self.base_field_from_door(point, door);
-        if let Some(win_center) = window_center {
-            let (d, m) = self.apply_window_siphon(point, dir, mag, win_center);
+    fn compute_energy_at_point(&self, point: Vector3, door: &Door, window: Option<&Window>) -> (Vector2, f32) {
+        // Start with rectangular jet from door
+        let (mut dir, mut mag) = self.rectangular_jet_from_door(point, door);
+
+        // Apply converging duct from window (can create flow even if jet doesn't reach here)
+        if let Some(win) = window {
+            let (d, m) = self.converging_duct_to_window(point, dir, mag, win);
             dir = d;
             mag = m;
         }
+
+        // Apply back wall redirect
         let (d, m) = self.apply_back_wall_redirect(point, dir, mag);
         dir = d;
         mag = m;
+
         let dir = dir.normalize_or_zero();
         (dir, mag)
     }
@@ -647,7 +823,7 @@ impl Room {
             return;
         }
         let primary_door = primary_door.unwrap();
-        let window_center = self.windows.first().map(|w| w.center());
+        let primary_window = self.windows.first();
 
         let center_x = origin.x + self.room_w as f32 * 0.5;
         let center_z = origin.z + self.room_d as f32 * 0.5;
@@ -659,8 +835,9 @@ impl Room {
             Vector3::new(c.x, origin.y + CHI_FIELD_SAMPLE_HEIGHT, c.z - 1.0)
         };
 
-        let near_window_pos = if let Some(win) = window_center {
-            Vector3::new(win.x + 1.0, origin.y + CHI_FIELD_SAMPLE_HEIGHT, win.z)
+        let near_window_pos = if let Some(win) = primary_window {
+            let c = win.center();
+            Vector3::new(c.x + 1.0, origin.y + CHI_FIELD_SAMPLE_HEIGHT, c.z)
         } else {
             center_pos
         };
@@ -707,7 +884,7 @@ impl Room {
 
         println!("--- chi debug samples ---");
         for (name, pos) in probes {
-            let (dir, mag) = self.compute_energy_at_point(pos, primary_door, window_center);
+            let (dir, mag) = self.compute_energy_at_point(pos, primary_door, primary_window);
             let angle_deg = dir.y.atan2(dir.x).to_degrees();
             println!(
                 "[chi] {:>12}: pos=({:5.2}, {:5.2}) dir=({:5.2}, {:5.2}) angle={:6.1}° mag={:4.2}",
