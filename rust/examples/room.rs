@@ -1,7 +1,7 @@
 use asset_payload::{FONT_IMAGE_PATH, FONT_PATH, SPHERE_GLTF_PATH, SPHERE_PATH};
 use raylib::consts::CameraProjection::{CAMERA_ORTHOGRAPHIC, CAMERA_PERSPECTIVE};
 use raylib::consts::MaterialMapIndex::MATERIAL_MAP_ALBEDO;
-use raylib::ffi::rlSetPointSize;
+use raylib::ffi::{rlSetLineWidth, rlSetPointSize};
 use raylib::math::glam::{Mat4, Vec3};
 use raylib::prelude::*;
 use std::f32::consts::{PI, TAU};
@@ -63,6 +63,7 @@ struct HudLayout {
 
 const BAHAMA_BLUE: Color = Color::new(0, 102, 153, 255);
 const SUNFLOWER: Color = Color::new(255, 204, 153, 255);
+const PALE_CANARY: Color = Color::new(255, 255, 153, 255);
 const ANAKIWA: Color = Color::new(153, 204, 255, 255);
 const MARINER: Color = Color::new(51, 102, 204, 255);
 const NEON_CARROT: Color = Color::new(255, 153, 51, 255);
@@ -364,6 +365,226 @@ impl HoverState {
     }
 }
 
+const CHI_FIELD_SAMPLE_HEIGHT: f32 = 0.1;
+const CHI_ARROW_LENGTH: f32 = 0.3;
+const DOOR_INFLUENCE_WEIGHT: f32 = 0.7;
+const WINDOW_INFLUENCE_WEIGHT: f32 = 0.3;
+
+#[derive(Clone)]
+struct Door {
+    p1: Vector3,
+    p2: Vector3,
+    is_primary: bool,
+}
+
+impl Door {
+    fn center(&self) -> Vector3 {
+        Vector3::new(
+            (self.p1.x + self.p2.x) * 0.5,
+            (self.p1.y + self.p2.y) * 0.5,
+            (self.p1.z + self.p2.z) * 0.5,
+        )
+    }
+}
+
+#[derive(Clone)]
+struct Window {
+    p1: Vector3,
+    p2: Vector3,
+}
+
+impl Window {
+    fn center(&self) -> Vector3 {
+        Vector3::new(
+            (self.p1.x + self.p2.x) * 0.5,
+            (self.p1.y + self.p2.y) * 0.5,
+            (self.p1.z + self.p2.z) * 0.5,
+        )
+    }
+}
+
+struct FieldSample {
+    position: Vector3,
+    direction: Vector2,
+    magnitude: f32,
+}
+
+struct Room {
+    room_w: i32,
+    room_d: i32,
+    doors: Vec<Door>,
+    windows: Vec<Window>,
+    field_samples: Vec<FieldSample>,
+}
+
+impl Default for Room {
+    fn default() -> Self {
+        let origin = room_origin();
+        let north_z = origin.z + ROOM_D as f32;
+        let center_x = origin.x + ROOM_W as f32 * 0.5;
+        let door = Door {
+            p1: Vector3::new(center_x - 1.0, origin.y, north_z),
+            p2: Vector3::new(center_x + 1.0, origin.y, north_z),
+            is_primary: true,
+        };
+        let west_x = origin.x;
+        let center_z = origin.z + ROOM_D as f32 * 0.5;
+        let window = Window {
+            p1: Vector3::new(west_x, origin.y, center_z - 1.5),
+            p2: Vector3::new(west_x, origin.y, center_z + 1.5),
+        };
+        let mut room = Room {
+            room_w: ROOM_W,
+            room_d: ROOM_D,
+            doors: vec![door],
+            windows: vec![window],
+            field_samples: Vec::new(),
+        };
+
+        room.generate_field();
+        room
+    }
+}
+
+impl Room {
+    fn generate_field(&mut self) {
+        self.field_samples.clear();
+
+        let origin = room_origin();
+
+        let primary_door = self
+            .doors
+            .iter()
+            .find(|d| d.is_primary)
+            .expect("Need at least one primary door");
+        let door_center = primary_door.center();
+
+        let window_center = if !self.windows.is_empty() {
+            Some(self.windows[0].center())
+        } else {
+            None
+        };
+
+        for iz in 0..self.room_d {
+            for ix in 0..self.room_w {
+                let center_x = origin.x + ix as f32 + 0.5;
+                let center_z = origin.z + iz as f32 + 0.5;
+                let center_pos = Vector3::new(center_x, origin.y + CHI_FIELD_SAMPLE_HEIGHT, center_z);
+                let (center_dir, center_mag) = self.compute_energy_at_point(center_pos, door_center, window_center);
+
+                self.field_samples.push(FieldSample {
+                    position: center_pos,
+                    direction: center_dir,
+                    magnitude: center_mag,
+                });
+
+                for &(dx, dz) in &[(-0.5, -0.5), (0.5, -0.5), (-0.5, 0.5), (0.5, 0.5)] {
+                    let corner_x = origin.x + ix as f32 + 0.5 + dx;
+                    let corner_z = origin.z + iz as f32 + 0.5 + dz;
+                    let corner_pos = Vector3::new(corner_x, origin.y + CHI_FIELD_SAMPLE_HEIGHT, corner_z);
+                    let (corner_dir, corner_mag) = self.compute_energy_at_point(corner_pos, door_center, window_center);
+
+                    self.field_samples.push(FieldSample {
+                        position: corner_pos,
+                        direction: corner_dir,
+                        magnitude: corner_mag,
+                    });
+                }
+            }
+        }
+    }
+
+    fn compute_energy_at_point(
+        &self,
+        point: Vector3,
+        door_center: Vector3,
+        window_center: Option<Vector3>,
+    ) -> (Vector2, f32) {
+        let door_normal = Vector2::new(0.0, -1.0);
+        let door_to_point = Vector2::new(point.x - door_center.x, point.z - door_center.z);
+        let dist_from_door = door_to_point.length();
+
+        if dist_from_door < 0.01 {
+            return (door_normal, 1.0);
+        }
+
+        let lateral_offset = point.x - door_center.x;
+        let lateral_spread = lateral_offset * 0.05 / (1.0 + dist_from_door * 2.0);
+        let door_energy = Vector2::new(lateral_spread, door_normal.y);
+        let door_strength = 1.0 / (1.0 + dist_from_door * 0.15);
+
+        let (window_energy, window_strength) = if let Some(win_center) = window_center {
+            let point_to_window = Vector2::new(win_center.x - point.x, win_center.z - point.z);
+            let dist_to_window = point_to_window.length();
+
+            if dist_to_window < 0.01 {
+                (Vector2::ZERO, 0.0)
+            } else {
+                let depth_ratio = (dist_from_door / (ROOM_D as f32 * 0.7)).clamp(0.0, 1.0);
+                let depth_boost = depth_ratio * depth_ratio;
+                let strength = depth_boost * 2.0;
+                (point_to_window.normalize(), strength)
+            }
+        } else {
+            (Vector2::ZERO, 0.0)
+        };
+
+        let weighted_door = door_energy * door_strength;
+        let weighted_window = window_energy * window_strength;
+        let total_energy = weighted_door + weighted_window;
+        let total_magnitude = total_energy.length();
+
+        if total_magnitude > 0.001 {
+            (total_energy.normalize(), total_magnitude)
+        } else {
+            (door_energy.normalize(), total_magnitude)
+        }
+    }
+}
+
+fn draw_chi_field(rl3d: &mut RaylibMode3D<RaylibDrawHandle>, room: &Room) {
+    unsafe {
+        rlSetLineWidth(2.0);
+    }
+    for sample in &room.field_samples {
+        let center = sample.position;
+        let scaled_length = CHI_ARROW_LENGTH * sample.magnitude.clamp(0.0, 1.0);
+        let half_length = scaled_length * 0.5;
+
+        if scaled_length < 0.3 {
+            let tiny = 0.05;
+            rl3d.draw_cube(center, tiny, tiny, tiny, SUNFLOWER);
+        } else {
+            let start = Vector3::new(
+                center.x - sample.direction.x * half_length,
+                center.y,
+                center.z - sample.direction.y * half_length,
+            );
+            let end = Vector3::new(
+                center.x + sample.direction.x * half_length,
+                center.y,
+                center.z + sample.direction.y * half_length,
+            );
+
+            rl3d.draw_line3D(start, end, SUNFLOWER);
+        }
+    }
+
+    for door in &room.doors {
+        let color = if door.is_primary { ANAKIWA } else { LILAC };
+        rl3d.draw_line3D(door.p1, door.p2, color);
+        rl3d.draw_sphere(door.center(), 0.5, color);
+    }
+
+    for window in &room.windows {
+        rl3d.draw_line3D(window.p1, window.p2, PALE_CANARY);
+        rl3d.draw_sphere(window.center(), 0.25, PALE_CANARY);
+    }
+    unsafe {
+        rlSetLineWidth(1.0);
+    }
+}
+
 fn main() {
     let mut i_time = 0.0f32;
     let mut total_time = 0.0f32;
@@ -548,6 +769,8 @@ fn main() {
     handle.set_target_fps(60);
     let mut frame_dynamic_metrics = FrameDynamicMetrics::new();
 
+    let mut room = Room::default();
+
     while !handle.window_should_close() {
         let dt = handle.get_frame_time();
         aspect = handle.get_screen_width() as f32 / handle.get_screen_height() as f32;
@@ -679,10 +902,10 @@ fn main() {
         let mut draw_handle = handle.begin_drawing(&thread);
         draw_handle.clear_background(Color::BLACK);
         draw_handle.draw_mode3D(if view_state.jugemu_mode { jugemu } else { main }, |mut rl3d| {
-            draw_camera_basis(&mut rl3d, &main, depth, right, up);
+            // draw_camera_basis(&mut rl3d, &main, depth, right, up);
 
             if view_state.jugemu_mode {
-                draw_spatial_frame(&mut rl3d, &spatial_frame_model.meshes_mut()[0]);
+                // draw_spatial_frame(&mut rl3d, &spatial_frame_model.meshes_mut()[0]);
             }
 
             draw_room_floor_grid(&mut rl3d);
@@ -700,25 +923,25 @@ fn main() {
                 total_time,
             );
 
-            draw_model_filled_at(
-                &mut rl3d,
-                &mut ndc_models[target_mesh],
-                &mesh_textures[target_mesh],
-                MODEL_POS,
-                mesh_rotation.to_degrees(),
-                MODEL_SCALE,
-                view_state.color_mode,
-                view_state.texture_mode,
-            );
-            draw_model_wires_and_points_at(
-                &mut rl3d,
-                &mut ndc_models[target_mesh],
-                MODEL_POS,
-                mesh_rotation.to_degrees(),
-                MODEL_SCALE,
-                MARINER,
-                LILAC,
-            );
+            // draw_model_filled_at(
+            //     &mut rl3d,
+            //     &mut ndc_models[target_mesh],
+            //     &mesh_textures[target_mesh],
+            //     MODEL_POS,
+            //     mesh_rotation.to_degrees(),
+            //     MODEL_SCALE,
+            //     view_state.color_mode,
+            //     view_state.texture_mode,
+            // );
+            // draw_model_wires_and_points_at(
+            //     &mut rl3d,
+            //     &mut ndc_models[target_mesh],
+            //     MODEL_POS,
+            //     mesh_rotation.to_degrees(),
+            //     MODEL_SCALE,
+            //     MARINER,
+            //     LILAC,
+            // );
 
             if let Some(center) = hover_state.center {
                 draw_hint_mesh(
@@ -729,22 +952,24 @@ fn main() {
                     hover_state.is_occupied(),
                 );
             }
+
+            draw_chi_field(&mut rl3d, &room);
         });
 
-        draw_hud(
-            &mut draw_handle,
-            &font,
-            &view_state,
-            &jugemu,
-            target_mesh,
-            &hover_state,
-            &placed_cells,
-            i_time,
-            &world_models,
-            &ndc_models,
-            &mesh_samples,
-            &frame_dynamic_metrics,
-        );
+        // draw_hud(
+        //     &mut draw_handle,
+        //     &font,
+        //     &view_state,
+        //     &jugemu,
+        //     target_mesh,
+        //     &hover_state,
+        //     &placed_cells,
+        //     i_time,
+        //     &world_models,
+        //     &ndc_models,
+        //     &mesh_samples,
+        //     &frame_dynamic_metrics,
+        // );
     }
 }
 
@@ -1123,7 +1348,7 @@ fn compute_hud_layout(draw_handle: &RaylibDrawHandle, font: &WeakFont) -> HudLay
     let right_label_x = right_value_x - right_label_gap_px - max_right_label_width;
 
     let bottom_rows = 3;
-    let bottom_block_start_y = screen_height - margin - line_height_main * bottom_rows as i32;
+    let bottom_block_start_y = screen_height - margin - line_height_main * bottom_rows;
 
     let perf_x = margin;
     let perf_y = (screen_height as f32 * (200.0 / 720.0)).round() as i32;
