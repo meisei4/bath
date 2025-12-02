@@ -168,6 +168,7 @@ pub fn draw_hint(
     rl3d.draw_model_wires_ex(&mut *model, position, Y_AXIS, rotation_deg, scale, hint_color);
     unsafe { ffi::rlEnableDepthTest() };
 }
+
 pub fn draw_chi_field(rl3d: &mut RaylibMode3D<RaylibDrawHandle>, room: &Room) {
     unsafe {
         ffi::rlSetLineWidth(2.0);
@@ -189,6 +190,7 @@ pub fn draw_chi_field(rl3d: &mut RaylibMode3D<RaylibDrawHandle>, room: &Room) {
         );
         rl3d.draw_line3D(start, end, SUNFLOWER);
     }
+
     for opening in &room.openings {
         let (color, radius) = match opening.kind {
             OpeningKind::Door { primary: true } => (ANAKIWA, 0.5),
@@ -234,6 +236,7 @@ pub fn draw_camera_basis(
         MARINER,
     );
 }
+
 pub fn draw_placed_cells(
     rl3d: &mut RaylibMode3D<RaylibDrawHandle>,
     meshes: &mut [MeshDescriptor],
@@ -251,10 +254,12 @@ pub fn draw_placed_cells(
         if age >= view_config.placement_anim_dur_seconds {
             cell.settled = true;
         }
+
         let current_scale = cell.scale_at(total_time, view_config);
         if age >= PLACEMENT_ANIM_DUR_SECONDS {
             cell.settled = true;
         }
+
         let desc = &mut meshes[cell.mesh_index];
         if cell.settled {
             draw_filled_with_overlay(
@@ -339,27 +344,23 @@ pub struct HudLayout {
 fn compute_hud_layout(draw_handle: &RaylibDrawHandle, font: &WeakFont) -> HudLayout {
     let screen_width = draw_handle.get_screen_width();
     let screen_height = draw_handle.get_screen_height();
-
     let font_size_main = FONT_SIZE;
     let font_size_debug = (FONT_SIZE as f32 * 0.5).round() as i32;
-
     let line_height_main = HUD_LINE_HEIGHT;
     let line_height_debug = (font_size_debug as f32 * 1.2).round() as i32;
-
     let margin = HUD_MARGIN;
-
     let left_labels = ["JUGEMU [ P ]:", "FOVY[ + - ]:", "ZOOM [ W S ]:"];
     let mut max_left_label_width = 0;
+
     for label in &left_labels {
         let w = font.measure_text(label, font_size_main as f32, HUD_CHAR_SPACING).x as i32;
         max_left_label_width = max_left_label_width.max(w);
     }
 
     let col_gap_px = (font_size_main as f32 * 0.75).round() as i32;
-
     let left_label_x = margin;
     let left_value_x = left_label_x + max_left_label_width + col_gap_px;
-
+    //TODO: not aligned correclty to the right
     let right_labels = ["TXTR [ T ]:", "CLR [ C ]:"];
     let mut max_right_label_width = 0;
     for label in &right_labels {
@@ -376,17 +377,13 @@ fn compute_hud_layout(draw_handle: &RaylibDrawHandle, font: &WeakFont) -> HudLay
 
     let right_margin = margin;
     let right_value_x = screen_width - right_margin - max_value_width;
-
     let right_label_gap_px = (font_size_main as f32 * 0.5).round() as i32;
     let right_label_x = right_value_x - right_label_gap_px - max_right_label_width;
-
     let bottom_rows = 3;
     let bottom_block_start_y = screen_height - margin - line_height_main * bottom_rows;
-
     let top_rows = 3;
     let perf_x = margin;
     let perf_y = margin + line_height_main * top_rows + margin;
-
     let debug_padding = 4;
 
     HudLayout {
@@ -422,6 +419,7 @@ fn hud_row(
 ) -> i32 {
     hud_text(draw, font, label, x_label, y, size, color_label);
     hud_text(draw, font, value, x_value, y, size, color_value);
+    //TODO: this returning something is stupid, fix it
     y + line_height
 }
 
@@ -439,8 +437,8 @@ fn draw_debug_box(
 
     let screen_width = draw.get_screen_width();
     let screen_height = draw.get_screen_height();
-
     let mut max_line_w = 0;
+
     for (text, _) in lines {
         let w = font
             .measure_text(text, layout.font_size_debug as f32, HUD_CHAR_SPACING)
@@ -450,7 +448,6 @@ fn draw_debug_box(
 
     let debug_width = max_line_w + layout.debug_padding * 2;
     let debug_height = layout.line_height_debug * lines.len() as i32 + layout.debug_padding * 2;
-
     let mut rect_x = anchor_x;
     let mut rect_y = anchor_y - debug_height;
 
@@ -499,7 +496,6 @@ pub fn draw_hud(
     room: &Room,
 ) {
     let layout = compute_hud_layout(draw_handle, font);
-
     let mut line_y = layout.margin;
 
     line_y = hud_row(
@@ -659,17 +655,13 @@ pub fn draw_hud(
     if let (Some(cell_idx), Some((ix, iy, iz))) = (hover_state.placed_cell_index, hover_state.indices) {
         if cell_idx < placed_cells.len() {
             let cell = &placed_cells[cell_idx];
-
             let corner_world = room.top_right_front_corner(ix, iy, iz, jugemu);
             let screen_pos = draw_handle.get_world_to_screen(corner_world, *jugemu);
-
             let anchor_x = screen_pos.x as i32;
             let anchor_y = screen_pos.y as i32;
-
             let mesh_label = mesh_name(cell.mesh_index, meshes);
             let age_seconds = i_time - cell.placed_time;
             let state_label = if cell.settled { "SETTLED" } else { "ANIM" };
-
             let mut lines: Vec<(String, Color)> = Vec::new();
             lines.push((format!("MESH: {}", mesh_label), SUNFLOWER));
             lines.push((format!("GRID: ({}, {}, {})", cell.ix, cell.iy, cell.iz), SUNFLOWER));
@@ -721,7 +713,6 @@ fn draw_perf_hud(
     }
 
     let total_geom_bytes_shared: usize = meshes.iter().map(|m| m.combined_bytes).sum();
-
     let mut filled_draws_per_mesh = vec![0usize; mesh_count];
     let mut overlay_calls_per_mesh = vec![0usize; mesh_count];
 
@@ -756,28 +747,20 @@ fn draw_perf_hud(
         let active_ndc = desc.metrics_ndc;
         let active_bytes = desc.combined_bytes;
         let active_instances = per_mesh_instance_counts[active_index];
-
         let active_filled_draws = filled_draws_per_mesh[active_index];
         let active_overlay_calls = overlay_calls_per_mesh[active_index];
-
         let active_total_vertex_passes = active_filled_draws + active_overlay_calls * 2;
-
         let active_verts_per_draw = active_ndc.vertex_count;
         let active_tris_per_draw = active_ndc.triangle_count;
         let active_indices_per_draw = active_ndc.index_count;
-
         let gpu_verts_per_frame = active_verts_per_draw * active_total_vertex_passes;
         let gpu_tris_per_frame = active_tris_per_draw * active_filled_draws;
-
         let vertex_stride = gpu_vertex_stride_bytes(&active_ndc);
         let vertex_bytes_per_draw = vertex_stride * active_verts_per_draw;
         let index_bytes_per_draw = active_indices_per_draw * size_of::<u16>();
-
         let gpu_bytes_from_tri_draws = active_filled_draws * (vertex_bytes_per_draw + index_bytes_per_draw);
         let gpu_bytes_from_overlay_draws = active_overlay_calls * 2 * vertex_bytes_per_draw;
-
         let gpu_bytes_per_frame = gpu_bytes_from_tri_draws + gpu_bytes_from_overlay_draws;
-
         let active_x = (screen_width as f32 * 0.45).round() as i32;
         let mut header_y = layout.margin;
 
@@ -1092,19 +1075,18 @@ pub fn handle_view_toggles(handle: &RaylibHandle, view_state: &mut ViewState) {
         view_state.ortho_mode = !view_state.ortho_mode;
     }
 }
+
 pub fn handle_jugemu_projection_toggle(handle: &RaylibHandle, view_state: &mut ViewState, jugemu: &mut Camera3D) {
     if handle.is_key_pressed(KeyboardKey::KEY_P) {
         if view_state.jugemu_ortho_mode {
             view_state.jugemu_zoom.fovy_ortho = jugemu.fovy;
             view_state.jugemu_zoom.distance_ortho = camera_distance(jugemu);
-
             jugemu.fovy = view_state.jugemu_zoom.fovy_perspective;
             let dir = jugemu.position.normalize();
             jugemu.position = dir * view_state.jugemu_zoom.distance_perspective;
         } else {
             view_state.jugemu_zoom.fovy_perspective = jugemu.fovy;
             view_state.jugemu_zoom.distance_perspective = camera_distance(jugemu);
-
             jugemu.fovy = view_state.jugemu_zoom.fovy_ortho;
             let dir = jugemu.position.normalize();
             jugemu.position = dir * view_state.jugemu_zoom.distance_ortho;
@@ -1148,10 +1130,8 @@ pub fn update_ghost_mesh(
 ) {
     interpolate_between_deformed_vertices(ndc_model, i_time, mesh_samples, frame_dynamic_metrics);
     interpolate_between_deformed_vertices(world_model, i_time, mesh_samples, frame_dynamic_metrics);
-
     update_normals_for_silhouette(&mut ndc_model.meshes_mut()[0], frame_dynamic_metrics);
     update_normals_for_silhouette(&mut world_model.meshes_mut()[0], frame_dynamic_metrics);
-
     fade_vertex_colors_silhouette_rim(
         &mut ndc_model.meshes_mut()[0],
         main,

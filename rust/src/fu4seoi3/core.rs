@@ -517,6 +517,7 @@ impl Default for Room {
 }
 
 impl Room {
+    //TODO: make this work mutable for the room for real and use it or kill it
     pub fn for_each_cell(&self, mut f: impl FnMut(i32, i32, i32, Vector3)) {
         for iy in 0..self.h {
             for iz in 0..self.d {
@@ -703,10 +704,8 @@ impl Room {
         }
 
         let lateral = to_point.dot(tangent);
-
         let nd = dist_from_window / self.config.funnel_reach;
         let width_interp = nd.powf(self.config.funnel_curve_power);
-
         let funnel_radius = self.config.funnel_sink_radius
             + (self.config.funnel_catch_radius - self.config.funnel_sink_radius) * width_interp;
 
@@ -722,11 +721,9 @@ impl Room {
 
         let target_point = c2d + tangent * target_lateral;
         let desired_dir = (target_point - p2d).normalize_or_zero();
-
         let proximity = 1.0 - nd;
         let lateral_factor = 1.0 - (lateral.abs() / funnel_radius).powf(2.0);
         let weight = self.config.funnel_strength * proximity * lateral_factor;
-
         let new_dir = blend_directions(dir, desired_dir, weight);
         let new_mag = if mag == 0.0 {
             weight * self.config.funnel_strength
@@ -740,10 +737,8 @@ impl Room {
     fn apply_back_wall_redirect(&self, point: Vector3, dir: Vector2, mag: f32) -> (Vector2, f32) {
         let origin = self.origin;
         let back_wall_z = origin.z;
-
         let dist = (point.z - back_wall_z).abs();
         let max_dist = self.config.wall_redirect_distance;
-
         if max_dist <= 0.0 || dist >= max_dist {
             return (dir, mag);
         }
@@ -751,13 +746,10 @@ impl Room {
         let base = self.config.wall_redirect_strength.clamp(0.0, 1.0);
         let falloff = 1.0 - (dist / max_dist);
         let weight = base * falloff;
-
         let center_x = origin.x + self.w as f32 * 0.5;
         let lateral = point.x - center_x;
-
         let desired_dir = Vector2::new(if lateral >= 0.0 { 1.0 } else { -1.0 }, 0.0);
         let new_dir = blend_directions(dir, desired_dir, weight);
-
         (new_dir, mag)
     }
 
@@ -781,6 +773,7 @@ impl Room {
 
         (dir.normalize_or_zero(), mag)
     }
+
     pub fn generate_field(&mut self) {
         self.field_samples.clear();
         let door = *self.primary_door();
@@ -1000,15 +993,11 @@ pub fn world_to_ndc_space(
         ortho_factor,
     );
     let half_w_near = lerp(half_h_near, half_h_near * aspect, aspect_factor);
-
     let center_near = camera.position + depth * near;
-
     let half_depth_ndc = lerp(half_h_near, 0.5 * (far - near), lerp(aspect_factor, 0.0, ortho_factor));
     let center_ndc = center_near + depth * half_depth_ndc;
-
     let world_mesh = &world.meshes()[0];
     let ndc_mesh = &mut ndc.meshes_mut()[0];
-
     let src_vertices = world_mesh.vertices();
     let dst_vertices = ndc_mesh.vertices_mut();
 
@@ -1018,21 +1007,16 @@ pub fn world_to_ndc_space(
             let depth_signed = (wv - camera.position).dot(depth);
             let clip_coord = intersect(camera, near, wv, ortho_factor);
             let rel = clip_coord - center_near;
-
             let x_ndc = rel.dot(right) / half_w_near;
             let y_ndc = rel.dot(up) / half_h_near;
-
             let persp_z = (far + near - 2.0 * far * near / depth_signed) / (far - near);
             let ortho_z = 2.0 * (depth_signed - near) / (far - near) - 1.0;
             let z_ndc = lerp(persp_z, ortho_z, ortho_factor);
-
             let xw = right * (x_ndc * half_w_near);
             let yw = up * (y_ndc * half_h_near);
             let zw = depth * (z_ndc * half_depth_ndc);
-
             let final_pos = center_ndc + xw + yw + zw;
             dst_vertices[i] = translate_rotate_scale(1, final_pos, MODEL_POS, MODEL_SCALE, rotation);
-
             frame_metrics.vertex_positions_written += 1;
         }
     }
@@ -1046,10 +1030,8 @@ pub fn blend_world_and_ndc_vertices(
 ) {
     let src = &world_model.meshes()[0];
     let dst = &mut ndc_model.meshes_mut()[0];
-
     let src_v = src.vertices();
     let dst_v = dst.vertices_mut();
-
     for [a, b, c] in src.triangles() {
         for i in [a, b, c] {
             dst_v[i].x = lerp(src_v[i].x, dst_v[i].x, blend);
@@ -1327,7 +1309,6 @@ pub fn orbit_space(handle: &mut RaylibHandle, camera: &mut Camera3D) {
     }
 
     elevation = elevation.clamp(-PI / 2.0 + 0.1, PI / 2.0 - 0.1);
-
     camera.position.x = camera.target.x + radius * elevation.cos() * azimuth.cos();
     camera.position.y = camera.target.y + radius * elevation.sin();
     camera.position.z = camera.target.z + radius * elevation.cos() * azimuth.sin();
