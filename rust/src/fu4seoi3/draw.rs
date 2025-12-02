@@ -1,6 +1,5 @@
 use crate::fu4seoi3::core::*;
 use raylib::ffi;
-use raylib::math::glam::Vec3;
 use raylib::prelude::*;
 
 pub const BAHAMA_BLUE: Color = Color::new(0, 102, 153, 255);
@@ -15,103 +14,169 @@ pub const LILAC: Color = Color::new(204, 153, 204, 255);
 pub const RED_DAMASK: Color = Color::new(221, 102, 68, 255);
 pub const CHESTNUT_ROSE: Color = Color::new(204, 102, 102, 255);
 
-pub enum DrawMode {
-    Filled,
-    WiresAndPoints,
-    FilledWithOverlay,
-    Hint { occupied: bool },
+pub struct ColorGuard {
+    cached_colors_ptr: *mut std::ffi::c_uchar,
+    restore_target: *mut ffi::Mesh,
 }
 
-pub fn draw_instance(
+impl ColorGuard {
+    pub fn hide(mesh: &mut WeakMesh) -> Self {
+        let mesh_ptr = mesh.as_mut() as *mut ffi::Mesh;
+        let colors_ptr = unsafe { (*mesh_ptr).colors };
+        unsafe {
+            (*mesh_ptr).colors = std::ptr::null_mut();
+        }
+        Self {
+            cached_colors_ptr: colors_ptr,
+            restore_target: mesh_ptr,
+        }
+    }
+}
+
+impl Drop for ColorGuard {
+    fn drop(&mut self) {
+        unsafe {
+            (*self.restore_target).colors = self.cached_colors_ptr;
+        }
+    }
+}
+
+pub struct TextureGuard {
+    cached_texture_id: std::ffi::c_uint,
+    restore_target: *mut Model,
+}
+
+impl TextureGuard {
+    pub fn hide(model: &mut Model) -> Self {
+        use raylib::consts::MaterialMapIndex::MATERIAL_MAP_ALBEDO;
+        let cached_id = model.materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize]
+            .texture
+            .id;
+        model.materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize]
+            .texture
+            .id = 0;
+        Self {
+            cached_texture_id: cached_id,
+            restore_target: model as *mut Model,
+        }
+    }
+
+    pub fn set_texture(model: &mut Model, texture_id: u32) -> Self {
+        use raylib::consts::MaterialMapIndex::MATERIAL_MAP_ALBEDO;
+        let cached_id = model.materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize]
+            .texture
+            .id;
+        model.materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize]
+            .texture
+            .id = texture_id;
+        Self {
+            cached_texture_id: cached_id,
+            restore_target: model as *mut Model,
+        }
+    }
+}
+
+impl Drop for TextureGuard {
+    fn drop(&mut self) {
+        use raylib::consts::MaterialMapIndex::MATERIAL_MAP_ALBEDO;
+        unsafe {
+            (*self.restore_target).materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize]
+                .texture
+                .id = self.cached_texture_id;
+        }
+    }
+}
+
+pub fn draw_filled(
     rl3d: &mut RaylibMode3D<RaylibDrawHandle>,
     model: &mut Model,
     texture: &Texture2D,
     position: Vector3,
     rotation_deg: f32,
     scale: Vector3,
-    mode: DrawMode,
     color_enabled: bool,
     texture_enabled: bool,
 ) {
-    match mode {
-        DrawMode::Filled => {
-            if !(color_enabled || texture_enabled) {
-                return;
-            }
-
-            let _color_guard = if texture_enabled && !color_enabled {
-                Some(ColorGuard::hide(&mut model.meshes_mut()[0]))
-            } else {
-                None
-            };
-
-            let texture_id = if texture_enabled { texture.id } else { 0 };
-            let _texture_guard = TextureGuard::set_texture(model, texture_id);
-
-            rl3d.draw_model_ex(model, position, Y_AXIS, rotation_deg, scale, Color::WHITE);
-        },
-
-        DrawMode::WiresAndPoints => {
-            let _color_guard = ColorGuard::hide(&mut model.meshes_mut()[0]);
-            let _texture_guard = TextureGuard::hide(model);
-
-            rl3d.draw_model_wires_ex(&mut *model, position, Y_AXIS, rotation_deg, scale, ANAKIWA);
-
-            unsafe { ffi::rlSetPointSize(4.0) };
-            rl3d.draw_model_points_ex(&mut *model, position, Y_AXIS, rotation_deg, scale, ANAKIWA);
-        },
-
-        DrawMode::FilledWithOverlay => {
-            if color_enabled || texture_enabled {
-                {
-                    let _color_guard = if texture_enabled && !color_enabled {
-                        Some(ColorGuard::hide(&mut model.meshes_mut()[0]))
-                    } else {
-                        None
-                    };
-
-                    let texture_id = if texture_enabled { texture.id } else { 0 };
-                    let _texture_guard = TextureGuard::set_texture(model, texture_id);
-
-                    rl3d.draw_model_ex(&mut *model, position, Y_AXIS, rotation_deg, scale, Color::WHITE);
-                }
-            }
-
-            {
-                let _color_guard = ColorGuard::hide(&mut model.meshes_mut()[0]);
-                let _texture_guard = TextureGuard::hide(model);
-
-                rl3d.draw_model_wires_ex(&mut *model, position, Y_AXIS, rotation_deg, scale, MARINER);
-
-                unsafe { ffi::rlSetPointSize(4.0) };
-                rl3d.draw_model_points_ex(&mut *model, position, Y_AXIS, rotation_deg, scale, LILAC);
-            }
-        },
-
-        DrawMode::Hint { occupied } => {
-            let _color_guard = ColorGuard::hide(&mut model.meshes_mut()[0]);
-            let _texture_guard = TextureGuard::hide(model);
-
-            let hint_color = if occupied { RED_DAMASK } else { ANAKIWA };
-
-            unsafe { ffi::rlDisableDepthTest() };
-            rl3d.draw_model_wires_ex(model, position, Y_AXIS, rotation_deg, scale, hint_color);
-            unsafe { ffi::rlEnableDepthTest() };
-        },
+    if !(color_enabled || texture_enabled) {
+        return;
     }
+    let _color_guard = if texture_enabled && !color_enabled {
+        Some(ColorGuard::hide(&mut model.meshes_mut()[0]))
+    } else {
+        None
+    };
+    let texture_id = if texture_enabled { texture.id } else { 0 };
+    let _texture_guard = TextureGuard::set_texture(model, texture_id);
+    rl3d.draw_model_ex(model, position, Y_AXIS, rotation_deg, scale, Color::WHITE);
 }
 
+pub fn draw_wires_and_points(
+    rl3d: &mut RaylibMode3D<RaylibDrawHandle>,
+    model: &mut Model,
+    position: Vector3,
+    rotation_deg: f32,
+    scale: Vector3,
+) {
+    let _color_guard = ColorGuard::hide(&mut model.meshes_mut()[0]);
+    let _texture_guard = TextureGuard::hide(model);
+    rl3d.draw_model_wires_ex(&mut *model, position, Y_AXIS, rotation_deg, scale, ANAKIWA);
+    unsafe { ffi::rlSetPointSize(4.0) };
+    rl3d.draw_model_points_ex(&mut *model, position, Y_AXIS, rotation_deg, scale, ANAKIWA);
+}
+
+pub fn draw_filled_with_overlay(
+    rl3d: &mut RaylibMode3D<RaylibDrawHandle>,
+    model: &mut Model,
+    texture: &Texture2D,
+    position: Vector3,
+    rotation_deg: f32,
+    scale: Vector3,
+    color_enabled: bool,
+    texture_enabled: bool,
+) {
+    if color_enabled || texture_enabled {
+        draw_filled(
+            rl3d,
+            model,
+            texture,
+            position,
+            rotation_deg,
+            scale,
+            color_enabled,
+            texture_enabled,
+        );
+    }
+    let _color_guard = ColorGuard::hide(&mut model.meshes_mut()[0]);
+    let _texture_guard = TextureGuard::hide(model);
+    rl3d.draw_model_wires_ex(&mut *model, position, Y_AXIS, rotation_deg, scale, MARINER);
+    unsafe { ffi::rlSetPointSize(4.0) };
+    rl3d.draw_model_points_ex(&mut *model, position, Y_AXIS, rotation_deg, scale, LILAC);
+}
+
+pub fn draw_hint(
+    rl3d: &mut RaylibMode3D<RaylibDrawHandle>,
+    model: &mut Model,
+    position: Vector3,
+    rotation_deg: f32,
+    scale: Vector3,
+    occupied: bool,
+) {
+    let _color_guard = ColorGuard::hide(&mut model.meshes_mut()[0]);
+    let _texture_guard = TextureGuard::hide(model);
+    let hint_color = if occupied { RED_DAMASK } else { ANAKIWA };
+    unsafe { ffi::rlDisableDepthTest() };
+    rl3d.draw_model_wires_ex(&mut *model, position, Y_AXIS, rotation_deg, scale, hint_color);
+    unsafe { ffi::rlEnableDepthTest() };
+}
 pub fn draw_chi_field(rl3d: &mut RaylibMode3D<RaylibDrawHandle>, room: &Room) {
     unsafe {
         ffi::rlSetLineWidth(2.0);
     }
-
     for sample in &room.field_samples {
         let center = sample.position;
         let m = sample.magnitude.clamp(0.0, 1.0);
-        let scaled_length = CHI_ARROW_LENGTH * m;
+        let scaled_length = room.config.chi_arrow_length * m;
         let half = scaled_length * 0.5;
-
         let start = Vector3::new(
             center.x - sample.direction.x * half,
             center.y,
@@ -122,21 +187,17 @@ pub fn draw_chi_field(rl3d: &mut RaylibMode3D<RaylibDrawHandle>, room: &Room) {
             center.y,
             center.z + sample.direction.y * half,
         );
-
         rl3d.draw_line3D(start, end, SUNFLOWER);
     }
-
     for opening in &room.openings {
         let (color, radius) = match opening.kind {
-            OpeningKind::PrimaryDoor => (ANAKIWA, 0.5),
-            OpeningKind::Door => (LILAC, 0.4),
+            OpeningKind::Door { primary: true } => (ANAKIWA, 0.5),
+            OpeningKind::Door { primary: false } => (LILAC, 0.4),
             OpeningKind::Window => (PALE_CANARY, 0.25),
         };
-
         rl3d.draw_line3D(opening.p1, opening.p2, color);
         rl3d.draw_sphere(opening.center(), radius, color);
     }
-
     unsafe {
         ffi::rlSetLineWidth(1.0);
     }
@@ -173,54 +234,38 @@ pub fn draw_camera_basis(
         MARINER,
     );
 }
-
 pub fn draw_placed_cells(
     rl3d: &mut RaylibMode3D<RaylibDrawHandle>,
     meshes: &mut [MeshDescriptor],
-    placed_cells: &mut [PlacedCell],
+    placed_cells: &mut [OccupiedCell],
     total_time: f32,
-    grid: &RoomGrid,
+    room: &Room,
 ) {
     for cell in placed_cells.iter_mut() {
         if cell.mesh_index >= meshes.len() {
             continue;
         }
-
-        let cell_pos = grid.cell_center(cell.ix, cell.iy, cell.iz);
-
+        let cell_pos = room.cell_center(cell.ix, cell.iy, cell.iz);
         let age = cell.age_at(total_time);
         if age >= PLACEMENT_ANIM_DUR_SECONDS {
             cell.settled = true;
         }
         let current_scale = cell.scale_at(total_time);
-
         let desc = &mut meshes[cell.mesh_index];
-
         if cell.settled {
-            draw_instance(
+            draw_filled_with_overlay(
                 rl3d,
                 &mut desc.ndc,
                 &desc.texture,
                 cell_pos,
                 0.0,
                 MODEL_SCALE,
-                DrawMode::FilledWithOverlay,
                 cell.color_enabled,
                 cell.texture_enabled,
             );
         } else {
             let scale_vec = Vector3::new(current_scale, current_scale, current_scale);
-            draw_instance(
-                rl3d,
-                &mut desc.ndc,
-                &desc.texture,
-                cell_pos,
-                0.0,
-                scale_vec,
-                DrawMode::WiresAndPoints,
-                false,
-                false,
-            );
+            draw_wires_and_points(rl3d, &mut desc.ndc, cell_pos, 0.0, scale_vec);
         }
     }
 }
@@ -248,21 +293,19 @@ pub fn draw_spatial_frame(rl3d: &mut RaylibMode3D<RaylibDrawHandle>, spatial_fra
     }
 }
 
-pub fn draw_room_floor_grid(rl3d: &mut RaylibMode3D<RaylibDrawHandle>, grid: &RoomGrid) {
-    let origin = grid.origin;
+pub fn draw_room_floor_grid(rl3d: &mut RaylibMode3D<RaylibDrawHandle>, room: &Room) {
+    let origin = room.origin;
     let floor_y = origin.y;
-
-    for x in 0..=grid.w {
+    for x in 0..=room.w {
         let x_world = origin.x + x as f32;
         let start = Vector3::new(x_world, floor_y, origin.z);
-        let end = Vector3::new(x_world, floor_y, origin.z + grid.d as f32);
+        let end = Vector3::new(x_world, floor_y, origin.z + room.d as f32);
         rl3d.draw_line3D(start, end, HOPBUSH);
     }
-
-    for z in 0..=grid.d {
+    for z in 0..=room.d {
         let z_world = origin.z + z as f32;
         let start = Vector3::new(origin.x, floor_y, z_world);
-        let end = Vector3::new(origin.x + grid.w as f32, floor_y, z_world);
+        let end = Vector3::new(origin.x + room.w as f32, floor_y, z_world);
         rl3d.draw_line3D(start, end, HOPBUSH);
     }
 }
@@ -436,6 +479,7 @@ fn mesh_name(i: usize, meshes: &[MeshDescriptor]) -> &'static str {
     meshes.get(i).map(|m| m.name).unwrap_or("MESH")
 }
 
+//TODO: all the hud draw functions result in massive carraige returned parameter style blocks, i hate that
 pub fn draw_hud(
     draw_handle: &mut RaylibDrawHandle,
     font: &WeakFont,
@@ -443,12 +487,12 @@ pub fn draw_hud(
     jugemu: &Camera3D,
     target_mesh: usize,
     hover_state: &HoverState,
-    placed_cells: &[PlacedCell],
+    placed_cells: &[OccupiedCell],
     i_time: f32,
     meshes: &[MeshDescriptor],
     mesh_samples: &[Vec<Vector3>],
     frame_dynamic_metrics: &FrameDynamicMetrics,
-    room_grid: &RoomGrid,
+    room: &Room,
 ) {
     let layout = compute_hud_layout(draw_handle, font);
 
@@ -612,7 +656,7 @@ pub fn draw_hud(
         if cell_idx < placed_cells.len() {
             let cell = &placed_cells[cell_idx];
 
-            let corner_world = room_grid.top_right_front_corner(ix, iy, iz, jugemu);
+            let corner_world = room.top_right_front_corner(ix, iy, iz, jugemu);
             let screen_pos = draw_handle.get_world_to_screen(corner_world, *jugemu);
 
             let anchor_x = screen_pos.x as i32;
@@ -649,7 +693,7 @@ fn draw_perf_hud(
     font: &WeakFont,
     layout: &HudLayout,
     view_state: &ViewState,
-    placed_cells: &[PlacedCell],
+    placed_cells: &[OccupiedCell],
     meshes: &[MeshDescriptor],
     mesh_samples: &[Vec<Vector3>],
     frame_dynamic_metrics: &FrameDynamicMetrics,
@@ -1044,31 +1088,22 @@ pub fn handle_view_toggles(handle: &RaylibHandle, view_state: &mut ViewState) {
         view_state.ortho_mode = !view_state.ortho_mode;
     }
 }
-
-pub fn handle_jugemu_projection_toggle(
-    handle: &RaylibHandle,
-    view_state: &mut ViewState,
-    jugemu: &mut Camera3D,
-    prev_fovy_ortho: &mut f32,
-    prev_fovy_perspective: &mut f32,
-    prev_distance_ortho: &mut f32,
-    prev_distance_perspective: &mut f32,
-) {
+pub fn handle_jugemu_projection_toggle(handle: &RaylibHandle, view_state: &mut ViewState, jugemu: &mut Camera3D) {
     if handle.is_key_pressed(KeyboardKey::KEY_P) {
         if view_state.jugemu_ortho_mode {
-            *prev_fovy_ortho = jugemu.fovy;
-            *prev_distance_ortho = camera_distance(jugemu);
+            view_state.jugemu_zoom.fovy_ortho = jugemu.fovy;
+            view_state.jugemu_zoom.distance_ortho = camera_distance(jugemu);
 
-            jugemu.fovy = *prev_fovy_perspective;
+            jugemu.fovy = view_state.jugemu_zoom.fovy_perspective;
             let dir = jugemu.position.normalize();
-            jugemu.position = dir * *prev_distance_perspective;
+            jugemu.position = dir * view_state.jugemu_zoom.distance_perspective;
         } else {
-            *prev_fovy_perspective = jugemu.fovy;
-            *prev_distance_perspective = camera_distance(jugemu);
+            view_state.jugemu_zoom.fovy_perspective = jugemu.fovy;
+            view_state.jugemu_zoom.distance_perspective = camera_distance(jugemu);
 
-            jugemu.fovy = *prev_fovy_ortho;
+            jugemu.fovy = view_state.jugemu_zoom.fovy_ortho;
             let dir = jugemu.position.normalize();
-            jugemu.position = dir * *prev_distance_ortho;
+            jugemu.position = dir * view_state.jugemu_zoom.distance_ortho;
         }
         view_state.jugemu_ortho_mode = !view_state.jugemu_ortho_mode;
     }
@@ -1092,26 +1127,9 @@ pub fn handle_mesh_selection(handle: &RaylibHandle, view_state: &mut ViewState) 
         view_state.target_mesh_index = 2;
     }
 }
-
-pub fn update_view_from_input(
-    handle: &RaylibHandle,
-    view_state: &mut ViewState,
-    jugemu: &mut Camera3D,
-    prev_fovy_ortho: &mut f32,
-    prev_fovy_perspective: &mut f32,
-    prev_distance_ortho: &mut f32,
-    prev_distance_perspective: &mut f32,
-) {
+pub fn update_view_from_input(handle: &RaylibHandle, view_state: &mut ViewState, jugemu: &mut Camera3D) {
     handle_view_toggles(handle, view_state);
-    handle_jugemu_projection_toggle(
-        handle,
-        view_state,
-        jugemu,
-        prev_fovy_ortho,
-        prev_fovy_perspective,
-        prev_distance_ortho,
-        prev_distance_perspective,
-    );
+    handle_jugemu_projection_toggle(handle, view_state, jugemu);
     handle_mesh_selection(handle, view_state);
 }
 
@@ -1189,12 +1207,12 @@ pub fn fill_vertex_colors(mesh: &mut WeakMesh) {
 
 fn update_normals_for_silhouette(mesh: &mut WeakMesh, frame_dynamic_metrics: &mut FrameDynamicMetrics) {
     let vertices = mesh.vertices();
-    let mut normals = vec![Vec3::ZERO; vertices.len()];
+    let mut normals = vec![Vector3::ZERO; vertices.len()];
 
     for [a, b, c] in mesh.triangles() {
-        let va = Vec3::new(vertices[a].x, vertices[a].y, vertices[a].z);
-        let vb = Vec3::new(vertices[b].x, vertices[b].y, vertices[b].z);
-        let vc = Vec3::new(vertices[c].x, vertices[c].y, vertices[c].z);
+        let va = Vector3::new(vertices[a].x, vertices[a].y, vertices[a].z);
+        let vb = Vector3::new(vertices[b].x, vertices[b].y, vertices[b].z);
+        let vc = Vector3::new(vertices[c].x, vertices[c].y, vertices[c].z);
 
         let face_normal = triangle_normal(va, vb, vc);
         normals[a] += face_normal;
@@ -1220,7 +1238,7 @@ fn fade_vertex_colors_silhouette_rim(
 ) {
     let model_center_to_camera = rotate_point_about_axis(
         -1.0 * observed_line_of_sight(observer),
-        (Vec3::ZERO, Vec3::Y),
+        (Vector3::ZERO, Vector3::Y),
         -mesh_rotation,
     )
     .normalize_or_zero();
@@ -1233,7 +1251,7 @@ fn fade_vertex_colors_silhouette_rim(
 
     for i in mesh.triangles().iter_vertices() {
         let v = vertices[i];
-        let model_center_to_vertex = Vec3::new(v.x, v.y, v.z).normalize_or_zero();
+        let model_center_to_vertex = Vector3::new(v.x, v.y, v.z).normalize_or_zero();
         let cos_theta = model_center_to_vertex.dot(model_center_to_camera);
 
         if cos_theta <= 0.0 {

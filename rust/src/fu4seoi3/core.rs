@@ -1,7 +1,5 @@
-use crate::fu4seoi3::draw::update_ghost_mesh;
 use raylib::consts::CameraProjection::CAMERA_ORTHOGRAPHIC;
-use raylib::ffi;
-use raylib::math::glam::{Mat4, Vec3};
+use raylib::math::glam::Mat4;
 use raylib::prelude::*;
 use std::f32::consts::{PI, TAU};
 use std::fs;
@@ -9,6 +7,7 @@ use std::mem::size_of;
 use std::ops::{Add, Sub};
 use std::time::SystemTime;
 
+//TODO: address every single constant in here and whether or not it can efficiently be added to a config file targettted for hot reload.
 pub const RES_SCALE: f32 = 1.5;
 
 pub const DC_WIDTH_BASE: f32 = 640.0;
@@ -40,9 +39,6 @@ pub const ROOM_D: i32 = 9;
 
 pub const HALF: f32 = 0.5;
 
-pub const CHI_FIELD_SAMPLE_HEIGHT: f32 = 0.25;
-pub const CHI_ARROW_LENGTH: f32 = 0.25;
-
 pub const BLEND_SCALAR: f32 = 5.0;
 pub const PLACEMENT_ANIM_DUR_SECONDS: f32 = 0.15;
 pub const HINT_SCALE: f32 = 0.66;
@@ -61,6 +57,7 @@ pub struct ViewState {
     pub space_blend: f32,
     pub aspect_blend: f32,
     pub ortho_blend: f32,
+    pub jugemu_zoom: JugemuState,
 }
 
 impl ViewState {
@@ -78,228 +75,37 @@ impl ViewState {
             space_blend: 0.0,
             aspect_blend: 1.0,
             ortho_blend: 0.0,
+            jugemu_zoom: JugemuState::default(),
         }
     }
 }
 
-pub struct PlacedCell {
-    pub ix: i32,
-    pub iy: i32,
-    pub iz: i32,
-    pub mesh_index: usize,
-    pub placed_time: f32,
-    pub settled: bool,
-    pub texture_enabled: bool,
-    pub color_enabled: bool,
+pub struct JugemuState {
+    pub fovy_ortho: f32,
+    pub fovy_perspective: f32,
+    pub distance_ortho: f32,
+    pub distance_perspective: f32,
 }
 
-impl PlacedCell {
-    pub fn age_at(&self, now: f32) -> f32 {
-        now - self.placed_time
-    }
-
-    pub fn scale_at(&self, now: f32) -> f32 {
-        let t = (self.age_at(now) / PLACEMENT_ANIM_DUR_SECONDS).clamp(0.0, 1.0);
-        lerp(HINT_SCALE, 1.0, t)
-    }
-
-    pub fn is_filled(&self) -> bool {
-        self.settled && (self.color_enabled || self.texture_enabled)
-    }
-}
-
-#[derive(Clone, Copy)]
-pub enum OpeningKind {
-    PrimaryDoor,
-    Door,
-    Window,
-}
-
-#[derive(Clone, Copy)]
-pub struct Opening {
-    pub p1: Vector3,
-    pub p2: Vector3,
-    pub kind: OpeningKind,
-}
-
-impl Opening {
-    pub fn center(&self) -> Vector3 {
-        Vector3::new(
-            (self.p1.x + self.p2.x) * 0.5,
-            (self.p1.y + self.p2.y) * 0.5,
-            (self.p1.z + self.p2.z) * 0.5,
-        )
-    }
-
-    pub fn normal(&self) -> Vector2 {
-        let dx = self.p2.x - self.p1.x;
-        let dz = self.p2.z - self.p1.z;
-        Vector2::new(dz, -dx).normalize_or_zero()
-    }
-
-    pub fn tangent(&self) -> Vector2 {
-        let dx = self.p2.x - self.p1.x;
-        let dz = self.p2.z - self.p1.z;
-        Vector2::new(dx, dz).normalize_or_zero()
-    }
-
-    pub fn width(&self) -> f32 {
-        let dx = self.p2.x - self.p1.x;
-        let dz = self.p2.z - self.p1.z;
-        (dx * dx + dz * dz).sqrt()
-    }
-}
-
-pub struct RoomGrid {
-    pub w: i32,
-    pub h: i32,
-    pub d: i32,
-    pub origin: Vector3,
-}
-
-impl RoomGrid {
-    pub fn cell_center(&self, ix: i32, iy: i32, iz: i32) -> Vector3 {
-        Vector3::new(
-            self.origin.x + ix as f32 + 0.5,
-            self.origin.y + iy as f32 + 0.5,
-            self.origin.z + iz as f32 + 0.5,
-        )
-    }
-
-    pub fn top_right_front_corner(&self, ix: i32, iy: i32, iz: i32, camera: &Camera3D) -> Vector3 {
-        let center = self.cell_center(ix, iy, iz);
-        let half = 0.5_f32;
-
-        let offsets = [
-            Vector3::new(-half, -half, -half),
-            Vector3::new(-half, -half, half),
-            Vector3::new(-half, half, -half),
-            Vector3::new(-half, half, half),
-            Vector3::new(half, -half, -half),
-            Vector3::new(half, -half, half),
-            Vector3::new(half, half, -half),
-            Vector3::new(half, half, half),
-        ];
-
-        let (depth, right, up) = basis_vector(&camera);
-        let cam_pos = camera.position;
-
-        fn to_camera_space(p: Vector3, cam_pos: Vector3, right: Vector3, up: Vector3, depth: Vector3) -> Vector3 {
-            let v = p.sub(cam_pos);
-            Vector3::new(v.dot(right), v.dot(up), v.dot(depth))
+impl Default for JugemuState {
+    fn default() -> Self {
+        Self {
+            fovy_ortho: FOVY_ORTHOGRAPHIC,
+            fovy_perspective: FOVY_PERSPECTIVE,
+            distance_ortho: JUGEMU_DISTANCE_ORTHO,
+            distance_perspective: JUGEMU_DISTANCE_PERSPECTIVE,
         }
-
-        let mut best_world = center.add(offsets[0]);
-        let mut best_cam = to_camera_space(best_world, cam_pos, right, up, depth);
-        let eps = 1e-4_f32;
-
-        for &offset in offsets.iter().skip(1) {
-            let world = center.add(offset);
-            let cam = to_camera_space(world, cam_pos, right, up, depth);
-            let better = cam.x > best_cam.x + eps
-                || ((cam.x - best_cam.x).abs() <= eps && cam.y > best_cam.y + eps)
-                || ((cam.x - best_cam.x).abs() <= eps && (cam.y - best_cam.y).abs() <= eps && cam.z < best_cam.z - eps);
-
-            if better {
-                best_cam = cam;
-                best_world = world;
-            }
-        }
-
-        best_world
-    }
-
-    pub fn ray_pick(&self, ray: Ray) -> Option<(i32, i32, i32)> {
-        if ray.direction.y.abs() < 1e-5 {
-            return None;
-        }
-
-        let floor_y = self.origin.y;
-        let t = (floor_y - ray.position.y) / ray.direction.y;
-        if t <= 0.0 {
-            return None;
-        }
-
-        let hit = Vector3::new(
-            ray.position.x + ray.direction.x * t,
-            floor_y,
-            ray.position.z + ray.direction.z * t,
-        );
-
-        let local_x = hit.x - self.origin.x;
-        let local_z = hit.z - self.origin.z;
-
-        if local_x < 0.0 || local_z < 0.0 || local_x >= self.w as f32 || local_z >= self.d as f32 {
-            return None;
-        }
-
-        let ix = local_x.floor() as i32;
-        let iz = local_z.floor() as i32;
-        let iy = 0;
-
-        Some((ix, iy, iz))
     }
 }
 
+//TODO: wasnt this going to be compressed somewhere? this will be injected into a meshes normals i htink like actual geometry of the rooms floor... or internal space..? deeper data in the room mesh.
 pub struct FieldSample {
     pub position: Vector3,
     pub direction: Vector2,
     pub magnitude: f32,
 }
 
-#[derive(Clone, Debug, Default)]
-pub struct FieldConfig {
-    pub jet_strength: f32,
-    pub jet_spread_angle: f32,
-    pub jet_max_distance: f32,
-    pub funnel_strength: f32,
-    pub funnel_reach: f32,
-    pub funnel_catch_radius: f32,
-    pub funnel_sink_radius: f32,
-    pub funnel_curve_power: f32,
-    pub wall_redirect_strength: f32,
-    pub wall_redirect_distance: f32,
-}
-
-impl FieldConfig {
-    pub fn load_from_file(path: &str) -> Self {
-        let mut config = FieldConfig::default();
-
-        if let Ok(content) = fs::read_to_string(path) {
-            for line in content.lines() {
-                let line = line.trim();
-                if line.is_empty() || line.starts_with('#') {
-                    continue;
-                }
-
-                let parts: Vec<&str> = line.split(' ').map(|s| s.trim()).collect();
-                if parts.len() != 2 {
-                    continue;
-                }
-
-                let key = parts[0];
-                let value: f32 = parts[1].parse().unwrap_or(0.0);
-
-                match key {
-                    "JET_STRENGTH" => config.jet_strength = value,
-                    "JET_SPREAD_ANGLE" => config.jet_spread_angle = value,
-                    "JET_MAX_DISTANCE" => config.jet_max_distance = value,
-                    "FUNNEL_STRENGTH" => config.funnel_strength = value,
-                    "FUNNEL_REACH" => config.funnel_reach = value,
-                    "FUNNEL_CATCH_RADIUS" => config.funnel_catch_radius = value,
-                    "FUNNEL_SINK_RADIUS" => config.funnel_sink_radius = value,
-                    "FUNNEL_CURVE_POWER" => config.funnel_curve_power = value,
-                    "WALL_REDIRECT_STRENGTH" => config.wall_redirect_strength = value,
-                    "WALL_REDIRECT_DISTANCE" => config.wall_redirect_distance = value,
-                    _ => {},
-                }
-            }
-        }
-
-        config
-    }
-}
-
+//TODO: add other configs unrelated to field config? or no, just one config probalby
 pub struct ConfigWatcher<T> {
     path: String,
     last_modified: Option<SystemTime>,
@@ -325,6 +131,58 @@ impl<T> ConfigWatcher<T> {
             }
         }
         None
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct FieldConfig {
+    pub jet_strength: f32,
+    pub jet_spread_angle: f32,
+    pub jet_max_distance: f32,
+    pub funnel_strength: f32,
+    pub funnel_reach: f32,
+    pub funnel_catch_radius: f32,
+    pub funnel_sink_radius: f32,
+    pub funnel_curve_power: f32,
+    pub wall_redirect_strength: f32,
+    pub wall_redirect_distance: f32,
+    pub chi_sample_height: f32,
+    pub chi_arrow_length: f32,
+}
+
+impl FieldConfig {
+    pub fn load_from_file(path: &str) -> Self {
+        let mut config = FieldConfig::default();
+        if let Ok(content) = fs::read_to_string(path) {
+            for line in content.lines() {
+                let line = line.trim();
+                if line.is_empty() || line.starts_with('#') {
+                    continue;
+                }
+                let parts: Vec<&str> = line.split(' ').map(|s| s.trim()).collect();
+                if parts.len() != 2 {
+                    continue;
+                }
+                let key = parts[0];
+                let value: f32 = parts[1].parse().unwrap_or(0.0);
+                match key {
+                    "JET_STRENGTH" => config.jet_strength = value,
+                    "JET_SPREAD_ANGLE" => config.jet_spread_angle = value,
+                    "JET_MAX_DISTANCE" => config.jet_max_distance = value,
+                    "FUNNEL_STRENGTH" => config.funnel_strength = value,
+                    "FUNNEL_REACH" => config.funnel_reach = value,
+                    "FUNNEL_CATCH_RADIUS" => config.funnel_catch_radius = value,
+                    "FUNNEL_SINK_RADIUS" => config.funnel_sink_radius = value,
+                    "FUNNEL_CURVE_POWER" => config.funnel_curve_power = value,
+                    "WALL_REDIRECT_STRENGTH" => config.wall_redirect_strength = value,
+                    "WALL_REDIRECT_DISTANCE" => config.wall_redirect_distance = value,
+                    "CHI_SAMPLE_HEIGHT" => config.chi_sample_height = value,
+                    "CHI_ARROW_LENGTH" => config.chi_arrow_length = value,
+                    _ => {},
+                }
+            }
+        }
+        config
     }
 }
 
@@ -381,18 +239,7 @@ pub fn gpu_vertex_stride_bytes(metrics: &MeshMetrics) -> usize {
     stride
 }
 
-pub struct MeshDescriptor {
-    pub name: &'static str,
-    pub world: Model,
-    pub ndc: Model,
-    pub texture: Texture2D,
-    pub metrics_world: MeshMetrics,
-    pub metrics_ndc: MeshMetrics,
-    pub combined_bytes: usize,
-    pub z_shift_anisotropic: f32,
-    pub z_shift_isotropic: f32,
-}
-
+//TODO: cant this be in MeshMetrics as an option or something please lets compress this garbage.
 pub struct FrameDynamicMetrics {
     pub vertex_positions_written: usize,
     pub vertex_normals_written: usize,
@@ -421,6 +268,7 @@ impl FrameDynamicMetrics {
     }
 }
 
+//TODO: cant this be compressed with the other metrics or no please come on
 pub struct AnimationMetrics {
     pub sample_count: usize,
     pub verts_per_sample: usize,
@@ -445,79 +293,19 @@ impl AnimationMetrics {
     }
 }
 
-pub struct ColorGuard {
-    cached_colors_ptr: *mut std::ffi::c_uchar,
-    restore_target: *mut ffi::Mesh,
+pub struct MeshDescriptor {
+    pub name: &'static str,
+    pub world: Model,
+    pub ndc: Model,
+    pub texture: Texture2D,
+    pub metrics_world: MeshMetrics,
+    pub metrics_ndc: MeshMetrics,
+    pub combined_bytes: usize,
+    pub z_shift_anisotropic: f32,
+    pub z_shift_isotropic: f32,
 }
 
-impl ColorGuard {
-    pub fn hide(mesh: &mut WeakMesh) -> Self {
-        let mesh_ptr = mesh.as_mut() as *mut ffi::Mesh;
-        let colors_ptr = unsafe { (*mesh_ptr).colors };
-        unsafe {
-            (*mesh_ptr).colors = std::ptr::null_mut();
-        }
-        Self {
-            cached_colors_ptr: colors_ptr,
-            restore_target: mesh_ptr,
-        }
-    }
-}
-
-impl Drop for ColorGuard {
-    fn drop(&mut self) {
-        unsafe {
-            (*self.restore_target).colors = self.cached_colors_ptr;
-        }
-    }
-}
-
-pub struct TextureGuard {
-    cached_texture_id: std::ffi::c_uint,
-    restore_target: *mut Model,
-}
-
-impl TextureGuard {
-    pub fn hide(model: &mut Model) -> Self {
-        use raylib::consts::MaterialMapIndex::MATERIAL_MAP_ALBEDO;
-        let cached_id = model.materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize]
-            .texture
-            .id;
-        model.materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize]
-            .texture
-            .id = 0;
-        Self {
-            cached_texture_id: cached_id,
-            restore_target: model as *mut Model,
-        }
-    }
-
-    pub fn set_texture(model: &mut Model, texture_id: u32) -> Self {
-        use raylib::consts::MaterialMapIndex::MATERIAL_MAP_ALBEDO;
-        let cached_id = model.materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize]
-            .texture
-            .id;
-        model.materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize]
-            .texture
-            .id = texture_id;
-        Self {
-            cached_texture_id: cached_id,
-            restore_target: model as *mut Model,
-        }
-    }
-}
-
-impl Drop for TextureGuard {
-    fn drop(&mut self) {
-        use raylib::consts::MaterialMapIndex::MATERIAL_MAP_ALBEDO;
-        unsafe {
-            (*self.restore_target).materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize]
-                .texture
-                .id = self.cached_texture_id;
-        }
-    }
-}
-
+//TODO: is this even neccessary? like compute hover state is a fuckking public function not even part of this... and one fuctnion of is occupied seems overengineered abstraction
 pub struct HoverState {
     pub indices: Option<(i32, i32, i32)>,
     pub center: Option<Vector3>,
@@ -533,16 +321,14 @@ impl HoverState {
 pub fn compute_hover_state(
     handle: &RaylibHandle,
     camera: &Camera3D,
-    grid: &RoomGrid,
-    placed_cells: &[PlacedCell],
+    room: &Room,
+    placed_cells: &[OccupiedCell],
 ) -> HoverState {
     let mouse = handle.get_mouse_position();
     let ray = handle.get_screen_to_world_ray(mouse, *camera);
-
-    if let Some((ix, iy, iz)) = grid.ray_pick(ray) {
-        let center = grid.cell_center(ix, iy, iz);
+    if let Some((ix, iy, iz)) = room.select_floor_cell(ray) {
+        let center = room.cell_center(ix, iy, iz);
         let placed_cell_index = placed_cells.iter().position(|c| c.ix == ix && c.iy == iy && c.iz == iz);
-
         HoverState {
             indices: Some((ix, iy, iz)),
             center: Some(center),
@@ -557,82 +343,208 @@ pub fn compute_hover_state(
     }
 }
 
+pub struct OccupiedCell {
+    pub ix: i32,
+    pub iy: i32,
+    pub iz: i32,
+    pub mesh_index: usize,
+    pub placed_time: f32,
+    pub settled: bool,
+    pub texture_enabled: bool,
+    pub color_enabled: bool,
+}
+
+impl OccupiedCell {
+    pub fn age_at(&self, now: f32) -> f32 {
+        now - self.placed_time
+    }
+
+    pub fn scale_at(&self, now: f32) -> f32 {
+        let t = (self.age_at(now) / PLACEMENT_ANIM_DUR_SECONDS).clamp(0.0, 1.0);
+        lerp(HINT_SCALE, 1.0, t)
+    }
+
+    pub fn is_filled(&self) -> bool {
+        self.settled && (self.color_enabled || self.texture_enabled)
+    }
+}
+
+#[derive(Clone, Copy)]
+pub enum OpeningKind {
+    Door { primary: bool },
+    Window,
+}
+
+#[derive(Clone, Copy)]
+pub struct Opening {
+    pub p1: Vector3,
+    pub p2: Vector3,
+    pub kind: OpeningKind,
+}
+
+impl Opening {
+    pub fn center(&self) -> Vector3 {
+        Vector3::new(
+            (self.p1.x + self.p2.x) * 0.5,
+            (self.p1.y + self.p2.y) * 0.5,
+            (self.p1.z + self.p2.z) * 0.5,
+        )
+    }
+
+    pub fn normal(&self) -> Vector2 {
+        let dx = self.p2.x - self.p1.x;
+        let dz = self.p2.z - self.p1.z;
+        Vector2::new(dz, -dx).normalize_or_zero()
+    }
+
+    pub fn tangent(&self) -> Vector2 {
+        let dx = self.p2.x - self.p1.x;
+        let dz = self.p2.z - self.p1.z;
+        Vector2::new(dx, dz).normalize_or_zero()
+    }
+
+    pub fn width(&self) -> f32 {
+        let dx = self.p2.x - self.p1.x;
+        let dz = self.p2.z - self.p1.z;
+        (dx * dx + dz * dz).sqrt()
+    }
+}
+
 pub struct Room {
-    pub room_w: i32,
-    pub room_d: i32,
+    pub w: i32,
+    pub h: i32,
+    pub d: i32,
+    pub origin: Vector3,
     pub openings: Vec<Opening>,
     pub field_samples: Vec<FieldSample>,
     pub config: FieldConfig,
-    pub grid: RoomGrid,
+}
+impl Default for Room {
+    fn default() -> Self {
+        let origin = Vector3::new(-(ROOM_W as f32) / 2.0, -(ROOM_H as f32) / 2.0, -(ROOM_D as f32) / 2.0);
+        let center_x = origin.x + ROOM_W as f32 * 0.5;
+        let north_z = origin.z + ROOM_D as f32;
+        let primary_door = Opening {
+            p1: Vector3::new(center_x - 1.0, origin.y, north_z),
+            p2: Vector3::new(center_x + 1.0, origin.y, north_z),
+            kind: OpeningKind::Door { primary: true },
+        };
+        let west_x = origin.x;
+        let center_z = origin.z + ROOM_D as f32 * 0.5;
+        let window = Opening {
+            p1: Vector3::new(west_x, origin.y, center_z - 1.5),
+            p2: Vector3::new(west_x, origin.y, center_z + 1.5),
+            kind: OpeningKind::Window,
+        };
+        let mut room = Room {
+            w: ROOM_W,
+            h: ROOM_H,
+            d: ROOM_D,
+            origin,
+            openings: vec![primary_door, window],
+            field_samples: Vec::new(),
+            config: FieldConfig::default(),
+        };
+        room.generate_field();
+        room
+    }
 }
 
 impl Room {
+    pub fn for_each_cell(&self, mut f: impl FnMut(i32, i32, i32, Vector3)) {
+        for iy in 0..self.h {
+            for iz in 0..self.d {
+                for ix in 0..self.w {
+                    let center = self.cell_center(ix, iy, iz);
+                    f(ix, iy, iz, center);
+                }
+            }
+        }
+    }
+
     pub fn primary_door(&self) -> &Opening {
         self.openings
             .iter()
-            .find(|o| matches!(o.kind, OpeningKind::PrimaryDoor))
+            .find(|o| matches!(o.kind, OpeningKind::Door { primary: true }))
             .expect("Room must have a primary door")
     }
 
     pub fn primary_window(&self) -> Option<&Opening> {
         self.openings.iter().find(|o| matches!(o.kind, OpeningKind::Window))
     }
-}
 
-impl Default for Room {
-    fn default() -> Self {
-        let origin = Vector3::new(-(ROOM_W as f32) / 2.0, -(ROOM_H as f32) / 2.0, -(ROOM_D as f32) / 2.0);
-
-        let center_x = origin.x + ROOM_W as f32 * 0.5;
-        let north_z = origin.z + ROOM_D as f32;
-
-        let primary_door = Opening {
-            p1: Vector3::new(center_x - 1.0, origin.y, north_z),
-            p2: Vector3::new(center_x + 1.0, origin.y, north_z),
-            kind: OpeningKind::PrimaryDoor,
-        };
-
-        let west_x = origin.x;
-        let center_z = origin.z + ROOM_D as f32 * 0.5;
-
-        let window = Opening {
-            p1: Vector3::new(west_x, origin.y, center_z - 1.5),
-            p2: Vector3::new(west_x, origin.y, center_z + 1.5),
-            kind: OpeningKind::Window,
-        };
-
-        let grid = RoomGrid {
-            w: ROOM_W,
-            h: ROOM_H,
-            d: ROOM_D,
-            origin,
-        };
-
-        let mut room = Room {
-            room_w: ROOM_W,
-            room_d: ROOM_D,
-            openings: vec![primary_door, window],
-            field_samples: Vec::new(),
-            config: FieldConfig::default(),
-            grid,
-        };
-
-        room.generate_field();
-        room
+    #[inline]
+    pub fn cell_center(&self, ix: i32, iy: i32, iz: i32) -> Vector3 {
+        Vector3::new(
+            self.origin.x + ix as f32 + 0.5,
+            self.origin.y + iy as f32 + 0.5,
+            self.origin.z + iz as f32 + 0.5,
+        )
     }
-}
 
-fn blend_directions(current: Vector2, desired: Vector2, weight: f32) -> Vector2 {
-    let w = weight.clamp(0.0, 1.0);
-    let c = current.normalize_or_zero();
-    let d = desired.normalize_or_zero();
-    c.lerp(d, w).normalize_or_zero()
-}
+    pub fn top_right_front_corner(&self, ix: i32, iy: i32, iz: i32, camera: &Camera3D) -> Vector3 {
+        let center = self.cell_center(ix, iy, iz);
+        let half = 0.5_f32;
+        let offsets = [
+            Vector3::new(-half, -half, -half),
+            Vector3::new(-half, -half, half),
+            Vector3::new(-half, half, -half),
+            Vector3::new(-half, half, half),
+            Vector3::new(half, -half, -half),
+            Vector3::new(half, -half, half),
+            Vector3::new(half, half, -half),
+            Vector3::new(half, half, half),
+        ];
+        let (depth, right, up) = basis_vector(&camera);
+        let cam_pos = camera.position;
+        fn to_camera_space(p: Vector3, cam_pos: Vector3, right: Vector3, up: Vector3, depth: Vector3) -> Vector3 {
+            let v = p.sub(cam_pos);
+            Vector3::new(v.dot(right), v.dot(up), v.dot(depth))
+        }
+        let mut best_world = center.add(offsets[0]);
+        let mut best_cam = to_camera_space(best_world, cam_pos, right, up, depth);
+        let eps = 1e-4_f32;
+        for &offset in offsets.iter().skip(1) {
+            let world = center.add(offset);
+            let cam = to_camera_space(world, cam_pos, right, up, depth);
+            let better = cam.x > best_cam.x + eps
+                || ((cam.x - best_cam.x).abs() <= eps && cam.y > best_cam.y + eps)
+                || ((cam.x - best_cam.x).abs() <= eps && (cam.y - best_cam.y).abs() <= eps && cam.z < best_cam.z - eps);
+            if better {
+                best_cam = cam;
+                best_world = world;
+            }
+        }
+        best_world
+    }
 
-impl Room {
+    pub fn select_floor_cell(&self, ray: Ray) -> Option<(i32, i32, i32)> {
+        if ray.direction.y.abs() < 1e-5 {
+            return None;
+        }
+        let floor_y = self.origin.y;
+        let t = (floor_y - ray.position.y) / ray.direction.y;
+        if t <= 0.0 {
+            return None;
+        }
+        let hit = Vector3::new(
+            ray.position.x + ray.direction.x * t,
+            floor_y,
+            ray.position.z + ray.direction.z * t,
+        );
+        let local_x = hit.x - self.origin.x;
+        let local_z = hit.z - self.origin.z;
+        if local_x < 0.0 || local_z < 0.0 || local_x >= self.w as f32 || local_z >= self.d as f32 {
+            return None;
+        }
+        let ix = local_x.floor() as i32;
+        let iz = local_z.floor() as i32;
+        let iy = 0;
+        Some((ix, iy, iz))
+    }
+
     pub fn reload_config(&mut self, config: FieldConfig) {
         self.config = config;
-
         println!(
             "JET_STRENGTH = {}\n\
              JET_SPREAD_ANGLE = {}\n\
@@ -643,7 +555,9 @@ impl Room {
              FUNNEL_SINK_RADIUS = {}\n\
              FUNNEL_CURVE_POWER = {}\n\
              WALL_REDIRECT_STRENGTH = {}\n\
-             WALL_REDIRECT_DISTANCE = {}",
+             WALL_REDIRECT_DISTANCE = {}\n\
+             CHI_SAMPLE_HEIGHT = {}\n\
+             CHI_ARROW_LENGTH = {}",
             self.config.jet_strength,
             self.config.jet_spread_angle,
             self.config.jet_max_distance,
@@ -654,14 +568,15 @@ impl Room {
             self.config.funnel_curve_power,
             self.config.wall_redirect_strength,
             self.config.wall_redirect_distance,
+            self.config.chi_sample_height,
+            self.config.chi_arrow_length,
         );
-
         self.generate_field();
         self.log_debug_samples();
     }
 
     fn rectangular_jet_from_opening(&self, point: Vector3, opening: &Opening) -> (Vector2, f32) {
-        if !matches!(opening.kind, OpeningKind::PrimaryDoor | OpeningKind::Door) {
+        if !matches!(opening.kind, OpeningKind::Door { .. }) {
             return (Vector2::ZERO, 0.0);
         }
 
@@ -757,7 +672,7 @@ impl Room {
     }
 
     fn apply_back_wall_redirect(&self, point: Vector3, dir: Vector2, mag: f32) -> (Vector2, f32) {
-        let origin = self.grid.origin;
+        let origin = self.origin;
         let back_wall_z = origin.z;
 
         let dist = (point.z - back_wall_z).abs();
@@ -771,7 +686,7 @@ impl Room {
         let falloff = 1.0 - (dist / max_dist);
         let weight = base * falloff;
 
-        let center_x = origin.x + self.room_w as f32 * 0.5;
+        let center_x = origin.x + self.w as f32 * 0.5;
         let lateral = point.x - center_x;
 
         let desired_dir = Vector2::new(if lateral >= 0.0 { 1.0 } else { -1.0 }, 0.0);
@@ -800,79 +715,64 @@ impl Room {
 
         (dir.normalize_or_zero(), mag)
     }
-
     pub fn generate_field(&mut self) {
         self.field_samples.clear();
+        let door = *self.primary_door();
+        let window = self.primary_window().copied();
+        let base_y = self.origin.y + self.config.chi_sample_height;
 
-        let origin = self.grid.origin;
-
-        let door: Opening = *self.primary_door();
-        let window: Option<Opening> = self.primary_window().copied();
-
-        for iz in 0..self.room_d {
-            for ix in 0..self.room_w {
-                let cx = origin.x + ix as f32 + 0.5;
-                let cz = origin.z + iz as f32 + 0.5;
-
-                let center_pos = Vector3::new(cx, origin.y + CHI_FIELD_SAMPLE_HEIGHT, cz);
-                let (dir, mag) = self.compute_energy_at_point(center_pos, &door, window.as_ref());
-
-                self.field_samples.push(FieldSample {
-                    position: center_pos,
-                    direction: dir,
-                    magnitude: mag,
-                });
-
-                for &(dx, dz) in &[(-0.5, -0.5), (0.5, -0.5), (-0.5, 0.5), (0.5, 0.5)] {
-                    let px = cx + dx;
-                    let pz = cz + dz;
-                    let pos = Vector3::new(px, origin.y + CHI_FIELD_SAMPLE_HEIGHT, pz);
-
-                    let (d2, m2) = self.compute_energy_at_point(pos, &door, window.as_ref());
-
+        for iy in 0..self.h {
+            for iz in 0..self.d {
+                for ix in 0..self.w {
+                    if iy != 0 {
+                        continue;
+                    }
+                    let center = self.cell_center(ix, iy, iz);
+                    let center_pos = Vector3::new(center.x, base_y, center.z);
+                    let (dir, mag) = self.compute_energy_at_point(center_pos, &door, window.as_ref());
                     self.field_samples.push(FieldSample {
-                        position: pos,
-                        direction: d2,
-                        magnitude: m2,
+                        position: center_pos,
+                        direction: dir,
+                        magnitude: mag,
                     });
+                    for &(dx, dz) in &[(-0.5, -0.5), (0.5, -0.5), (-0.5, 0.5), (0.5, 0.5)] {
+                        let pos = Vector3::new(center_pos.x + dx, base_y, center_pos.z + dz);
+                        let (d2, m2) = self.compute_energy_at_point(pos, &door, window.as_ref());
+                        self.field_samples.push(FieldSample {
+                            position: pos,
+                            direction: d2,
+                            magnitude: m2,
+                        });
+                    }
                 }
             }
         }
     }
 
     pub fn log_debug_samples(&self) {
-        let origin = self.grid.origin;
-
+        let origin = self.origin;
         let door: Opening = *self.primary_door();
         let window: Option<Opening> = self.primary_window().copied();
-
-        let cx = origin.x + self.room_w as f32 * 0.5;
-        let cz = origin.z + self.room_d as f32 * 0.5;
-
-        let center = Vector3::new(cx, origin.y + CHI_FIELD_SAMPLE_HEIGHT, cz);
-
+        let cx = origin.x + self.w as f32 * 0.5;
+        let cz = origin.z + self.d as f32 * 0.5;
+        let center = Vector3::new(cx, origin.y + self.config.chi_sample_height, cz);
         let near_door = {
             let c = door.center();
-            Vector3::new(c.x, origin.y + CHI_FIELD_SAMPLE_HEIGHT, c.z - 1.0)
+            Vector3::new(c.x, origin.y + self.config.chi_sample_height, c.z - 1.0)
         };
-
         let near_window = if let Some(w) = window {
             let c = w.center();
-            Vector3::new(c.x + 1.0, origin.y + CHI_FIELD_SAMPLE_HEIGHT, c.z)
+            Vector3::new(c.x + 1.0, origin.y + self.config.chi_sample_height, c.z)
         } else {
             center
         };
-
-        let near_back = Vector3::new(cx, origin.y + CHI_FIELD_SAMPLE_HEIGHT, origin.z + 0.5);
-
-        let qw = self.room_w as f32 * 0.25;
-        let qd = self.room_d as f32 * 0.25;
-
-        let nw = Vector3::new(cx - qw, origin.y + CHI_FIELD_SAMPLE_HEIGHT, cz + qd);
-        let ne = Vector3::new(cx + qw, origin.y + CHI_FIELD_SAMPLE_HEIGHT, cz + qd);
-        let sw = Vector3::new(cx - qw, origin.y + CHI_FIELD_SAMPLE_HEIGHT, cz - qd);
-        let se = Vector3::new(cx + qw, origin.y + CHI_FIELD_SAMPLE_HEIGHT, cz - qd);
-
+        let near_back = Vector3::new(cx, origin.y + self.config.chi_sample_height, origin.z + 0.5);
+        let qw = self.w as f32 * 0.25;
+        let qd = self.d as f32 * 0.25;
+        let nw = Vector3::new(cx - qw, origin.y + self.config.chi_sample_height, cz + qd);
+        let ne = Vector3::new(cx + qw, origin.y + self.config.chi_sample_height, cz + qd);
+        let sw = Vector3::new(cx - qw, origin.y + self.config.chi_sample_height, cz - qd);
+        let se = Vector3::new(cx + qw, origin.y + self.config.chi_sample_height, cz - qd);
         let probes = [
             ("MID", center),
             ("DOOR", near_door),
@@ -883,7 +783,6 @@ impl Room {
             ("SW", sw),
             ("SE", se),
         ];
-
         println!("--- chi debug samples ---");
         for (name, pos) in probes {
             let (dir, mag) = self.compute_energy_at_point(pos, &door, window.as_ref());
@@ -896,6 +795,13 @@ impl Room {
     }
 }
 
+fn blend_directions(current: Vector2, desired: Vector2, weight: f32) -> Vector2 {
+    let w = weight.clamp(0.0, 1.0);
+    let c = current.normalize_or_zero();
+    let d = desired.normalize_or_zero();
+    c.lerp(d, w).normalize_or_zero()
+}
+
 pub fn basis_vector(main: &Camera3D) -> (Vector3, Vector3, Vector3) {
     let depth = main.target.sub(main.position).normalize();
     let right = depth.cross(main.up).normalize();
@@ -904,8 +810,8 @@ pub fn basis_vector(main: &Camera3D) -> (Vector3, Vector3, Vector3) {
 }
 
 #[inline]
-pub fn observed_line_of_sight(observer: &Camera3D) -> Vec3 {
-    Vec3::new(
+pub fn observed_line_of_sight(observer: &Camera3D) -> Vector3 {
+    Vector3::new(
         observer.target.x - observer.position.x,
         observer.target.y - observer.position.y,
         observer.target.z - observer.position.z,
@@ -914,12 +820,12 @@ pub fn observed_line_of_sight(observer: &Camera3D) -> Vec3 {
 }
 
 #[inline]
-pub fn triangle_normal(a: Vec3, b: Vec3, c: Vec3) -> Vec3 {
+pub fn triangle_normal(a: Vector3, b: Vector3, c: Vector3) -> Vector3 {
     (b - a).cross(c - a).normalize_or_zero()
 }
 
 #[inline]
-pub fn rotate_point_about_axis(c: Vec3, axis: (Vec3, Vec3), theta: f32) -> Vec3 {
+pub fn rotate_point_about_axis(c: Vector3, axis: (Vector3, Vector3), theta: f32) -> Vector3 {
     let (a, b) = axis;
     let ab = b - a;
     let ab_dir = ab.normalize_or_zero();
@@ -937,6 +843,7 @@ fn translate_rotate_scale(inverse: i32, coord: Vector3, pos: Vector3, scale: Vec
     m.transform_point3(coord)
 }
 
+//TODO: these are still not even used well???? I REALLY DON TLIKE THIS IF ITS OVERENGINEERING ABSTRACTIONS DUDE
 pub struct ProjectionParams {
     pub depth: Vector3,
     pub right: Vector3,

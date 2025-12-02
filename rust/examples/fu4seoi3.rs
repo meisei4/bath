@@ -11,7 +11,7 @@ fn main() {
     let mut i_time = 0.0f32;
     let mut total_time = 0.0f32;
     let mut view_state = ViewState::new();
-    let mut placed_cells: Vec<PlacedCell> = Vec::new();
+    let mut placed_cells: Vec<OccupiedCell> = Vec::new();
 
     let (mut handle, thread) = init()
         .size(DC_WIDTH, DC_HEIGHT)
@@ -61,11 +61,6 @@ fn main() {
         fovy: FOVY_ORTHOGRAPHIC,
         projection: CAMERA_ORTHOGRAPHIC,
     };
-
-    let mut prev_fovy_ortho = FOVY_ORTHOGRAPHIC;
-    let mut prev_fovy_perspective = FOVY_PERSPECTIVE;
-    let mut prev_distance_ortho = JUGEMU_DISTANCE_ORTHO;
-    let mut prev_distance_perspective = JUGEMU_DISTANCE_PERSPECTIVE;
 
     let mut meshes: Vec<MeshDescriptor> = Vec::new();
 
@@ -241,16 +236,7 @@ fn main() {
         aspect = handle.get_screen_width() as f32 / handle.get_screen_height() as f32;
         frame_dynamic_metrics.reset();
 
-        update_view_from_input(
-            &handle,
-            &mut view_state,
-            &mut jugemu,
-            &mut prev_fovy_ortho,
-            &mut prev_fovy_perspective,
-            &mut prev_distance_ortho,
-            &mut prev_distance_perspective,
-        );
-
+        update_view_from_input(&handle, &mut view_state, &mut jugemu);
         update_blend(&mut view_state.space_blend, dt, view_state.ndc_space);
         update_blend(&mut view_state.aspect_blend, dt, view_state.aspect_correct);
         update_blend(&mut view_state.ortho_blend, dt, view_state.ortho_mode);
@@ -341,7 +327,7 @@ fn main() {
             view_state.ortho_blend,
         );
 
-        let hover_state = compute_hover_state(&handle, &jugemu, &room.grid, &placed_cells);
+        let hover_state = compute_hover_state(&handle, &jugemu, &room, &placed_cells);
 
         if let Some(cell_idx) = hover_state.placed_cell_index {
             if handle.is_key_pressed(KeyboardKey::KEY_T) {
@@ -354,7 +340,7 @@ fn main() {
 
         if handle.is_mouse_button_pressed(MouseButton::MOUSE_BUTTON_LEFT) {
             if let (Some((ix, iy, iz)), false) = (hover_state.indices, hover_state.is_occupied()) {
-                placed_cells.push(PlacedCell {
+                placed_cells.push(OccupiedCell {
                     ix,
                     iy,
                     iz,
@@ -380,46 +366,37 @@ fn main() {
                 draw_spatial_frame(&mut rl3d, &spatial_frame_model.meshes_mut()[0]);
             }
 
-            draw_room_floor_grid(&mut rl3d, &room.grid);
+            draw_room_floor_grid(&mut rl3d, &room);
             rl3d.draw_cube_wires(MODEL_POS, ROOM_W as f32, ROOM_H as f32, ROOM_D as f32, RED_DAMASK);
 
             if let Some(center) = hover_state.center {
                 rl3d.draw_cube_wires(center, 1.0, 1.0, 1.0, NEON_CARROT);
             }
 
-            draw_placed_cells(&mut rl3d, &mut meshes, &mut placed_cells, total_time, &room.grid);
-
+            draw_placed_cells(&mut rl3d, &mut meshes, &mut placed_cells, total_time, &room);
             {
                 let desc = &mut meshes[target_mesh];
-                draw_instance(
+                draw_filled_with_overlay(
                     &mut rl3d,
                     &mut desc.ndc,
                     &desc.texture,
                     MODEL_POS,
                     mesh_rotation.to_degrees(),
                     MODEL_SCALE,
-                    DrawMode::FilledWithOverlay,
                     view_state.color_mode,
                     view_state.texture_mode,
                 );
-
                 if let Some(center) = hover_state.center {
-                    draw_instance(
+                    draw_hint(
                         &mut rl3d,
                         &mut desc.ndc,
-                        &desc.texture,
                         center,
                         mesh_rotation.to_degrees(),
                         HINT_SCALE_VEC,
-                        DrawMode::Hint {
-                            occupied: hover_state.is_occupied(),
-                        },
-                        false,
-                        false,
+                        hover_state.is_occupied(),
                     );
                 }
             }
-
             draw_chi_field(&mut rl3d, &room);
         });
 
@@ -435,7 +412,7 @@ fn main() {
             &meshes,
             &mesh_samples,
             &frame_dynamic_metrics,
-            &room.grid,
+            &room,
         );
     }
 }
