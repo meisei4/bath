@@ -240,6 +240,7 @@ pub fn draw_placed_cells(
     placed_cells: &mut [OccupiedCell],
     total_time: f32,
     room: &Room,
+    view_config: &ViewConfig,
 ) {
     for cell in placed_cells.iter_mut() {
         if cell.mesh_index >= meshes.len() {
@@ -247,10 +248,13 @@ pub fn draw_placed_cells(
         }
         let cell_pos = room.cell_center(cell.ix, cell.iy, cell.iz);
         let age = cell.age_at(total_time);
+        if age >= view_config.placement_anim_dur_seconds {
+            cell.settled = true;
+        }
+        let current_scale = cell.scale_at(total_time, view_config);
         if age >= PLACEMENT_ANIM_DUR_SECONDS {
             cell.settled = true;
         }
-        let current_scale = cell.scale_at(total_time);
         let desc = &mut meshes[cell.mesh_index];
         if cell.settled {
             draw_filled_with_overlay(

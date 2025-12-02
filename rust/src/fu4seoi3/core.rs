@@ -98,6 +98,72 @@ impl Default for JugemuState {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct ViewConfig {
+    pub jugemu_distance_ortho: f32,
+    pub jugemu_distance_perspective: f32,
+    pub fovy_perspective: f32,
+    pub fovy_orthographic: f32,
+    pub blend_scalar: f32,
+    pub placement_anim_dur_seconds: f32,
+    pub hint_scale: f32,
+    pub rotation_frequency_hz: f32,
+    pub time_between_samples: f32,
+    pub rotational_samples_for_inv_proj: usize,
+}
+
+impl Default for ViewConfig {
+    fn default() -> Self {
+        Self {
+            jugemu_distance_ortho: JUGEMU_DISTANCE_ORTHO,
+            jugemu_distance_perspective: JUGEMU_DISTANCE_PERSPECTIVE,
+            fovy_perspective: FOVY_PERSPECTIVE,
+            fovy_orthographic: FOVY_ORTHOGRAPHIC,
+            blend_scalar: BLEND_SCALAR,
+            placement_anim_dur_seconds: PLACEMENT_ANIM_DUR_SECONDS,
+            hint_scale: HINT_SCALE,
+            rotation_frequency_hz: ROTATION_FREQUENCY_HZ,
+            time_between_samples: TIME_BETWEEN_SAMPLES,
+            rotational_samples_for_inv_proj: ROTATIONAL_SAMPLES_FOR_INV_PROJ,
+        }
+    }
+}
+
+impl ViewConfig {
+    pub fn load_from_file(path: &str) -> Self {
+        let mut cfg = ViewConfig::default();
+        if let Ok(content) = fs::read_to_string(path) {
+            for line in content.lines() {
+                let line = line.trim();
+                if line.is_empty() || line.starts_with('#') {
+                    continue;
+                }
+                let parts: Vec<&str> = line.split(' ').map(|s| s.trim()).collect();
+                if parts.len() != 2 {
+                    continue;
+                }
+                let key = parts[0];
+                let value: f32 = parts[1].parse().unwrap_or(0.0);
+                match key {
+                    "JUGEMU_DISTANCE_ORTHO" => cfg.jugemu_distance_ortho = value,
+                    "JUGEMU_DISTANCE_PERSPECTIVE" => cfg.jugemu_distance_perspective = value,
+                    "FOVY_PERSPECTIVE" => cfg.fovy_perspective = value,
+                    "FOVY_ORTHOGRAPHIC" => cfg.fovy_orthographic = value,
+
+                    "BLEND_SCALAR" => cfg.blend_scalar = value,
+                    "PLACEMENT_ANIM_DUR_SECONDS" => cfg.placement_anim_dur_seconds = value,
+                    "HINT_SCALE" => cfg.hint_scale = value,
+
+                    "ROTATION_FREQUENCY_HZ" => cfg.rotation_frequency_hz = value,
+                    "TIME_BETWEEN_SAMPLES" => cfg.time_between_samples = value,
+                    _ => {},
+                }
+            }
+        }
+        cfg
+    }
+}
+
 //TODO: wasnt this going to be compressed somewhere? this will be injected into a meshes normals i htink like actual geometry of the rooms floor... or internal space..? deeper data in the room mesh.
 pub struct FieldSample {
     pub position: Vector3,
@@ -359,9 +425,9 @@ impl OccupiedCell {
         now - self.placed_time
     }
 
-    pub fn scale_at(&self, now: f32) -> f32 {
-        let t = (self.age_at(now) / PLACEMENT_ANIM_DUR_SECONDS).clamp(0.0, 1.0);
-        lerp(HINT_SCALE, 1.0, t)
+    pub fn scale_at(&self, now: f32, view_cfg: &ViewConfig) -> f32 {
+        let t = (self.age_at(now) / view_cfg.placement_anim_dur_seconds).clamp(0.0, 1.0);
+        lerp(view_cfg.hint_scale, 1.0, t)
     }
 
     pub fn is_filled(&self) -> bool {
@@ -843,50 +909,6 @@ fn translate_rotate_scale(inverse: i32, coord: Vector3, pos: Vector3, scale: Vec
     m.transform_point3(coord)
 }
 
-//TODO: these are still not even used well???? I REALLY DON TLIKE THIS IF ITS OVERENGINEERING ABSTRACTIONS DUDE
-pub struct ProjectionParams {
-    pub depth: Vector3,
-    pub right: Vector3,
-    pub up: Vector3,
-    pub center_near: Vector3,
-    pub center_ndc: Vector3,
-    pub half_w_near: f32,
-    pub half_h_near: f32,
-    pub half_depth_ndc: f32,
-}
-
-pub fn compute_projection_params(
-    camera: &Camera3D,
-    aspect: f32,
-    near: f32,
-    far: f32,
-    ortho_factor: f32,
-    aspect_factor: f32,
-) -> ProjectionParams {
-    let (depth, right, up) = basis_vector(camera);
-
-    let half_h_near = lerp(
-        near * (FOVY_PERSPECTIVE * 0.5).to_radians().tan(),
-        0.5 * NEAR_PLANE_HEIGHT_ORTHOGRAPHIC(),
-        ortho_factor,
-    );
-    let half_w_near = lerp(half_h_near, half_h_near * aspect, aspect_factor);
-    let center_near = camera.position + depth * near;
-    let half_depth_ndc = lerp(half_h_near, 0.5 * (far - near), lerp(aspect_factor, 0.0, ortho_factor));
-    let center_ndc = center_near + depth * half_depth_ndc;
-
-    ProjectionParams {
-        depth,
-        right,
-        up,
-        center_near,
-        center_ndc,
-        half_w_near,
-        half_h_near,
-        half_depth_ndc,
-    }
-}
-
 fn intersect(camera: &Camera3D, near: f32, world_coord: Vector3, ortho_factor: f32) -> Vector3 {
     let view_dir = camera.target.sub(camera.position).normalize();
     let cam_to_point = world_coord - camera.position;
@@ -958,7 +980,6 @@ pub fn update_spatial_frame(
     }
     spatial_frame.vertices_mut().copy_from_slice(&out_vertices);
 }
-
 pub fn world_to_ndc_space(
     camera: &Camera3D,
     aspect: f32,
@@ -971,7 +992,20 @@ pub fn world_to_ndc_space(
     aspect_factor: f32,
     frame_metrics: &mut FrameDynamicMetrics,
 ) {
-    let params = compute_projection_params(camera, aspect, near, far, ortho_factor, aspect_factor);
+    let (depth, right, up) = basis_vector(camera);
+
+    let half_h_near = lerp(
+        near * (FOVY_PERSPECTIVE * 0.5).to_radians().tan(),
+        0.5 * NEAR_PLANE_HEIGHT_ORTHOGRAPHIC(),
+        ortho_factor,
+    );
+    let half_w_near = lerp(half_h_near, half_h_near * aspect, aspect_factor);
+
+    let center_near = camera.position + depth * near;
+
+    let half_depth_ndc = lerp(half_h_near, 0.5 * (far - near), lerp(aspect_factor, 0.0, ortho_factor));
+    let center_ndc = center_near + depth * half_depth_ndc;
+
     let world_mesh = &world.meshes()[0];
     let ndc_mesh = &mut ndc.meshes_mut()[0];
 
@@ -981,22 +1015,22 @@ pub fn world_to_ndc_space(
     for [a, b, c] in world_mesh.triangles() {
         for i in [a, b, c] {
             let wv = translate_rotate_scale(0, src_vertices[i], MODEL_POS, MODEL_SCALE, rotation);
-            let depth_signed = (wv - camera.position).dot(params.depth);
+            let depth_signed = (wv - camera.position).dot(depth);
             let clip_coord = intersect(camera, near, wv, ortho_factor);
-            let rel = clip_coord - params.center_near;
+            let rel = clip_coord - center_near;
 
-            let x_ndc = rel.dot(params.right) / params.half_w_near;
-            let y_ndc = rel.dot(params.up) / params.half_h_near;
+            let x_ndc = rel.dot(right) / half_w_near;
+            let y_ndc = rel.dot(up) / half_h_near;
 
             let persp_z = (far + near - 2.0 * far * near / depth_signed) / (far - near);
             let ortho_z = 2.0 * (depth_signed - near) / (far - near) - 1.0;
             let z_ndc = lerp(persp_z, ortho_z, ortho_factor);
 
-            let xw = params.right * (x_ndc * params.half_w_near);
-            let yw = params.up * (y_ndc * params.half_h_near);
-            let zw = params.depth * (z_ndc * params.half_depth_ndc);
+            let xw = right * (x_ndc * half_w_near);
+            let yw = up * (y_ndc * half_h_near);
+            let zw = depth * (z_ndc * half_depth_ndc);
 
-            let final_pos = params.center_ndc + xw + yw + zw;
+            let final_pos = center_ndc + xw + yw + zw;
             dst_vertices[i] = translate_rotate_scale(1, final_pos, MODEL_POS, MODEL_SCALE, rotation);
 
             frame_metrics.vertex_positions_written += 1;
@@ -1028,6 +1062,9 @@ pub fn blend_world_and_ndc_vertices(
 
 pub const RADIAL_FIELD_SIZE: usize = 64;
 pub const ROTATION_FREQUENCY_HZ: f32 = 0.05;
+// pub fn ANGULAR_VELOCITY(view_cfg: &ViewConfig) -> f32 {
+//     TAU * view_cfg.rotation_frequency_hz
+// }
 pub const ANGULAR_VELOCITY: f32 = TAU * ROTATION_FREQUENCY_HZ;
 pub const TIME_BETWEEN_SAMPLES: f32 = 0.5;
 pub const ROTATIONAL_SAMPLES_FOR_INV_PROJ: usize = 40;
@@ -1203,13 +1240,13 @@ pub fn calculate_average_ndc_z_shift(world_model: &Model, ndc_model: &Model) -> 
     }
 }
 
-pub fn update_blend(blend: &mut f32, dt: f32, target_on: bool) {
+pub fn update_blend(blend: &mut f32, dt: f32, target_on: bool, view_config: &ViewConfig) {
     if dt <= 0.0 {
         return;
     }
 
     let dir = if target_on { 1.0 } else { -1.0 };
-    *blend = (*blend + dir * BLEND_SCALAR * dt).clamp(0.0, 1.0);
+    *blend = (*blend + dir * view_config.blend_scalar * dt).clamp(0.0, 1.0);
 }
 
 pub fn format_bytes(bytes: usize) -> String {

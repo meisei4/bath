@@ -1,4 +1,4 @@
-use asset_payload::{CHI_CONFIG_PATH, FONT_IMAGE_PATH, FONT_PATH, SPHERE_GLTF_PATH, SPHERE_PATH};
+use asset_payload::{CHI_CONFIG_PATH, FONT_IMAGE_PATH, FONT_PATH, SPHERE_GLTF_PATH, SPHERE_PATH, VIEW_CONFIG_PATH};
 use bath::fu4seoi3::core::*;
 use bath::fu4seoi3::draw::*;
 use raylib::consts::CameraProjection::{CAMERA_ORTHOGRAPHIC, CAMERA_PERSPECTIVE};
@@ -227,19 +227,29 @@ fn main() {
     let mut room = Room::default();
     let mut config_watcher: ConfigWatcher<FieldConfig> =
         ConfigWatcher::new(CHI_CONFIG_PATH, FieldConfig::load_from_file);
-
+    let mut view_config = ViewConfig::default();
+    let mut view_config_watcher: ConfigWatcher<ViewConfig> =
+        ConfigWatcher::new(VIEW_CONFIG_PATH, ViewConfig::load_from_file);
     while !handle.window_should_close() {
         if let Some(new_config) = config_watcher.check_reload() {
             room.reload_config(new_config);
+        }
+        if let Some(new_view_cfg) = view_config_watcher.check_reload() {
+            view_config = new_view_cfg;
         }
         let dt = handle.get_frame_time();
         aspect = handle.get_screen_width() as f32 / handle.get_screen_height() as f32;
         frame_dynamic_metrics.reset();
 
         update_view_from_input(&handle, &mut view_state, &mut jugemu);
-        update_blend(&mut view_state.space_blend, dt, view_state.ndc_space);
-        update_blend(&mut view_state.aspect_blend, dt, view_state.aspect_correct);
-        update_blend(&mut view_state.ortho_blend, dt, view_state.ortho_mode);
+        update_blend(&mut view_state.space_blend, dt, view_state.ndc_space, &view_config);
+        update_blend(
+            &mut view_state.aspect_blend,
+            dt,
+            view_state.aspect_correct,
+            &view_config,
+        );
+        update_blend(&mut view_state.ortho_blend, dt, view_state.ortho_mode, &view_config);
 
         if !view_state.paused {
             mesh_rotation -= ANGULAR_VELOCITY * dt;
@@ -373,7 +383,14 @@ fn main() {
                 rl3d.draw_cube_wires(center, 1.0, 1.0, 1.0, NEON_CARROT);
             }
 
-            draw_placed_cells(&mut rl3d, &mut meshes, &mut placed_cells, total_time, &room);
+            draw_placed_cells(
+                &mut rl3d,
+                &mut meshes,
+                &mut placed_cells,
+                total_time,
+                &room,
+                &view_config,
+            );
             {
                 let desc = &mut meshes[target_mesh];
                 draw_filled_with_overlay(
