@@ -10,6 +10,7 @@ use godot_nodes::audio::audio_bus::AudioBus;
 pub mod audio_analysis;
 pub mod collision_mask;
 pub mod fixed_func;
+pub mod fu4seoi3;
 pub mod godot_nodes;
 pub mod midi;
 pub mod render;
