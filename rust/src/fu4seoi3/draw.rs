@@ -1,6 +1,105 @@
 use crate::fu4seoi3::core::*;
 use raylib::ffi;
+use raylib::math::glam::Vec3;
 use raylib::prelude::*;
+
+pub const BAHAMA_BLUE: Color = Color::new(0, 102, 153, 255);
+pub const SUNFLOWER: Color = Color::new(255, 204, 153, 255);
+pub const PALE_CANARY: Color = Color::new(255, 255, 153, 255);
+pub const ANAKIWA: Color = Color::new(153, 204, 255, 255);
+pub const MARINER: Color = Color::new(51, 102, 204, 255);
+pub const NEON_CARROT: Color = Color::new(255, 153, 51, 255);
+pub const EGGPLANT: Color = Color::new(102, 68, 102, 255);
+pub const HOPBUSH: Color = Color::new(204, 102, 153, 255);
+pub const LILAC: Color = Color::new(204, 153, 204, 255);
+pub const RED_DAMASK: Color = Color::new(221, 102, 68, 255);
+pub const CHESTNUT_ROSE: Color = Color::new(204, 102, 102, 255);
+
+pub enum DrawMode {
+    Filled,
+    WiresAndPoints,
+    FilledWithOverlay,
+    Hint { occupied: bool },
+}
+
+pub fn draw_instance(
+    rl3d: &mut RaylibMode3D<RaylibDrawHandle>,
+    model: &mut Model,
+    texture: &Texture2D,
+    position: Vector3,
+    rotation_deg: f32,
+    scale: Vector3,
+    mode: DrawMode,
+    color_enabled: bool,
+    texture_enabled: bool,
+) {
+    match mode {
+        DrawMode::Filled => {
+            if !(color_enabled || texture_enabled) {
+                return;
+            }
+
+            let _color_guard = if texture_enabled && !color_enabled {
+                Some(ColorGuard::hide(&mut model.meshes_mut()[0]))
+            } else {
+                None
+            };
+
+            let texture_id = if texture_enabled { texture.id } else { 0 };
+            let _texture_guard = TextureGuard::set_texture(model, texture_id);
+
+            rl3d.draw_model_ex(model, position, Y_AXIS, rotation_deg, scale, Color::WHITE);
+        },
+
+        DrawMode::WiresAndPoints => {
+            let _color_guard = ColorGuard::hide(&mut model.meshes_mut()[0]);
+            let _texture_guard = TextureGuard::hide(model);
+
+            rl3d.draw_model_wires_ex(&mut *model, position, Y_AXIS, rotation_deg, scale, ANAKIWA);
+
+            unsafe { ffi::rlSetPointSize(4.0) };
+            rl3d.draw_model_points_ex(&mut *model, position, Y_AXIS, rotation_deg, scale, ANAKIWA);
+        },
+
+        DrawMode::FilledWithOverlay => {
+            if color_enabled || texture_enabled {
+                {
+                    let _color_guard = if texture_enabled && !color_enabled {
+                        Some(ColorGuard::hide(&mut model.meshes_mut()[0]))
+                    } else {
+                        None
+                    };
+
+                    let texture_id = if texture_enabled { texture.id } else { 0 };
+                    let _texture_guard = TextureGuard::set_texture(model, texture_id);
+
+                    rl3d.draw_model_ex(&mut *model, position, Y_AXIS, rotation_deg, scale, Color::WHITE);
+                }
+            }
+
+            {
+                let _color_guard = ColorGuard::hide(&mut model.meshes_mut()[0]);
+                let _texture_guard = TextureGuard::hide(model);
+
+                rl3d.draw_model_wires_ex(&mut *model, position, Y_AXIS, rotation_deg, scale, MARINER);
+
+                unsafe { ffi::rlSetPointSize(4.0) };
+                rl3d.draw_model_points_ex(&mut *model, position, Y_AXIS, rotation_deg, scale, LILAC);
+            }
+        },
+
+        DrawMode::Hint { occupied } => {
+            let _color_guard = ColorGuard::hide(&mut model.meshes_mut()[0]);
+            let _texture_guard = TextureGuard::hide(model);
+
+            let hint_color = if occupied { RED_DAMASK } else { ANAKIWA };
+
+            unsafe { ffi::rlDisableDepthTest() };
+            rl3d.draw_model_wires_ex(model, position, Y_AXIS, rotation_deg, scale, hint_color);
+            unsafe { ffi::rlEnableDepthTest() };
+        },
+    }
+}
 
 pub fn draw_chi_field(rl3d: &mut RaylibMode3D<RaylibDrawHandle>, room: &Room) {
     unsafe {
@@ -27,15 +126,15 @@ pub fn draw_chi_field(rl3d: &mut RaylibMode3D<RaylibDrawHandle>, room: &Room) {
         rl3d.draw_line3D(start, end, SUNFLOWER);
     }
 
-    for door in &room.doors {
-        let color = if door.is_primary { ANAKIWA } else { LILAC };
-        rl3d.draw_line3D(door.p1, door.p2, color);
-        rl3d.draw_sphere(door.center(), 0.5, color);
-    }
+    for opening in &room.openings {
+        let (color, radius) = match opening.kind {
+            OpeningKind::PrimaryDoor => (ANAKIWA, 0.5),
+            OpeningKind::Door => (LILAC, 0.4),
+            OpeningKind::Window => (PALE_CANARY, 0.25),
+        };
 
-    for window in &room.windows {
-        rl3d.draw_line3D(window.p1, window.p2, PALE_CANARY);
-        rl3d.draw_sphere(window.center(), 0.25, PALE_CANARY);
+        rl3d.draw_line3D(opening.p1, opening.p2, color);
+        rl3d.draw_sphere(opening.center(), radius, color);
     }
 
     unsafe {
@@ -75,120 +174,55 @@ pub fn draw_camera_basis(
     );
 }
 
-pub fn draw_model_filled_at(
-    rl3d: &mut RaylibMode3D<RaylibDrawHandle>,
-    model: &mut Model,
-    texture: &Texture2D,
-    position: Vector3,
-    rotation_deg: f32,
-    scale: Vector3,
-    color_enabled: bool,
-    texture_enabled: bool,
-) {
-    if !(color_enabled || texture_enabled) {
-        return;
-    }
-
-    let _color_guard = if texture_enabled && !color_enabled {
-        Some(ColorGuard::hide(&mut model.meshes_mut()[0]))
-    } else {
-        None
-    };
-
-    let texture_id = if texture_enabled { texture.id } else { 0 };
-    let _texture_guard = TextureGuard::set_texture(model, texture_id);
-
-    rl3d.draw_model_ex(model, position, Y_AXIS, rotation_deg, scale, Color::WHITE);
-}
-
-pub fn draw_model_wires_and_points_at(
-    rl3d: &mut RaylibMode3D<RaylibDrawHandle>,
-    model: &mut Model,
-    position: Vector3,
-    rotation_deg: f32,
-    scale: Vector3,
-    wire_color: Color,
-    point_color: Color,
-) {
-    let _color_guard = ColorGuard::hide(&mut model.meshes_mut()[0]);
-    let _texture_guard = TextureGuard::hide(model);
-
-    rl3d.draw_model_wires_ex(&model, position, Y_AXIS, rotation_deg, scale, wire_color);
-
-    unsafe { ffi::rlSetPointSize(4.0) }
-    rl3d.draw_model_points_ex(&model, position, Y_AXIS, rotation_deg, scale, point_color);
-}
-
 pub fn draw_placed_cells(
     rl3d: &mut RaylibMode3D<RaylibDrawHandle>,
-    ndc_models: &mut [Model],
-    mesh_textures: &[Texture2D],
+    meshes: &mut [MeshDescriptor],
     placed_cells: &mut [PlacedCell],
     total_time: f32,
+    grid: &RoomGrid,
 ) {
-    for placed_cell in placed_cells.iter_mut() {
-        let cell_pos = cell_center(placed_cell.ix, placed_cell.iy, placed_cell.iz);
-        let age = total_time - placed_cell.placed_time;
-        let scale_progress = (age / PLACEMENT_ANIM_DUR_SECONDS).clamp(0.0, 1.0);
-        let current_scale = lerp(HINT_SCALE, 1.0, scale_progress);
-
-        if scale_progress >= 1.0 {
-            placed_cell.settled = true;
+    for cell in placed_cells.iter_mut() {
+        if cell.mesh_index >= meshes.len() {
+            continue;
         }
 
-        let placed_model = &mut ndc_models[placed_cell.mesh_index];
+        let cell_pos = grid.cell_center(cell.ix, cell.iy, cell.iz);
 
-        if placed_cell.settled {
-            draw_model_filled_at(
+        let age = cell.age_at(total_time);
+        if age >= PLACEMENT_ANIM_DUR_SECONDS {
+            cell.settled = true;
+        }
+        let current_scale = cell.scale_at(total_time);
+
+        let desc = &mut meshes[cell.mesh_index];
+
+        if cell.settled {
+            draw_instance(
                 rl3d,
-                placed_model,
-                &mesh_textures[placed_cell.mesh_index],
+                &mut desc.ndc,
+                &desc.texture,
                 cell_pos,
                 0.0,
                 MODEL_SCALE,
-                placed_cell.color_enabled,
-                placed_cell.texture_enabled,
+                DrawMode::FilledWithOverlay,
+                cell.color_enabled,
+                cell.texture_enabled,
             );
-
-            draw_model_wires_and_points_at(rl3d, placed_model, cell_pos, 0.0, MODEL_SCALE, MARINER, LILAC);
         } else {
-            draw_model_wires_and_points_at(
+            let scale_vec = Vector3::new(current_scale, current_scale, current_scale);
+            draw_instance(
                 rl3d,
-                placed_model,
+                &mut desc.ndc,
+                &desc.texture,
                 cell_pos,
                 0.0,
-                Vector3::new(current_scale, current_scale, current_scale),
-                ANAKIWA,
-                ANAKIWA,
+                scale_vec,
+                DrawMode::WiresAndPoints,
+                false,
+                false,
             );
         }
     }
-}
-
-pub fn draw_hint_mesh(
-    rl3d: &mut RaylibMode3D<RaylibDrawHandle>,
-    model: &mut Model,
-    center: Vector3,
-    mesh_rotation: f32,
-    occupied: bool,
-) {
-    let _color_guard = ColorGuard::hide(&mut model.meshes_mut()[0]);
-    let _texture_guard = TextureGuard::hide(model);
-
-    let hint_color = if occupied { RED_DAMASK } else { ANAKIWA };
-
-    unsafe { ffi::rlDisableDepthTest() };
-
-    rl3d.draw_model_wires_ex(
-        model,
-        center,
-        Y_AXIS,
-        mesh_rotation.to_degrees(),
-        HINT_SCALE_VEC,
-        hint_color,
-    );
-
-    unsafe { ffi::rlEnableDepthTest() };
 }
 
 pub fn draw_spatial_frame(rl3d: &mut RaylibMode3D<RaylibDrawHandle>, spatial_frame: &WeakMesh) {
@@ -214,23 +248,45 @@ pub fn draw_spatial_frame(rl3d: &mut RaylibMode3D<RaylibDrawHandle>, spatial_fra
     }
 }
 
-pub fn draw_room_floor_grid(rl3d: &mut RaylibMode3D<RaylibDrawHandle>) {
-    let origin = room_origin();
+pub fn draw_room_floor_grid(rl3d: &mut RaylibMode3D<RaylibDrawHandle>, grid: &RoomGrid) {
+    let origin = grid.origin;
     let floor_y = origin.y;
 
-    for x in 0..=ROOM_W {
+    for x in 0..=grid.w {
         let x_world = origin.x + x as f32;
         let start = Vector3::new(x_world, floor_y, origin.z);
-        let end = Vector3::new(x_world, floor_y, origin.z + ROOM_D as f32);
+        let end = Vector3::new(x_world, floor_y, origin.z + grid.d as f32);
         rl3d.draw_line3D(start, end, HOPBUSH);
     }
 
-    for z in 0..=ROOM_D {
+    for z in 0..=grid.d {
         let z_world = origin.z + z as f32;
         let start = Vector3::new(origin.x, floor_y, z_world);
-        let end = Vector3::new(origin.x + ROOM_W as f32, floor_y, z_world);
+        let end = Vector3::new(origin.x + grid.w as f32, floor_y, z_world);
         rl3d.draw_line3D(start, end, HOPBUSH);
     }
+}
+
+pub const HUD_MARGIN: i32 = 12;
+pub const HUD_LINE_HEIGHT: i32 = 22;
+pub const FONT_SIZE: i32 = 20;
+pub const HUD_CHAR_SPACING: f32 = 2.0;
+
+pub struct HudLayout {
+    pub font_size_main: i32,
+    pub font_size_debug: i32,
+    pub line_height_main: i32,
+    pub line_height_debug: i32,
+    pub margin: i32,
+    pub left_label_x: i32,
+    pub left_value_x: i32,
+    pub right_label_x: i32,
+    pub right_value_x: i32,
+    pub right_value_max_width: i32,
+    pub bottom_block_start_y: i32,
+    pub perf_x: i32,
+    pub perf_y: i32,
+    pub debug_padding: i32,
 }
 
 fn compute_hud_layout(draw_handle: &RaylibDrawHandle, font: &WeakFont) -> HudLayout {
@@ -241,7 +297,7 @@ fn compute_hud_layout(draw_handle: &RaylibDrawHandle, font: &WeakFont) -> HudLay
     let font_size_debug = (FONT_SIZE as f32 * 0.5).round() as i32;
 
     let line_height_main = HUD_LINE_HEIGHT;
-    let line_height_debug = font_size_debug;
+    let line_height_debug = (font_size_debug as f32 * 1.2).round() as i32;
 
     let margin = HUD_MARGIN;
 
@@ -264,11 +320,11 @@ fn compute_hud_layout(draw_handle: &RaylibDrawHandle, font: &WeakFont) -> HudLay
         max_right_label_width = max_right_label_width.max(w);
     }
 
-    let possible_values = ["ORTHOGRAPHIC", "PERSPECTIVE", "WORLD", "NDC", "ON", "OFF"];
+    let values = ["ORTHOGRAPHIC", "PERSPECTIVE", "WORLD", "NDC", "ON", "OFF"];
     let mut max_value_width = 0;
-    for value in &possible_values {
-        let w = font.measure_text(value, font_size_main as f32, HUD_CHAR_SPACING).x as i32;
-        max_value_width = max_value_width.max(w);
+    for value in &values {
+        let width = font.measure_text(value, font_size_main as f32, HUD_CHAR_SPACING).x as i32;
+        max_value_width = max_value_width.max(width);
     }
 
     let right_margin = margin;
@@ -280,8 +336,9 @@ fn compute_hud_layout(draw_handle: &RaylibDrawHandle, font: &WeakFont) -> HudLay
     let bottom_rows = 3;
     let bottom_block_start_y = screen_height - margin - line_height_main * bottom_rows;
 
+    let top_rows = 3;
     let perf_x = margin;
-    let perf_y = (screen_height as f32 * (200.0 / 720.0)).round() as i32;
+    let perf_y = margin + line_height_main * top_rows + margin;
 
     let debug_padding = 4;
 
@@ -303,6 +360,82 @@ fn compute_hud_layout(draw_handle: &RaylibDrawHandle, font: &WeakFont) -> HudLay
     }
 }
 
+fn hud_row(
+    draw: &mut RaylibDrawHandle,
+    font: &WeakFont,
+    label: &str,
+    value: &str,
+    x_label: i32,
+    x_value: i32,
+    y: i32,
+    size: i32,
+    line_height: i32,
+    color_label: Color,
+    color_value: Color,
+) -> i32 {
+    hud_text(draw, font, label, x_label, y, size, color_label);
+    hud_text(draw, font, value, x_value, y, size, color_value);
+    y + line_height
+}
+
+fn draw_debug_box(
+    draw: &mut RaylibDrawHandle,
+    font: &WeakFont,
+    anchor_x: i32,
+    anchor_y: i32,
+    lines: &[(String, Color)],
+    layout: &HudLayout,
+) {
+    if lines.is_empty() {
+        return;
+    }
+
+    let screen_width = draw.get_screen_width();
+    let screen_height = draw.get_screen_height();
+
+    let mut max_line_w = 0;
+    for (text, _) in lines {
+        let w = font
+            .measure_text(text, layout.font_size_debug as f32, HUD_CHAR_SPACING)
+            .x as i32;
+        max_line_w = max_line_w.max(w);
+    }
+
+    let debug_width = max_line_w + layout.debug_padding * 2;
+    let debug_height = layout.line_height_debug * lines.len() as i32 + layout.debug_padding * 2;
+
+    let mut rect_x = anchor_x;
+    let mut rect_y = anchor_y - debug_height;
+
+    if rect_y < 0 {
+        rect_y = anchor_y;
+    }
+
+    if rect_x + debug_width > screen_width {
+        rect_x = anchor_x - debug_width;
+    }
+    if rect_x < 0 {
+        rect_x = 0;
+    }
+
+    if rect_y + debug_height > screen_height {
+        rect_y = screen_height - debug_height;
+    }
+
+    draw.draw_rectangle_lines(rect_x, rect_y, debug_width, debug_height, SUNFLOWER);
+
+    let mut text_y = rect_y + layout.debug_padding;
+    for (text, color) in lines {
+        let text_x = rect_x + layout.debug_padding;
+        hud_text(draw, font, text, text_x, text_y, layout.font_size_debug, *color);
+        text_y += layout.line_height_debug;
+    }
+}
+
+fn mesh_name(i: usize, meshes: &[MeshDescriptor]) -> &'static str {
+    meshes.get(i).map(|m| m.name).unwrap_or("MESH")
+}
+
 pub fn draw_hud(
     draw_handle: &mut RaylibDrawHandle,
     font: &WeakFont,
@@ -312,229 +445,155 @@ pub fn draw_hud(
     hover_state: &HoverState,
     placed_cells: &[PlacedCell],
     i_time: f32,
-    world_models: &[Model],
-    ndc_models: &[Model],
+    meshes: &[MeshDescriptor],
     mesh_samples: &[Vec<Vector3>],
     frame_dynamic_metrics: &FrameDynamicMetrics,
+    room_grid: &RoomGrid,
 ) {
-    let screen_width = draw_handle.get_screen_width();
-    let screen_height = draw_handle.get_screen_height();
-
     let layout = compute_hud_layout(draw_handle, font);
 
     let mut line_y = layout.margin;
 
-    hud_text(
+    line_y = hud_row(
         draw_handle,
         font,
         "JUGEMU [ P ]:",
-        layout.left_label_x,
-        line_y,
-        layout.font_size_main,
-        SUNFLOWER,
-    );
-    hud_text(
-        draw_handle,
-        font,
         if view_state.jugemu_ortho_mode {
             "ORTHOGRAPHIC"
         } else {
             "PERSPECTIVE"
         },
+        layout.left_label_x,
         layout.left_value_x,
         line_y,
         layout.font_size_main,
+        layout.line_height_main,
+        SUNFLOWER,
         if view_state.jugemu_ortho_mode {
             BAHAMA_BLUE
         } else {
             ANAKIWA
         },
     );
-    line_y += layout.line_height_main;
 
-    hud_text(
+    line_y = hud_row(
         draw_handle,
         font,
         "FOVY[ + - ]:",
-        layout.left_label_x,
-        line_y,
-        layout.font_size_main,
-        SUNFLOWER,
-    );
-    hud_text(
-        draw_handle,
-        font,
         &format!("{:.2}", jugemu.fovy),
+        layout.left_label_x,
         layout.left_value_x,
         line_y,
         layout.font_size_main,
+        layout.line_height_main,
+        SUNFLOWER,
         LILAC,
     );
-    line_y += layout.line_height_main;
 
-    hud_text(
+    let jugemu_distance = camera_distance(jugemu);
+    line_y = hud_row(
         draw_handle,
         font,
         "ZOOM [ W S ]:",
-        layout.left_label_x,
-        line_y,
-        layout.font_size_main,
-        SUNFLOWER,
-    );
-    let jugemu_distance = camera_distance(jugemu);
-    hud_text(
-        draw_handle,
-        font,
         &format!("{:.2}", jugemu_distance),
+        layout.left_label_x,
         layout.left_value_x,
         line_y,
         layout.font_size_main,
+        layout.line_height_main,
+        SUNFLOWER,
         HOPBUSH,
     );
 
-    let mut right_line_y = layout.margin;
-    let right_margin = layout.margin;
-    let gap_px = (layout.font_size_main as f32 * 0.75).round() as i32;
+    let mut right_y = layout.margin;
 
-    let txtr_label = "TXTR [ T ]:";
     let txtr_value = if view_state.texture_mode { "ON" } else { "OFF" };
-
-    let txtr_label_w = font
-        .measure_text(txtr_label, layout.font_size_main as f32, HUD_CHAR_SPACING)
-        .x as i32;
-    let txtr_value_w = font
-        .measure_text(txtr_value, layout.font_size_main as f32, HUD_CHAR_SPACING)
-        .x as i32;
-
-    let txtr_value_x = screen_width - right_margin - txtr_value_w;
-    let txtr_label_x = txtr_value_x - gap_px - txtr_label_w;
-
-    hud_text(
+    right_y = hud_row(
         draw_handle,
         font,
-        txtr_label,
-        txtr_label_x,
-        right_line_y,
-        layout.font_size_main,
-        SUNFLOWER,
-    );
-    hud_text(
-        draw_handle,
-        font,
+        "TXTR [ T ]:",
         txtr_value,
-        txtr_value_x,
-        right_line_y,
+        layout.right_label_x,
+        layout.right_value_x,
+        right_y,
         layout.font_size_main,
+        layout.line_height_main,
+        SUNFLOWER,
         if view_state.texture_mode {
             ANAKIWA
         } else {
             CHESTNUT_ROSE
         },
     );
-    right_line_y += layout.line_height_main;
 
-    let clr_label = "CLR [ C ]:";
     let clr_value = if view_state.color_mode { "ON" } else { "OFF" };
-
-    let clr_label_w = font
-        .measure_text(clr_label, layout.font_size_main as f32, HUD_CHAR_SPACING)
-        .x as i32;
-    let clr_value_w = font
-        .measure_text(clr_value, layout.font_size_main as f32, HUD_CHAR_SPACING)
-        .x as i32;
-
-    let clr_value_x = screen_width - right_margin - clr_value_w;
-    let clr_label_x = clr_value_x - gap_px - clr_label_w;
-
-    hud_text(
+    right_y = hud_row(
         draw_handle,
         font,
-        clr_label,
-        clr_label_x,
-        right_line_y,
-        layout.font_size_main,
-        SUNFLOWER,
-    );
-    hud_text(
-        draw_handle,
-        font,
+        "CLR [ C ]:",
         clr_value,
-        clr_value_x,
-        right_line_y,
+        layout.right_label_x,
+        layout.right_value_x,
+        right_y,
         layout.font_size_main,
+        layout.line_height_main,
+        SUNFLOWER,
         if view_state.color_mode { ANAKIWA } else { CHESTNUT_ROSE },
     );
 
-    let mut bottom_line_y = layout.bottom_block_start_y;
+    let mut bottom_y = layout.bottom_block_start_y;
 
-    hud_text(
+    bottom_y = hud_row(
         draw_handle,
         font,
         "ASPECT [ Q ]:",
-        layout.left_label_x,
-        bottom_line_y,
-        layout.font_size_main,
-        SUNFLOWER,
-    );
-    hud_text(
-        draw_handle,
-        font,
         if view_state.aspect_correct {
             "CORRECT"
         } else {
             "INCORRECT"
         },
+        layout.left_label_x,
         layout.left_value_x,
-        bottom_line_y,
+        bottom_y,
         layout.font_size_main,
+        layout.line_height_main,
+        SUNFLOWER,
         if view_state.aspect_correct {
             ANAKIWA
         } else {
             CHESTNUT_ROSE
         },
     );
-    bottom_line_y += layout.line_height_main;
 
-    hud_text(
+    bottom_y = hud_row(
         draw_handle,
         font,
         "LENS [ O ]:",
-        layout.left_label_x,
-        bottom_line_y,
-        layout.font_size_main,
-        SUNFLOWER,
-    );
-    hud_text(
-        draw_handle,
-        font,
         if view_state.ortho_mode {
             "ORTHOGRAPHIC"
         } else {
             "PERSPECTIVE"
         },
+        layout.left_label_x,
         layout.left_value_x,
-        bottom_line_y,
+        bottom_y,
         layout.font_size_main,
+        layout.line_height_main,
+        SUNFLOWER,
         if view_state.ortho_mode { BAHAMA_BLUE } else { ANAKIWA },
     );
-    bottom_line_y += layout.line_height_main;
 
-    hud_text(
+    bottom_y = hud_row(
         draw_handle,
         font,
         "SPACE [ N ]:",
-        layout.left_label_x,
-        bottom_line_y,
-        layout.font_size_main,
-        SUNFLOWER,
-    );
-    hud_text(
-        draw_handle,
-        font,
         if view_state.ndc_space { "NDC" } else { "WORLD" },
+        layout.left_label_x,
         layout.left_value_x,
-        bottom_line_y,
+        bottom_y,
         layout.font_size_main,
+        layout.line_height_main,
+        SUNFLOWER,
         if view_state.ndc_space { BAHAMA_BLUE } else { ANAKIWA },
     );
 
@@ -544,92 +603,43 @@ pub fn draw_hud(
         &layout,
         view_state,
         placed_cells,
-        world_models,
-        ndc_models,
+        meshes,
         mesh_samples,
         frame_dynamic_metrics,
     );
 
-    if let Some(cell_idx) = hover_state.placed_cell_index {
-        let cell = &placed_cells[cell_idx];
-        let corner_world = cell_top_right_front_corner(cell.ix, cell.iy, cell.iz, jugemu);
-        let screen_pos = draw_handle.get_world_to_screen(corner_world, *jugemu);
+    if let (Some(cell_idx), Some((ix, iy, iz))) = (hover_state.placed_cell_index, hover_state.indices) {
+        if cell_idx < placed_cells.len() {
+            let cell = &placed_cells[cell_idx];
 
-        let anchor_x = screen_pos.x as i32;
-        let anchor_y = screen_pos.y as i32;
+            let corner_world = room_grid.top_right_front_corner(ix, iy, iz, jugemu);
+            let screen_pos = draw_handle.get_world_to_screen(corner_world, *jugemu);
 
-        let mesh_name = match cell.mesh_index {
-            0 => "GHOST",
-            1 => "CUBE",
-            2 => "SPHERE",
-            _ => "UNKNOWN",
-        };
+            let anchor_x = screen_pos.x as i32;
+            let anchor_y = screen_pos.y as i32;
 
-        let age_seconds = i_time - cell.placed_time;
-        let state_label = if cell.settled { "SETTLED" } else { "ANIM" };
+            let mesh_label = mesh_name(cell.mesh_index, meshes);
+            let age_seconds = i_time - cell.placed_time;
+            let state_label = if cell.settled { "SETTLED" } else { "ANIM" };
 
-        let debug_lines = [
-            format!("MESH: {}", mesh_name),
-            format!("GRID: ({}, {}, {})", cell.ix, cell.iy, cell.iz),
-            format!("AGE: {:.2}s", age_seconds),
-            format!("STATE: {}", state_label),
-            format!("TXTR: {}", if cell.texture_enabled { "ON" } else { "OFF" }),
-            format!("CLR: {}", if cell.color_enabled { "ON" } else { "OFF" }),
-        ];
+            let mut lines: Vec<(String, Color)> = Vec::new();
+            lines.push((format!("MESH: {}", mesh_label), SUNFLOWER));
+            lines.push((format!("GRID: ({}, {}, {})", cell.ix, cell.iy, cell.iz), SUNFLOWER));
+            lines.push((format!("AGE: {:.2}s", age_seconds), SUNFLOWER));
+            lines.push((
+                format!("STATE: {}", state_label),
+                if cell.settled { ANAKIWA } else { NEON_CARROT },
+            ));
+            lines.push((
+                format!("TXTR: {}", if cell.texture_enabled { "ON" } else { "OFF" }),
+                if cell.texture_enabled { ANAKIWA } else { CHESTNUT_ROSE },
+            ));
+            lines.push((
+                format!("CLR: {}", if cell.color_enabled { "ON" } else { "OFF" }),
+                if cell.color_enabled { ANAKIWA } else { CHESTNUT_ROSE },
+            ));
 
-        let mut max_line_w = 0;
-        for line in &debug_lines {
-            let w = font
-                .measure_text(line, layout.font_size_debug as f32, HUD_CHAR_SPACING)
-                .x as i32;
-            max_line_w = max_line_w.max(w);
-        }
-
-        let debug_width = max_line_w + layout.debug_padding * 2;
-        let debug_height = layout.line_height_debug * debug_lines.len() as i32 + layout.debug_padding * 2;
-
-        let mut rect_x = anchor_x;
-        let mut rect_y = anchor_y - debug_height;
-
-        if rect_y < 0 {
-            rect_y = anchor_y;
-        }
-        if rect_x + debug_width > screen_width {
-            rect_x = anchor_x - debug_width;
-        }
-
-        draw_handle.draw_rectangle_lines(rect_x, rect_y, debug_width, debug_height, SUNFLOWER);
-
-        let mut text_y = rect_y + layout.debug_padding;
-
-        for (idx, line) in debug_lines.iter().enumerate() {
-            let text_x = rect_x + layout.debug_padding;
-            let color = match idx {
-                3 => {
-                    if cell.settled {
-                        ANAKIWA
-                    } else {
-                        NEON_CARROT
-                    }
-                },
-                4 => {
-                    if cell.texture_enabled {
-                        ANAKIWA
-                    } else {
-                        CHESTNUT_ROSE
-                    }
-                },
-                5 => {
-                    if cell.color_enabled {
-                        ANAKIWA
-                    } else {
-                        CHESTNUT_ROSE
-                    }
-                },
-                _ => SUNFLOWER,
-            };
-            hud_text(draw_handle, font, line, text_x, text_y, layout.font_size_debug, color);
-            text_y += layout.line_height_debug;
+            draw_debug_box(draw_handle, font, anchor_x, anchor_y, &lines, &layout);
         }
     }
 }
@@ -640,8 +650,7 @@ fn draw_perf_hud(
     layout: &HudLayout,
     view_state: &ViewState,
     placed_cells: &[PlacedCell],
-    world_models: &[Model],
-    ndc_models: &[Model],
+    meshes: &[MeshDescriptor],
     mesh_samples: &[Vec<Vector3>],
     frame_dynamic_metrics: &FrameDynamicMetrics,
 ) {
@@ -655,7 +664,7 @@ fn draw_perf_hud(
     hud_text(draw_handle, font, "LAYER 3 METRICS", perf_x, y, font_sz, NEON_CARROT);
     y += line;
 
-    let mesh_count = ndc_models.len();
+    let mesh_count = meshes.len();
     let mut per_mesh_instance_counts = vec![0usize; mesh_count];
     for cell in placed_cells {
         if cell.mesh_index < mesh_count {
@@ -663,23 +672,7 @@ fn draw_perf_hud(
         }
     }
 
-    let mut per_mesh_world_metrics: Vec<MeshMetrics> = Vec::with_capacity(mesh_count);
-    let mut per_mesh_ndc_metrics: Vec<MeshMetrics> = Vec::with_capacity(mesh_count);
-    let mut per_mesh_combined_bytes: Vec<usize> = Vec::with_capacity(mesh_count);
-    let mut total_geom_bytes_shared = 0usize;
-
-    for i in 0..mesh_count {
-        let world_mesh = &world_models[i].meshes()[0];
-        let ndc_mesh = &ndc_models[i].meshes()[0];
-        let world_metrics = MeshMetrics::measure(world_mesh);
-        let ndc_metrics = MeshMetrics::measure(ndc_mesh);
-        let combined_bytes = world_metrics.total_bytes + ndc_metrics.total_bytes;
-        total_geom_bytes_shared += combined_bytes;
-
-        per_mesh_world_metrics.push(world_metrics);
-        per_mesh_ndc_metrics.push(ndc_metrics);
-        per_mesh_combined_bytes.push(combined_bytes);
-    }
+    let total_geom_bytes_shared: usize = meshes.iter().map(|m| m.combined_bytes).sum();
 
     let mut filled_draws_per_mesh = vec![0usize; mesh_count];
     let mut overlay_calls_per_mesh = vec![0usize; mesh_count];
@@ -700,7 +693,7 @@ fn draw_perf_hud(
         }
         let i = cell.mesh_index;
 
-        if cell.settled && (cell.color_enabled || cell.texture_enabled) {
+        if cell.is_filled() {
             filled_draws_per_mesh[i] += 1;
         }
         overlay_calls_per_mesh[i] += 1;
@@ -708,16 +701,12 @@ fn draw_perf_hud(
 
     let active_index = view_state.target_mesh_index;
     if active_index < mesh_count {
-        let active_name = match active_index {
-            0 => "GHOST",
-            1 => "CUBE",
-            2 => "SPHERE",
-            _ => "MESH",
-        };
+        let desc = &meshes[active_index];
 
-        let active_world = per_mesh_world_metrics[active_index];
-        let active_ndc = per_mesh_ndc_metrics[active_index];
-        let active_bytes = per_mesh_combined_bytes[active_index];
+        let active_name = mesh_name(active_index, meshes);
+        let active_world = desc.metrics_world;
+        let active_ndc = desc.metrics_ndc;
+        let active_bytes = desc.combined_bytes;
         let active_instances = per_mesh_instance_counts[active_index];
 
         let active_filled_draws = filled_draws_per_mesh[active_index];
@@ -734,7 +723,7 @@ fn draw_perf_hud(
 
         let vertex_stride = gpu_vertex_stride_bytes(&active_ndc);
         let vertex_bytes_per_draw = vertex_stride * active_verts_per_draw;
-        let index_bytes_per_draw = active_indices_per_draw * std::mem::size_of::<u16>();
+        let index_bytes_per_draw = active_indices_per_draw * size_of::<u16>();
 
         let gpu_bytes_from_tri_draws = active_filled_draws * (vertex_bytes_per_draw + index_bytes_per_draw);
         let gpu_bytes_from_overlay_draws = active_overlay_calls * 2 * vertex_bytes_per_draw;
@@ -874,23 +863,18 @@ fn draw_perf_hud(
     hud_text(draw_handle, font, "STATIC MESHES:", perf_x, y, font_sz, SUNFLOWER);
     y += line;
 
-    for i in 0..mesh_count {
-        let mesh_name = match i {
-            0 => "GHOST",
-            1 => "CUBE",
-            2 => "SPHERE",
-            _ => "MESH",
-        };
-        let metrics_world = per_mesh_world_metrics[i];
-        let metrics_ndc = per_mesh_ndc_metrics[i];
-        let combined_bytes = per_mesh_combined_bytes[i];
+    for (i, desc) in meshes.iter().enumerate() {
+        let name = mesh_name(i, meshes);
+        let world = desc.metrics_world;
+        let ndc = desc.metrics_ndc;
+        let combined_bytes = desc.combined_bytes;
 
         hud_text(
             draw_handle,
             font,
             &format!(
                 "{}: {} B (W {}v, N {}v)",
-                mesh_name, combined_bytes, metrics_world.vertex_count, metrics_ndc.vertex_count
+                name, combined_bytes, world.vertex_count, ndc.vertex_count
             ),
             perf_x,
             y,
@@ -1109,6 +1093,28 @@ pub fn handle_mesh_selection(handle: &RaylibHandle, view_state: &mut ViewState) 
     }
 }
 
+pub fn update_view_from_input(
+    handle: &RaylibHandle,
+    view_state: &mut ViewState,
+    jugemu: &mut Camera3D,
+    prev_fovy_ortho: &mut f32,
+    prev_fovy_perspective: &mut f32,
+    prev_distance_ortho: &mut f32,
+    prev_distance_perspective: &mut f32,
+) {
+    handle_view_toggles(handle, view_state);
+    handle_jugemu_projection_toggle(
+        handle,
+        view_state,
+        jugemu,
+        prev_fovy_ortho,
+        prev_fovy_perspective,
+        prev_distance_ortho,
+        prev_distance_perspective,
+    );
+    handle_mesh_selection(handle, view_state);
+}
+
 pub fn update_ghost_mesh(
     ndc_model: &mut Model,
     world_model: &mut Model,
@@ -1183,12 +1189,13 @@ pub fn fill_vertex_colors(mesh: &mut WeakMesh) {
 
 fn update_normals_for_silhouette(mesh: &mut WeakMesh, frame_dynamic_metrics: &mut FrameDynamicMetrics) {
     let vertices = mesh.vertices();
-    let mut normals = vec![Vector3::ZERO; vertices.len()];
+    let mut normals = vec![Vec3::ZERO; vertices.len()];
 
     for [a, b, c] in mesh.triangles() {
-        let va = vertices[a];
-        let vb = vertices[b];
-        let vc = vertices[c];
+        let va = Vec3::new(vertices[a].x, vertices[a].y, vertices[a].z);
+        let vb = Vec3::new(vertices[b].x, vertices[b].y, vertices[b].z);
+        let vc = Vec3::new(vertices[c].x, vertices[c].y, vertices[c].z);
+
         let face_normal = triangle_normal(va, vb, vc);
         normals[a] += face_normal;
         normals[b] += face_normal;
@@ -1199,8 +1206,10 @@ fn update_normals_for_silhouette(mesh: &mut WeakMesh, frame_dynamic_metrics: &mu
         normals[i] = normals[i].normalize_or_zero();
     }
 
-    mesh.normals_mut().unwrap().copy_from_slice(&normals);
-    frame_dynamic_metrics.vertex_normals_written += normals.len();
+    let normals_vec: Vec<Vector3> = normals.iter().map(|n| Vector3::new(n.x, n.y, n.z)).collect();
+
+    mesh.normals_mut().unwrap().copy_from_slice(&normals_vec);
+    frame_dynamic_metrics.vertex_normals_written += normals_vec.len();
 }
 
 fn fade_vertex_colors_silhouette_rim(
@@ -1211,23 +1220,29 @@ fn fade_vertex_colors_silhouette_rim(
 ) {
     let model_center_to_camera = rotate_point_about_axis(
         -1.0 * observed_line_of_sight(observer),
-        (Vector3::ZERO, Vector3::Y),
+        (Vec3::ZERO, Vec3::Y),
         -mesh_rotation,
     )
     .normalize_or_zero();
+
     const OUTER_FADE_ANGLE: f32 = 70.0_f32.to_radians();
     let cos_fade_angle: f32 = OUTER_FADE_ANGLE.cos();
+
     let vertices = mesh.vertices();
     let mut alpha_buffer = vec![0u8; vertices.len()];
+
     for i in mesh.triangles().iter_vertices() {
-        let model_center_to_vertex = vertices[i].normalize_or_zero();
+        let v = vertices[i];
+        let model_center_to_vertex = Vec3::new(v.x, v.y, v.z).normalize_or_zero();
         let cos_theta = model_center_to_vertex.dot(model_center_to_camera);
+
         if cos_theta <= 0.0 {
             alpha_buffer[i] = 0;
             continue;
         }
+
         let fade_scalar = (cos_theta / cos_fade_angle).clamp(0.0, 1.0);
-        let alpha = fade_scalar * fade_scalar * fade_scalar * fade_scalar;
+        let alpha = fade_scalar.powi(4);
         alpha_buffer[i] = (alpha * 255.0).round() as u8;
     }
 
