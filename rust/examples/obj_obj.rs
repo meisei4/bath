@@ -36,10 +36,10 @@ fn main() {
 
     let mut file = File::create(obj_out).unwrap();
 
-    // write_sphere_obj(&mut file);
-    // write_fusuma_with_handle_obj(&mut file);
-    write_koshidaka_single_obj(&mut file, KOSHIDAKA_2V_2H);
-    //write_kiwaku_a_obj(&mut file, KIWAKU_1V_1H);
+    //write_sphere_obj(&mut file);
+    //write_fusuma_with_handle_obj(&mut file); //TODO: need to get the CLAM vs PIE disk back but whatever..
+    // write_koshidaka_single_obj(&mut file, KOSHIDAKA_2V_2H);
+    write_kiwaku_a_obj(&mut file, KIWAKU_2V_2H);
 
     drop(file);
 
@@ -107,9 +107,9 @@ const SPEC_KOSHIDAKA_SINGLE: WindowSpec = WindowSpec {
     frame_h_mm: 1170.0,
     frame_d_mm: 75.0,
     frame_border_mm: 50.0,
-    mullion_mm: 22.0,
+    mullion_mm: 26.0,
     glass_recess_mm: 8.0,
-    chamfer_mm: 1.2,
+    chamfer_mm: 7.0,
     mullion_inset_mm: 6.0,
 };
 
@@ -120,7 +120,7 @@ const SPEC_KIWAKU_A: WindowSpec = WindowSpec {
     frame_border_mm: 45.0,
     mullion_mm: 20.0,
     glass_recess_mm: 8.0,
-    chamfer_mm: 1.2,
+    chamfer_mm: 7.0,
     mullion_inset_mm: 6.0,
 };
 
@@ -158,45 +158,35 @@ fn write_window_obj(file: &mut File, spec: &WindowSpec, mullions: MullionConfig,
 
     if mullions.vertical_count > 0 {
         let n = mullions.vertical_count as f32;
-        let span = 2.0_f32 * ix;
-        let step = span / (n + 1.0_f32);
+        let span = 2.0 * ix;
+        let step = span / (n + 1.0);
 
         for i in 0..mullions.vertical_count {
             let k = i as f32;
-            let cx = -ix + step * (k + 1.0_f32);
 
-            add_mullion_vertical(
-                &mut verts,
-                &mut faces,
-                cx,
-                -iy + mullion_inset,
-                iy - mullion_inset,
-                mx,
-                mullion_hz,
-                chamfer,
-            );
+            let cx = -ix + step * (k + 1.0) + mullion_inset;
+
+            let miny = -iy;
+            let maxy = iy;
+
+            add_mullion_vertical(&mut verts, &mut faces, cx, miny, maxy, mx, mullion_hz, chamfer);
         }
     }
 
     if mullions.horizontal_count > 0 {
         let n = mullions.horizontal_count as f32;
-        let span = 2.0_f32 * iy;
-        let step = span / (n + 1.0_f32);
+        let span = 2.0 * iy;
+        let step = span / (n + 1.0);
 
         for i in 0..mullions.horizontal_count {
             let k = i as f32;
-            let cy = -iy + step * (k + 1.0_f32);
 
-            add_mullion_horizontal(
-                &mut verts,
-                &mut faces,
-                -ix + mullion_inset,
-                ix - mullion_inset,
-                cy,
-                my,
-                mullion_hz,
-                chamfer,
-            );
+            let cy = -iy + step * (k + 1.0) + mullion_inset;
+
+            let minx = -ix;
+            let maxx = ix;
+
+            add_mullion_horizontal(&mut verts, &mut faces, minx, maxx, cy, my, mullion_hz, chamfer);
         }
     }
 
@@ -223,57 +213,45 @@ fn add_mullion_vertical(
     chamfer: f32,
 ) {
     let base = verts.len();
-    let c = chamfer;
 
-    let bot = [
-        [cx - hx + c, miny, -hz],
-        [cx + hx - c, miny, -hz],
-        [cx + hx, miny, -hz + c],
-        [cx + hx, miny, hz - c],
-        [cx + hx - c, miny, hz],
-        [cx - hx + c, miny, hz],
-        [cx - hx, miny, hz - c],
-        [cx - hx, miny, -hz + c],
+    let c = chamfer.min(hx * 0.99).min(hz * 0.99);
+
+    let ring_xz = [
+        [-hx + c, -hz],
+        [hx - c, -hz],
+        [hx, -hz + c],
+        [hx, hz - c],
+        [hx - c, hz],
+        [-hx + c, hz],
+        [-hx, hz - c],
+        [-hx, -hz + c],
     ];
 
-    let top = [
-        [cx - hx + c, maxy, -hz],
-        [cx + hx - c, maxy, -hz],
-        [cx + hx, maxy, -hz + c],
-        [cx + hx, maxy, hz - c],
-        [cx + hx - c, maxy, hz],
-        [cx - hx + c, maxy, hz],
-        [cx - hx, maxy, hz - c],
-        [cx - hx, maxy, -hz + c],
-    ];
-
-    verts.extend_from_slice(&bot);
-    verts.extend_from_slice(&top);
-
-    let quads = [
-        [0usize, 8, 9, 1],
-        [1, 9, 10, 2],
-        [2, 10, 11, 3],
-        [3, 11, 12, 4],
-        [4, 12, 13, 5],
-        [5, 13, 14, 6],
-        [6, 14, 15, 7],
-        [7, 15, 8, 0],
-    ];
-
-    for q in quads.iter() {
-        let a = base + q[0];
-        let b = base + q[1];
-        let c = base + q[2];
-        let d = base + q[3];
-        faces.push([a + 1, b + 1, c + 1]);
-        faces.push([a + 1, c + 1, d + 1]);
+    for [x, z] in ring_xz {
+        verts.push([cx + x, miny, z]);
     }
 
-    octagon_cap(faces, base, &[0, 7, 6, 5, 4, 3, 2, 1]);
-    octagon_cap(faces, base, &[8, 9, 10, 11, 12, 13, 14, 15]);
-}
+    for [x, z] in ring_xz {
+        verts.push([cx + x, maxy, z]);
+    }
 
+    for i in 0..8 {
+        let j = (i + 1) % 8;
+        let b0 = base + i;
+        let b1 = base + j;
+        let t0 = base + 8 + i;
+        let t1 = base + 8 + j;
+
+        faces.push([b0 + 1, t1 + 1, b1 + 1]);
+        faces.push([b0 + 1, t0 + 1, t1 + 1]);
+    }
+
+    let bottom_ring: Vec<usize> = (0..8).map(|k| base + k).collect();
+    let top_ring: Vec<usize> = (0..8).map(|k| base + 8 + k).collect();
+
+    cap_polygon(verts, faces, &bottom_ring, false);
+    cap_polygon(verts, faces, &top_ring, true);
+}
 fn add_mullion_horizontal(
     verts: &mut Vec<[f32; 3]>,
     faces: &mut Vec<[usize; 3]>,
@@ -285,61 +263,79 @@ fn add_mullion_horizontal(
     chamfer: f32,
 ) {
     let base = verts.len();
-    let c = chamfer;
+    let c = chamfer.min(hy * 0.99).min(hz * 0.99);
 
-    let left = [
-        [minx, cy - hy + c, -hz],
-        [minx, cy + hy - c, -hz],
-        [minx, cy + hy, -hz + c],
-        [minx, cy + hy, hz - c],
-        [minx, cy + hy - c, hz],
-        [minx, cy - hy + c, hz],
-        [minx, cy - hy, hz - c],
-        [minx, cy - hy, -hz + c],
+    let ring = [
+        [cy - hy, -hz + c],
+        [cy - hy + c, -hz],
+        [cy + hy - c, -hz],
+        [cy + hy, -hz + c],
+        [cy + hy, hz - c],
+        [cy + hy - c, hz],
+        [cy - hy + c, hz],
+        [cy - hy, hz - c],
     ];
 
-    let right = [
-        [maxx, cy - hy + c, -hz],
-        [maxx, cy + hy - c, -hz],
-        [maxx, cy + hy, -hz + c],
-        [maxx, cy + hy, hz - c],
-        [maxx, cy + hy - c, hz],
-        [maxx, cy - hy + c, hz],
-        [maxx, cy - hy, hz - c],
-        [maxx, cy - hy, -hz + c],
-    ];
-
-    verts.extend_from_slice(&left);
-    verts.extend_from_slice(&right);
-
-    let quads = [
-        [0usize, 8, 9, 1],
-        [1, 9, 10, 2],
-        [2, 10, 11, 3],
-        [3, 11, 12, 4],
-        [4, 12, 13, 5],
-        [5, 13, 14, 6],
-        [6, 14, 15, 7],
-        [7, 15, 8, 0],
-    ];
-
-    for q in quads.iter() {
-        let a = base + q[0];
-        let b = base + q[1];
-        let c = base + q[2];
-        let d = base + q[3];
-        faces.push([a + 1, b + 1, c + 1]);
-        faces.push([a + 1, c + 1, d + 1]);
+    for [y, z] in ring {
+        verts.push([minx, y, z]);
     }
 
-    octagon_cap(faces, base, &[0, 7, 6, 5, 4, 3, 2, 1]);
-    octagon_cap(faces, base, &[8, 9, 10, 11, 12, 13, 14, 15]);
+    for [y, z] in ring {
+        verts.push([maxx, y, z]);
+    }
+
+    for i in 0..8 {
+        let j = (i + 1) % 8;
+
+        let l0 = base + i;
+        let l1 = base + j;
+        let r0 = base + 8 + i;
+        let r1 = base + 8 + j;
+
+        faces.push([l0 + 1, l1 + 1, r1 + 1]);
+        faces.push([l0 + 1, r1 + 1, r0 + 1]);
+    }
+
+    let left_ring: Vec<usize> = (0..8).map(|k| base + k).collect();
+    let right_ring: Vec<usize> = (0..8).map(|k| base + 8 + k).collect();
+
+    cap_polygon(verts, faces, &left_ring, true);
+
+    cap_polygon(verts, faces, &right_ring, false);
 }
 
-fn octagon_cap(faces: &mut Vec<[usize; 3]>, base: usize, indices: &[usize; 8]) {
-    let center = indices[0];
-    for i in 1..7 {
-        faces.push([base + center + 1, base + indices[i] + 1, base + indices[i + 1] + 1]);
+fn cap_polygon(verts: &mut Vec<[f32; 3]>, faces: &mut Vec<[usize; 3]>, ring: &[usize], flip: bool) {
+    debug_assert!(ring.len() >= 3);
+
+    let mut cx = 0.0f32;
+    let mut cy = 0.0f32;
+    let mut cz = 0.0f32;
+    let n = ring.len() as f32;
+
+    for &idx in ring {
+        let v = verts[idx];
+        cx += v[0];
+        cy += v[1];
+        cz += v[2];
+    }
+
+    cx /= n;
+    cy /= n;
+    cz /= n;
+
+    let center_index = verts.len();
+    verts.push([cx, cy, cz]);
+
+    for i in 0..ring.len() {
+        let a = center_index;
+        let b = ring[i];
+        let c = ring[(i + 1) % ring.len()];
+
+        if !flip {
+            faces.push([a + 1, b + 1, c + 1]);
+        } else {
+            faces.push([a + 1, c + 1, b + 1]);
+        }
     }
 }
 
