@@ -33,14 +33,20 @@ fn main() {
     let mut aspect = handle.get_screen_width() as f32 / handle.get_screen_height() as f32;
     let mut mesh_rotation = 0.0f32;
 
+    let mut config_watcher: ConfigWatcher<FieldConfig> =
+        ConfigWatcher::new(CHI_CONFIG_PATH, FieldConfig::load_from_file);
+    let mut view_config = ViewConfig::default();
+    let mut view_config_watcher: ConfigWatcher<ViewConfig> =
+        ConfigWatcher::new(VIEW_CONFIG_PATH, ViewConfig::load_from_file);
+
     let mut main = Camera3D {
         position: MAIN_POS,
         target: MODEL_POS,
         up: Y_AXIS,
         fovy: if view_state.ortho_mode {
-            NEAR_PLANE_HEIGHT_ORTHOGRAPHIC()
+            near_plane_height_orthographic(&view_config)
         } else {
-            FOVY_PERSPECTIVE
+            view_config.fovy_perspective
         },
         projection: if view_state.ortho_mode {
             CAMERA_ORTHOGRAPHIC
@@ -52,15 +58,20 @@ fn main() {
     let mut jugemu = Camera3D {
         position: JUGEMU_POS_ISO.normalize()
             * if view_state.jugemu_ortho_mode {
-                JUGEMU_DISTANCE_ORTHO
+                view_config.jugemu_distance_ortho
             } else {
-                JUGEMU_DISTANCE_PERSPECTIVE
+                view_config.jugemu_distance_perspective
             },
         target: MODEL_POS,
         up: Y_AXIS,
-        fovy: FOVY_ORTHOGRAPHIC,
+        fovy: view_config.fovy_orthographic,
         projection: CAMERA_ORTHOGRAPHIC,
     };
+
+    view_state.jugemu_zoom.fovy_ortho = view_config.fovy_orthographic;
+    view_state.jugemu_zoom.fovy_perspective = view_config.fovy_perspective;
+    view_state.jugemu_zoom.distance_ortho = view_config.jugemu_distance_ortho;
+    view_state.jugemu_zoom.distance_perspective = view_config.jugemu_distance_perspective;
 
     let mut meshes: Vec<MeshDescriptor> = Vec::new();
 
@@ -74,13 +85,15 @@ fn main() {
         .expect("Failed to create ghost texture");
     ghost_world.materials_mut()[0].set_material_texture(MATERIAL_MAP_ALBEDO, &ghost_tex);
 
-    let mesh_samples = collect_deformed_vertex_samples(ghost_world.meshes()[0].vertices());
+    let original_mesh_vertices = ghost_world.meshes()[0].vertices().to_vec();
+    let mut mesh_samples = collect_deformed_vertex_samples(ghost_world.meshes()[0].vertices(), &view_config);
     let mut preload_dynamic_metrics_for_ghost = FrameDynamicMetrics::new();
     interpolate_between_deformed_vertices(
         &mut ghost_world,
         i_time,
         &mesh_samples,
         &mut preload_dynamic_metrics_for_ghost,
+        &view_config,
     );
 
     let ghost_ndc_mesh = {
@@ -188,6 +201,7 @@ fn main() {
             0.0,
             1.0,
             &mut preload_dynamic_metrics,
+            &view_config,
         );
         desc.z_shift_anisotropic = calculate_average_ndc_z_shift(&desc.world, &desc.ndc);
 
@@ -202,6 +216,7 @@ fn main() {
             0.0,
             0.0,
             &mut preload_dynamic_metrics,
+            &view_config,
         );
         desc.z_shift_isotropic = calculate_average_ndc_z_shift(&desc.world, &desc.ndc);
     }
@@ -225,18 +240,66 @@ fn main() {
     let mut frame_dynamic_metrics = FrameDynamicMetrics::new();
 
     let mut room = Room::default();
-    let mut config_watcher: ConfigWatcher<FieldConfig> =
-        ConfigWatcher::new(CHI_CONFIG_PATH, FieldConfig::load_from_file);
-    let mut view_config = ViewConfig::default();
-    let mut view_config_watcher: ConfigWatcher<ViewConfig> =
-        ConfigWatcher::new(VIEW_CONFIG_PATH, ViewConfig::load_from_file);
+
+    let mut needs_sample_regeneration = false;
+
     while !handle.window_should_close() {
         if let Some(new_config) = config_watcher.check_reload() {
             room.reload_config(new_config);
         }
+
         if let Some(new_view_cfg) = view_config_watcher.check_reload() {
+            println!("\n=== ViewConfig reloaded ===");
+            new_view_cfg.log_current();
+
+            let samples_changed = new_view_cfg.rotation_frequency_hz != view_config.rotation_frequency_hz
+                || new_view_cfg.time_between_samples != view_config.time_between_samples
+                || new_view_cfg.rotational_samples_for_inv_proj != view_config.rotational_samples_for_inv_proj;
+
             view_config = new_view_cfg;
+            view_state.jugemu_zoom.fovy_ortho = view_config.fovy_orthographic;
+            view_state.jugemu_zoom.fovy_perspective = view_config.fovy_perspective;
+            view_state.jugemu_zoom.distance_ortho = view_config.jugemu_distance_ortho;
+            view_state.jugemu_zoom.distance_perspective = view_config.jugemu_distance_perspective;
+            let jugemu_dir = jugemu.position.normalize();
+            let jugemu_dist = if view_state.jugemu_ortho_mode {
+                view_config.jugemu_distance_ortho
+            } else {
+                view_config.jugemu_distance_perspective
+            };
+            jugemu.position = jugemu_dir * jugemu_dist;
+
+            jugemu.fovy = if view_state.jugemu_ortho_mode {
+                view_config.fovy_orthographic
+            } else {
+                view_config.fovy_perspective
+            };
+            main.fovy = if view_state.ortho_mode {
+                near_plane_height_orthographic(&view_config)
+            } else {
+                view_config.fovy_perspective
+            };
+
+            if samples_changed {
+                let rotation_period = 1.0 / view_config.rotation_frequency_hz;
+                view_config.time_between_samples = rotation_period / view_config.rotational_samples_for_inv_proj as f32;
+
+                println!(
+                    "Auto-adjusted TIME_BETWEEN_SAMPLES to {} to maintain {:.1}s period",
+                    view_config.time_between_samples, rotation_period
+                );
+
+                needs_sample_regeneration = true;
+            }
         }
+
+        if needs_sample_regeneration {
+            println!("Regenerating ghost deformation samples with new parameters...");
+            mesh_samples = collect_deformed_vertex_samples(&original_mesh_vertices, &view_config);
+            println!("Ghost samples regenerated: {} samples", mesh_samples.len());
+            needs_sample_regeneration = false;
+        }
+
         let dt = handle.get_frame_time();
         aspect = handle.get_screen_width() as f32 / handle.get_screen_height() as f32;
         frame_dynamic_metrics.reset();
@@ -252,7 +315,7 @@ fn main() {
         update_blend(&mut view_state.ortho_blend, dt, view_state.ortho_mode, &view_config);
 
         if !view_state.paused {
-            mesh_rotation -= ANGULAR_VELOCITY * dt;
+            mesh_rotation -= angular_velocity(&view_config) * dt;
             total_time += dt;
             i_time += dt;
         }
@@ -271,9 +334,9 @@ fn main() {
             CAMERA_PERSPECTIVE
         };
         main.fovy = if view_state.ortho_mode {
-            NEAR_PLANE_HEIGHT_ORTHOGRAPHIC()
+            near_plane_height_orthographic(&view_config)
         } else {
-            FOVY_PERSPECTIVE
+            view_config.fovy_perspective
         };
 
         let target_mesh = view_state.target_mesh_index;
@@ -287,6 +350,7 @@ fn main() {
                 &main,
                 mesh_rotation,
                 &mut frame_dynamic_metrics,
+                &view_config,
             );
         }
         {
@@ -302,6 +366,7 @@ fn main() {
                 view_state.ortho_blend,
                 view_state.aspect_blend,
                 &mut frame_dynamic_metrics,
+                &view_config,
             );
 
             blend_world_and_ndc_vertices(
@@ -335,6 +400,7 @@ fn main() {
             view_state.space_blend,
             view_state.aspect_blend,
             view_state.ortho_blend,
+            &view_config,
         );
 
         let hover_state = compute_hover_state(&handle, &jugemu, &room, &placed_cells);
@@ -404,12 +470,14 @@ fn main() {
                     view_state.texture_mode,
                 );
                 if let Some(center) = hover_state.center {
+                    let hint_scale =
+                        Vector3::new(view_config.hint_scale, view_config.hint_scale, view_config.hint_scale);
                     draw_hint(
                         &mut rl3d,
                         &mut desc.ndc,
                         center,
                         mesh_rotation.to_degrees(),
-                        HINT_SCALE_VEC,
+                        hint_scale,
                         hover_state.is_occupied(),
                     );
                 }

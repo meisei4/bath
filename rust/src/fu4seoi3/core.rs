@@ -7,9 +7,7 @@ use std::mem::size_of;
 use std::ops::{Add, Sub};
 use std::time::SystemTime;
 
-//TODO: address every single constant in here and whether or not it can efficiently be added to a config file targettted for hot reload.
 pub const RES_SCALE: f32 = 1.5;
-
 pub const DC_WIDTH_BASE: f32 = 640.0;
 pub const DC_HEIGHT_BASE: f32 = 480.0;
 pub const DC_WIDTH: i32 = (DC_WIDTH_BASE * RES_SCALE) as i32;
@@ -17,31 +15,46 @@ pub const DC_HEIGHT: i32 = (DC_HEIGHT_BASE * RES_SCALE) as i32;
 
 pub const MODEL_SCALE: Vector3 = Vector3::new(1.0, 1.0, 1.0);
 pub const MODEL_POS: Vector3 = Vector3::ZERO;
-
 pub const MAIN_POS: Vector3 = Vector3::new(0.0, 0.0, 2.0);
 pub const JUGEMU_POS_ISO: Vector3 = Vector3::new(1.0, 1.0, 1.0);
-
-pub const JUGEMU_DISTANCE_ORTHO: f32 = 6.5;
-pub const JUGEMU_DISTANCE_PERSPECTIVE: f32 = 9.0;
-
-pub const FOVY_PERSPECTIVE: f32 = 50.0;
-pub const FOVY_ORTHOGRAPHIC: f32 = 9.0;
-
-pub fn NEAR_PLANE_HEIGHT_ORTHOGRAPHIC() -> f32 {
-    2.0 * (FOVY_PERSPECTIVE * 0.5).to_radians().tan()
-}
-
 pub const Y_AXIS: Vector3 = Vector3::new(0.0, 1.0, 0.0);
 
 pub const ROOM_W: i32 = 9;
 pub const ROOM_H: i32 = 3;
 pub const ROOM_D: i32 = 9;
-
 pub const HALF: f32 = 0.5;
 
+pub const JUGEMU_DISTANCE_ORTHO: f32 = 6.5;
+pub const JUGEMU_DISTANCE_PERSPECTIVE: f32 = 9.0;
+pub const FOVY_PERSPECTIVE: f32 = 50.0;
+pub const FOVY_ORTHOGRAPHIC: f32 = 9.0;
 pub const BLEND_SCALAR: f32 = 5.0;
 pub const PLACEMENT_ANIM_DUR_SECONDS: f32 = 0.15;
 pub const HINT_SCALE: f32 = 0.66;
+pub const ROTATION_FREQUENCY_HZ: f32 = 0.05;
+pub const TIME_BETWEEN_SAMPLES: f32 = 0.5;
+pub const ROTATIONAL_SAMPLES_FOR_INV_PROJ: usize = 40;
+
+pub const RADIAL_FIELD_SIZE: usize = 64;
+pub const GRID_SCALE: f32 = 4.0;
+pub const LIGHT_WAVE_SPATIAL_FREQ_X: f32 = 8.0;
+pub const LIGHT_WAVE_SPATIAL_FREQ_Y: f32 = 8.0;
+pub const LIGHT_WAVE_TEMPORAL_FREQ_X: f32 = 255.0 * PI / 10.0;
+pub const LIGHT_WAVE_TEMPORAL_FREQ_Y: f32 = 7.0 * PI / 10.0;
+pub const LIGHT_WAVE_AMPLITUDE_X: f32 = 0.0;
+pub const LIGHT_WAVE_AMPLITUDE_Y: f32 = 0.1;
+pub const UMBRAL_MASK_OUTER_RADIUS: f32 = 0.40;
+pub const UMBRAL_MASK_FADE_BAND: f32 = 0.025;
+pub const UMBRAL_MASK_CENTER: Vector2 = Vector2::new(0.5, 0.5);
+
+pub fn near_plane_height_orthographic(view_config: &ViewConfig) -> f32 {
+    2.0 * (view_config.fovy_perspective * 0.5).to_radians().tan()
+}
+
+pub fn angular_velocity(view_config: &ViewConfig) -> f32 {
+    TAU * view_config.rotation_frequency_hz
+}
+
 pub const HINT_SCALE_VEC: Vector3 = Vector3::new(HINT_SCALE, HINT_SCALE, HINT_SCALE);
 
 pub struct ViewState {
@@ -143,35 +156,89 @@ impl ViewConfig {
                     continue;
                 }
                 let key = parts[0];
-                let value: f32 = parts[1].parse().unwrap_or(0.0);
+
                 match key {
-                    "JUGEMU_DISTANCE_ORTHO" => cfg.jugemu_distance_ortho = value,
-                    "JUGEMU_DISTANCE_PERSPECTIVE" => cfg.jugemu_distance_perspective = value,
-                    "FOVY_PERSPECTIVE" => cfg.fovy_perspective = value,
-                    "FOVY_ORTHOGRAPHIC" => cfg.fovy_orthographic = value,
-
-                    "BLEND_SCALAR" => cfg.blend_scalar = value,
-                    "PLACEMENT_ANIM_DUR_SECONDS" => cfg.placement_anim_dur_seconds = value,
-                    "HINT_SCALE" => cfg.hint_scale = value,
-
-                    "ROTATION_FREQUENCY_HZ" => cfg.rotation_frequency_hz = value,
-                    "TIME_BETWEEN_SAMPLES" => cfg.time_between_samples = value,
+                    "JUGEMU_DISTANCE_ORTHO" => {
+                        if let Ok(value) = parts[1].parse::<f32>() {
+                            cfg.jugemu_distance_ortho = value;
+                        }
+                    },
+                    "JUGEMU_DISTANCE_PERSPECTIVE" => {
+                        if let Ok(value) = parts[1].parse::<f32>() {
+                            cfg.jugemu_distance_perspective = value;
+                        }
+                    },
+                    "FOVY_PERSPECTIVE" => {
+                        if let Ok(value) = parts[1].parse::<f32>() {
+                            cfg.fovy_perspective = value;
+                        }
+                    },
+                    "FOVY_ORTHOGRAPHIC" => {
+                        if let Ok(value) = parts[1].parse::<f32>() {
+                            cfg.fovy_orthographic = value;
+                        }
+                    },
+                    "BLEND_SCALAR" => {
+                        if let Ok(value) = parts[1].parse::<f32>() {
+                            cfg.blend_scalar = value;
+                        }
+                    },
+                    "PLACEMENT_ANIM_DUR_SECONDS" => {
+                        if let Ok(value) = parts[1].parse::<f32>() {
+                            cfg.placement_anim_dur_seconds = value;
+                        }
+                    },
+                    "HINT_SCALE" => {
+                        if let Ok(value) = parts[1].parse::<f32>() {
+                            cfg.hint_scale = value;
+                        }
+                    },
+                    "ROTATION_FREQUENCY_HZ" => {
+                        if let Ok(value) = parts[1].parse::<f32>() {
+                            cfg.rotation_frequency_hz = value;
+                        }
+                    },
+                    "TIME_BETWEEN_SAMPLES" => {
+                        if let Ok(value) = parts[1].parse::<f32>() {
+                            cfg.time_between_samples = value;
+                        }
+                    },
+                    "ROTATIONAL_SAMPLES_FOR_INV_PROJ" => {
+                        if let Ok(value) = parts[1].parse::<usize>() {
+                            cfg.rotational_samples_for_inv_proj = value;
+                        }
+                    },
                     _ => {},
                 }
             }
         }
         cfg
     }
+
+    pub fn log_current(&self) {
+        println!("# ViewConfig dump:");
+        println!("JUGEMU_DISTANCE_ORTHO {}", self.jugemu_distance_ortho);
+        println!("JUGEMU_DISTANCE_PERSPECTIVE {}", self.jugemu_distance_perspective);
+        println!("FOVY_PERSPECTIVE {}", self.fovy_perspective);
+        println!("FOVY_ORTHOGRAPHIC {}", self.fovy_orthographic);
+        println!("BLEND_SCALAR {}", self.blend_scalar);
+        println!("PLACEMENT_ANIM_DUR_SECONDS {}", self.placement_anim_dur_seconds);
+        println!("HINT_SCALE {}", self.hint_scale);
+        println!("ROTATION_FREQUENCY_HZ {}", self.rotation_frequency_hz);
+        println!("TIME_BETWEEN_SAMPLES {}", self.time_between_samples);
+        println!(
+            "ROTATIONAL_SAMPLES_FOR_INV_PROJ {}",
+            self.rotational_samples_for_inv_proj
+        );
+    }
 }
 
-//TODO: wasnt this going to be compressed somewhere? this will be injected into a meshes normals i htink like actual geometry of the rooms floor... or internal space..? deeper data in the room mesh.
 pub struct FieldSample {
     pub position: Vector3,
     pub direction: Vector2,
     pub magnitude: f32,
 }
 
-//TODO: add other configs unrelated to field config? or no, just one config probalby
 pub struct ConfigWatcher<T> {
     path: String,
     last_modified: Option<SystemTime>,
@@ -250,6 +317,22 @@ impl FieldConfig {
         }
         config
     }
+
+    pub fn log_current(&self) {
+        println!("# FieldConfig dump:");
+        println!("JET_STRENGTH {}", self.jet_strength);
+        println!("JET_SPREAD_ANGLE {}", self.jet_spread_angle);
+        println!("JET_MAX_DISTANCE {}", self.jet_max_distance);
+        println!("FUNNEL_STRENGTH {}", self.funnel_strength);
+        println!("FUNNEL_REACH {}", self.funnel_reach);
+        println!("FUNNEL_CATCH_RADIUS {}", self.funnel_catch_radius);
+        println!("FUNNEL_SINK_RADIUS {}", self.funnel_sink_radius);
+        println!("FUNNEL_CURVE_POWER {}", self.funnel_curve_power);
+        println!("WALL_REDIRECT_STRENGTH {}", self.wall_redirect_strength);
+        println!("WALL_REDIRECT_DISTANCE {}", self.wall_redirect_distance);
+        println!("CHI_SAMPLE_HEIGHT {}", self.chi_sample_height);
+        println!("CHI_ARROW_LENGTH {}", self.chi_arrow_length);
+    }
 }
 
 #[derive(Copy, Clone)]
@@ -305,7 +388,6 @@ pub fn gpu_vertex_stride_bytes(metrics: &MeshMetrics) -> usize {
     stride
 }
 
-//TODO: cant this be in MeshMetrics as an option or something please lets compress this garbage.
 pub struct FrameDynamicMetrics {
     pub vertex_positions_written: usize,
     pub vertex_normals_written: usize,
@@ -334,7 +416,6 @@ impl FrameDynamicMetrics {
     }
 }
 
-//TODO: cant this be compressed with the other metrics or no please come on
 pub struct AnimationMetrics {
     pub sample_count: usize,
     pub verts_per_sample: usize,
@@ -371,7 +452,6 @@ pub struct MeshDescriptor {
     pub z_shift_isotropic: f32,
 }
 
-//TODO: is this even neccessary? like compute hover state is a fuckking public function not even part of this... and one fuctnion of is occupied seems overengineered abstraction
 pub struct HoverState {
     pub indices: Option<(i32, i32, i32)>,
     pub center: Option<Vector3>,
@@ -485,6 +565,7 @@ pub struct Room {
     pub field_samples: Vec<FieldSample>,
     pub config: FieldConfig,
 }
+
 impl Default for Room {
     fn default() -> Self {
         let origin = Vector3::new(-(ROOM_W as f32) / 2.0, -(ROOM_H as f32) / 2.0, -(ROOM_D as f32) / 2.0);
@@ -517,7 +598,6 @@ impl Default for Room {
 }
 
 impl Room {
-    //TODO: make this work mutable for the room for real and use it or kill it
     pub fn for_each_cell(&self, mut f: impl FnMut(i32, i32, i32, Vector3)) {
         for iy in 0..self.h {
             for iz in 0..self.d {
@@ -612,32 +692,7 @@ impl Room {
 
     pub fn reload_config(&mut self, config: FieldConfig) {
         self.config = config;
-        println!(
-            "JET_STRENGTH = {}\n\
-             JET_SPREAD_ANGLE = {}\n\
-             JET_MAX_DISTANCE = {}\n\
-             FUNNEL_STRENGTH = {}\n\
-             FUNNEL_REACH = {}\n\
-             FUNNEL_CATCH_RADIUS = {}\n\
-             FUNNEL_SINK_RADIUS = {}\n\
-             FUNNEL_CURVE_POWER = {}\n\
-             WALL_REDIRECT_STRENGTH = {}\n\
-             WALL_REDIRECT_DISTANCE = {}\n\
-             CHI_SAMPLE_HEIGHT = {}\n\
-             CHI_ARROW_LENGTH = {}",
-            self.config.jet_strength,
-            self.config.jet_spread_angle,
-            self.config.jet_max_distance,
-            self.config.funnel_strength,
-            self.config.funnel_reach,
-            self.config.funnel_catch_radius,
-            self.config.funnel_sink_radius,
-            self.config.funnel_curve_power,
-            self.config.wall_redirect_strength,
-            self.config.wall_redirect_distance,
-            self.config.chi_sample_height,
-            self.config.chi_arrow_length,
-        );
+        self.config.log_current();
         self.generate_field();
         self.log_debug_samples();
     }
@@ -931,17 +986,18 @@ pub fn update_spatial_frame(
     space_factor: f32,
     aspect_factor: f32,
     ortho_factor: f32,
+    view_config: &ViewConfig,
 ) {
     let (depth, right, up) = basis_vector(&main);
     let half_h_near = lerp(
-        near * (FOVY_PERSPECTIVE * 0.5).to_radians().tan(),
-        0.5 * NEAR_PLANE_HEIGHT_ORTHOGRAPHIC(),
+        near * (view_config.fovy_perspective * 0.5).to_radians().tan(),
+        0.5 * near_plane_height_orthographic(view_config),
         ortho_factor,
     );
     let half_w_near = lerp(half_h_near, half_h_near * aspect, aspect_factor);
     let half_h_far = lerp(
-        far * (FOVY_PERSPECTIVE * 0.5).to_radians().tan(),
-        0.5 * NEAR_PLANE_HEIGHT_ORTHOGRAPHIC(),
+        far * (view_config.fovy_perspective * 0.5).to_radians().tan(),
+        0.5 * near_plane_height_orthographic(view_config),
         ortho_factor,
     );
     let half_w_far = lerp(half_h_far, half_h_far * aspect, aspect_factor);
@@ -973,6 +1029,7 @@ pub fn update_spatial_frame(
     }
     spatial_frame.vertices_mut().copy_from_slice(&out_vertices);
 }
+
 pub fn world_to_ndc_space(
     camera: &Camera3D,
     aspect: f32,
@@ -984,12 +1041,13 @@ pub fn world_to_ndc_space(
     ortho_factor: f32,
     aspect_factor: f32,
     frame_metrics: &mut FrameDynamicMetrics,
+    view_config: &ViewConfig,
 ) {
     let (depth, right, up) = basis_vector(camera);
 
     let half_h_near = lerp(
-        near * (FOVY_PERSPECTIVE * 0.5).to_radians().tan(),
-        0.5 * NEAR_PLANE_HEIGHT_ORTHOGRAPHIC(),
+        near * (view_config.fovy_perspective * 0.5).to_radians().tan(),
+        0.5 * near_plane_height_orthographic(view_config),
         ortho_factor,
     );
     let half_w_near = lerp(half_h_near, half_h_near * aspect, aspect_factor);
@@ -1042,27 +1100,6 @@ pub fn blend_world_and_ndc_vertices(
     }
 }
 
-pub const RADIAL_FIELD_SIZE: usize = 64;
-pub const ROTATION_FREQUENCY_HZ: f32 = 0.05;
-// pub fn ANGULAR_VELOCITY(view_cfg: &ViewConfig) -> f32 {
-//     TAU * view_cfg.rotation_frequency_hz
-// }
-pub const ANGULAR_VELOCITY: f32 = TAU * ROTATION_FREQUENCY_HZ;
-pub const TIME_BETWEEN_SAMPLES: f32 = 0.5;
-pub const ROTATIONAL_SAMPLES_FOR_INV_PROJ: usize = 40;
-
-pub const GRID_SCALE: f32 = 4.0;
-pub const LIGHT_WAVE_SPATIAL_FREQ_X: f32 = 8.0;
-pub const LIGHT_WAVE_SPATIAL_FREQ_Y: f32 = 8.0;
-pub const LIGHT_WAVE_TEMPORAL_FREQ_X: f32 = 255.0 * PI / 10.0;
-pub const LIGHT_WAVE_TEMPORAL_FREQ_Y: f32 = 7.0 * PI / 10.0;
-pub const LIGHT_WAVE_AMPLITUDE_X: f32 = 0.0;
-pub const LIGHT_WAVE_AMPLITUDE_Y: f32 = 0.1;
-
-pub const UMBRAL_MASK_OUTER_RADIUS: f32 = 0.40;
-pub const UMBRAL_MASK_FADE_BAND: f32 = 0.025;
-pub const UMBRAL_MASK_CENTER: Vector2 = Vector2::new(0.5, 0.5);
-
 pub fn generate_silhouette_radial_field(i_time: f32) -> Vec<f32> {
     let mut rf = Vec::with_capacity(RADIAL_FIELD_SIZE);
 
@@ -1090,12 +1127,12 @@ pub fn deform_vertices_with_radial_field(vertices: &mut [Vector3], radial_field:
     }
 }
 
-pub fn collect_deformed_vertex_samples(base: &[Vector3]) -> Vec<Vec<Vector3>> {
-    let mut samples = Vec::with_capacity(ROTATIONAL_SAMPLES_FOR_INV_PROJ);
+pub fn collect_deformed_vertex_samples(base: &[Vector3], view_config: &ViewConfig) -> Vec<Vec<Vector3>> {
+    let mut samples = Vec::with_capacity(view_config.rotational_samples_for_inv_proj);
 
-    for i in 0..ROTATIONAL_SAMPLES_FOR_INV_PROJ {
-        let t = i as f32 * TIME_BETWEEN_SAMPLES;
-        let rot = -ANGULAR_VELOCITY * t;
+    for i in 0..view_config.rotational_samples_for_inv_proj {
+        let t = i as f32 * view_config.time_between_samples;
+        let rot = -angular_velocity(view_config) * t;
         let mut frame = base.to_vec();
         rotate_vertices_in_plane_slice(&mut frame, rot);
         let radial = generate_silhouette_radial_field(t);
@@ -1184,12 +1221,13 @@ pub fn interpolate_between_deformed_vertices(
     time: f32,
     samples: &[Vec<Vector3>],
     frame_metrics: &mut FrameDynamicMetrics,
+    view_config: &ViewConfig,
 ) {
     let target = &mut model.meshes_mut()[0];
 
-    let n = samples.len() as f32 * TIME_BETWEEN_SAMPLES;
+    let n = samples.len() as f32 * view_config.time_between_samples;
     let t = time % n;
-    let f = t / TIME_BETWEEN_SAMPLES;
+    let f = t / view_config.time_between_samples;
     let i0 = f.floor() as usize % samples.len();
     let i1 = (i0 + 1) % samples.len();
     let w = f.fract();
