@@ -7,10 +7,6 @@ use std::mem::size_of;
 use std::ops::{Add, Sub};
 use std::time::SystemTime;
 
-//TODO:CONSOLIDATE ALL CONSTS AS DEFAULTS IN THE CODE LEVEL FOR
-// ::default()
-// if clean, otherwise just use the config files
-
 pub const RES_SCALE: f32 = 1.5;
 pub const DC_WIDTH_BASE: f32 = 640.0;
 pub const DC_HEIGHT_BASE: f32 = 480.0;
@@ -23,43 +19,295 @@ pub const MAIN_POS: Vector3 = Vector3::new(0.0, 0.0, 2.0);
 pub const JUGEMU_POS_ISO: Vector3 = Vector3::new(1.0, 1.0, 1.0);
 pub const Y_AXIS: Vector3 = Vector3::new(0.0, 1.0, 0.0);
 
+pub const JUGEMU_DISTANCE_ORTHO: f32 = 6.5;
+pub const JUGEMU_DISTANCE_PERSPECTIVE: f32 = 9.0;
+
+pub const FOVY_PERSPECTIVE: f32 = 50.0;
+pub const FOVY_ORTHOGRAPHIC: f32 = 9.0;
+
+pub const BLEND_SCALAR: f32 = 5.0;
+pub const PLACEMENT_ANIM_DUR_SECONDS: f32 = 0.25;
+pub const HINT_SCALE: f32 = 0.66;
+pub const HINT_SCALE_VEC: Vector3 = Vector3::new(HINT_SCALE, HINT_SCALE, HINT_SCALE);
+
 pub const ROOM_W: i32 = 9;
 pub const ROOM_H: i32 = 3;
 pub const ROOM_D: i32 = 9;
 pub const HALF: f32 = 0.5;
 
-pub const JUGEMU_DISTANCE_ORTHO: f32 = 6.5;
-pub const JUGEMU_DISTANCE_PERSPECTIVE: f32 = 9.0;
-pub const FOVY_PERSPECTIVE: f32 = 50.0;
-pub const FOVY_ORTHOGRAPHIC: f32 = 9.0;
-pub const BLEND_SCALAR: f32 = 5.0;
-pub const PLACEMENT_ANIM_DUR_SECONDS: f32 = 0.15;
-pub const HINT_SCALE: f32 = 0.66;
-pub const ROTATION_FREQUENCY_HZ: f32 = 0.05;
-pub const TIME_BETWEEN_SAMPLES: f32 = 0.5;
-pub const ROTATIONAL_SAMPLES_FOR_INV_PROJ: usize = 40;
-
-pub const RADIAL_FIELD_SIZE: usize = 64;
+//TODO: unused???
 pub const GRID_SCALE: f32 = 4.0;
-pub const LIGHT_WAVE_SPATIAL_FREQ_X: f32 = 8.0;
-pub const LIGHT_WAVE_SPATIAL_FREQ_Y: f32 = 8.0;
-pub const LIGHT_WAVE_TEMPORAL_FREQ_X: f32 = 255.0 * PI / 10.0;
-pub const LIGHT_WAVE_TEMPORAL_FREQ_Y: f32 = 7.0 * PI / 10.0;
-pub const LIGHT_WAVE_AMPLITUDE_X: f32 = 0.0;
-pub const LIGHT_WAVE_AMPLITUDE_Y: f32 = 0.1;
-pub const UMBRAL_MASK_OUTER_RADIUS: f32 = 0.40;
 pub const UMBRAL_MASK_FADE_BAND: f32 = 0.025;
+
+//TODO: PLEASE ALSO PUT THESE INTO the field config for the defomration stuff
+pub const RADIAL_FIELD_SIZE: usize = 64;
+pub const UMBRAL_MASK_OUTER_RADIUS: f32 = 0.40;
 pub const UMBRAL_MASK_CENTER: Vector2 = Vector2::new(0.5, 0.5);
+
+pub const JET_STRENGTH: f32 = 10.0;
+pub const JET_SPREAD_ANGLE: f32 = 14.0;
+pub const JET_MAX_DISTANCE: f32 = 18.0;
+pub const FUNNEL_STRENGTH: f32 = 2.0;
+pub const FUNNEL_REACH: f32 = 6.0;
+pub const FUNNEL_CATCH_RADIUS: f32 = 4.0;
+pub const FUNNEL_SINK_RADIUS: f32 = 0.7;
+pub const FUNNEL_CURVE_POWER: f32 = 1.5;
+pub const WALL_REDIRECT_STRENGTH: f32 = 0.8;
+pub const WALL_REDIRECT_DISTANCE: f32 = 5.0;
+pub const CHI_SAMPLE_HEIGHT: f32 = 0.2;
+pub const CHI_ARROW_LENGTH: f32 = 0.4;
+
+pub const ROTATION_FREQUENCY_HZ: f32 = 0.2;
+pub const DEFORMATION_CYCLES_PER_ROTATION: f32 = 1.0;
+pub const TIME_BETWEEN_SAMPLES: f32 = 0.05;
+pub const ROTATIONAL_SAMPLES_FOR_INV_PROJ: usize = 40;
+pub const WAVE_CYCLES_SLOW: f32 = 7.0;
+pub const WAVE_CYCLES_FAST: f32 = 255.0;
+pub const WAVE_AMPLITUDE_X: f32 = 0.0;
+pub const WAVE_AMPLITUDE_Y: f32 = 0.1;
 
 pub fn near_plane_height_orthographic(view_config: &ViewConfig) -> f32 {
     2.0 * (view_config.fovy_perspective * 0.5).to_radians().tan()
 }
 
-pub fn angular_velocity(view_config: &ViewConfig) -> f32 {
-    TAU * view_config.rotation_frequency_hz
+pub fn angular_velocity(field_config: &FieldConfig) -> f32 {
+    TAU * field_config.rotation_frequency_hz
 }
 
-pub const HINT_SCALE_VEC: Vector3 = Vector3::new(HINT_SCALE, HINT_SCALE, HINT_SCALE);
+macro_rules! parse_config_fields {
+    ($content:expr, $config:expr, {
+        $( $key:literal => $field:ident : $type:ty ),* $(,)?
+    }) => {
+        for line in $content.lines() {
+            let line = line.trim();
+            if line.is_empty() || line.starts_with('#') {
+                continue;
+            }
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            if parts.len() != 2 {
+                continue;
+            }
+            let key = parts[0];
+
+            match key {
+                $(
+                    $key => {
+                        if let Ok(value) = parts[1].parse::<$type>() {
+                            $config.$field = value;
+                        }
+                    }
+                )*
+                _ => {}
+            }
+        }
+    };
+}
+
+#[derive(Clone, Debug)]
+pub struct ViewConfig {
+    pub jugemu_distance_ortho: f32,
+    pub jugemu_distance_perspective: f32,
+    pub fovy_perspective: f32,
+    pub fovy_orthographic: f32,
+    pub blend_scalar: f32,
+    pub placement_anim_dur_seconds: f32,
+    pub hint_scale: f32,
+}
+
+impl Default for ViewConfig {
+    fn default() -> Self {
+        Self {
+            jugemu_distance_ortho: JUGEMU_DISTANCE_ORTHO,
+            jugemu_distance_perspective: JUGEMU_DISTANCE_PERSPECTIVE,
+            fovy_perspective: FOVY_PERSPECTIVE,
+            fovy_orthographic: FOVY_ORTHOGRAPHIC,
+            blend_scalar: BLEND_SCALAR,
+            placement_anim_dur_seconds: PLACEMENT_ANIM_DUR_SECONDS,
+            hint_scale: HINT_SCALE,
+        }
+    }
+}
+
+impl ViewConfig {
+    pub fn load_from_file(path: &str) -> Self {
+        let mut cfg = ViewConfig::default();
+        if let Ok(content) = fs::read_to_string(path) {
+            parse_config_fields!(content, cfg, {
+                "JUGEMU_DISTANCE_ORTHO" => jugemu_distance_ortho: f32,
+                "JUGEMU_DISTANCE_PERSPECTIVE" => jugemu_distance_perspective: f32,
+                "FOVY_PERSPECTIVE" => fovy_perspective: f32,
+                "FOVY_ORTHOGRAPHIC" => fovy_orthographic: f32,
+                "BLEND_SCALAR" => blend_scalar: f32,
+                "PLACEMENT_ANIM_DUR_SECONDS" => placement_anim_dur_seconds: f32,
+                "HINT_SCALE" => hint_scale: f32,
+            });
+        }
+        cfg
+    }
+
+    pub fn log_current(&self) {
+        println!("# ViewConfig dump:");
+        println!("JUGEMU_DISTANCE_ORTHO {}", self.jugemu_distance_ortho);
+        println!("JUGEMU_DISTANCE_PERSPECTIVE {}", self.jugemu_distance_perspective);
+        println!("FOVY_PERSPECTIVE {}", self.fovy_perspective);
+        println!("FOVY_ORTHOGRAPHIC {}", self.fovy_orthographic);
+        println!("BLEND_SCALAR {}", self.blend_scalar);
+        println!("PLACEMENT_ANIM_DUR_SECONDS {}", self.placement_anim_dur_seconds);
+        println!("HINT_SCALE {}", self.hint_scale);
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct FieldConfig {
+    pub jet_strength: f32,
+    pub jet_spread_angle: f32,
+    pub jet_max_distance: f32,
+    pub funnel_strength: f32,
+    pub funnel_reach: f32,
+    pub funnel_catch_radius: f32,
+    pub funnel_sink_radius: f32,
+    pub funnel_curve_power: f32,
+    pub wall_redirect_strength: f32,
+    pub wall_redirect_distance: f32,
+
+    pub chi_sample_height: f32,
+    pub chi_arrow_length: f32,
+
+    pub rotation_frequency_hz: f32,
+    pub deformation_cycles_per_rotation: f32,
+    pub wave_cycles_slow: f32,
+    pub wave_cycles_fast: f32,
+    pub wave_amplitude_x: f32,
+    pub wave_amplitude_y: f32,
+    pub time_between_samples: f32,
+    pub rotational_samples_for_inv_proj: usize,
+}
+
+impl Default for FieldConfig {
+    fn default() -> Self {
+        Self {
+            jet_strength: JET_STRENGTH,
+            jet_spread_angle: JET_SPREAD_ANGLE,
+            jet_max_distance: JET_MAX_DISTANCE,
+            funnel_strength: FUNNEL_STRENGTH,
+            funnel_reach: FUNNEL_REACH,
+            funnel_catch_radius: FUNNEL_CATCH_RADIUS,
+            funnel_sink_radius: FUNNEL_SINK_RADIUS,
+            funnel_curve_power: FUNNEL_CURVE_POWER,
+            wall_redirect_strength: WALL_REDIRECT_STRENGTH,
+            wall_redirect_distance: WALL_REDIRECT_DISTANCE,
+            chi_sample_height: CHI_SAMPLE_HEIGHT,
+            chi_arrow_length: CHI_ARROW_LENGTH,
+
+            rotation_frequency_hz: ROTATION_FREQUENCY_HZ,
+            deformation_cycles_per_rotation: DEFORMATION_CYCLES_PER_ROTATION,
+            wave_cycles_slow: WAVE_CYCLES_SLOW,
+            wave_cycles_fast: WAVE_CYCLES_FAST,
+            wave_amplitude_x: WAVE_AMPLITUDE_X,
+            wave_amplitude_y: WAVE_AMPLITUDE_Y,
+            time_between_samples: TIME_BETWEEN_SAMPLES,
+            rotational_samples_for_inv_proj: ROTATIONAL_SAMPLES_FOR_INV_PROJ,
+        }
+    }
+}
+
+impl FieldConfig {
+    pub fn load_from_file(path: &str) -> Self {
+        let mut config = FieldConfig::default();
+        if let Ok(content) = fs::read_to_string(path) {
+            parse_config_fields!(content, config, {
+                "JET_STRENGTH" => jet_strength: f32,
+                "JET_SPREAD_ANGLE" => jet_spread_angle: f32,
+                "JET_MAX_DISTANCE" => jet_max_distance: f32,
+                "FUNNEL_STRENGTH" => funnel_strength: f32,
+                "FUNNEL_REACH" => funnel_reach: f32,
+                "FUNNEL_CATCH_RADIUS" => funnel_catch_radius: f32,
+                "FUNNEL_SINK_RADIUS" => funnel_sink_radius: f32,
+                "FUNNEL_CURVE_POWER" => funnel_curve_power: f32,
+                "WALL_REDIRECT_STRENGTH" => wall_redirect_strength: f32,
+                "WALL_REDIRECT_DISTANCE" => wall_redirect_distance: f32,
+                "CHI_SAMPLE_HEIGHT" => chi_sample_height: f32,
+                "CHI_ARROW_LENGTH" => chi_arrow_length: f32,
+
+                "ROTATION_FREQUENCY_HZ" => rotation_frequency_hz: f32,
+                "DEFORMATION_CYCLES_PER_ROTATION" => deformation_cycles_per_rotation: f32,
+                "WAVE_CYCLES_SLOW" => wave_cycles_slow: f32,
+                "WAVE_CYCLES_FAST" => wave_cycles_fast: f32,
+                "WAVE_AMPLITUDE_X" => wave_amplitude_x: f32,
+                "WAVE_AMPLITUDE_Y" => wave_amplitude_y: f32,
+                "TIME_BETWEEN_SAMPLES" => time_between_samples: f32,
+                "ROTATIONAL_SAMPLES_FOR_INV_PROJ" => rotational_samples_for_inv_proj: usize,
+            });
+        }
+        if config.rotational_samples_for_inv_proj == 0 {
+            eprintln!("WARNING: ROTATIONAL_SAMPLES_FOR_INV_PROJ cannot be 0, using default");
+            config.rotational_samples_for_inv_proj = ROTATIONAL_SAMPLES_FOR_INV_PROJ;
+        }
+        if config.rotation_frequency_hz <= 0.0 {
+            eprintln!("WARNING: ROTATION_FREQUENCY_HZ must be > 0, using default");
+            config.rotation_frequency_hz = ROTATION_FREQUENCY_HZ;
+        }
+        config
+    }
+
+    pub fn log_current(&self) {
+        println!("# FieldConfig dump:");
+        println!("JET_STRENGTH {}", self.jet_strength);
+        println!("JET_SPREAD_ANGLE {}", self.jet_spread_angle);
+        println!("JET_MAX_DISTANCE {}", self.jet_max_distance);
+        println!("FUNNEL_STRENGTH {}", self.funnel_strength);
+        println!("FUNNEL_REACH {}", self.funnel_reach);
+        println!("FUNNEL_CATCH_RADIUS {}", self.funnel_catch_radius);
+        println!("FUNNEL_SINK_RADIUS {}", self.funnel_sink_radius);
+        println!("FUNNEL_CURVE_POWER {}", self.funnel_curve_power);
+        println!("WALL_REDIRECT_STRENGTH {}", self.wall_redirect_strength);
+        println!("WALL_REDIRECT_DISTANCE {}", self.wall_redirect_distance);
+        println!("CHI_SAMPLE_HEIGHT {}", self.chi_sample_height);
+        println!("CHI_ARROW_LENGTH {}", self.chi_arrow_length);
+        println!("ROTATION_FREQUENCY_HZ {}", self.rotation_frequency_hz);
+        println!(
+            "DEFORMATION_CYCLES_PER_ROTATION {}",
+            self.deformation_cycles_per_rotation
+        );
+        println!("WAVE_CYCLES_SLOW {}", self.wave_cycles_slow);
+        println!("WAVE_CYCLES_FAST {}", self.wave_cycles_fast);
+        println!("WAVE_AMPLITUDE_X {}", self.wave_amplitude_x);
+        println!("WAVE_AMPLITUDE_Y {}", self.wave_amplitude_y);
+        println!("TIME_BETWEEN_SAMPLES {}", self.time_between_samples);
+        println!(
+            "ROTATIONAL_SAMPLES_FOR_INV_PROJ {}",
+            self.rotational_samples_for_inv_proj
+        );
+    }
+}
+
+pub struct ConfigWatcher<T> {
+    path: String,
+    last_modified: Option<SystemTime>,
+    loader: fn(&str) -> T,
+}
+
+impl<T> ConfigWatcher<T> {
+    pub fn new(path: &str, loader: fn(&str) -> T) -> Self {
+        Self {
+            path: path.to_string(),
+            last_modified: None,
+            loader,
+        }
+    }
+
+    pub fn check_reload(&mut self) -> Option<T> {
+        if let Ok(metadata) = fs::metadata(&self.path) {
+            if let Ok(modified) = metadata.modified() {
+                if self.last_modified.is_none() || Some(modified) != self.last_modified {
+                    self.last_modified = Some(modified);
+                    return Some((self.loader)(&self.path));
+                }
+            }
+        }
+        None
+    }
+}
 
 pub struct ViewState {
     pub ndc_space: bool,
@@ -107,144 +355,11 @@ pub struct JugemuState {
 impl Default for JugemuState {
     fn default() -> Self {
         Self {
-            fovy_ortho: FOVY_ORTHOGRAPHIC,
-            fovy_perspective: FOVY_PERSPECTIVE,
-            distance_ortho: JUGEMU_DISTANCE_ORTHO,
-            distance_perspective: JUGEMU_DISTANCE_PERSPECTIVE,
+            fovy_ortho: 9.0,
+            fovy_perspective: 50.0,
+            distance_ortho: 6.5,
+            distance_perspective: 9.0,
         }
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct ViewConfig {
-    pub jugemu_distance_ortho: f32,
-    pub jugemu_distance_perspective: f32,
-    pub fovy_perspective: f32,
-    pub fovy_orthographic: f32,
-    pub blend_scalar: f32,
-    pub placement_anim_dur_seconds: f32,
-    pub hint_scale: f32,
-    //TODO: move these to the chi field config later, because its much more related to math and wave/field mechanics.
-    pub rotation_frequency_hz: f32,
-    pub deformation_cycles_per_rotation: f32,
-    pub wave_cycles_slow: f32,
-    pub wave_cycles_fast: f32,
-    pub wave_amplitude_x: f32,
-    pub wave_amplitude_y: f32,
-    pub time_between_samples: f32,
-    pub rotational_samples_for_inv_proj: usize,
-}
-
-impl Default for ViewConfig {
-    fn default() -> Self {
-        Self {
-            jugemu_distance_ortho: JUGEMU_DISTANCE_ORTHO,
-            jugemu_distance_perspective: JUGEMU_DISTANCE_PERSPECTIVE,
-            fovy_perspective: FOVY_PERSPECTIVE,
-            fovy_orthographic: FOVY_ORTHOGRAPHIC,
-            blend_scalar: BLEND_SCALAR,
-            placement_anim_dur_seconds: PLACEMENT_ANIM_DUR_SECONDS,
-            hint_scale: HINT_SCALE,
-            rotation_frequency_hz: ROTATION_FREQUENCY_HZ,
-            deformation_cycles_per_rotation: 1.0,
-            wave_cycles_slow: 7.0,
-            wave_cycles_fast: 255.0,
-            wave_amplitude_x: 0.0,
-            wave_amplitude_y: 0.1,
-            time_between_samples: TIME_BETWEEN_SAMPLES,
-            rotational_samples_for_inv_proj: ROTATIONAL_SAMPLES_FOR_INV_PROJ,
-        }
-    }
-}
-
-impl ViewConfig {
-    pub fn load_from_file(path: &str) -> Self {
-        let mut cfg = ViewConfig::default();
-        if let Ok(content) = fs::read_to_string(path) {
-            for line in content.lines() {
-                let line = line.trim();
-                if line.is_empty() || line.starts_with('#') {
-                    continue;
-                }
-                let parts: Vec<&str> = line.split(' ').map(|s| s.trim()).collect();
-                if parts.len() != 2 {
-                    continue;
-                }
-                let key = parts[0];
-
-                match key {
-                    "JUGEMU_DISTANCE_ORTHO" => {
-                        if let Ok(value) = parts[1].parse::<f32>() {
-                            cfg.jugemu_distance_ortho = value;
-                        }
-                    },
-                    "JUGEMU_DISTANCE_PERSPECTIVE" => {
-                        if let Ok(value) = parts[1].parse::<f32>() {
-                            cfg.jugemu_distance_perspective = value;
-                        }
-                    },
-                    "FOVY_PERSPECTIVE" => {
-                        if let Ok(value) = parts[1].parse::<f32>() {
-                            cfg.fovy_perspective = value;
-                        }
-                    },
-                    "FOVY_ORTHOGRAPHIC" => {
-                        if let Ok(value) = parts[1].parse::<f32>() {
-                            cfg.fovy_orthographic = value;
-                        }
-                    },
-                    "BLEND_SCALAR" => {
-                        if let Ok(value) = parts[1].parse::<f32>() {
-                            cfg.blend_scalar = value;
-                        }
-                    },
-                    "PLACEMENT_ANIM_DUR_SECONDS" => {
-                        if let Ok(value) = parts[1].parse::<f32>() {
-                            cfg.placement_anim_dur_seconds = value;
-                        }
-                    },
-                    "HINT_SCALE" => {
-                        if let Ok(value) = parts[1].parse::<f32>() {
-                            cfg.hint_scale = value;
-                        }
-                    },
-                    "ROTATION_FREQUENCY_HZ" => {
-                        if let Ok(value) = parts[1].parse::<f32>() {
-                            cfg.rotation_frequency_hz = value;
-                        }
-                    },
-                    "TIME_BETWEEN_SAMPLES" => {
-                        if let Ok(value) = parts[1].parse::<f32>() {
-                            cfg.time_between_samples = value;
-                        }
-                    },
-                    "ROTATIONAL_SAMPLES_FOR_INV_PROJ" => {
-                        if let Ok(value) = parts[1].parse::<usize>() {
-                            cfg.rotational_samples_for_inv_proj = value;
-                        }
-                    },
-                    _ => {},
-                }
-            }
-        }
-        cfg
-    }
-
-    pub fn log_current(&self) {
-        println!("# ViewConfig dump:");
-        println!("JUGEMU_DISTANCE_ORTHO {}", self.jugemu_distance_ortho);
-        println!("JUGEMU_DISTANCE_PERSPECTIVE {}", self.jugemu_distance_perspective);
-        println!("FOVY_PERSPECTIVE {}", self.fovy_perspective);
-        println!("FOVY_ORTHOGRAPHIC {}", self.fovy_orthographic);
-        println!("BLEND_SCALAR {}", self.blend_scalar);
-        println!("PLACEMENT_ANIM_DUR_SECONDS {}", self.placement_anim_dur_seconds);
-        println!("HINT_SCALE {}", self.hint_scale);
-        println!("ROTATION_FREQUENCY_HZ {}", self.rotation_frequency_hz);
-        println!("TIME_BETWEEN_SAMPLES {}", self.time_between_samples);
-        println!(
-            "ROTATIONAL_SAMPLES_FOR_INV_PROJ {}",
-            self.rotational_samples_for_inv_proj
-        );
     }
 }
 
@@ -252,102 +367,6 @@ pub struct FieldSample {
     pub position: Vector3,
     pub direction: Vector2,
     pub magnitude: f32,
-}
-
-pub struct ConfigWatcher<T> {
-    path: String,
-    last_modified: Option<SystemTime>,
-    loader: fn(&str) -> T,
-}
-
-impl<T> ConfigWatcher<T> {
-    pub fn new(path: &str, loader: fn(&str) -> T) -> Self {
-        Self {
-            path: path.to_string(),
-            last_modified: None,
-            loader,
-        }
-    }
-
-    pub fn check_reload(&mut self) -> Option<T> {
-        if let Ok(metadata) = fs::metadata(&self.path) {
-            if let Ok(modified) = metadata.modified() {
-                if self.last_modified.is_none() || Some(modified) != self.last_modified {
-                    self.last_modified = Some(modified);
-                    return Some((self.loader)(&self.path));
-                }
-            }
-        }
-        None
-    }
-}
-
-#[derive(Clone, Debug, Default)]
-pub struct FieldConfig {
-    pub jet_strength: f32,
-    pub jet_spread_angle: f32,
-    pub jet_max_distance: f32,
-    pub funnel_strength: f32,
-    pub funnel_reach: f32,
-    pub funnel_catch_radius: f32,
-    pub funnel_sink_radius: f32,
-    pub funnel_curve_power: f32,
-    pub wall_redirect_strength: f32,
-    pub wall_redirect_distance: f32,
-    pub chi_sample_height: f32,
-    pub chi_arrow_length: f32,
-}
-
-impl FieldConfig {
-    pub fn load_from_file(path: &str) -> Self {
-        let mut config = FieldConfig::default();
-        if let Ok(content) = fs::read_to_string(path) {
-            for line in content.lines() {
-                let line = line.trim();
-                if line.is_empty() || line.starts_with('#') {
-                    continue;
-                }
-                let parts: Vec<&str> = line.split(' ').map(|s| s.trim()).collect();
-                if parts.len() != 2 {
-                    continue;
-                }
-                let key = parts[0];
-                let value: f32 = parts[1].parse().unwrap_or(0.0);
-                match key {
-                    "JET_STRENGTH" => config.jet_strength = value,
-                    "JET_SPREAD_ANGLE" => config.jet_spread_angle = value,
-                    "JET_MAX_DISTANCE" => config.jet_max_distance = value,
-                    "FUNNEL_STRENGTH" => config.funnel_strength = value,
-                    "FUNNEL_REACH" => config.funnel_reach = value,
-                    "FUNNEL_CATCH_RADIUS" => config.funnel_catch_radius = value,
-                    "FUNNEL_SINK_RADIUS" => config.funnel_sink_radius = value,
-                    "FUNNEL_CURVE_POWER" => config.funnel_curve_power = value,
-                    "WALL_REDIRECT_STRENGTH" => config.wall_redirect_strength = value,
-                    "WALL_REDIRECT_DISTANCE" => config.wall_redirect_distance = value,
-                    "CHI_SAMPLE_HEIGHT" => config.chi_sample_height = value,
-                    "CHI_ARROW_LENGTH" => config.chi_arrow_length = value,
-                    _ => {},
-                }
-            }
-        }
-        config
-    }
-
-    pub fn log_current(&self) {
-        println!("# FieldConfig dump:");
-        println!("JET_STRENGTH {}", self.jet_strength);
-        println!("JET_SPREAD_ANGLE {}", self.jet_spread_angle);
-        println!("JET_MAX_DISTANCE {}", self.jet_max_distance);
-        println!("FUNNEL_STRENGTH {}", self.funnel_strength);
-        println!("FUNNEL_REACH {}", self.funnel_reach);
-        println!("FUNNEL_CATCH_RADIUS {}", self.funnel_catch_radius);
-        println!("FUNNEL_SINK_RADIUS {}", self.funnel_sink_radius);
-        println!("FUNNEL_CURVE_POWER {}", self.funnel_curve_power);
-        println!("WALL_REDIRECT_STRENGTH {}", self.wall_redirect_strength);
-        println!("WALL_REDIRECT_DISTANCE {}", self.wall_redirect_distance);
-        println!("CHI_SAMPLE_HEIGHT {}", self.chi_sample_height);
-        println!("CHI_ARROW_LENGTH {}", self.chi_arrow_length);
-    }
 }
 
 #[derive(Copy, Clone)]
@@ -1023,7 +1042,6 @@ pub fn update_spatial_frame(
     let center_near = main.position.add(depth * near);
 
     let src_vertices = spatial_frame.vertices().to_vec();
-
     let mut out_vertices = src_vertices.clone();
 
     for [a, b, c] in spatial_frame.triangles() {
@@ -1115,12 +1133,12 @@ pub fn blend_world_and_ndc_vertices(
     }
 }
 
-pub fn generate_silhouette_radial_field(i_time: f32, view_config: &ViewConfig) -> Vec<f32> {
+pub fn generate_silhouette_radial_field(i_time: f32, field_config: &FieldConfig) -> Vec<f32> {
     let mut rf = Vec::with_capacity(RADIAL_FIELD_SIZE);
 
     for i in 0..RADIAL_FIELD_SIZE {
         let ang = (i as f32) * TAU / (RADIAL_FIELD_SIZE as f32);
-        rf.push(deformed_silhouette_radius_at_angle(ang, i_time, view_config));
+        rf.push(deformed_silhouette_radius_at_angle(ang, i_time, field_config));
     }
 
     let max_r = rf.iter().cloned().fold(1e-6, f32::max);
@@ -1142,18 +1160,19 @@ pub fn deform_vertices_with_radial_field(vertices: &mut [Vector3], radial_field:
     }
 }
 
-pub fn collect_deformed_vertex_samples(base: &[Vector3], view_config: &ViewConfig) -> Vec<Vec<Vector3>> {
-    let mut samples = Vec::with_capacity(view_config.rotational_samples_for_inv_proj);
+pub fn collect_deformed_vertex_samples(base: &[Vector3], field_config: &FieldConfig) -> Vec<Vec<Vector3>> {
+    let mut samples = Vec::with_capacity(field_config.rotational_samples_for_inv_proj);
 
-    for i in 0..view_config.rotational_samples_for_inv_proj {
-        let angle = -(i as f32) * TAU / (view_config.rotational_samples_for_inv_proj as f32);
-        let rotation_progress = (i as f32) / (view_config.rotational_samples_for_inv_proj as f32);
-        let wave_time =
-            rotation_progress * (1.0 / view_config.rotation_frequency_hz) * view_config.deformation_cycles_per_rotation;
+    for i in 0..field_config.rotational_samples_for_inv_proj {
+        let angle = -(i as f32) * TAU / (field_config.rotational_samples_for_inv_proj as f32);
+        let rotation_progress = (i as f32) / (field_config.rotational_samples_for_inv_proj as f32);
+        let wave_time = rotation_progress
+            * (1.0 / field_config.rotation_frequency_hz)
+            * field_config.deformation_cycles_per_rotation;
 
         let mut frame = base.to_vec();
         rotate_vertices_in_plane_slice(&mut frame, angle);
-        let radial = generate_silhouette_radial_field(wave_time, view_config);
+        let radial = generate_silhouette_radial_field(wave_time, field_config);
         deform_vertices_with_radial_field(&mut frame, &radial);
         rotate_vertices_in_plane_slice(&mut frame, -angle);
         samples.push(frame);
@@ -1184,44 +1203,46 @@ pub fn interpolate_between_radial_field_elements(sample_x: f32, sample_y: f32, r
 
 #[inline]
 pub fn spatial_phase(grid: Vector2) -> Vector2 {
+    const LIGHT_WAVE_SPATIAL_FREQ_X: f32 = 8.0;
+    const LIGHT_WAVE_SPATIAL_FREQ_Y: f32 = 8.0;
     Vector2::new(grid.y * LIGHT_WAVE_SPATIAL_FREQ_X, grid.x * LIGHT_WAVE_SPATIAL_FREQ_Y)
 }
 
 #[inline]
-pub fn temporal_phase(time: f32, view_config: &ViewConfig) -> Vector2 {
-    let rotation_period = 1.0 / view_config.rotation_frequency_hz;
-    let freq_x = (view_config.wave_cycles_fast * TAU) / rotation_period;
-    let freq_y = (view_config.wave_cycles_slow * TAU) / rotation_period;
+pub fn temporal_phase(time: f32, field_config: &FieldConfig) -> Vector2 {
+    let rotation_period = 1.0 / field_config.rotation_frequency_hz;
+    let freq_x = (field_config.wave_cycles_fast * TAU) / rotation_period;
+    let freq_y = (field_config.wave_cycles_slow * TAU) / rotation_period;
 
     Vector2::new(time * freq_x, time * freq_y)
 }
 
 #[inline]
-pub fn add_phase(p: Vector2, view_config: &ViewConfig) -> Vector2 {
+pub fn add_phase(p: Vector2, field_config: &FieldConfig) -> Vector2 {
     Vector2::new(
-        view_config.wave_amplitude_x * p.x.cos(),
-        view_config.wave_amplitude_y * p.y.sin(),
+        field_config.wave_amplitude_x * p.x.cos(),
+        field_config.wave_amplitude_y * p.y.sin(),
     )
 }
 
 #[inline]
-pub fn grid_phase_magnitude(grid_coord: &mut Vector2, time: f32, view_config: &ViewConfig) -> f32 {
+pub fn grid_phase_magnitude(grid_coord: &mut Vector2, time: f32, field_config: &FieldConfig) -> f32 {
     let mut phase = spatial_phase(*grid_coord);
-    phase += temporal_phase(time, view_config);
-    *grid_coord += add_phase(phase, view_config);
+    phase += temporal_phase(time, field_config);
+    *grid_coord += add_phase(phase, field_config);
     grid_coord.distance(UMBRAL_MASK_CENTER)
 }
 
 #[inline]
-pub fn deformed_silhouette_radius_at_angle(ang: f32, time: f32, view_config: &ViewConfig) -> f32 {
+pub fn deformed_silhouette_radius_at_angle(ang: f32, time: f32, field_config: &FieldConfig) -> f32 {
     let dir = Vector2::new(ang.cos(), ang.sin());
-    let phase = view_config.wave_amplitude_x.hypot(view_config.wave_amplitude_y) + 2.0;
+    let phase = field_config.wave_amplitude_x.hypot(field_config.wave_amplitude_y) + 2.0;
     let mut low = 0.0_f32;
     let mut high = UMBRAL_MASK_OUTER_RADIUS + phase;
 
     for _ in 0..8 {
         let mut p = UMBRAL_MASK_CENTER + dir * high;
-        if grid_phase_magnitude(&mut p, time, view_config) >= UMBRAL_MASK_OUTER_RADIUS {
+        if grid_phase_magnitude(&mut p, time, field_config) >= UMBRAL_MASK_OUTER_RADIUS {
             break;
         }
         high *= 1.5;
@@ -1231,7 +1252,7 @@ pub fn deformed_silhouette_radius_at_angle(ang: f32, time: f32, view_config: &Vi
         let mid = 0.5 * (low + high);
 
         let mut p = UMBRAL_MASK_CENTER + dir * mid;
-        if grid_phase_magnitude(&mut p, time, view_config) >= UMBRAL_MASK_OUTER_RADIUS {
+        if grid_phase_magnitude(&mut p, time, field_config) >= UMBRAL_MASK_OUTER_RADIUS {
             high = mid;
         } else {
             low = mid;
@@ -1246,7 +1267,7 @@ pub fn interpolate_between_deformed_vertices(
     mesh_rotation: f32,
     samples: &[Vec<Vector3>],
     frame_metrics: &mut FrameDynamicMetrics,
-    view_config: &ViewConfig,
+    field_config: &FieldConfig,
 ) {
     let normalized_rotation = (-mesh_rotation).rem_euclid(TAU);
     let rotation_progress = normalized_rotation / TAU;

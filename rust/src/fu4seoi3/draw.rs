@@ -256,7 +256,7 @@ pub fn draw_placed_cells(
         }
 
         let current_scale = cell.scale_at(total_time, view_config);
-        if age >= PLACEMENT_ANIM_DUR_SECONDS {
+        if age >= view_config.placement_anim_dur_seconds {
             cell.settled = true;
         }
 
@@ -1127,10 +1127,10 @@ pub fn update_ghost_mesh(
     main: &Camera3D,
     mesh_rotation: f32,
     frame_dynamic_metrics: &mut FrameDynamicMetrics,
-    view_config: &ViewConfig,
+    field_config: &FieldConfig,
 ) {
-    interpolate_between_deformed_vertices(ndc_model, i_time, mesh_samples, frame_dynamic_metrics, view_config);
-    interpolate_between_deformed_vertices(world_model, i_time, mesh_samples, frame_dynamic_metrics, view_config);
+    interpolate_between_deformed_vertices(ndc_model, i_time, mesh_samples, frame_dynamic_metrics, field_config);
+    interpolate_between_deformed_vertices(world_model, i_time, mesh_samples, frame_dynamic_metrics, field_config);
     update_normals_for_silhouette(&mut ndc_model.meshes_mut()[0], frame_dynamic_metrics);
     update_normals_for_silhouette(&mut world_model.meshes_mut()[0], frame_dynamic_metrics);
     fade_vertex_colors_silhouette_rim(
