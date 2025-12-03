@@ -5,7 +5,17 @@ use std::f32::consts::{PI, TAU};
 use std::fs;
 use std::mem::size_of;
 use std::ops::{Add, Sub};
-use std::time::SystemTime;
+use std::time::{SystemTime, UNIX_EPOCH};
+
+fn timestamp() -> String {
+    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs_f64();
+    let secs = now as u64;
+    let millis = ((now - secs as f64) * 1000.0) as u32;
+    let hours = (secs / 3600) % 24;
+    let mins = (secs / 60) % 60;
+    let s = secs % 60;
+    format!("[{:02}:{:02}:{:02}.{:03}]", hours, mins, s, millis)
+}
 
 pub const RES_SCALE: f32 = 1.5;
 pub const DC_WIDTH_BASE: f32 = 640.0;
@@ -35,7 +45,7 @@ pub const ROOM_H: i32 = 3;
 pub const ROOM_D: i32 = 9;
 pub const HALF: f32 = 0.5;
 
-//TODO: unused???
+//TODO: unused.... FIX IT
 pub const GRID_SCALE: f32 = 4.0;
 pub const UMBRAL_MASK_FADE_BAND: f32 = 0.025;
 
@@ -145,15 +155,49 @@ impl ViewConfig {
         cfg
     }
 
-    pub fn log_current(&self) {
-        println!("# ViewConfig dump:");
-        println!("JUGEMU_DISTANCE_ORTHO {}", self.jugemu_distance_ortho);
-        println!("JUGEMU_DISTANCE_PERSPECTIVE {}", self.jugemu_distance_perspective);
-        println!("FOVY_PERSPECTIVE {}", self.fovy_perspective);
-        println!("FOVY_ORTHOGRAPHIC {}", self.fovy_orthographic);
-        println!("BLEND_SCALAR {}", self.blend_scalar);
-        println!("PLACEMENT_ANIM_DUR_SECONDS {}", self.placement_anim_dur_seconds);
-        println!("HINT_SCALE {}", self.hint_scale);
+    pub fn log_delta(&self, old: &ViewConfig) {
+        let mut changed = Vec::new();
+
+        if self.jugemu_distance_ortho != old.jugemu_distance_ortho {
+            changed.push(format!(
+                "JUGEMU_DISTANCE_ORTHO: {} → {}",
+                old.jugemu_distance_ortho, self.jugemu_distance_ortho
+            ));
+        }
+        if self.jugemu_distance_perspective != old.jugemu_distance_perspective {
+            changed.push(format!(
+                "JUGEMU_DISTANCE_PERSPECTIVE: {} → {}",
+                old.jugemu_distance_perspective, self.jugemu_distance_perspective
+            ));
+        }
+        if self.fovy_perspective != old.fovy_perspective {
+            changed.push(format!(
+                "FOVY_PERSPECTIVE: {} → {}",
+                old.fovy_perspective, self.fovy_perspective
+            ));
+        }
+        if self.fovy_orthographic != old.fovy_orthographic {
+            changed.push(format!(
+                "FOVY_ORTHOGRAPHIC: {} → {}",
+                old.fovy_orthographic, self.fovy_orthographic
+            ));
+        }
+        if self.blend_scalar != old.blend_scalar {
+            changed.push(format!("BLEND_SCALAR: {} → {}", old.blend_scalar, self.blend_scalar));
+        }
+        if self.placement_anim_dur_seconds != old.placement_anim_dur_seconds {
+            changed.push(format!(
+                "PLACEMENT_ANIM_DUR_SECONDS: {} → {}",
+                old.placement_anim_dur_seconds, self.placement_anim_dur_seconds
+            ));
+        }
+        if self.hint_scale != old.hint_scale {
+            changed.push(format!("HINT_SCALE: {} → {}", old.hint_scale, self.hint_scale));
+        }
+
+        if !changed.is_empty() {
+            println!("{} ViewConfig changed: {}", timestamp(), changed.join(", "));
+        }
     }
 }
 
@@ -240,44 +284,161 @@ impl FieldConfig {
             });
         }
         if config.rotational_samples_for_inv_proj == 0 {
-            eprintln!("WARNING: ROTATIONAL_SAMPLES_FOR_INV_PROJ cannot be 0, using default");
+            eprintln!(
+                "{} WARNING: ROTATIONAL_SAMPLES_FOR_INV_PROJ cannot be 0, using default",
+                timestamp()
+            );
             config.rotational_samples_for_inv_proj = ROTATIONAL_SAMPLES_FOR_INV_PROJ;
         }
         if config.rotation_frequency_hz <= 0.0 {
-            eprintln!("WARNING: ROTATION_FREQUENCY_HZ must be > 0, using default");
+            eprintln!(
+                "{} WARNING: ROTATION_FREQUENCY_HZ must be > 0, using default",
+                timestamp()
+            );
             config.rotation_frequency_hz = ROTATION_FREQUENCY_HZ;
         }
         config
     }
 
-    pub fn log_current(&self) {
-        println!("# FieldConfig dump:");
-        println!("JET_STRENGTH {}", self.jet_strength);
-        println!("JET_SPREAD_ANGLE {}", self.jet_spread_angle);
-        println!("JET_MAX_DISTANCE {}", self.jet_max_distance);
-        println!("FUNNEL_STRENGTH {}", self.funnel_strength);
-        println!("FUNNEL_REACH {}", self.funnel_reach);
-        println!("FUNNEL_CATCH_RADIUS {}", self.funnel_catch_radius);
-        println!("FUNNEL_SINK_RADIUS {}", self.funnel_sink_radius);
-        println!("FUNNEL_CURVE_POWER {}", self.funnel_curve_power);
-        println!("WALL_REDIRECT_STRENGTH {}", self.wall_redirect_strength);
-        println!("WALL_REDIRECT_DISTANCE {}", self.wall_redirect_distance);
-        println!("CHI_SAMPLE_HEIGHT {}", self.chi_sample_height);
-        println!("CHI_ARROW_LENGTH {}", self.chi_arrow_length);
-        println!("ROTATION_FREQUENCY_HZ {}", self.rotation_frequency_hz);
-        println!(
-            "DEFORMATION_CYCLES_PER_ROTATION {}",
-            self.deformation_cycles_per_rotation
-        );
-        println!("WAVE_CYCLES_SLOW {}", self.wave_cycles_slow);
-        println!("WAVE_CYCLES_FAST {}", self.wave_cycles_fast);
-        println!("WAVE_AMPLITUDE_X {}", self.wave_amplitude_x);
-        println!("WAVE_AMPLITUDE_Y {}", self.wave_amplitude_y);
-        println!("TIME_BETWEEN_SAMPLES {}", self.time_between_samples);
-        println!(
-            "ROTATIONAL_SAMPLES_FOR_INV_PROJ {}",
-            self.rotational_samples_for_inv_proj
-        );
+    pub fn log_delta(&self, old: &FieldConfig) -> bool {
+        let mut changed = Vec::new();
+        let mut needs_regeneration = false;
+
+        if self.jet_strength != old.jet_strength {
+            changed.push(format!("JET_STRENGTH: {} → {}", old.jet_strength, self.jet_strength));
+        }
+        if self.jet_spread_angle != old.jet_spread_angle {
+            changed.push(format!(
+                "JET_SPREAD_ANGLE: {} → {}",
+                old.jet_spread_angle, self.jet_spread_angle
+            ));
+        }
+        if self.jet_max_distance != old.jet_max_distance {
+            changed.push(format!(
+                "JET_MAX_DISTANCE: {} → {}",
+                old.jet_max_distance, self.jet_max_distance
+            ));
+        }
+        if self.funnel_strength != old.funnel_strength {
+            changed.push(format!(
+                "FUNNEL_STRENGTH: {} → {}",
+                old.funnel_strength, self.funnel_strength
+            ));
+        }
+        if self.funnel_reach != old.funnel_reach {
+            changed.push(format!("FUNNEL_REACH: {} → {}", old.funnel_reach, self.funnel_reach));
+        }
+        if self.funnel_catch_radius != old.funnel_catch_radius {
+            changed.push(format!(
+                "FUNNEL_CATCH_RADIUS: {} → {}",
+                old.funnel_catch_radius, self.funnel_catch_radius
+            ));
+        }
+        if self.funnel_sink_radius != old.funnel_sink_radius {
+            changed.push(format!(
+                "FUNNEL_SINK_RADIUS: {} → {}",
+                old.funnel_sink_radius, self.funnel_sink_radius
+            ));
+        }
+        if self.funnel_curve_power != old.funnel_curve_power {
+            changed.push(format!(
+                "FUNNEL_CURVE_POWER: {} → {}",
+                old.funnel_curve_power, self.funnel_curve_power
+            ));
+        }
+        if self.wall_redirect_strength != old.wall_redirect_strength {
+            changed.push(format!(
+                "WALL_REDIRECT_STRENGTH: {} → {}",
+                old.wall_redirect_strength, self.wall_redirect_strength
+            ));
+        }
+        if self.wall_redirect_distance != old.wall_redirect_distance {
+            changed.push(format!(
+                "WALL_REDIRECT_DISTANCE: {} → {}",
+                old.wall_redirect_distance, self.wall_redirect_distance
+            ));
+        }
+        if self.chi_sample_height != old.chi_sample_height {
+            changed.push(format!(
+                "CHI_SAMPLE_HEIGHT: {} → {}",
+                old.chi_sample_height, self.chi_sample_height
+            ));
+        }
+        if self.chi_arrow_length != old.chi_arrow_length {
+            changed.push(format!(
+                "CHI_ARROW_LENGTH: {} → {}",
+                old.chi_arrow_length, self.chi_arrow_length
+            ));
+        }
+
+        if self.rotation_frequency_hz != old.rotation_frequency_hz {
+            changed.push(format!(
+                "ROTATION_FREQUENCY_HZ: {} → {} [REGEN]",
+                old.rotation_frequency_hz, self.rotation_frequency_hz
+            ));
+            needs_regeneration = true;
+        }
+        if self.deformation_cycles_per_rotation != old.deformation_cycles_per_rotation {
+            changed.push(format!(
+                "DEFORMATION_CYCLES_PER_ROTATION: {} → {} [REGEN]",
+                old.deformation_cycles_per_rotation, self.deformation_cycles_per_rotation
+            ));
+            needs_regeneration = true;
+        }
+        if self.wave_cycles_slow != old.wave_cycles_slow {
+            changed.push(format!(
+                "WAVE_CYCLES_SLOW: {} → {} [REGEN]",
+                old.wave_cycles_slow, self.wave_cycles_slow
+            ));
+            needs_regeneration = true;
+        }
+        if self.wave_cycles_fast != old.wave_cycles_fast {
+            changed.push(format!(
+                "WAVE_CYCLES_FAST: {} → {} [REGEN]",
+                old.wave_cycles_fast, self.wave_cycles_fast
+            ));
+            needs_regeneration = true;
+        }
+        if self.wave_amplitude_x != old.wave_amplitude_x {
+            changed.push(format!(
+                "WAVE_AMPLITUDE_X: {} → {} [REGEN]",
+                old.wave_amplitude_x, self.wave_amplitude_x
+            ));
+            needs_regeneration = true;
+        }
+        if self.wave_amplitude_y != old.wave_amplitude_y {
+            changed.push(format!(
+                "WAVE_AMPLITUDE_Y: {} → {} [REGEN]",
+                old.wave_amplitude_y, self.wave_amplitude_y
+            ));
+            needs_regeneration = true;
+        }
+        //TODO: THIS SHOULD BE GETTING USED, I THINK THIS IS THE ISSUE
+        // WE NEED TO BE ALLOWING FOR SAMPLE UPDATING I THINK IN THE COLLECT SAMPLES
+        // AND ITS UPDATE MID GAME LOOP CHECK TOO
+        if self.time_between_samples != old.time_between_samples {
+            changed.push(format!(
+                "TIME_BETWEEN_SAMPLES: {} → {} [UNUSED!]",
+                old.time_between_samples, self.time_between_samples
+            ));
+        }
+        //TODO: THIS IS NOT WORKING UPON CONFIG UPDATES DEFINITELY RELATED TO THE ABOVE
+        if self.rotational_samples_for_inv_proj != old.rotational_samples_for_inv_proj {
+            changed.push(format!(
+                "ROTATIONAL_SAMPLES_FOR_INV_PROJ: {} → {} [REGEN]",
+                old.rotational_samples_for_inv_proj, self.rotational_samples_for_inv_proj
+            ));
+            needs_regeneration = true;
+        }
+
+        if !changed.is_empty() {
+            println!("{} FieldConfig changed: {}", timestamp(), changed.join(", "));
+            if needs_regeneration {
+                println!("{} → Ghost mesh samples will be regenerated", timestamp());
+            }
+        }
+
+        needs_regeneration
     }
 }
 
@@ -726,9 +887,7 @@ impl Room {
 
     pub fn reload_config(&mut self, config: FieldConfig) {
         self.config = config;
-        self.config.log_current();
         self.generate_field();
-        self.log_debug_samples();
     }
 
     fn rectangular_jet_from_opening(&self, point: Vector3, opening: &Opening) -> (Vector2, f32) {
@@ -894,51 +1053,6 @@ impl Room {
                     }
                 }
             }
-        }
-    }
-
-    pub fn log_debug_samples(&self) {
-        let origin = self.origin;
-        let door: Opening = *self.primary_door();
-        let window: Option<Opening> = self.primary_window().copied();
-        let cx = origin.x + self.w as f32 * 0.5;
-        let cz = origin.z + self.d as f32 * 0.5;
-        let center = Vector3::new(cx, origin.y + self.config.chi_sample_height, cz);
-        let near_door = {
-            let c = door.center();
-            Vector3::new(c.x, origin.y + self.config.chi_sample_height, c.z - 1.0)
-        };
-        let near_window = if let Some(w) = window {
-            let c = w.center();
-            Vector3::new(c.x + 1.0, origin.y + self.config.chi_sample_height, c.z)
-        } else {
-            center
-        };
-        let near_back = Vector3::new(cx, origin.y + self.config.chi_sample_height, origin.z + 0.5);
-        let qw = self.w as f32 * 0.25;
-        let qd = self.d as f32 * 0.25;
-        let nw = Vector3::new(cx - qw, origin.y + self.config.chi_sample_height, cz + qd);
-        let ne = Vector3::new(cx + qw, origin.y + self.config.chi_sample_height, cz + qd);
-        let sw = Vector3::new(cx - qw, origin.y + self.config.chi_sample_height, cz - qd);
-        let se = Vector3::new(cx + qw, origin.y + self.config.chi_sample_height, cz - qd);
-        let probes = [
-            ("MID", center),
-            ("DOOR", near_door),
-            ("WINDOW", near_window),
-            ("BACKWALL", near_back),
-            ("NW", nw),
-            ("NE", ne),
-            ("SW", sw),
-            ("SE", se),
-        ];
-        println!("--- chi debug samples ---");
-        for (name, pos) in probes {
-            let (dir, mag) = self.compute_energy_at_point(pos, &door, window.as_ref());
-            let angle_deg = dir.y.atan2(dir.x).to_degrees();
-            println!(
-                "[chi] {:>12}: pos=({:5.2}, {:5.2}) dir=({:5.2}, {:5.2}) angle={:6.1}° mag={:4.2}",
-                name, pos.x, pos.z, dir.x, dir.y, angle_deg, mag,
-            );
         }
     }
 }

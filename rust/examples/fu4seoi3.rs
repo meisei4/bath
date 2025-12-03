@@ -249,7 +249,7 @@ fn main() {
     while !handle.window_should_close() {
         if let Some(new_field_config) = field_config_watcher.check_reload() {
             println!("\n=== FieldConfig reloaded ===");
-            new_field_config.log_current();
+            new_field_config.log_delta(&field_config);
 
             let samples_changed = new_field_config.rotation_frequency_hz != field_config.rotation_frequency_hz
                 || new_field_config.time_between_samples != field_config.time_between_samples
@@ -272,7 +272,7 @@ fn main() {
 
         if let Some(new_view_cfg) = view_config_watcher.check_reload() {
             println!("\n=== ViewConfig reloaded ===");
-            new_view_cfg.log_current();
+            new_view_cfg.log_delta(&view_config);
 
             view_config = new_view_cfg;
 
