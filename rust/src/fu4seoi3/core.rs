@@ -7,7 +7,7 @@ use std::mem::size_of;
 use std::ops::{Add, Sub};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-fn timestamp() -> String {
+pub fn timestamp() -> String {
     let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs_f64();
     let secs = now as u64;
     let millis = ((now - secs as f64) * 1000.0) as u32;
@@ -40,16 +40,12 @@ pub const PLACEMENT_ANIM_DUR_SECONDS: f32 = 0.25;
 pub const HINT_SCALE: f32 = 0.66;
 pub const HINT_SCALE_VEC: Vector3 = Vector3::new(HINT_SCALE, HINT_SCALE, HINT_SCALE);
 
+//TODO: PLEASE ALSO PUT THESE INTO the field config for now
 pub const ROOM_W: i32 = 9;
 pub const ROOM_H: i32 = 3;
 pub const ROOM_D: i32 = 9;
-pub const HALF: f32 = 0.5;
 
-//TODO: unused.... FIX IT
-pub const GRID_SCALE: f32 = 4.0;
-pub const UMBRAL_MASK_FADE_BAND: f32 = 0.025;
-
-//TODO: PLEASE ALSO PUT THESE INTO the field config for the defomration stuff
+//TODO: PLEASE PUT THESE INTO the field config for the deformation stuff
 pub const RADIAL_FIELD_SIZE: usize = 64;
 pub const UMBRAL_MASK_OUTER_RADIUS: f32 = 0.40;
 pub const UMBRAL_MASK_CENTER: Vector2 = Vector2::new(0.5, 0.5);
@@ -69,7 +65,6 @@ pub const CHI_ARROW_LENGTH: f32 = 0.4;
 
 pub const ROTATION_FREQUENCY_HZ: f32 = 0.2;
 pub const DEFORMATION_CYCLES_PER_ROTATION: f32 = 1.0;
-pub const TIME_BETWEEN_SAMPLES: f32 = 0.05;
 pub const ROTATIONAL_SAMPLES_FOR_INV_PROJ: usize = 40;
 pub const WAVE_CYCLES_SLOW: f32 = 7.0;
 pub const WAVE_CYCLES_FAST: f32 = 255.0;
@@ -219,12 +214,11 @@ pub struct FieldConfig {
 
     pub rotation_frequency_hz: f32,
     pub deformation_cycles_per_rotation: f32,
+    pub rotational_samples_for_inv_proj: usize,
     pub wave_cycles_slow: f32,
     pub wave_cycles_fast: f32,
     pub wave_amplitude_x: f32,
     pub wave_amplitude_y: f32,
-    pub time_between_samples: f32,
-    pub rotational_samples_for_inv_proj: usize,
 }
 
 impl Default for FieldConfig {
@@ -249,7 +243,6 @@ impl Default for FieldConfig {
             wave_cycles_fast: WAVE_CYCLES_FAST,
             wave_amplitude_x: WAVE_AMPLITUDE_X,
             wave_amplitude_y: WAVE_AMPLITUDE_Y,
-            time_between_samples: TIME_BETWEEN_SAMPLES,
             rotational_samples_for_inv_proj: ROTATIONAL_SAMPLES_FOR_INV_PROJ,
         }
     }
@@ -275,12 +268,11 @@ impl FieldConfig {
 
                 "ROTATION_FREQUENCY_HZ" => rotation_frequency_hz: f32,
                 "DEFORMATION_CYCLES_PER_ROTATION" => deformation_cycles_per_rotation: f32,
+                "ROTATIONAL_SAMPLES_FOR_INV_PROJ" => rotational_samples_for_inv_proj: usize,
                 "WAVE_CYCLES_SLOW" => wave_cycles_slow: f32,
                 "WAVE_CYCLES_FAST" => wave_cycles_fast: f32,
                 "WAVE_AMPLITUDE_X" => wave_amplitude_x: f32,
                 "WAVE_AMPLITUDE_Y" => wave_amplitude_y: f32,
-                "TIME_BETWEEN_SAMPLES" => time_between_samples: f32,
-                "ROTATIONAL_SAMPLES_FOR_INV_PROJ" => rotational_samples_for_inv_proj: usize,
             });
         }
         if config.rotational_samples_for_inv_proj == 0 {
@@ -300,6 +292,7 @@ impl FieldConfig {
         config
     }
 
+    //TODO: I still dont like how this returns boolean for needs regeneration but i cant think of cleaner way yet and its still intermediate design
     pub fn log_delta(&self, old: &FieldConfig) -> bool {
         let mut changed = Vec::new();
         let mut needs_regeneration = false;
@@ -413,16 +406,6 @@ impl FieldConfig {
             ));
             needs_regeneration = true;
         }
-        //TODO: THIS SHOULD BE GETTING USED, I THINK THIS IS THE ISSUE
-        // WE NEED TO BE ALLOWING FOR SAMPLE UPDATING I THINK IN THE COLLECT SAMPLES
-        // AND ITS UPDATE MID GAME LOOP CHECK TOO
-        if self.time_between_samples != old.time_between_samples {
-            changed.push(format!(
-                "TIME_BETWEEN_SAMPLES: {} → {} [UNUSED!]",
-                old.time_between_samples, self.time_between_samples
-            ));
-        }
-        //TODO: THIS IS NOT WORKING UPON CONFIG UPDATES DEFINITELY RELATED TO THE ABOVE
         if self.rotational_samples_for_inv_proj != old.rotational_samples_for_inv_proj {
             changed.push(format!(
                 "ROTATIONAL_SAMPLES_FOR_INV_PROJ: {} → {} [REGEN]",
@@ -433,9 +416,6 @@ impl FieldConfig {
 
         if !changed.is_empty() {
             println!("{} FieldConfig changed: {}", timestamp(), changed.join(", "));
-            if needs_regeneration {
-                println!("{} → Ghost mesh samples will be regenerated", timestamp());
-            }
         }
 
         needs_regeneration
@@ -663,7 +643,7 @@ pub fn compute_hover_state(
     handle: &RaylibHandle,
     camera: &Camera3D,
     room: &Room,
-    placed_cells: &[OccupiedCell],
+    placed_cells: &[PlacedCell],
 ) -> HoverState {
     let mouse = handle.get_mouse_position();
     let ray = handle.get_screen_to_world_ray(mouse, *camera);
@@ -684,7 +664,8 @@ pub fn compute_hover_state(
     }
 }
 
-pub struct OccupiedCell {
+#[derive(Clone)]
+pub struct PlacedCell {
     pub ix: i32,
     pub iy: i32,
     pub iz: i32,
@@ -695,7 +676,7 @@ pub struct OccupiedCell {
     pub color_enabled: bool,
 }
 
-impl OccupiedCell {
+impl PlacedCell {
     pub fn age_at(&self, now: f32) -> f32 {
         now - self.placed_time
     }
@@ -707,6 +688,137 @@ impl OccupiedCell {
 
     pub fn is_filled(&self) -> bool {
         self.settled && (self.color_enabled || self.texture_enabled)
+    }
+}
+
+pub enum EditStack {
+    PlaceCell {
+        cell: PlacedCell, //TODO: this is confusing name placing a cell with a PlacedCell? figure this out better
+        time: f32,
+    },
+    RemoveCell {
+        cell: PlacedCell,
+        time: f32,
+    },
+    ToggleTexture {
+        ix: i32,
+        iy: i32,
+        iz: i32,
+        time: f32,
+    },
+    ToggleColor {
+        ix: i32,
+        iy: i32,
+        iz: i32,
+        time: f32,
+    },
+}
+
+fn find_cell_mut<'a>(placed_cells: &'a mut [PlacedCell], ix: i32, iy: i32, iz: i32) -> Option<&'a mut PlacedCell> {
+    placed_cells.iter_mut().find(|c| c.ix == ix && c.iy == iy && c.iz == iz)
+}
+
+fn remove_cell_at(placed_cells: &mut Vec<PlacedCell>, ix: i32, iy: i32, iz: i32) {
+    if let Some(idx) = placed_cells.iter().position(|c| c.ix == ix && c.iy == iy && c.iz == iz) {
+        placed_cells.remove(idx);
+    }
+}
+pub fn redo(edit: &EditStack, placed_cells: &mut Vec<PlacedCell>) {
+    match edit {
+        EditStack::PlaceCell { cell, .. } => {
+            if placed_cells
+                .iter()
+                .all(|c| c.ix != cell.ix || c.iy != cell.iy || c.iz != cell.iz)
+            {
+                placed_cells.push(cell.clone());
+            }
+        },
+        EditStack::RemoveCell { cell, .. } => {
+            remove_cell_at(placed_cells, cell.ix, cell.iy, cell.iz);
+        },
+        EditStack::ToggleTexture { ix, iy, iz, .. } => {
+            if let Some(c) = find_cell_mut(placed_cells, *ix, *iy, *iz) {
+                c.texture_enabled = !c.texture_enabled;
+            }
+        },
+        EditStack::ToggleColor { ix, iy, iz, .. } => {
+            if let Some(c) = find_cell_mut(placed_cells, *ix, *iy, *iz) {
+                c.color_enabled = !c.color_enabled;
+            }
+        },
+    }
+}
+
+pub fn undo(edit: &EditStack, placed_cells: &mut Vec<PlacedCell>) {
+    match edit {
+        EditStack::PlaceCell { cell, .. } => {
+            remove_cell_at(placed_cells, cell.ix, cell.iy, cell.iz);
+        },
+        EditStack::RemoveCell { cell, .. } => {
+            if placed_cells
+                .iter()
+                .all(|c| c.ix != cell.ix || c.iy != cell.iy || c.iz != cell.iz)
+            {
+                placed_cells.push(cell.clone());
+            }
+        },
+        EditStack::ToggleTexture { ix, iy, iz, .. } => {
+            if let Some(c) = find_cell_mut(placed_cells, *ix, *iy, *iz) {
+                c.texture_enabled = !c.texture_enabled;
+            }
+        },
+        EditStack::ToggleColor { ix, iy, iz, .. } => {
+            if let Some(c) = find_cell_mut(placed_cells, *ix, *iy, *iz) {
+                c.color_enabled = !c.color_enabled;
+            }
+        },
+    }
+}
+
+fn edit_time(edit: &EditStack) -> f32 {
+    match edit {
+        EditStack::PlaceCell { time, .. } => *time,
+        EditStack::RemoveCell { time, .. } => *time,
+        EditStack::ToggleTexture { time, .. } => *time,
+        EditStack::ToggleColor { time, .. } => *time,
+    }
+}
+
+fn edit_name(edit: &EditStack) -> &'static str {
+    match edit {
+        EditStack::PlaceCell { .. } => "PlaceCell",
+        EditStack::RemoveCell { .. } => "RemoveCell",
+        EditStack::ToggleTexture { .. } => "ToggleTexture",
+        EditStack::ToggleColor { .. } => "ToggleColor",
+    }
+}
+
+fn edit_coords(edit: &EditStack) -> (i32, i32, i32) {
+    match edit {
+        EditStack::PlaceCell { cell, .. } => (cell.ix, cell.iy, cell.iz),
+        EditStack::RemoveCell { cell, .. } => (cell.ix, cell.iy, cell.iz),
+        EditStack::ToggleTexture { ix, iy, iz, .. } => (*ix, *iy, *iz),
+        EditStack::ToggleColor { ix, iy, iz, .. } => (*ix, *iy, *iz),
+    }
+}
+
+pub fn log_edit_stack(edit_stack: &[EditStack], edit_cursor: usize) {
+    println!("\nEDIT STACK");
+    println!("cursor at index {}", edit_cursor);
+    println!("APPLIED (0..{}):", edit_cursor);
+    for (i, edit) in edit_stack.iter().enumerate().take(edit_cursor) {
+        let t = edit_time(edit);
+        let name = edit_name(edit);
+        let (ix, iy, iz) = edit_coords(edit);
+        println!("  [{:02}] t={:7.3}  {:13} @ ({:2},{:2},{:2})", i, t, name, ix, iy, iz);
+    }
+
+    println!("REDO   ({}..{}):", edit_cursor, edit_stack.len());
+    for (i, edit) in edit_stack.iter().enumerate().skip(edit_cursor) {
+        let t = edit_time(edit);
+        let name = edit_name(edit);
+        let (ix, iy, iz) = edit_coords(edit);
+        println!("  [{:02}] t={:7.3}  {:13} @ ({:2},{:2},{:2})", i, t, name, ix, iy, iz);
     }
 }
 
@@ -787,7 +899,7 @@ impl Default for Room {
             field_samples: Vec::new(),
             config: FieldConfig::default(),
         };
-        room.generate_field();
+        room.generate_chi_field();
         room
     }
 }
@@ -887,7 +999,7 @@ impl Room {
 
     pub fn reload_config(&mut self, config: FieldConfig) {
         self.config = config;
-        self.generate_field();
+        self.generate_chi_field();
     }
 
     fn rectangular_jet_from_opening(&self, point: Vector3, opening: &Opening) -> (Vector2, f32) {
@@ -1022,7 +1134,7 @@ impl Room {
         (dir.normalize_or_zero(), mag)
     }
 
-    pub fn generate_field(&mut self) {
+    pub fn generate_chi_field(&mut self) {
         self.field_samples.clear();
         let door = *self.primary_door();
         let window = self.primary_window().copied();
@@ -1055,74 +1167,6 @@ impl Room {
             }
         }
     }
-}
-
-fn blend_directions(current: Vector2, desired: Vector2, weight: f32) -> Vector2 {
-    let w = weight.clamp(0.0, 1.0);
-    let c = current.normalize_or_zero();
-    let d = desired.normalize_or_zero();
-    c.lerp(d, w).normalize_or_zero()
-}
-
-pub fn basis_vector(main: &Camera3D) -> (Vector3, Vector3, Vector3) {
-    let depth = main.target.sub(main.position).normalize();
-    let right = depth.cross(main.up).normalize();
-    let up = right.cross(depth).normalize();
-    (depth, right, up)
-}
-
-#[inline]
-pub fn observed_line_of_sight(observer: &Camera3D) -> Vector3 {
-    Vector3::new(
-        observer.target.x - observer.position.x,
-        observer.target.y - observer.position.y,
-        observer.target.z - observer.position.z,
-    )
-    .normalize_or_zero()
-}
-
-#[inline]
-pub fn triangle_normal(a: Vector3, b: Vector3, c: Vector3) -> Vector3 {
-    (b - a).cross(c - a).normalize_or_zero()
-}
-
-#[inline]
-pub fn rotate_point_about_axis(c: Vector3, axis: (Vector3, Vector3), theta: f32) -> Vector3 {
-    let (a, b) = axis;
-    let ab = b - a;
-    let ab_dir = ab.normalize_or_zero();
-    let ac = c - a;
-    let ac_proj = ab_dir.dot(ac) * ab_dir;
-    let ac_x = ac - ac_proj;
-    let ac_y = ab_dir.cross(ac_x);
-    let rotated = ac_x * theta.cos() + ac_y * theta.sin() + ac_proj;
-    a + rotated
-}
-
-fn translate_rotate_scale(inverse: i32, coord: Vector3, pos: Vector3, scale: Vector3, rotation: f32) -> Vector3 {
-    let matrix = Mat4::from_scale(scale) * Mat4::from_rotation_y(rotation) * Mat4::from_translation(pos);
-    let m = if inverse != 0 { matrix.inverse() } else { matrix };
-    m.transform_point3(coord)
-}
-
-fn intersect(camera: &Camera3D, near: f32, world_coord: Vector3, ortho_factor: f32) -> Vector3 {
-    let view_dir = camera.target.sub(camera.position).normalize();
-    let cam_to_point = world_coord - camera.position;
-    let depth_along_view = cam_to_point.dot(view_dir);
-    let center_near = camera.position + view_dir * near;
-    if depth_along_view <= 0.0 {
-        return center_near;
-    }
-
-    let scale = near / depth_along_view;
-    let persp = camera.position + cam_to_point * scale;
-    let ortho = world_coord + view_dir * (center_near - world_coord).dot(view_dir);
-
-    Vector3::new(
-        persp.x + (ortho.x - persp.x) * ortho_factor,
-        persp.y + (ortho.y - persp.y) * ortho_factor,
-        persp.z + (ortho.z - persp.z) * ortho_factor,
-    )
 }
 
 pub fn update_spatial_frame(
@@ -1247,33 +1291,6 @@ pub fn blend_world_and_ndc_vertices(
     }
 }
 
-pub fn generate_silhouette_radial_field(i_time: f32, field_config: &FieldConfig) -> Vec<f32> {
-    let mut rf = Vec::with_capacity(RADIAL_FIELD_SIZE);
-
-    for i in 0..RADIAL_FIELD_SIZE {
-        let ang = (i as f32) * TAU / (RADIAL_FIELD_SIZE as f32);
-        rf.push(deformed_silhouette_radius_at_angle(ang, i_time, field_config));
-    }
-
-    let max_r = rf.iter().cloned().fold(1e-6, f32::max);
-    for r in &mut rf {
-        *r /= max_r;
-    }
-    rf
-}
-
-pub fn deform_vertices_with_radial_field(vertices: &mut [Vector3], radial_field: &[f32]) {
-    if vertices.is_empty() {
-        return;
-    }
-
-    for v in vertices {
-        let rad = interpolate_between_radial_field_elements(v.x, v.y, radial_field);
-        v.x *= rad;
-        v.y *= rad;
-    }
-}
-
 pub fn collect_deformed_vertex_samples(base: &[Vector3], field_config: &FieldConfig) -> Vec<Vec<Vector3>> {
     let mut samples = Vec::with_capacity(field_config.rotational_samples_for_inv_proj);
 
@@ -1295,14 +1312,61 @@ pub fn collect_deformed_vertex_samples(base: &[Vector3], field_config: &FieldCon
     samples
 }
 
+pub fn generate_silhouette_radial_field(i_time: f32, field_config: &FieldConfig) -> Vec<f32> {
+    let mut rf = Vec::with_capacity(RADIAL_FIELD_SIZE);
+
+    for i in 0..RADIAL_FIELD_SIZE {
+        let ang = (i as f32) * TAU / (RADIAL_FIELD_SIZE as f32);
+        rf.push(sample_silhouette_radial_field(ang, i_time, field_config));
+    }
+
+    let max_r = rf.iter().cloned().fold(1e-6, f32::max);
+    for r in &mut rf {
+        *r /= max_r;
+    }
+    rf
+}
+
 #[inline]
-pub fn rotate_vertices_in_plane_slice(vertices: &mut [Vector3], rot: f32) {
-    let (s, c) = rot.sin_cos();
+pub fn sample_silhouette_radial_field(ang: f32, time: f32, field_config: &FieldConfig) -> f32 {
+    let dir = Vector2::new(ang.cos(), ang.sin());
+    let phase = field_config.wave_amplitude_x.hypot(field_config.wave_amplitude_y) + 2.0;
+    let mut low = 0.0_f32;
+    let mut high = UMBRAL_MASK_OUTER_RADIUS + phase;
+
+    for _ in 0..8 {
+        // TODO: can this be put in a config? it seems magic number evne if algo based
+        let mut p = UMBRAL_MASK_CENTER + dir * high;
+        if grid_phase_magnitude(&mut p, time, field_config) >= UMBRAL_MASK_OUTER_RADIUS {
+            break;
+        }
+        high *= 1.5;
+    }
+
+    for _ in 0..20 {
+        //TODO: can this be put in a config? it seems magic number evne if algo based
+        let mid = 0.5 * (low + high);
+
+        let mut p = UMBRAL_MASK_CENTER + dir * mid;
+        if grid_phase_magnitude(&mut p, time, field_config) >= UMBRAL_MASK_OUTER_RADIUS {
+            high = mid;
+        } else {
+            low = mid;
+        }
+    }
+
+    high
+}
+
+pub fn deform_vertices_with_radial_field(vertices: &mut [Vector3], radial_field: &[f32]) {
+    if vertices.is_empty() {
+        return;
+    }
+
     for v in vertices {
-        let x0 = v.x;
-        let z0 = v.z;
-        v.x = x0 * c + z0 * s;
-        v.z = -x0 * s + z0 * c;
+        let rad = interpolate_between_radial_field_elements(v.x, v.y, radial_field);
+        v.x *= rad;
+        v.y *= rad;
     }
 }
 
@@ -1313,6 +1377,14 @@ pub fn interpolate_between_radial_field_elements(sample_x: f32, sample_y: f32, r
     let i1 = (i0 + 1) % RADIAL_FIELD_SIZE;
     let t = idx.fract();
     radial_field[i0] * (1.0 - t) + radial_field[i1] * t
+}
+
+#[inline]
+pub fn grid_phase_magnitude(grid_coord: &mut Vector2, time: f32, field_config: &FieldConfig) -> f32 {
+    let mut phase = spatial_phase(*grid_coord);
+    phase += temporal_phase(time, field_config);
+    *grid_coord += add_phase(phase, field_config);
+    grid_coord.distance(UMBRAL_MASK_CENTER)
 }
 
 #[inline]
@@ -1337,43 +1409,6 @@ pub fn add_phase(p: Vector2, field_config: &FieldConfig) -> Vector2 {
         field_config.wave_amplitude_x * p.x.cos(),
         field_config.wave_amplitude_y * p.y.sin(),
     )
-}
-
-#[inline]
-pub fn grid_phase_magnitude(grid_coord: &mut Vector2, time: f32, field_config: &FieldConfig) -> f32 {
-    let mut phase = spatial_phase(*grid_coord);
-    phase += temporal_phase(time, field_config);
-    *grid_coord += add_phase(phase, field_config);
-    grid_coord.distance(UMBRAL_MASK_CENTER)
-}
-
-#[inline]
-pub fn deformed_silhouette_radius_at_angle(ang: f32, time: f32, field_config: &FieldConfig) -> f32 {
-    let dir = Vector2::new(ang.cos(), ang.sin());
-    let phase = field_config.wave_amplitude_x.hypot(field_config.wave_amplitude_y) + 2.0;
-    let mut low = 0.0_f32;
-    let mut high = UMBRAL_MASK_OUTER_RADIUS + phase;
-
-    for _ in 0..8 {
-        let mut p = UMBRAL_MASK_CENTER + dir * high;
-        if grid_phase_magnitude(&mut p, time, field_config) >= UMBRAL_MASK_OUTER_RADIUS {
-            break;
-        }
-        high *= 1.5;
-    }
-
-    for _ in 0..20 {
-        let mid = 0.5 * (low + high);
-
-        let mut p = UMBRAL_MASK_CENTER + dir * mid;
-        if grid_phase_magnitude(&mut p, time, field_config) >= UMBRAL_MASK_OUTER_RADIUS {
-            high = mid;
-        } else {
-            low = mid;
-        }
-    }
-
-    high
 }
 
 pub fn interpolate_between_deformed_vertices(
@@ -1424,6 +1459,95 @@ pub fn update_blend(blend: &mut f32, dt: f32, target_on: bool, view_config: &Vie
 
     let dir = if target_on { 1.0 } else { -1.0 };
     *blend = (*blend + dir * view_config.blend_scalar * dt).clamp(0.0, 1.0);
+}
+
+fn blend_directions(current: Vector2, desired: Vector2, weight: f32) -> Vector2 {
+    let w = weight.clamp(0.0, 1.0);
+    let c = current.normalize_or_zero();
+    let d = desired.normalize_or_zero();
+    c.lerp(d, w).normalize_or_zero()
+}
+
+pub fn basis_vector(main: &Camera3D) -> (Vector3, Vector3, Vector3) {
+    let depth = main.target.sub(main.position).normalize();
+    let right = depth.cross(main.up).normalize();
+    let up = right.cross(depth).normalize();
+    (depth, right, up)
+}
+
+#[inline]
+pub fn observed_line_of_sight(observer: &Camera3D) -> Vector3 {
+    Vector3::new(
+        observer.target.x - observer.position.x,
+        observer.target.y - observer.position.y,
+        observer.target.z - observer.position.z,
+    )
+    .normalize_or_zero()
+}
+
+#[inline]
+pub fn triangle_normal(a: Vector3, b: Vector3, c: Vector3) -> Vector3 {
+    (b - a).cross(c - a).normalize_or_zero()
+}
+
+#[inline]
+pub fn rotate_point_about_axis(c: Vector3, axis: (Vector3, Vector3), theta: f32) -> Vector3 {
+    let (a, b) = axis;
+    let ab = b - a;
+    let ab_dir = ab.normalize_or_zero();
+    let ac = c - a;
+    let ac_proj = ab_dir.dot(ac) * ab_dir;
+    let ac_x = ac - ac_proj;
+    let ac_y = ab_dir.cross(ac_x);
+    let rotated = ac_x * theta.cos() + ac_y * theta.sin() + ac_proj;
+    a + rotated
+}
+
+#[inline]
+pub fn rotate_vertices_in_plane_slice(vertices: &mut [Vector3], rot: f32) {
+    let (s, c) = rot.sin_cos();
+    for v in vertices {
+        let x0 = v.x;
+        let z0 = v.z;
+        v.x = x0 * c + z0 * s;
+        v.z = -x0 * s + z0 * c;
+    }
+}
+
+fn translate_rotate_scale(inverse: i32, coord: Vector3, pos: Vector3, scale: Vector3, rotation: f32) -> Vector3 {
+    let matrix = Mat4::from_scale(scale) * Mat4::from_rotation_y(rotation) * Mat4::from_translation(pos);
+    let m = if inverse != 0 { matrix.inverse() } else { matrix };
+    m.transform_point3(coord)
+}
+
+fn intersect(camera: &Camera3D, near: f32, world_coord: Vector3, ortho_factor: f32) -> Vector3 {
+    let view_dir = camera.target.sub(camera.position).normalize();
+    let cam_to_point = world_coord - camera.position;
+    let depth_along_view = cam_to_point.dot(view_dir);
+    let center_near = camera.position + view_dir * near;
+    if depth_along_view <= 0.0 {
+        return center_near;
+    }
+
+    let scale = near / depth_along_view;
+    let persp = camera.position + cam_to_point * scale;
+    let ortho = world_coord + view_dir * (center_near - world_coord).dot(view_dir);
+
+    Vector3::new(
+        persp.x + (ortho.x - persp.x) * ortho_factor,
+        persp.y + (ortho.y - persp.y) * ortho_factor,
+        persp.z + (ortho.z - persp.z) * ortho_factor,
+    )
+}
+
+pub fn format_time_clock(seconds: f32) -> String {
+    let clamped = if seconds.is_sign_negative() { 0.0 } else { seconds };
+    let total_ms = (clamped * 1000.0).round() as u64;
+
+    let minutes = total_ms / 60_000;
+    let secs = (total_ms / 1000) % 60;
+    let millis = total_ms % 1000;
+    format!("{:02}:{:02}:{:03}", minutes, secs, millis)
 }
 
 pub fn format_bytes(bytes: usize) -> String {

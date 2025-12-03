@@ -240,7 +240,7 @@ pub fn draw_camera_basis(
 pub fn draw_placed_cells(
     rl3d: &mut RaylibMode3D<RaylibDrawHandle>,
     meshes: &mut [MeshDescriptor],
-    placed_cells: &mut [OccupiedCell],
+    placed_cells: &mut [PlacedCell],
     total_time: f32,
     room: &Room,
     view_config: &ViewConfig,
@@ -323,6 +323,8 @@ pub const HUD_MARGIN: i32 = 12;
 pub const HUD_LINE_HEIGHT: i32 = 22;
 pub const FONT_SIZE: i32 = 20;
 pub const HUD_CHAR_SPACING: f32 = 2.0;
+const EDIT_STACK_VISIBLE_ROWS: usize = 7;
+const EDIT_STACK_CURSOR_ROW: usize = EDIT_STACK_VISIBLE_ROWS / 2;
 
 pub struct HudLayout {
     pub font_size_main: i32,
@@ -360,23 +362,21 @@ fn compute_hud_layout(draw_handle: &RaylibDrawHandle, font: &WeakFont) -> HudLay
     let col_gap_px = (font_size_main as f32 * 0.75).round() as i32;
     let left_label_x = margin;
     let left_value_x = left_label_x + max_left_label_width + col_gap_px;
-    //TODO: not aligned correclty to the right
     let right_labels = ["TXTR [ T ]:", "CLR [ C ]:"];
     let mut max_right_label_width = 0;
     for label in &right_labels {
         let w = font.measure_text(label, font_size_main as f32, HUD_CHAR_SPACING).x as i32;
         max_right_label_width = max_right_label_width.max(w);
     }
-
-    let values = ["ORTHOGRAPHIC", "PERSPECTIVE", "WORLD", "NDC", "ON", "OFF"];
-    let mut max_value_width = 0;
-    for value in &values {
+    let right_values = ["ON", "OFF"];
+    let mut max_right_value_width = 0;
+    for value in &right_values {
         let width = font.measure_text(value, font_size_main as f32, HUD_CHAR_SPACING).x as i32;
-        max_value_width = max_value_width.max(width);
+        max_right_value_width = max_right_value_width.max(width);
     }
 
     let right_margin = margin;
-    let right_value_x = screen_width - right_margin - max_value_width;
+    let right_value_x = screen_width - right_margin - max_right_value_width;
     let right_label_gap_px = (font_size_main as f32 * 0.5).round() as i32;
     let right_label_x = right_value_x - right_label_gap_px - max_right_label_width;
     let bottom_rows = 3;
@@ -396,7 +396,7 @@ fn compute_hud_layout(draw_handle: &RaylibDrawHandle, font: &WeakFont) -> HudLay
         left_value_x,
         right_label_x,
         right_value_x,
-        right_value_max_width: max_value_width,
+        right_value_max_width: max_right_value_width,
         bottom_block_start_y,
         perf_x,
         perf_y,
@@ -488,12 +488,14 @@ pub fn draw_hud(
     jugemu: &Camera3D,
     target_mesh: usize,
     hover_state: &HoverState,
-    placed_cells: &[OccupiedCell],
+    placed_cells: &[PlacedCell],
     i_time: f32,
     meshes: &[MeshDescriptor],
     mesh_samples: &[Vec<Vector3>],
     frame_dynamic_metrics: &FrameDynamicMetrics,
     room: &Room,
+    edit_stack: &[EditStack],
+    edit_cursor: usize,
 ) {
     let layout = compute_hud_layout(draw_handle, font);
     let mut line_y = layout.margin;
@@ -661,11 +663,13 @@ pub fn draw_hud(
             let anchor_y = screen_pos.y as i32;
             let mesh_label = mesh_name(cell.mesh_index, meshes);
             let age_seconds = i_time - cell.placed_time;
+            let age_clock = format_time_clock(age_seconds);
             let state_label = if cell.settled { "SETTLED" } else { "ANIM" };
             let mut lines: Vec<(String, Color)> = Vec::new();
             lines.push((format!("MESH: {}", mesh_label), SUNFLOWER));
             lines.push((format!("GRID: ({}, {}, {})", cell.ix, cell.iy, cell.iz), SUNFLOWER));
-            lines.push((format!("AGE: {:.2}s", age_seconds), SUNFLOWER));
+            lines.push((format!("AGE: {}", age_clock), SUNFLOWER));
+
             lines.push((
                 format!("STATE: {}", state_label),
                 if cell.settled { ANAKIWA } else { NEON_CARROT },
@@ -682,6 +686,7 @@ pub fn draw_hud(
             draw_debug_box(draw_handle, font, anchor_x, anchor_y, &lines, &layout);
         }
     }
+    draw_edit_stack_hud(draw_handle, font, &layout, edit_stack, edit_cursor);
 }
 
 fn draw_perf_hud(
@@ -689,7 +694,7 @@ fn draw_perf_hud(
     font: &WeakFont,
     layout: &HudLayout,
     view_state: &ViewState,
-    placed_cells: &[OccupiedCell],
+    placed_cells: &[PlacedCell],
     meshes: &[MeshDescriptor],
     mesh_samples: &[Vec<Vector3>],
     frame_dynamic_metrics: &FrameDynamicMetrics,
@@ -1050,6 +1055,145 @@ fn hud_text(
         HUD_CHAR_SPACING,
         color,
     );
+}
+fn draw_edit_stack_hud(
+    draw: &mut RaylibDrawHandle,
+    font: &WeakFont,
+    layout: &HudLayout,
+    edit_stack: &[EditStack],
+    edit_cursor: usize,
+) {
+    let screen_w = draw.get_screen_width();
+    let screen_h = draw.get_screen_height();
+    let line_h = layout.line_height_main;
+    let font_sz = layout.font_size_main;
+    let margin = layout.margin;
+
+    let visible_rows = EDIT_STACK_VISIBLE_ROWS;
+    let cursor_row = EDIT_STACK_CURSOR_ROW.min(visible_rows - 1);
+
+    let panel_h = (visible_rows as i32) * line_h;
+    let foot_rows = 1;
+    let top_y = screen_h - margin - panel_h - foot_rows * line_h;
+
+    let mut max_text_w = layout.right_value_max_width;
+    let mut formatted: Vec<String> = Vec::with_capacity(edit_stack.len());
+
+    for edit in edit_stack {
+        let (name, ix, iy, iz, time) = match edit {
+            EditStack::PlaceCell { cell, time } => ("PLC", cell.ix, cell.iy, cell.iz, *time),
+            EditStack::RemoveCell { cell, time } => ("RM", cell.ix, cell.iy, cell.iz, *time),
+            EditStack::ToggleTexture { ix, iy, iz, time } => ("TXTR", *ix, *iy, *iz, *time),
+            EditStack::ToggleColor { ix, iy, iz, time } => ("CLR", *ix, *iy, *iz, *time),
+        };
+
+        let time_str = format_time_clock(time);
+        let text = format!("{} {} ({:2},{:2},{:2})", time_str, name, ix, iy, iz);
+        let w = font.measure_text(&text, font_sz as f32, HUD_CHAR_SPACING).x as i32;
+
+        max_text_w = max_text_w.max(w);
+        formatted.push(text);
+    }
+
+    let sample_time = "99:59:999";
+    let sample_text = format!("{} {} ({:2},{:2},{:2})", sample_time, "TXTR", 99, 99, 99);
+    let sample_w = font.measure_text(&sample_text, font_sz as f32, HUD_CHAR_SPACING).x as i32;
+    max_text_w = max_text_w.max(sample_w);
+
+    let base_x = screen_w - margin - max_text_w;
+    let cursor_dx = (font_sz as f32 * 0.6).round() as i32;
+    let indent_step = (font_sz as f32 * 0.5).round() as i32;
+    let max_dist = cursor_row.max(visible_rows - 1 - cursor_row) as i32;
+
+    if edit_stack.is_empty() {
+        let cursor_indent_left = max_dist * indent_step;
+        let cursor_y = top_y + (cursor_row as i32) * line_h;
+        let cursor_x = base_x - cursor_indent_left - cursor_dx;
+        hud_text(draw, font, ">", cursor_x, cursor_y, font_sz, SUNFLOWER);
+        return;
+    }
+
+    let len = edit_stack.len();
+    let applied_count = edit_cursor.min(len);
+    let mut row_to_index: [Option<usize>; EDIT_STACK_VISIBLE_ROWS] = [None; EDIT_STACK_VISIBLE_ROWS];
+    let mut has_above = false;
+    let mut has_below = false;
+
+    if applied_count > 0 {
+        let pointer_idx = applied_count - 1;
+        row_to_index[cursor_row] = Some(pointer_idx);
+        let mut row = cursor_row + 1;
+        let mut idx = pointer_idx as isize - 1;
+        while row < visible_rows && idx >= 0 {
+            row_to_index[row] = Some(idx as usize);
+            row += 1;
+            idx -= 1;
+        }
+        if idx >= 0 {
+            has_below = true;
+        }
+        let mut row = cursor_row;
+        let mut idx = applied_count;
+        while row > 0 && idx < len {
+            row -= 1;
+            row_to_index[row] = Some(idx);
+            idx += 1;
+        }
+        if idx < len {
+            has_above = true;
+        }
+    } else {
+        let mut idx = 0;
+        row_to_index[cursor_row] = Some(idx);
+        idx += 1;
+
+        let mut row = cursor_row;
+        while row > 0 && idx < len {
+            row -= 1;
+            row_to_index[row] = Some(idx);
+            idx += 1;
+        }
+        if idx < len {
+            has_above = true;
+        }
+    }
+    let cursor_indent_left = max_dist * indent_step;
+    let cursor_y = top_y + (cursor_row as i32) * line_h;
+    let cursor_x = base_x - cursor_indent_left - cursor_dx;
+    hud_text(draw, font, ">", cursor_x, cursor_y, font_sz, SUNFLOWER);
+    for row in 0..visible_rows {
+        if let Some(idx) = row_to_index[row] {
+            let row_y = top_y + (row as i32) * line_h;
+            let text = &formatted[idx];
+
+            let dist = (row as isize - cursor_row as isize).abs() as i32;
+            let indent_left = (max_dist - dist).max(0) * indent_step;
+            let text_x = base_x - indent_left;
+
+            let color = if row == cursor_row {
+                SUNFLOWER
+            } else if idx < applied_count {
+                NEON_CARROT
+            } else {
+                Color::LIGHTGRAY
+            };
+
+            hud_text(draw, font, text, text_x, row_y, font_sz, color);
+        }
+    }
+    if has_above {
+        let ellipsis_y = top_y - line_h;
+        if ellipsis_y >= 0 {
+            hud_text(draw, font, "[ . . . ]", base_x, ellipsis_y, font_sz, Color::LIGHTGRAY);
+        }
+    }
+
+    if has_below {
+        let ellipsis_y = top_y + (visible_rows as i32) * line_h;
+        if ellipsis_y + line_h <= screen_h {
+            hud_text(draw, font, "[ . . . ]", base_x, ellipsis_y, font_sz, Color::LIGHTGRAY);
+        }
+    }
 }
 
 pub fn handle_view_toggles(handle: &RaylibHandle, view_state: &mut ViewState) {

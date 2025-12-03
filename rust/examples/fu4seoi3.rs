@@ -11,7 +11,9 @@ fn main() {
     let mut i_time = 0.0f32;
     let mut total_time = 0.0f32;
     let mut view_state = ViewState::new();
-    let mut placed_cells: Vec<OccupiedCell> = Vec::new();
+    let mut placed_cells: Vec<PlacedCell> = Vec::new();
+    let mut edit_stack: Vec<EditStack> = Vec::new();
+    let mut edit_cursor: usize = 0;
 
     let (mut handle, thread) = init()
         .size(DC_WIDTH, DC_HEIGHT)
@@ -241,39 +243,22 @@ fn main() {
 
     handle.set_target_fps(60);
     let mut frame_dynamic_metrics = FrameDynamicMetrics::new();
-
     let mut room = Room::default();
-
     let mut needs_sample_regeneration = false;
 
     while !handle.window_should_close() {
         if let Some(new_field_config) = field_config_watcher.check_reload() {
-            println!("\n=== FieldConfig reloaded ===");
-            new_field_config.log_delta(&field_config);
-
-            let samples_changed = new_field_config.rotation_frequency_hz != field_config.rotation_frequency_hz
-                || new_field_config.time_between_samples != field_config.time_between_samples
-                || new_field_config.rotational_samples_for_inv_proj != field_config.rotational_samples_for_inv_proj
-                || new_field_config.deformation_cycles_per_rotation != field_config.deformation_cycles_per_rotation
-                || new_field_config.wave_cycles_slow != field_config.wave_cycles_slow
-                || new_field_config.wave_cycles_fast != field_config.wave_cycles_fast
-                || new_field_config.wave_amplitude_x != field_config.wave_amplitude_x
-                || new_field_config.wave_amplitude_y != field_config.wave_amplitude_y;
-
+            let samples_changed = new_field_config.log_delta(&field_config);
             field_config = new_field_config;
-
             room.reload_config(field_config.clone());
 
             if samples_changed {
-                println!("Deformation parameters changed - regenerating ghost samples...");
                 needs_sample_regeneration = true;
             }
         }
 
         if let Some(new_view_cfg) = view_config_watcher.check_reload() {
-            println!("\n=== ViewConfig reloaded ===");
             new_view_cfg.log_delta(&view_config);
-
             view_config = new_view_cfg;
 
             view_state.jugemu_zoom.fovy_ortho = view_config.fovy_orthographic;
@@ -303,9 +288,12 @@ fn main() {
         }
 
         if needs_sample_regeneration {
-            println!("Regenerating ghost deformation samples with new parameters...");
             mesh_samples = collect_deformed_vertex_samples(&original_mesh_vertices, &field_config);
-            println!("Ghost samples regenerated: {} samples", mesh_samples.len());
+            println!(
+                "{} Ghost samples regenerated: {} samples",
+                timestamp(),
+                mesh_samples.len()
+            );
             needs_sample_regeneration = false;
         }
 
@@ -417,17 +405,60 @@ fn main() {
         let hover_state = compute_hover_state(&handle, &jugemu, &room, &placed_cells);
 
         if let Some(cell_idx) = hover_state.placed_cell_index {
+            let (ix, iy, iz) = {
+                let c = &placed_cells[cell_idx];
+                (c.ix, c.iy, c.iz)
+            };
+
             if handle.is_key_pressed(KeyboardKey::KEY_T) {
-                placed_cells[cell_idx].texture_enabled = !placed_cells[cell_idx].texture_enabled;
+                if edit_cursor < edit_stack.len() {
+                    edit_stack.truncate(edit_cursor);
+                }
+                let op = EditStack::ToggleTexture {
+                    ix,
+                    iy,
+                    iz,
+                    time: total_time,
+                };
+                redo(&op, &mut placed_cells);
+                edit_stack.push(op);
+                edit_cursor += 1;
             }
+
             if handle.is_key_pressed(KeyboardKey::KEY_C) {
-                placed_cells[cell_idx].color_enabled = !placed_cells[cell_idx].color_enabled;
+                if edit_cursor < edit_stack.len() {
+                    edit_stack.truncate(edit_cursor);
+                }
+                let op = EditStack::ToggleColor {
+                    ix,
+                    iy,
+                    iz,
+                    time: total_time,
+                };
+                redo(&op, &mut placed_cells);
+                edit_stack.push(op);
+                edit_cursor += 1;
+            }
+            if handle.is_key_pressed(KeyboardKey::KEY_D) {
+                //TODO i want this to be CTRL CLICK OR SOMETHING CLEARER??
+                if edit_cursor < edit_stack.len() {
+                    edit_stack.truncate(edit_cursor);
+                }
+                let cell = placed_cells[cell_idx].clone();
+                let op = EditStack::RemoveCell { cell, time: total_time };
+                redo(&op, &mut placed_cells);
+                edit_stack.push(op);
+                edit_cursor += 1;
             }
         }
 
         if handle.is_mouse_button_pressed(MouseButton::MOUSE_BUTTON_LEFT) {
             if let (Some((ix, iy, iz)), false) = (hover_state.indices, hover_state.is_occupied()) {
-                placed_cells.push(OccupiedCell {
+                if edit_cursor < edit_stack.len() {
+                    edit_stack.truncate(edit_cursor);
+                }
+
+                let cell = PlacedCell {
                     ix,
                     iy,
                     iz,
@@ -436,7 +467,36 @@ fn main() {
                     settled: false,
                     texture_enabled: view_state.texture_mode,
                     color_enabled: view_state.color_mode,
-                });
+                };
+
+                let edit = EditStack::PlaceCell { cell, time: total_time };
+                redo(&edit, &mut placed_cells);
+                edit_stack.push(edit);
+                edit_cursor += 1;
+            }
+        }
+
+        if handle.is_key_down(KeyboardKey::KEY_LEFT_CONTROL)
+            && !handle.is_key_down(KeyboardKey::KEY_LEFT_SHIFT)
+            && handle.is_key_pressed(KeyboardKey::KEY_Z)
+        {
+            if edit_cursor > 0 {
+                edit_cursor -= 1;
+                let edit = &edit_stack[edit_cursor];
+                undo(edit, &mut placed_cells);
+                log_edit_stack(&edit_stack, edit_cursor);
+            }
+        }
+
+        if handle.is_key_down(KeyboardKey::KEY_LEFT_CONTROL)
+            && handle.is_key_down(KeyboardKey::KEY_LEFT_SHIFT)
+            && handle.is_key_pressed(KeyboardKey::KEY_Z)
+        {
+            if edit_cursor < edit_stack.len() {
+                let edit = &edit_stack[edit_cursor];
+                redo(edit, &mut placed_cells);
+                edit_cursor += 1;
+                log_edit_stack(&edit_stack, edit_cursor);
             }
         }
 
@@ -509,6 +569,8 @@ fn main() {
             &mesh_samples,
             &frame_dynamic_metrics,
             &room,
+            &edit_stack,
+            edit_cursor,
         );
     }
 }
