@@ -7,6 +7,10 @@ use std::mem::size_of;
 use std::ops::{Add, Sub};
 use std::time::SystemTime;
 
+//TODO:CONSOLIDATE ALL CONSTS AS DEFAULTS IN THE CODE LEVEL FOR
+// ::default()
+// if clean, otherwise just use the config files
+
 pub const RES_SCALE: f32 = 1.5;
 pub const DC_WIDTH_BASE: f32 = 640.0;
 pub const DC_HEIGHT_BASE: f32 = 480.0;
@@ -120,7 +124,13 @@ pub struct ViewConfig {
     pub blend_scalar: f32,
     pub placement_anim_dur_seconds: f32,
     pub hint_scale: f32,
+    //TODO: move these to the chi field config later, because its much more related to math and wave/field mechanics.
     pub rotation_frequency_hz: f32,
+    pub deformation_cycles_per_rotation: f32,
+    pub wave_cycles_slow: f32,
+    pub wave_cycles_fast: f32,
+    pub wave_amplitude_x: f32,
+    pub wave_amplitude_y: f32,
     pub time_between_samples: f32,
     pub rotational_samples_for_inv_proj: usize,
 }
@@ -136,6 +146,11 @@ impl Default for ViewConfig {
             placement_anim_dur_seconds: PLACEMENT_ANIM_DUR_SECONDS,
             hint_scale: HINT_SCALE,
             rotation_frequency_hz: ROTATION_FREQUENCY_HZ,
+            deformation_cycles_per_rotation: 1.0,
+            wave_cycles_slow: 7.0,
+            wave_cycles_fast: 255.0,
+            wave_amplitude_x: 0.0,
+            wave_amplitude_y: 0.1,
             time_between_samples: TIME_BETWEEN_SAMPLES,
             rotational_samples_for_inv_proj: ROTATIONAL_SAMPLES_FOR_INV_PROJ,
         }
@@ -1100,12 +1115,12 @@ pub fn blend_world_and_ndc_vertices(
     }
 }
 
-pub fn generate_silhouette_radial_field(i_time: f32) -> Vec<f32> {
+pub fn generate_silhouette_radial_field(i_time: f32, view_config: &ViewConfig) -> Vec<f32> {
     let mut rf = Vec::with_capacity(RADIAL_FIELD_SIZE);
 
     for i in 0..RADIAL_FIELD_SIZE {
         let ang = (i as f32) * TAU / (RADIAL_FIELD_SIZE as f32);
-        rf.push(deformed_silhouette_radius_at_angle(ang, i_time));
+        rf.push(deformed_silhouette_radius_at_angle(ang, i_time, view_config));
     }
 
     let max_r = rf.iter().cloned().fold(1e-6, f32::max);
@@ -1131,13 +1146,16 @@ pub fn collect_deformed_vertex_samples(base: &[Vector3], view_config: &ViewConfi
     let mut samples = Vec::with_capacity(view_config.rotational_samples_for_inv_proj);
 
     for i in 0..view_config.rotational_samples_for_inv_proj {
-        let t = i as f32 * view_config.time_between_samples;
-        let rot = -angular_velocity(view_config) * t;
+        let angle = -(i as f32) * TAU / (view_config.rotational_samples_for_inv_proj as f32);
+        let rotation_progress = (i as f32) / (view_config.rotational_samples_for_inv_proj as f32);
+        let wave_time =
+            rotation_progress * (1.0 / view_config.rotation_frequency_hz) * view_config.deformation_cycles_per_rotation;
+
         let mut frame = base.to_vec();
-        rotate_vertices_in_plane_slice(&mut frame, rot);
-        let radial = generate_silhouette_radial_field(t);
+        rotate_vertices_in_plane_slice(&mut frame, angle);
+        let radial = generate_silhouette_radial_field(wave_time, view_config);
         deform_vertices_with_radial_field(&mut frame, &radial);
-        rotate_vertices_in_plane_slice(&mut frame, -rot);
+        rotate_vertices_in_plane_slice(&mut frame, -angle);
         samples.push(frame);
     }
 
@@ -1170,33 +1188,40 @@ pub fn spatial_phase(grid: Vector2) -> Vector2 {
 }
 
 #[inline]
-pub fn temporal_phase(time: f32) -> Vector2 {
-    Vector2::new(time * LIGHT_WAVE_TEMPORAL_FREQ_X, time * LIGHT_WAVE_TEMPORAL_FREQ_Y)
+pub fn temporal_phase(time: f32, view_config: &ViewConfig) -> Vector2 {
+    let rotation_period = 1.0 / view_config.rotation_frequency_hz;
+    let freq_x = (view_config.wave_cycles_fast * TAU) / rotation_period;
+    let freq_y = (view_config.wave_cycles_slow * TAU) / rotation_period;
+
+    Vector2::new(time * freq_x, time * freq_y)
 }
 
 #[inline]
-pub fn add_phase(p: Vector2) -> Vector2 {
-    Vector2::new(LIGHT_WAVE_AMPLITUDE_X * p.x.cos(), LIGHT_WAVE_AMPLITUDE_Y * p.y.sin())
+pub fn add_phase(p: Vector2, view_config: &ViewConfig) -> Vector2 {
+    Vector2::new(
+        view_config.wave_amplitude_x * p.x.cos(),
+        view_config.wave_amplitude_y * p.y.sin(),
+    )
 }
 
 #[inline]
-pub fn grid_phase_magnitude(grid_coord: &mut Vector2, time: f32) -> f32 {
+pub fn grid_phase_magnitude(grid_coord: &mut Vector2, time: f32, view_config: &ViewConfig) -> f32 {
     let mut phase = spatial_phase(*grid_coord);
-    phase += temporal_phase(time);
-    *grid_coord += add_phase(phase);
+    phase += temporal_phase(time, view_config);
+    *grid_coord += add_phase(phase, view_config);
     grid_coord.distance(UMBRAL_MASK_CENTER)
 }
 
 #[inline]
-pub fn deformed_silhouette_radius_at_angle(ang: f32, time: f32) -> f32 {
+pub fn deformed_silhouette_radius_at_angle(ang: f32, time: f32, view_config: &ViewConfig) -> f32 {
     let dir = Vector2::new(ang.cos(), ang.sin());
-    let phase = LIGHT_WAVE_AMPLITUDE_X.hypot(LIGHT_WAVE_AMPLITUDE_Y) + 2.0;
+    let phase = view_config.wave_amplitude_x.hypot(view_config.wave_amplitude_y) + 2.0;
     let mut low = 0.0_f32;
     let mut high = UMBRAL_MASK_OUTER_RADIUS + phase;
 
     for _ in 0..8 {
         let mut p = UMBRAL_MASK_CENTER + dir * high;
-        if grid_phase_magnitude(&mut p, time) >= UMBRAL_MASK_OUTER_RADIUS {
+        if grid_phase_magnitude(&mut p, time, view_config) >= UMBRAL_MASK_OUTER_RADIUS {
             break;
         }
         high *= 1.5;
@@ -1206,7 +1231,7 @@ pub fn deformed_silhouette_radius_at_angle(ang: f32, time: f32) -> f32 {
         let mid = 0.5 * (low + high);
 
         let mut p = UMBRAL_MASK_CENTER + dir * mid;
-        if grid_phase_magnitude(&mut p, time) >= UMBRAL_MASK_OUTER_RADIUS {
+        if grid_phase_magnitude(&mut p, time, view_config) >= UMBRAL_MASK_OUTER_RADIUS {
             high = mid;
         } else {
             low = mid;
@@ -1218,21 +1243,18 @@ pub fn deformed_silhouette_radius_at_angle(ang: f32, time: f32) -> f32 {
 
 pub fn interpolate_between_deformed_vertices(
     model: &mut Model,
-    time: f32,
+    mesh_rotation: f32,
     samples: &[Vec<Vector3>],
     frame_metrics: &mut FrameDynamicMetrics,
     view_config: &ViewConfig,
 ) {
-    let target = &mut model.meshes_mut()[0];
-
-    let n = samples.len() as f32 * view_config.time_between_samples;
-    let t = time % n;
-    let f = t / view_config.time_between_samples;
+    let normalized_rotation = (-mesh_rotation).rem_euclid(TAU);
+    let rotation_progress = normalized_rotation / TAU;
+    let f = rotation_progress * samples.len() as f32;
     let i0 = f.floor() as usize % samples.len();
     let i1 = (i0 + 1) % samples.len();
     let w = f.fract();
-    let dst = target.vertices_mut();
-
+    let dst = model.meshes_mut()[0].vertices_mut();
     for ((v, a), b) in dst.iter_mut().zip(samples[i0].iter()).zip(samples[i1].iter()) {
         v.x = a.x * (1.0 - w) + b.x * w;
         v.y = a.y * (1.0 - w) + b.y * w;

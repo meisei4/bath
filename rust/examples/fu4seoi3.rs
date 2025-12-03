@@ -345,7 +345,7 @@ fn main() {
             update_ghost_mesh(
                 &mut ghost.ndc,
                 &mut ghost.world,
-                i_time,
+                mesh_rotation,
                 &mesh_samples,
                 &main,
                 mesh_rotation,
