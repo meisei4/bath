@@ -188,20 +188,31 @@ pub fn draw_chi_field(rl3d: &mut RaylibMode3D<RaylibDrawHandle>, room: &Room) {
             center.y,
             center.z + sample.direction.y * half,
         );
-        rl3d.draw_line3D(start, end, SUNFLOWER);
+
+        let color = chi_disrupter_color(sample.dominant);
+        rl3d.draw_line3D(start, end, color);
     }
 
     for opening in &room.openings {
         let (color, radius) = match opening.kind {
-            OpeningKind::Door { primary: true } => (ANAKIWA, 0.5),
+            OpeningKind::Door { primary: true } => (chi_disrupter_color(FieldDisrupter::DoorPrimary), 0.5),
             OpeningKind::Door { primary: false } => (LILAC, 0.4),
-            OpeningKind::Window => (PALE_CANARY, 0.25),
+            OpeningKind::Window => (chi_disrupter_color(FieldDisrupter::Window), 0.25),
         };
         rl3d.draw_line3D(opening.p1, opening.p2, color);
         rl3d.draw_sphere(opening.center(), radius, color);
     }
     unsafe {
         ffi::rlSetLineWidth(1.0);
+    }
+}
+
+fn chi_disrupter_color(kind: FieldDisrupter) -> Color {
+    match kind {
+        FieldDisrupter::Base => SUNFLOWER,
+        FieldDisrupter::DoorPrimary => ANAKIWA,
+        FieldDisrupter::Window => PALE_CANARY,
+        FieldDisrupter::BackWall => LILAC,
     }
 }
 

@@ -1,17 +1,25 @@
 use gltf::json::deserialize::from_str;
 use gltf::json::serialize::to_string_pretty;
 use gltf::json::validation::USize64;
-use gltf::json::{accessor, buffer, mesh, validation, Accessor, Index, Root};
+use gltf::json::*;
 use gltf::Gltf;
-use std::f64::consts::PI;
+use std::f32::consts::PI;
 use std::fs;
 use std::fs::File;
 use std::io::Write;
 use std::process::Command;
 
-const OBJ_OUT: &str = "../assets/meshes/sphere_PREBAKE.obj";
-const GLTF_OUT: &str = "../assets/meshes/sphere_PREBAKE.gltf";
-const GLB_OUT: &str = "../assets/meshes/sphere_PREBAKE.glb";
+const SPHERE_OBJ_OUT: &str = "../assets/meshes/sphere_PREBAKE.obj";
+const SPHERE_GLTF_OUT: &str = "../assets/meshes/sphere_PREBAKE.gltf";
+const SPHERE_GLB_OUT: &str = "../assets/meshes/sphere_PREBAKE.glb";
+
+const FUSUMA_OBJ_OUT: &str = "../assets/meshes/fusuma_PREBAKE.obj";
+const FUSUMA_GLTF_OUT: &str = "../assets/meshes/fusuma_PREBAKE.gltf";
+const FUSUMA_GLB_OUT: &str = "../assets/meshes/fusuma_PREBAKE.glb";
+
+const WINDOW_OBJ_OUT: &str = "../assets/meshes/window_PREBAKE.obj";
+const WINDOW_GLTF_OUT: &str = "../assets/meshes/window_PREBAKE.gltf";
+const WINDOW_GLB_OUT: &str = "../assets/meshes/window_PREBAKE.glb";
 
 enum TexcoordMapping {
     PlanarProjectionXY,
@@ -21,8 +29,482 @@ enum TexcoordMapping {
 
 fn main() {
     println!("=== Step 1: Generating OBJ ===");
-    let mut file = File::create(OBJ_OUT).unwrap();
-    let radius = 0.5;
+
+    let obj_out = WINDOW_OBJ_OUT;
+    let gltf_out = WINDOW_GLTF_OUT;
+    let glb_out = WINDOW_GLB_OUT;
+
+    let mut file = File::create(obj_out).unwrap();
+
+    // write_sphere_obj(&mut file);
+    // write_fusuma_with_handle_obj(&mut file);
+    write_koshidaka_single_obj(&mut file, KOSHIDAKA_2V_2H);
+    //write_kiwaku_a_obj(&mut file, KIWAKU_1V_1H);
+
+    drop(file);
+
+    println!("\n=== Step 2: Converting OBJ to GLTF ===");
+    run_gltfpack(obj_out, gltf_out);
+
+    println!("\n=== Step 3: Verifying GLTF after conversion ===");
+    verify_gltf_attributes(gltf_out, "after OBJ->GLTF conversion");
+
+    println!("\n=== Step 4: Adding vertex colors to GLTF ===");
+    fill_vertex_colors_gltf(gltf_out);
+
+    println!("\n=== Step 5: Verifying GLTF after adding colors ===");
+    verify_gltf_attributes(gltf_out, "after adding vertex colors");
+
+    println!("\n=== Step 6: Converting GLTF to GLB ===");
+    convert_to_glb(gltf_out, glb_out);
+
+    println!("\n=== Step 7: Verifying final GLB ===");
+    verify_glb_attributes(glb_out);
+}
+
+#[derive(Clone, Copy)]
+struct MullionConfig {
+    vertical_count: u32,
+    horizontal_count: u32,
+}
+
+const KOSHIDAKA_2V_0H: MullionConfig = MullionConfig {
+    vertical_count: 2,
+    horizontal_count: 0,
+};
+
+const KOSHIDAKA_2V_2H: MullionConfig = MullionConfig {
+    vertical_count: 2,
+    horizontal_count: 2,
+};
+
+const KIWAKU_2V_2H: MullionConfig = MullionConfig {
+    vertical_count: 2,
+    horizontal_count: 2,
+};
+
+fn write_koshidaka_single_obj(file: &mut File, mullions: MullionConfig) {
+    write_window_obj(file, &SPEC_KOSHIDAKA_SINGLE, mullions, "koshidaka_single");
+}
+
+fn write_kiwaku_a_obj(file: &mut File, mullions: MullionConfig) {
+    write_window_obj(file, &SPEC_KIWAKU_A, mullions, "kiwaku_type_a");
+}
+
+struct WindowSpec {
+    frame_w_mm: f32,
+    frame_h_mm: f32,
+    frame_d_mm: f32,
+    frame_border_mm: f32,
+    mullion_mm: f32,
+    glass_recess_mm: f32,
+    chamfer_mm: f32,
+    mullion_inset_mm: f32,
+}
+
+const SPEC_KOSHIDAKA_SINGLE: WindowSpec = WindowSpec {
+    frame_w_mm: 850.0,
+    frame_h_mm: 1170.0,
+    frame_d_mm: 75.0,
+    frame_border_mm: 50.0,
+    mullion_mm: 22.0,
+    glass_recess_mm: 8.0,
+    chamfer_mm: 1.2,
+    mullion_inset_mm: 6.0,
+};
+
+const SPEC_KIWAKU_A: WindowSpec = WindowSpec {
+    frame_w_mm: 800.0,
+    frame_h_mm: 800.0,
+    frame_d_mm: 68.0,
+    frame_border_mm: 45.0,
+    mullion_mm: 20.0,
+    glass_recess_mm: 8.0,
+    chamfer_mm: 1.2,
+    mullion_inset_mm: 6.0,
+};
+
+fn write_window_obj(file: &mut File, spec: &WindowSpec, mullions: MullionConfig, object_name: &str) {
+    let mm_to_unit = 1.0_f32 / 800.0_f32;
+
+    let frame_w = spec.frame_w_mm * mm_to_unit;
+    let frame_h = spec.frame_h_mm * mm_to_unit;
+    let frame_d = spec.frame_d_mm * mm_to_unit;
+
+    let border = spec.frame_border_mm * mm_to_unit;
+    let mullion = spec.mullion_mm * mm_to_unit;
+    let glass_recess = spec.glass_recess_mm * mm_to_unit;
+    let chamfer = spec.chamfer_mm * mm_to_unit;
+    let mullion_inset = spec.mullion_inset_mm * mm_to_unit;
+
+    let hx = frame_w * 0.5_f32;
+    let hy = frame_h * 0.5_f32;
+    let hz = frame_d * 0.5_f32;
+
+    let ix = hx - border;
+    let iy = hy - border;
+
+    let mx = mullion * 0.5_f32;
+    let my = mullion * 0.5_f32;
+    let mullion_hz = hz - glass_recess;
+
+    let mut verts: Vec<[f32; 3]> = Vec::new();
+    let mut faces: Vec<[usize; 3]> = Vec::new();
+
+    add_box(&mut verts, &mut faces, [-hx, -hy, -hz], [-hx + border, hy, hz]);
+    add_box(&mut verts, &mut faces, [hx - border, -hy, -hz], [hx, hy, hz]);
+    add_box(&mut verts, &mut faces, [-hx, -hy, -hz], [hx, -hy + border, hz]);
+    add_box(&mut verts, &mut faces, [-hx, hy - border, -hz], [hx, hy, hz]);
+
+    if mullions.vertical_count > 0 {
+        let n = mullions.vertical_count as f32;
+        let span = 2.0_f32 * ix;
+        let step = span / (n + 1.0_f32);
+
+        for i in 0..mullions.vertical_count {
+            let k = i as f32;
+            let cx = -ix + step * (k + 1.0_f32);
+
+            add_mullion_vertical(
+                &mut verts,
+                &mut faces,
+                cx,
+                -iy + mullion_inset,
+                iy - mullion_inset,
+                mx,
+                mullion_hz,
+                chamfer,
+            );
+        }
+    }
+
+    if mullions.horizontal_count > 0 {
+        let n = mullions.horizontal_count as f32;
+        let span = 2.0_f32 * iy;
+        let step = span / (n + 1.0_f32);
+
+        for i in 0..mullions.horizontal_count {
+            let k = i as f32;
+            let cy = -iy + step * (k + 1.0_f32);
+
+            add_mullion_horizontal(
+                &mut verts,
+                &mut faces,
+                -ix + mullion_inset,
+                ix - mullion_inset,
+                cy,
+                my,
+                mullion_hz,
+                chamfer,
+            );
+        }
+    }
+
+    writeln!(file, "o {}", object_name).unwrap();
+    writeln!(file, "s off").unwrap();
+
+    for v in verts.iter() {
+        writeln!(file, "v {:.6} {:.6} {:.6}", v[0], v[1], v[2]).unwrap();
+    }
+
+    for f in faces.iter() {
+        writeln!(file, "f {} {} {}", f[0], f[1], f[2]).unwrap();
+    }
+}
+
+fn add_mullion_vertical(
+    verts: &mut Vec<[f32; 3]>,
+    faces: &mut Vec<[usize; 3]>,
+    cx: f32,
+    miny: f32,
+    maxy: f32,
+    hx: f32,
+    hz: f32,
+    chamfer: f32,
+) {
+    let base = verts.len();
+    let c = chamfer;
+
+    let bot = [
+        [cx - hx + c, miny, -hz],
+        [cx + hx - c, miny, -hz],
+        [cx + hx, miny, -hz + c],
+        [cx + hx, miny, hz - c],
+        [cx + hx - c, miny, hz],
+        [cx - hx + c, miny, hz],
+        [cx - hx, miny, hz - c],
+        [cx - hx, miny, -hz + c],
+    ];
+
+    let top = [
+        [cx - hx + c, maxy, -hz],
+        [cx + hx - c, maxy, -hz],
+        [cx + hx, maxy, -hz + c],
+        [cx + hx, maxy, hz - c],
+        [cx + hx - c, maxy, hz],
+        [cx - hx + c, maxy, hz],
+        [cx - hx, maxy, hz - c],
+        [cx - hx, maxy, -hz + c],
+    ];
+
+    verts.extend_from_slice(&bot);
+    verts.extend_from_slice(&top);
+
+    let quads = [
+        [0usize, 8, 9, 1],
+        [1, 9, 10, 2],
+        [2, 10, 11, 3],
+        [3, 11, 12, 4],
+        [4, 12, 13, 5],
+        [5, 13, 14, 6],
+        [6, 14, 15, 7],
+        [7, 15, 8, 0],
+    ];
+
+    for q in quads.iter() {
+        let a = base + q[0];
+        let b = base + q[1];
+        let c = base + q[2];
+        let d = base + q[3];
+        faces.push([a + 1, b + 1, c + 1]);
+        faces.push([a + 1, c + 1, d + 1]);
+    }
+
+    octagon_cap(faces, base, &[0, 7, 6, 5, 4, 3, 2, 1]);
+    octagon_cap(faces, base, &[8, 9, 10, 11, 12, 13, 14, 15]);
+}
+
+fn add_mullion_horizontal(
+    verts: &mut Vec<[f32; 3]>,
+    faces: &mut Vec<[usize; 3]>,
+    minx: f32,
+    maxx: f32,
+    cy: f32,
+    hy: f32,
+    hz: f32,
+    chamfer: f32,
+) {
+    let base = verts.len();
+    let c = chamfer;
+
+    let left = [
+        [minx, cy - hy + c, -hz],
+        [minx, cy + hy - c, -hz],
+        [minx, cy + hy, -hz + c],
+        [minx, cy + hy, hz - c],
+        [minx, cy + hy - c, hz],
+        [minx, cy - hy + c, hz],
+        [minx, cy - hy, hz - c],
+        [minx, cy - hy, -hz + c],
+    ];
+
+    let right = [
+        [maxx, cy - hy + c, -hz],
+        [maxx, cy + hy - c, -hz],
+        [maxx, cy + hy, -hz + c],
+        [maxx, cy + hy, hz - c],
+        [maxx, cy + hy - c, hz],
+        [maxx, cy - hy + c, hz],
+        [maxx, cy - hy, hz - c],
+        [maxx, cy - hy, -hz + c],
+    ];
+
+    verts.extend_from_slice(&left);
+    verts.extend_from_slice(&right);
+
+    let quads = [
+        [0usize, 8, 9, 1],
+        [1, 9, 10, 2],
+        [2, 10, 11, 3],
+        [3, 11, 12, 4],
+        [4, 12, 13, 5],
+        [5, 13, 14, 6],
+        [6, 14, 15, 7],
+        [7, 15, 8, 0],
+    ];
+
+    for q in quads.iter() {
+        let a = base + q[0];
+        let b = base + q[1];
+        let c = base + q[2];
+        let d = base + q[3];
+        faces.push([a + 1, b + 1, c + 1]);
+        faces.push([a + 1, c + 1, d + 1]);
+    }
+
+    octagon_cap(faces, base, &[0, 7, 6, 5, 4, 3, 2, 1]);
+    octagon_cap(faces, base, &[8, 9, 10, 11, 12, 13, 14, 15]);
+}
+
+fn octagon_cap(faces: &mut Vec<[usize; 3]>, base: usize, indices: &[usize; 8]) {
+    let center = indices[0];
+    for i in 1..7 {
+        faces.push([base + center + 1, base + indices[i] + 1, base + indices[i + 1] + 1]);
+    }
+}
+
+fn add_box(verts: &mut Vec<[f32; 3]>, faces: &mut Vec<[usize; 3]>, min: [f32; 3], max: [f32; 3]) {
+    let base = verts.len();
+    let minx = min[0];
+    let miny = min[1];
+    let minz = min[2];
+    let maxx = max[0];
+    let maxy = max[1];
+    let maxz = max[2];
+
+    let box_verts = [
+        [minx, miny, minz],
+        [maxx, miny, minz],
+        [maxx, maxy, minz],
+        [minx, maxy, minz],
+        [minx, miny, maxz],
+        [maxx, miny, maxz],
+        [maxx, maxy, maxz],
+        [minx, maxy, maxz],
+    ];
+
+    verts.extend_from_slice(&box_verts);
+
+    let quads = [
+        [0usize, 3, 2, 1],
+        [4, 5, 6, 7],
+        [0, 4, 7, 3],
+        [1, 2, 6, 5],
+        [0, 1, 5, 4],
+        [3, 7, 6, 2],
+    ];
+
+    for q in quads.iter() {
+        let a = base + q[0];
+        let b = base + q[1];
+        let c = base + q[2];
+        let d = base + q[3];
+        faces.push([a + 1, b + 1, c + 1]);
+        faces.push([a + 1, c + 1, d + 1]);
+    }
+}
+
+fn write_fusuma_with_handle_obj(file: &mut File) {
+    let room_height = 3.0_f32;
+    let fusuma_height_ratio = 0.85_f32;
+    let fusuma_aspect_ratio = 0.5_f32;
+    let fusuma_thickness = 0.04_f32;
+
+    let hikite_height_ratio = 0.45_f32;
+    let frame_stile_width_ratio = 0.10_f32;
+    let hikite_radius_ratio = 0.025_f32;
+    let hikite_recess_ratio_of_thickness = 0.15_f32;
+    let hikite_front_offset_ratio_of_thickness = 0.02_f32;
+
+    let handle_segments = 12usize;
+
+    let door_h = room_height * fusuma_height_ratio;
+    let door_w = door_h * fusuma_aspect_ratio;
+    let door_t = fusuma_thickness;
+
+    let hw = door_w * 0.5;
+    let ht = door_t * 0.5;
+    let bottom = 0.0_f32;
+    let top = door_h;
+
+    let stile_width = door_w * frame_stile_width_ratio;
+    let hikite_radius = door_h * hikite_radius_ratio;
+    let hikite_center_y = bottom + door_h * hikite_height_ratio;
+    let hikite_center_x = hw - stile_width * 0.5;
+    let hikite_recess_depth = door_t * hikite_recess_ratio_of_thickness;
+    let hikite_center_z = ht - hikite_recess_depth;
+    let hikite_front_offset = door_t * hikite_front_offset_ratio_of_thickness;
+    let hikite_front_z = ht + hikite_front_offset;
+
+    let origin_x = hikite_center_x;
+    let origin_y = hikite_center_y;
+    let origin_z = hikite_center_z;
+
+    let panel_verts = [
+        [-hw, bottom, -ht],
+        [hw, bottom, -ht],
+        [hw, top, -ht],
+        [-hw, top, -ht],
+        [-hw, bottom, ht],
+        [hw, bottom, ht],
+        [hw, top, ht],
+        [-hw, top, ht],
+    ];
+
+    let mut verts: Vec<[f32; 3]> = Vec::new();
+    verts.extend(panel_verts.iter().cloned());
+
+    for i in 0..handle_segments {
+        let theta = (i as f32) * 2.0 * PI / (handle_segments as f32);
+        let x = hikite_center_x + hikite_radius * theta.cos();
+        let y = hikite_center_y + hikite_radius * theta.sin();
+        let z = hikite_front_z;
+        verts.push([x, y, z]);
+    }
+
+    for i in 0..handle_segments {
+        let theta = (i as f32) * 2.0 * PI / (handle_segments as f32);
+        let x = hikite_center_x + hikite_radius * theta.cos();
+        let y = hikite_center_y + hikite_radius * theta.sin();
+        let z = hikite_center_z;
+        verts.push([x, y, z]);
+    }
+
+    writeln!(file, "o fusuma").unwrap();
+    for v in &verts {
+        writeln!(
+            file,
+            "v {:.6} {:.6} {:.6}",
+            v[0] - origin_x,
+            v[1] - origin_y,
+            v[2] - origin_z
+        )
+        .unwrap();
+    }
+
+    writeln!(file, "s off").unwrap();
+
+    let panel_quads: [[usize; 4]; 6] = [
+        [1, 0, 3, 2],
+        [4, 5, 6, 7],
+        [0, 4, 7, 3],
+        [5, 1, 2, 6],
+        [0, 1, 5, 4],
+        [3, 7, 6, 2],
+    ];
+
+    for q in panel_quads.iter() {
+        let a = q[0] + 1;
+        let b = q[1] + 1;
+        let c = q[2] + 1;
+        let d = q[3] + 1;
+        writeln!(file, "f {} {} {}", a, b, c).unwrap();
+        writeln!(file, "f {} {} {}", a, c, d).unwrap();
+    }
+    let front_start = panel_verts.len() as i32 + 1;
+    let back_start = front_start + handle_segments as i32;
+
+    for i in 0..handle_segments {
+        let a1 = front_start + i as i32;
+        let a2 = front_start + if i + 1 == handle_segments { 0 } else { i as i32 + 1 };
+
+        let b1 = back_start + i as i32;
+        let b2 = back_start + if i + 1 == handle_segments { 0 } else { i as i32 + 1 };
+
+        writeln!(file, "f {} {} {}", a1, a2, b2).unwrap();
+        writeln!(file, "f {} {} {}", a1, b2, b1).unwrap();
+    }
+
+    for i in 1..(handle_segments - 1) {
+        let c0 = back_start;
+        let c1 = back_start + i as i32;
+        let c2 = back_start + i as i32 + 1;
+        writeln!(file, "f {} {} {}", c0, c1, c2).unwrap();
+    }
+}
+
+fn write_sphere_obj(file: &mut File) {
+    let radius = 0.5_f32;
     let stacks = 8;
     let slices = 8;
     let mode = TexcoordMapping::SphericalEquirectangularUnwrapped;
@@ -32,11 +514,11 @@ fn main() {
     verts.push([0.0, radius, 0.0]);
 
     for i in 1..stacks {
-        let t = PI * (i as f64) / (stacks as f64);
+        let t = PI * (i as f32) / (stacks as f32);
         let y = radius * t.cos();
         let r = radius * t.sin();
         for j in 0..slices {
-            let p = 2.0 * PI * (j as f64) / (slices as f64);
+            let p = 2.0 * PI * (j as f32) / (slices as f32);
             let x = r * p.cos();
             let z = r * p.sin();
             verts.push([x, y, z]);
@@ -47,32 +529,11 @@ fn main() {
         writeln!(file, "v {:.6} {:.6} {:.6}", v[0], v[1], v[2]).unwrap();
     }
 
-    emit_sphere_normals(&mut file, &verts);
-    emit_sphere_texcoords(&mut file, &verts, stacks, slices, &mode);
+    emit_sphere_normals(file, &verts);
+    emit_sphere_texcoords(file, &verts, stacks, slices, &mode);
     writeln!(file, "s off").unwrap();
-    emit_sphere_indexed_triangles(&mut file, stacks, slices, &mode);
-    drop(file);
+    emit_sphere_indexed_triangles(file, stacks, slices, &mode);
     println!("OBJ generated with {} vertices", verts.len());
-
-    println!("\n=== Step 2: Converting OBJ to GLTF ===");
-    run_gltfpack();
-
-    println!("\n=== Step 3: Verifying GLTF after conversion ===");
-    verify_gltf_attributes(GLTF_OUT, "after OBJ->GLTF conversion");
-
-    println!("\n=== Step 4: Adding vertex colors to GLTF ===");
-    fill_vertex_colors_gltf();
-
-    println!("\n=== Step 5: Verifying GLTF after adding colors ===");
-    verify_gltf_attributes(GLTF_OUT, "after adding vertex colors");
-
-    println!("\n=== Step 6: Converting GLTF to GLB ===");
-    convert_to_glb();
-
-    println!("\n=== Step 7: Verifying final GLB ===");
-    verify_glb_attributes();
-
-    println!("\n=== DONE ===");
 }
 
 fn verify_gltf_attributes(path: &str, stage: &str) {
@@ -84,7 +545,6 @@ fn verify_gltf_attributes(path: &str, stage: &str) {
         for primitive in mesh.primitives() {
             let reader = primitive.reader(|buffer| Some(&buffers[buffer.index()]));
 
-            // Check texcoords
             let has_texcoords = primitive.get(&mesh::Semantic::TexCoords(0)).is_some();
             println!("  Mesh {}: Has TEXCOORD_0 attribute: {}", i, has_texcoords);
 
@@ -99,7 +559,6 @@ fn verify_gltf_attributes(path: &str, stage: &str) {
                 println!("    TEXCOORD_0 attribute exists but couldn't read texcoords!");
             }
 
-            // Check colors
             let has_colors = primitive.get(&mesh::Semantic::Colors(0)).is_some();
             println!("  Mesh {}: Has COLOR_0 attribute: {}", i, has_colors);
 
@@ -112,16 +571,14 @@ fn verify_gltf_attributes(path: &str, stage: &str) {
         }
     }
 }
-
-fn verify_glb_attributes() {
+fn verify_glb_attributes(glb_path: &str) {
     println!("Verifying final GLB attributes:");
-    let final_glb = Gltf::from_slice(&fs::read(GLB_OUT).unwrap()).unwrap();
+    let final_glb = Gltf::from_slice(&fs::read(glb_path).unwrap()).unwrap();
 
     for (i, mesh) in final_glb.meshes().enumerate() {
         for primitive in mesh.primitives() {
             let reader = primitive.reader(|_| final_glb.blob.as_ref().map(|b| &b[..]));
 
-            // Check texcoords
             let has_texcoords = primitive.get(&mesh::Semantic::TexCoords(0)).is_some();
             println!("  Mesh {}: Has TEXCOORD_0 attribute: {}", i, has_texcoords);
 
@@ -136,7 +593,6 @@ fn verify_glb_attributes() {
                 println!("    TEXCOORD_0 attribute exists but couldn't read texcoords!");
             }
 
-            // Check colors
             let has_colors = primitive.get(&mesh::Semantic::Colors(0)).is_some();
             println!("  Mesh {}: Has COLOR_0 attribute: {}", i, has_colors);
 
@@ -154,7 +610,7 @@ fn verify_glb_attributes() {
     }
 }
 
-fn emit_sphere_normals(file: &mut File, verts: &[[f64; 3]]) {
+fn emit_sphere_normals(file: &mut File, verts: &[[f32; 3]]) {
     for v in verts {
         let x = v[0];
         let y = v[1];
@@ -167,7 +623,7 @@ fn emit_sphere_normals(file: &mut File, verts: &[[f64; 3]]) {
     }
 }
 
-fn emit_sphere_texcoords(file: &mut File, verts: &[[f64; 3]], stacks: usize, slices: usize, mode: &TexcoordMapping) {
+fn emit_sphere_texcoords(file: &mut File, verts: &[[f32; 3]], stacks: usize, slices: usize, mode: &TexcoordMapping) {
     match mode {
         TexcoordMapping::PlanarProjectionXY => {
             for v in verts {
@@ -230,18 +686,18 @@ fn emit_indexed_triangles_shared_texcoords(file: &mut File, stacks: usize, slice
 
 fn emit_sphere_equirectangular_unwrapped_texcoords(file: &mut File, stacks: usize, slices: usize) {
     for j in 0..slices {
-        let s = (j as f64 + 0.5) / (slices as f64);
+        let s = (j as f32 + 0.5) / (slices as f32);
         writeln!(file, "vt {:.6} {:.6}", s, 1.0).unwrap();
     }
     for i in 1..stacks {
-        let t = 1.0 - (i as f64) / (stacks as f64);
+        let t = 1.0 - (i as f32) / (stacks as f32);
         for j in 0..=slices {
-            let s = (j as f64) / (slices as f64);
+            let s = (j as f32) / (slices as f32);
             writeln!(file, "vt {:.6} {:.6}", s, t).unwrap();
         }
     }
     for j in 0..slices {
-        let s = (j as f64 + 0.5) / (slices as f64);
+        let s = (j as f32 + 0.5) / (slices as f32);
         writeln!(file, "vt {:.6} {:.6}", s, 0.0).unwrap();
     }
 }
@@ -285,12 +741,12 @@ fn emit_indexed_triangles_equirectangular_unwrapped(file: &mut File, stacks: usi
     }
 }
 
-fn spherical_equirectangular_analytic_st(x: f64, y: f64, z: f64) -> (f64, f64) {
+fn spherical_equirectangular_analytic_st(x: f32, y: f32, z: f32) -> (f32, f32) {
     let r = (x * x + y * y + z * z).sqrt();
     if r == 0.0 {
         return (0.0, 0.0);
     }
-    let mut s = f64::atan2(z, x) / (2.0 * PI);
+    let mut s = f32::atan2(z, x) / (2.0 * PI);
     if s < 0.0 {
         s += 1.0;
     }
@@ -299,18 +755,17 @@ fn spherical_equirectangular_analytic_st(x: f64, y: f64, z: f64) -> (f64, f64) {
     (s, t)
 }
 
-fn planar_projection_xy_st(x: f64, y: f64, _z: f64) -> (f64, f64) {
+fn planar_projection_xy_st(x: f32, y: f32, _z: f32) -> (f32, f32) {
     let s = (x + 0.5) / 1.0;
     let t = (y + 0.5) / 1.0;
     (s, t)
 }
-
-fn run_gltfpack() {
+fn run_gltfpack(obj_in: &str, gltf_out: &str) {
     let output = Command::new("gltfpack")
         .arg("-i")
-        .arg(OBJ_OUT)
+        .arg(obj_in)
         .arg("-o")
-        .arg(GLTF_OUT)
+        .arg(gltf_out)
         .arg("-kv")
         .arg("-noq")
         .output()
@@ -324,12 +779,12 @@ fn run_gltfpack() {
     }
 }
 
-fn convert_to_glb() {
+fn convert_to_glb(gltf_in: &str, glb_out: &str) {
     let output = Command::new("gltfpack")
         .arg("-i")
-        .arg(GLTF_OUT)
+        .arg(gltf_in)
         .arg("-o")
-        .arg(GLB_OUT)
+        .arg(glb_out)
         .arg("-kv")
         .arg("-noq")
         .output()
@@ -343,9 +798,9 @@ fn convert_to_glb() {
     }
 }
 
-fn fill_vertex_colors_gltf() {
+fn fill_vertex_colors_gltf(gltf_path_str: &str) {
     println!("Reading GLTF...");
-    let (gltf, buffers, _) = gltf::import(GLTF_OUT).unwrap();
+    let (gltf, buffers, _) = gltf::import(gltf_path_str).unwrap();
 
     println!("Generating vertex colors...");
     let mut all_colors = Vec::new();
@@ -386,7 +841,7 @@ fn fill_vertex_colors_gltf() {
     }
 
     println!("Modifying GLTF to add color attributes...");
-    let gltf_path = std::path::Path::new(GLTF_OUT);
+    let gltf_path = std::path::Path::new(gltf_path_str);
     let mut root: Root = from_str(&fs::read_to_string(gltf_path).unwrap()).unwrap();
     let bin_path = gltf_path.with_extension("bin");
     let mut bin_data = fs::read(&bin_path).unwrap_or_default();
