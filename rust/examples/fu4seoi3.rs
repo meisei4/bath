@@ -2,8 +2,10 @@ use asset_payload::{
     CHI_CONFIG_PATH, FONT_IMAGE_PATH, FONT_PATH, FUSUMA_GLTF_PATH, SPHERE_GLTF_PATH, SPHERE_PATH, VIEW_CONFIG_PATH,
     WINDOW_GLTF_PATH,
 };
+use bath::fu4seoi3::config_and_state::*;
 use bath::fu4seoi3::core::*;
 use bath::fu4seoi3::draw::*;
+use bath::fu4seoi3::hud::*;
 use raylib::consts::CameraProjection::{CAMERA_ORTHOGRAPHIC, CAMERA_PERSPECTIVE};
 use raylib::consts::MaterialMapIndex::MATERIAL_MAP_ALBEDO;
 use raylib::prelude::*;
@@ -75,10 +77,10 @@ fn main() {
         projection: CAMERA_ORTHOGRAPHIC,
     };
 
-    view_state.jugemu_zoom.fovy_ortho = view_config.fovy_orthographic;
-    view_state.jugemu_zoom.fovy_perspective = view_config.fovy_perspective;
-    view_state.jugemu_zoom.distance_ortho = view_config.jugemu_distance_ortho;
-    view_state.jugemu_zoom.distance_perspective = view_config.jugemu_distance_perspective;
+    view_state.jugemu_state.fovy_ortho = view_config.fovy_orthographic;
+    view_state.jugemu_state.fovy_perspective = view_config.fovy_perspective;
+    view_state.jugemu_state.distance_ortho = view_config.jugemu_distance_ortho;
+    view_state.jugemu_state.distance_perspective = view_config.jugemu_distance_perspective;
 
     let checked_img = Image::gen_image_checked(16, 16, 1, 1, Color::BLACK, Color::WHITE);
     let checked_texture = handle
@@ -108,26 +110,26 @@ fn main() {
         .collect();
     let mut meshes: Vec<MeshDescriptor> = Vec::new();
 
-    let mut ghost_world = handle
+    let mut world_ghost = handle
         .load_model(&thread, SPHERE_GLTF_PATH)
         .expect("Failed to load ghost GLTF");
 
-    ghost_world.materials_mut()[0].set_material_texture(MATERIAL_MAP_ALBEDO, &checked_texture);
+    world_ghost.materials_mut()[0].set_material_texture(MATERIAL_MAP_ALBEDO, &checked_texture);
 
-    let original_mesh_vertices = ghost_world.meshes()[0].vertices().to_vec();
+    let world_ghost_pre_animation_vertices = world_ghost.meshes()[0].vertices().to_vec();
 
-    let mut mesh_samples = collect_deformed_vertex_samples(ghost_world.meshes()[0].vertices(), &field_config);
+    let mut mesh_samples = collect_deformed_vertex_samples(world_ghost.meshes()[0].vertices(), &field_config);
     let mut preload_dynamic_metrics_for_ghost = FrameDynamicMetrics::new();
     interpolate_between_deformed_vertices(
-        &mut ghost_world,
+        &mut world_ghost,
         i_time,
         &mesh_samples,
         &mut preload_dynamic_metrics_for_ghost,
         &field_config,
     );
 
-    let ghost_ndc_mesh = {
-        let world_mesh = &ghost_world.meshes()[0];
+    let ndc_ghost_mesh = {
+        let world_mesh = &world_ghost.meshes()[0];
         Mesh::init_mesh(world_mesh.vertices())
             .texcoords_opt(world_mesh.texcoords())
             .colors_opt(world_mesh.colors())
@@ -136,19 +138,19 @@ fn main() {
             .build_dynamic(&thread)
             .unwrap()
     };
-    let mut ghost_ndc = handle
-        .load_model_from_mesh(&thread, ghost_ndc_mesh)
+    let mut ndc_ghost = handle
+        .load_model_from_mesh(&thread, ndc_ghost_mesh)
         .expect("Failed to create ghost NDC model");
-    ghost_ndc.materials_mut()[0].set_material_texture(MATERIAL_MAP_ALBEDO, &checked_texture);
+    ndc_ghost.materials_mut()[0].set_material_texture(MATERIAL_MAP_ALBEDO, &checked_texture);
 
-    let ghost_metrics_world = MeshMetrics::measure(&ghost_world.meshes()[0]);
-    let ghost_metrics_ndc = MeshMetrics::measure(&ghost_ndc.meshes()[0]);
+    let ghost_metrics_world = MeshMetrics::measure(&world_ghost.meshes()[0]);
+    let ghost_metrics_ndc = MeshMetrics::measure(&ndc_ghost.meshes()[0]);
     let ghost_combined_bytes = ghost_metrics_world.total_bytes + ghost_metrics_ndc.total_bytes;
 
     meshes.push(MeshDescriptor {
         name: "GHOST",
-        world: ghost_world,
-        ndc: ghost_ndc,
+        world: world_ghost,
+        ndc: ndc_ghost,
         texture: checked_texture,
         metrics_world: ghost_metrics_world,
         metrics_ndc: ghost_metrics_ndc,
@@ -219,36 +221,37 @@ fn main() {
     }
 
     let mut preload_dynamic_metrics = FrameDynamicMetrics::new();
-    for desc in meshes.iter_mut() {
+    for mesh_descriptor in meshes.iter_mut() {
         world_to_ndc_space(
             &main,
             aspect,
             near,
             far,
-            &desc.world,
-            &mut desc.ndc,
+            &mesh_descriptor.world,
+            &mut mesh_descriptor.ndc,
             0.0,
             0.0,
             1.0,
             &mut preload_dynamic_metrics,
             &view_config,
         );
-        desc.z_shift_anisotropic = calculate_average_ndc_z_shift(&desc.world, &desc.ndc);
+        mesh_descriptor.z_shift_anisotropic =
+            calculate_average_ndc_z_shift(&mesh_descriptor.world, &mesh_descriptor.ndc);
 
         world_to_ndc_space(
             &main,
             aspect,
             near,
             far,
-            &desc.world,
-            &mut desc.ndc,
+            &mesh_descriptor.world,
+            &mut mesh_descriptor.ndc,
             0.0,
             0.0,
             0.0,
             &mut preload_dynamic_metrics,
             &view_config,
         );
-        desc.z_shift_isotropic = calculate_average_ndc_z_shift(&desc.world, &desc.ndc);
+        mesh_descriptor.z_shift_isotropic = calculate_average_ndc_z_shift(&mesh_descriptor.world, &mesh_descriptor.ndc);
     }
 
     let mut spatial_frame_model = {
@@ -296,10 +299,10 @@ fn main() {
             new_view_cfg.log_delta(&view_config);
             view_config = new_view_cfg;
 
-            view_state.jugemu_zoom.fovy_ortho = view_config.fovy_orthographic;
-            view_state.jugemu_zoom.fovy_perspective = view_config.fovy_perspective;
-            view_state.jugemu_zoom.distance_ortho = view_config.jugemu_distance_ortho;
-            view_state.jugemu_zoom.distance_perspective = view_config.jugemu_distance_perspective;
+            view_state.jugemu_state.fovy_ortho = view_config.fovy_orthographic;
+            view_state.jugemu_state.fovy_perspective = view_config.fovy_perspective;
+            view_state.jugemu_state.distance_ortho = view_config.jugemu_distance_ortho;
+            view_state.jugemu_state.distance_perspective = view_config.jugemu_distance_perspective;
 
             let jugemu_dir = jugemu.position.normalize();
             let jugemu_dist = if view_state.jugemu_ortho_mode {
@@ -323,9 +326,9 @@ fn main() {
         }
 
         if needs_sample_regeneration {
-            mesh_samples = collect_deformed_vertex_samples(&original_mesh_vertices, &field_config);
+            mesh_samples = collect_deformed_vertex_samples(&world_ghost_pre_animation_vertices, &field_config);
             println!(
-                "{} Ghost samples regenerated: {} samples",
+                "{} Animated vertex samples regenerated: {} samples",
                 timestamp(),
                 mesh_samples.len()
             );
@@ -374,10 +377,10 @@ fn main() {
         let target_mesh = view_state.target_mesh_index;
 
         if target_mesh == 0 && !view_state.paused {
-            let ghost = &mut meshes[0];
-            update_ghost_mesh(
-                &mut ghost.ndc,
-                &mut ghost.world,
+            let animated_mesh_descriptor = &mut meshes[0];
+            update_animated_mesh(
+                &mut animated_mesh_descriptor.ndc,
+                &mut animated_mesh_descriptor.world,
                 mesh_rotation,
                 &mesh_samples,
                 &main,
@@ -388,14 +391,14 @@ fn main() {
         }
 
         {
-            let desc = &mut meshes[target_mesh];
+            let mesh_descriptor = &mut meshes[target_mesh];
             world_to_ndc_space(
                 &main,
                 aspect,
                 near,
                 far,
-                &desc.world,
-                &mut desc.ndc,
+                &mesh_descriptor.world,
+                &mut mesh_descriptor.ndc,
                 mesh_rotation,
                 view_state.ortho_blend,
                 view_state.aspect_blend,
@@ -404,8 +407,8 @@ fn main() {
             );
 
             blend_world_and_ndc_vertices(
-                &desc.world,
-                &mut desc.ndc,
+                &mesh_descriptor.world,
+                &mut mesh_descriptor.ndc,
                 view_state.space_blend,
                 &mut frame_dynamic_metrics,
             );
@@ -439,9 +442,9 @@ fn main() {
 
         let hover_state = compute_hover_state(&handle, &jugemu, &room, &placed_cells);
 
-        if let Some(cell_idx) = hover_state.placed_cell_index {
+        if let Some(cell_index) = hover_state.placed_cell_index {
             let (ix, iy, iz) = {
-                let c = &placed_cells[cell_idx];
+                let c = &placed_cells[cell_index];
                 (c.ix, c.iy, c.iz)
             };
 
@@ -479,7 +482,7 @@ fn main() {
                 if edit_cursor < edit_stack.len() {
                     edit_stack.truncate(edit_cursor);
                 }
-                let cell = placed_cells[cell_idx].clone();
+                let cell = placed_cells[cell_index].clone();
                 let op = EditStack::RemoveCell { cell, time: total_time };
                 redo(&op, &mut placed_cells);
                 edit_stack.push(op);
