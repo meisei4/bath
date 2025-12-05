@@ -185,9 +185,9 @@ pub fn draw_chi_field(
 
     for opening in &room.openings {
         let field_disrupter_color = match opening.kind {
-            OpeningKind::Door { primary: true } => field_disrupter_color(FieldDisrupter::DoorPrimary),
+            OpeningKind::Door { primary: true } => FieldDisrupter::DoorPrimary.color(),
             OpeningKind::Door { primary: false } => Color::WHITE, // TODO: ew, but fine for now
-            OpeningKind::Window => field_disrupter_color(FieldDisrupter::Window),
+            OpeningKind::Window => FieldDisrupter::Window.color(),
         };
 
         rl3d.draw_line3D(opening.p0, opening.p1, field_disrupter_color);
@@ -228,7 +228,7 @@ fn draw_partitioned_line(rl3d: &mut RaylibMode3D<RaylibDrawHandle>, room: &Room,
         );
 
         let curr_dominant = room.get_dominant_disrupter_at(curr_pos);
-        let color = field_disrupter_color(prev_dominant);
+        let color = prev_dominant.color();
         rl3d.draw_line3D(prev_pos, curr_pos, color);
 
         prev_pos = curr_pos;

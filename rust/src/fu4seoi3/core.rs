@@ -95,21 +95,6 @@ impl Opening {
     }
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum FieldDisrupter {
-    DoorPrimary,
-    Window,
-    BackWall,
-}
-
-pub fn field_disrupter_color(kind: FieldDisrupter) -> Color {
-    match kind {
-        FieldDisrupter::DoorPrimary => ANAKIWA,
-        FieldDisrupter::Window => PALE_CANARY,
-        FieldDisrupter::BackWall => CHESTNUT_ROSE,
-    }
-}
-
 pub struct FieldSample {
     pub position: Vector3,
     pub direction: Vector2,
@@ -118,33 +103,6 @@ pub struct FieldSample {
     pub door_influence: f32,
     pub window_influence: f32,
     pub wall_influence: f32,
-}
-
-pub fn build_chi_field_model(handle: &mut RaylibHandle, thread: &RaylibThread, room: &Room) -> Model {
-    let mut vertices = Vec::new();
-    let mut normals = Vec::new();
-    let mut colors = Vec::new();
-    let mut texcoords = Vec::new();
-
-    room.sample_chi_field(
-        |position, direction, magnitude, dominant, door_inf, window_inf, _wall_inf| {
-            vertices.push(position);
-            normals.push(Vector3::new(direction.x, magnitude, direction.y));
-            texcoords.push(Vector2::new(door_inf, window_inf));
-            colors.push(field_disrupter_color(dominant));
-        },
-    );
-
-    let mesh = Mesh::init_mesh(&vertices)
-        .normals(&normals)
-        .colors(&colors)
-        .texcoords(&texcoords)
-        .build_dynamic(thread)
-        .expect("failed to build chi field mesh");
-
-    handle
-        .load_model_from_mesh(thread, mesh)
-        .expect("failed to create chi field model")
 }
 
 #[derive(Default)]
@@ -156,110 +114,232 @@ struct FieldAccumulator {
     wall_influence: f32,
 }
 
-type FieldDisrupterFn = fn(point: Vector3, acc: &mut FieldAccumulator, room: &Room, instance: &FieldDisrupterInstance);
-
-//TODO: we really need to make this make sense, honestly i think at some point we should be merging the FieldDisrupter and this into a single struct with actual functoins we implement per disrupter we add
-struct FieldDisrupterInstance {
-    opening_index: Option<usize>, //TODO: we will need to fix this to not be an opening index but actually a Disrupter type/enum i think that also gets integrated with the opening stuff, idk what to do yet with it though, so keep it for now i guess
-    apply: FieldDisrupterFn,
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum FieldDisrupter {
+    DoorPrimary,
+    Window,
+    BackWall,
 }
 
-//TODO: this is still really fucking gross to be a global funciton and then have that Room function pretty much be a "per draw/sample" pass of what this computes in the first place?
-fn evaluate_dominant_disrupter(acc: &FieldAccumulator) -> FieldDisrupter {
-    if acc.window_influence < 0.05 && acc.wall_influence < 0.05 {
-        FieldDisrupter::DoorPrimary
-    } else if acc.window_influence >= acc.wall_influence {
-        FieldDisrupter::Window
-    } else {
-        FieldDisrupter::BackWall
-    }
-}
+impl FieldDisrupter {
+    fn apply(self, point: Vector3, acc: &mut FieldAccumulator, room: &Room, opening_index: Option<usize>) {
+        match self {
+            FieldDisrupter::DoorPrimary => {
+                let idx = match opening_index {
+                    Some(i) => i,
+                    None => return,
+                };
+                if idx >= room.openings.len() {
+                    return;
+                }
+                let opening = &room.openings[idx];
+                let (dir, mag) = emitter_jet_flow(point, opening, &room.config);
+                if mag > 0.0 {
+                    acc.direction = dir;
+                    acc.magnitude = mag;
+                    acc.door_influence = 1.0;
+                } else {
+                    acc.door_influence = 0.0;
+                }
+            },
+            FieldDisrupter::Window => {
+                let idx = match opening_index {
+                    Some(i) => i,
+                    None => return,
+                };
+                if idx >= room.openings.len() {
+                    return;
+                }
+                let opening = &room.openings[idx];
 
-//TODO WHY CANT THIS BE A FUCKIGN ATTRIBUTE TO FieldDisrupterInstance??!??! then we get self.opening_index for free and it is optional for the apply function and we can reduce the function?!???!
-fn door_jet_disrupter(
-    point: Vector3,
-    field_accumulator: &mut FieldAccumulator,
-    room: &Room,
-    instance: &FieldDisrupterInstance,
-) {
-    let opening_index = match instance.opening_index {
-        Some(i) => i,
-        None => return,
-    };
-    let opening = &room.openings[opening_index];
-    let (dir, mag) = room.rectangular_jet_from_opening(point, opening);
-    if mag > 0.0 {
-        field_accumulator.direction = dir;
-        field_accumulator.magnitude = mag;
-        field_accumulator.door_influence = 1.0;
-    } else {
-        field_accumulator.door_influence = 0.0;
-    }
-}
+                let dir_before = acc.direction;
+                let mag_before = acc.magnitude;
 
-//TODO WHY CANT THIS BE A FUCKIGN ATTRIBUTE TO FieldDisrupterInstance??!??! then we get self.opening_index for free and it is optional for the apply function and we can reduce the function?!???!
-fn window_funnel_disrupter(point: Vector3, acc: &mut FieldAccumulator, room: &Room, instance: &FieldDisrupterInstance) {
-    let opening_index = match instance.opening_index {
-        Some(i) => i,
-        None => return,
-    };
-    let dir_before = acc.direction;
-    let mag_before = acc.magnitude;
-    let opening = &room.openings[opening_index];
-    let (dir_after, mag_after, window_weight) = room.converging_duct_to_opening(point, dir_before, mag_before, opening);
-    let window_strength_inf = window_weight.clamp(0.0, 1.0);
-    let mut window_angle_inf = 0.0;
-    if dir_before.length_squared() > 0.0 && dir_after.length_squared() > 0.0 {
-        let angle = angle_between(dir_before, dir_after);
-        window_angle_inf = (angle / FRAC_PI_2).clamp(0.0, 1.0);
-    }
+                let (dir_after, mag_after, window_weight) =
+                    sink_convergence_duct(point, dir_before, mag_before, opening, &room.config);
 
-    let inf = window_angle_inf.max(window_strength_inf);
-    if inf > acc.window_influence {
-        acc.window_influence = inf;
-    }
+                let window_strength_inf = window_weight.clamp(0.0, 1.0);
 
-    acc.direction = dir_after;
-    acc.magnitude = mag_after;
-}
+                let mut window_angle_inf = 0.0;
+                if dir_before.length_squared() > 0.0 && dir_after.length_squared() > 0.0 {
+                    let angle = angle_between(dir_before, dir_after);
+                    window_angle_inf = (angle / FRAC_PI_2).clamp(0.0, 1.0);
+                }
 
-//TODO is there really no way to avoid passing this instance shit into the disrupters? it only needs the fucking opening index, and thats OPTIONAL
-fn back_wall_disrupter(point: Vector3, acc: &mut FieldAccumulator, room: &Room, instance: &FieldDisrupterInstance) {
-    let dir_before = acc.direction;
-    let mag_before = acc.magnitude;
+                let inf = window_angle_inf.max(window_strength_inf);
+                if inf > acc.window_influence {
+                    acc.window_influence = inf;
+                }
 
-    let (dir_after, mag_after, wall_weight) = room.apply_back_wall_redirect(point, dir_before, mag_before);
+                acc.direction = dir_after;
+                acc.magnitude = mag_after;
+            },
+            FieldDisrupter::BackWall => {
+                let dir_before = acc.direction;
+                let mag_before = acc.magnitude;
 
-    if dir_before.length_squared() > 0.0 && dir_after.length_squared() > 0.0 {
-        let angle = angle_between(dir_before, dir_after);
-        let wall_angle_inf = (angle / FRAC_PI_2).clamp(0.0, 1.0);
-        let wall_strength_inf = wall_weight.clamp(0.0, 1.0);
-        let inf = wall_angle_inf.max(wall_strength_inf);
-        if inf > acc.wall_influence {
-            acc.wall_influence = inf;
+                let (dir_after, mag_after, wall_weight) = emitter_tangential_redirect(
+                    point,
+                    dir_before,
+                    mag_before,
+                    room.origin,
+                    room.w as f32,
+                    &room.config,
+                );
+
+                if dir_before.length_squared() > 0.0 && dir_after.length_squared() > 0.0 {
+                    let angle = angle_between(dir_before, dir_after);
+                    let wall_angle_inf = (angle / FRAC_PI_2).clamp(0.0, 1.0);
+                    let wall_strength_inf = wall_weight.clamp(0.0, 1.0);
+                    let inf = wall_angle_inf.max(wall_strength_inf);
+                    if inf > acc.wall_influence {
+                        acc.wall_influence = inf;
+                    }
+                }
+
+                acc.direction = dir_after;
+                acc.magnitude = mag_after;
+            },
         }
     }
 
-    acc.direction = dir_after;
-    acc.magnitude = mag_after;
+    pub(crate) fn color(&self) -> Color {
+        match self {
+            FieldDisrupter::DoorPrimary => ANAKIWA,
+            FieldDisrupter::Window => PALE_CANARY,
+            FieldDisrupter::BackWall => CHESTNUT_ROSE,
+        }
+    }
 }
 
-//TODO: this is taking way to many fucking arguments, i thought we were trying to clean this up, sampling the field should only be point and then like Vec<FieldSample> I THOUGHT?
-fn sample_field_at(point: Vector3, room: &Room, disrupters: &[FieldDisrupterInstance]) -> FieldSample {
-    let mut acc = FieldAccumulator::default();
-    for instance in disrupters {
-        (instance.apply)(point, &mut acc, room, instance);
+#[derive(Clone)]
+struct FieldDisrupterInstance {
+    kind: FieldDisrupter,
+    opening_index: Option<usize>,
+}
+
+impl FieldDisrupterInstance {
+    fn apply(&self, point: Vector3, acc: &mut FieldAccumulator, room: &Room) {
+        self.kind.apply(point, acc, room, self.opening_index);
     }
-    let dominant = evaluate_dominant_disrupter(&acc);
-    FieldSample {
-        position: point,
-        direction: acc.direction.normalize_or_zero(),
-        magnitude: acc.magnitude,
-        dominant,
-        door_influence: acc.door_influence,
-        window_influence: acc.window_influence,
-        wall_influence: acc.wall_influence,
+}
+
+fn emitter_jet_flow(point: Vector3, opening: &Opening, cfg: &FieldConfig) -> (Vector2, f32) {
+    if !matches!(opening.kind, OpeningKind::Door { .. }) {
+        return (Vector2::ZERO, 0.0);
     }
+
+    let center = opening.center();
+    let p2d = Vector2::new(point.x, point.z);
+    let c2d = Vector2::new(center.x, center.z);
+
+    let to_point = p2d - c2d;
+    let jet_normal = opening.normal();
+    let jet_tangent = opening.tangent();
+
+    let forward_dist = to_point.dot(jet_normal);
+    let lateral_offset = to_point.dot(jet_tangent);
+
+    if forward_dist <= 0.0 {
+        return (Vector2::ZERO, 0.0);
+    }
+    if forward_dist > cfg.jet_max_distance {
+        return (Vector2::ZERO, 0.0);
+    }
+
+    let half_width = opening.width() * 0.5;
+    let spread_rad = cfg.jet_spread_angle.to_radians();
+    let spread_amount = forward_dist * spread_rad.tan();
+    let jet_half_width = half_width + spread_amount;
+
+    if lateral_offset.abs() > jet_half_width {
+        return (Vector2::ZERO, 0.0);
+    }
+
+    let dir = jet_normal;
+    let edge = 1.0 - (lateral_offset.abs() / jet_half_width).powf(2.0);
+    let dist = 1.0 - (forward_dist / cfg.jet_max_distance);
+    let mag = cfg.jet_strength * edge * dist;
+
+    (dir, mag)
+}
+
+fn sink_convergence_duct(
+    point: Vector3,
+    dir: Vector2,
+    mag: f32,
+    opening: &Opening,
+    cfg: &FieldConfig,
+) -> (Vector2, f32, f32) {
+    if !matches!(opening.kind, OpeningKind::Window) {
+        return (dir, mag, 0.0);
+    }
+
+    let center = opening.center();
+    let p2d = Vector2::new(point.x, point.z);
+    let c2d = Vector2::new(center.x, center.z);
+    let normal = opening.normal();
+    let tangent = opening.tangent();
+
+    let to_point = p2d - c2d;
+
+    let dist_from_window = to_point.dot(normal);
+    if dist_from_window <= 0.0 {
+        return (dir, mag, 0.0);
+    }
+    if dist_from_window > cfg.funnel_reach {
+        return (dir, mag, 0.0);
+    }
+
+    let lateral = to_point.dot(tangent);
+    let nd = dist_from_window / cfg.funnel_reach;
+    let width_interp = nd.powf(cfg.funnel_curve_power);
+    let funnel_radius = cfg.funnel_sink_radius + (cfg.funnel_catch_radius - cfg.funnel_sink_radius) * width_interp;
+
+    if lateral.abs() > funnel_radius {
+        return (dir, mag, 0.0);
+    }
+
+    let target_lateral = if funnel_radius > 0.0 {
+        lateral * (cfg.funnel_sink_radius / funnel_radius)
+    } else {
+        0.0
+    };
+
+    let target_point = c2d + tangent * target_lateral;
+    let desired_dir = (target_point - p2d).normalize_or_zero();
+    let proximity = 1.0 - nd;
+    let lateral_factor = 1.0 - (lateral.abs() / funnel_radius).powf(2.0);
+    let weight = cfg.funnel_strength * proximity * lateral_factor;
+    let new_dir = blend_directions(dir, desired_dir, weight);
+    let new_mag = if mag == 0.0 { weight * cfg.funnel_strength } else { mag };
+
+    (new_dir, new_mag, weight)
+}
+
+fn emitter_tangential_redirect(
+    point: Vector3,
+    dir: Vector2,
+    mag: f32,
+    origin: Vector3,
+    room_width: f32,
+    cfg: &FieldConfig,
+) -> (Vector2, f32, f32) {
+    let back_wall_z = origin.z;
+    let dist = (point.z - back_wall_z).abs();
+    let max_dist = cfg.wall_redirect_distance;
+    if max_dist <= 0.0 || dist >= max_dist {
+        return (dir, mag, 0.0);
+    }
+
+    let base = cfg.wall_redirect_strength.clamp(0.0, 1.0);
+    let falloff = 1.0 - (dist / max_dist);
+    let weight = base * falloff;
+    let center_x = origin.x + room_width * 0.5;
+    let lateral = point.x - center_x;
+    let desired_dir = Vector2::new(if lateral >= 0.0 { 1.0 } else { -1.0 }, 0.0);
+    let new_dir = blend_directions(dir, desired_dir, weight);
+    (new_dir, mag, weight)
 }
 
 pub struct Room {
@@ -297,16 +377,16 @@ impl Default for Room {
         let openings = vec![primary_door, window];
         let mut field_disrupters = Vec::new();
         field_disrupters.push(FieldDisrupterInstance {
+            kind: FieldDisrupter::DoorPrimary,
             opening_index: Some(0),
-            apply: door_jet_disrupter,
         });
         field_disrupters.push(FieldDisrupterInstance {
+            kind: FieldDisrupter::Window,
             opening_index: Some(1),
-            apply: window_funnel_disrupter,
         });
         field_disrupters.push(FieldDisrupterInstance {
+            kind: FieldDisrupter::BackWall,
             opening_index: None,
-            apply: back_wall_disrupter,
         });
 
         let mut room = Room {
@@ -322,6 +402,37 @@ impl Default for Room {
         room.generate_chi_field();
         room
     }
+}
+
+//TODO: find a better place for this, in room? decouple from room at all?? maybe its because this is not entirely integrated into the new desgin
+// REMEMBER ITS A DEFAULT STATE RIGHT NOW!!
+pub fn build_chi_field_model(handle: &mut RaylibHandle, thread: &RaylibThread, room: &Room) -> Model {
+    let mut vertices = Vec::new();
+    let mut normals = Vec::new();
+    let mut colors = Vec::new();
+    let mut texcoords = Vec::new();
+
+    for field_sample in room.field_samples() {
+        vertices.push(field_sample.position);
+        normals.push(Vector3::new(
+            field_sample.direction.x,
+            field_sample.magnitude,
+            field_sample.direction.y,
+        ));
+        texcoords.push(Vector2::new(field_sample.door_influence, field_sample.window_influence));
+        colors.push(field_sample.dominant.color());
+    }
+
+    let mesh = Mesh::init_mesh(&vertices)
+        .normals(&normals)
+        .colors(&colors)
+        .texcoords(&texcoords)
+        .build_dynamic(thread)
+        .expect("failed to build chi field mesh");
+
+    handle
+        .load_model_from_mesh(thread, mesh)
+        .expect("failed to create chi field model")
 }
 
 impl Room {
@@ -412,11 +523,11 @@ impl Room {
                 for ix in 0..self.w {
                     let center = self.cell_center(ix, iy, iz);
                     let center_pos = Vector3::new(center.x, base_y, center.z);
-                    samples.push(sample_field_at(center_pos, self, &self.field_disrupters));
+                    samples.push(self.sample_field_at(center_pos));
 
                     for &(dx, dz) in &[(-0.5, -0.5), (0.5, -0.5), (-0.5, 0.5), (0.5, 0.5)] {
                         let pos = Vector3::new(center_pos.x + dx, base_y, center_pos.z + dz);
-                        samples.push(sample_field_at(pos, self, &self.field_disrupters));
+                        samples.push(self.sample_field_at(pos));
                     }
                 }
             }
@@ -424,145 +535,36 @@ impl Room {
         self.field_samples = samples;
     }
 
-    //TODO: WHAT THE FUCK IS THIS COME ON WE HAVE THIS AND THE sample_field_at function, we need ot really fucking get this shit consolidated
-    pub fn sample_chi_field<F>(&self, mut emit: F)
-    where
-        F: FnMut(Vector3, Vector2, f32, FieldDisrupter, f32, f32, f32),
-    {
-        for sample in &self.field_samples {
-            emit(
-                sample.position,
-                sample.direction,
-                sample.magnitude,
-                sample.dominant,
-                sample.door_influence,
-                sample.window_influence,
-                sample.wall_influence,
-            );
+    fn sample_field_at(&self, point: Vector3) -> FieldSample {
+        let mut acc = FieldAccumulator::default();
+        for field_disrupter in &self.field_disrupters {
+            field_disrupter.apply(point, &mut acc, self);
         }
-    }
-
-    //TODO: see the global scope wrappers for these functions, i really dont like this shit being so convoluted and spread out everythwere.
-    fn rectangular_jet_from_opening(&self, point: Vector3, opening: &Opening) -> (Vector2, f32) {
-        if !matches!(opening.kind, OpeningKind::Door { .. }) {
-            return (Vector2::ZERO, 0.0);
-        }
-
-        let center = opening.center();
-        let p2d = Vector2::new(point.x, point.z);
-        let c2d = Vector2::new(center.x, center.z);
-
-        let to_point = p2d - c2d;
-        let jet_normal = opening.normal();
-        let jet_tangent = opening.tangent();
-
-        let forward_dist = to_point.dot(jet_normal);
-        let lateral_offset = to_point.dot(jet_tangent);
-
-        if forward_dist <= 0.0 {
-            return (Vector2::ZERO, 0.0);
-        }
-        if forward_dist > self.config.jet_max_distance {
-            return (Vector2::ZERO, 0.0);
-        }
-
-        let half_width = opening.width() * 0.5;
-        let spread_rad = self.config.jet_spread_angle.to_radians();
-        let spread_amount = forward_dist * spread_rad.tan();
-        let jet_half_width = half_width + spread_amount;
-
-        if lateral_offset.abs() > jet_half_width {
-            return (Vector2::ZERO, 0.0);
-        }
-
-        let dir = jet_normal;
-        let edge = 1.0 - (lateral_offset.abs() / jet_half_width).powf(2.0);
-        let dist = 1.0 - (forward_dist / self.config.jet_max_distance);
-        let mag = self.config.jet_strength * edge * dist;
-
-        (dir, mag)
-    }
-
-    fn converging_duct_to_opening(
-        &self,
-        point: Vector3,
-        dir: Vector2,
-        mag: f32,
-        opening: &Opening,
-    ) -> (Vector2, f32, f32) {
-        if !matches!(opening.kind, OpeningKind::Window) {
-            return (dir, mag, 0.0);
-        }
-
-        let center = opening.center();
-        let p2d = Vector2::new(point.x, point.z);
-        let c2d = Vector2::new(center.x, center.z);
-        let normal = opening.normal();
-        let tangent = opening.tangent();
-
-        let to_point = p2d - c2d;
-
-        let dist_from_window = to_point.dot(normal);
-        if dist_from_window <= 0.0 {
-            return (dir, mag, 0.0);
-        }
-        if dist_from_window > self.config.funnel_reach {
-            return (dir, mag, 0.0);
-        }
-
-        let lateral = to_point.dot(tangent);
-        let nd = dist_from_window / self.config.funnel_reach;
-        let width_interp = nd.powf(self.config.funnel_curve_power);
-        let funnel_radius = self.config.funnel_sink_radius
-            + (self.config.funnel_catch_radius - self.config.funnel_sink_radius) * width_interp;
-
-        if lateral.abs() > funnel_radius {
-            return (dir, mag, 0.0);
-        }
-
-        let target_lateral = if funnel_radius > 0.0 {
-            lateral * (self.config.funnel_sink_radius / funnel_radius)
+        //TODO: THIS CLEARLY NEEDS TO BE PREPARED TO ITERATE OVER ALL FIELD DISRUPTERS NOT HARD CODED BLOGAL UTIL FUNCTION
+        let dominant = if acc.window_influence < 0.05 && acc.wall_influence < 0.05 {
+            FieldDisrupter::DoorPrimary
+        } else if acc.window_influence >= acc.wall_influence {
+            FieldDisrupter::Window
         } else {
-            0.0
+            FieldDisrupter::BackWall
         };
-
-        let target_point = c2d + tangent * target_lateral;
-        let desired_dir = (target_point - p2d).normalize_or_zero();
-        let proximity = 1.0 - nd;
-        let lateral_factor = 1.0 - (lateral.abs() / funnel_radius).powf(2.0);
-        let weight = self.config.funnel_strength * proximity * lateral_factor;
-        let new_dir = blend_directions(dir, desired_dir, weight);
-        let new_mag = if mag == 0.0 {
-            weight * self.config.funnel_strength
-        } else {
-            mag
-        };
-
-        (new_dir, new_mag, weight)
-    }
-
-    fn apply_back_wall_redirect(&self, point: Vector3, dir: Vector2, mag: f32) -> (Vector2, f32, f32) {
-        let origin = self.origin;
-        let back_wall_z = origin.z;
-        let dist = (point.z - back_wall_z).abs();
-        let max_dist = self.config.wall_redirect_distance;
-        if max_dist <= 0.0 || dist >= max_dist {
-            return (dir, mag, 0.0);
+        FieldSample {
+            position: point,
+            direction: acc.direction.normalize_or_zero(),
+            magnitude: acc.magnitude,
+            dominant,
+            door_influence: acc.door_influence,
+            window_influence: acc.window_influence,
+            wall_influence: acc.wall_influence,
         }
-
-        let base = self.config.wall_redirect_strength.clamp(0.0, 1.0);
-        let falloff = 1.0 - (dist / max_dist);
-        let weight = base * falloff;
-        let center_x = origin.x + self.w as f32 * 0.5;
-        let lateral = point.x - center_x;
-        let desired_dir = Vector2::new(if lateral >= 0.0 { 1.0 } else { -1.0 }, 0.0);
-        let new_dir = blend_directions(dir, desired_dir, weight);
-        (new_dir, mag, weight)
     }
 
     pub fn get_dominant_disrupter_at(&self, point: Vector3) -> FieldDisrupter {
-        let sample = sample_field_at(point, self, &self.field_disrupters);
-        sample.dominant
+        self.sample_field_at(point).dominant
+    }
+
+    pub fn field_samples(&self) -> &[FieldSample] {
+        &self.field_samples
     }
 }
 
