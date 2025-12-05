@@ -170,6 +170,9 @@ pub fn draw_chi_field(rl3d: &mut RaylibMode3D<RaylibDrawHandle>, room: &Room, op
         ffi::rlSetLineWidth(2.0);
     }
 
+    let door = room.primary_door();
+    let window = room.primary_window();
+
     for sample in &room.field_samples {
         let center = sample.position;
         let m = sample.magnitude.clamp(0.0, 1.0);
@@ -186,8 +189,7 @@ pub fn draw_chi_field(rl3d: &mut RaylibMode3D<RaylibDrawHandle>, room: &Room, op
             center.z + sample.direction.y * half,
         );
 
-        let color = chi_disrupter_color(sample.dominant);
-        rl3d.draw_line3D(start, end, color);
+        draw_partitioned_line(rl3d, room, start, end, door, window);
     }
 
     for opening in &room.openings {
@@ -221,12 +223,40 @@ pub fn draw_chi_field(rl3d: &mut RaylibMode3D<RaylibDrawHandle>, room: &Room, op
     }
 }
 
+fn draw_partitioned_line(
+    rl3d: &mut RaylibMode3D<RaylibDrawHandle>,
+    room: &Room,
+    start: Vector3,
+    end: Vector3,
+    door: &Opening,
+    window: Option<&Opening>,
+) {
+    const SEGMENTS: usize = 8;
+    let mut prev_pos = start;
+    let mut prev_dominant = room.classify_dominant_disrupter(start, door, window);
+
+    for i in 1..=SEGMENTS {
+        let t = i as f32 / SEGMENTS as f32;
+        let curr_pos = Vector3::new(
+            start.x + (end.x - start.x) * t,
+            start.y + (end.y - start.y) * t,
+            start.z + (end.z - start.z) * t,
+        );
+
+        let curr_dominant = room.classify_dominant_disrupter(curr_pos, door, window);
+        let color = chi_disrupter_color(prev_dominant);
+        rl3d.draw_line3D(prev_pos, curr_pos, color);
+
+        prev_pos = curr_pos;
+        prev_dominant = curr_dominant;
+    }
+}
+
 fn chi_disrupter_color(kind: FieldDisrupter) -> Color {
     match kind {
-        FieldDisrupter::Base => SUNFLOWER,
         FieldDisrupter::DoorPrimary => ANAKIWA,
         FieldDisrupter::Window => PALE_CANARY,
-        FieldDisrupter::BackWall => LILAC,
+        FieldDisrupter::BackWall => CHESTNUT_ROSE,
     }
 }
 

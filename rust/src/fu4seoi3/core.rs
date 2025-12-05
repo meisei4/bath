@@ -2,7 +2,7 @@ use crate::fu4seoi3::draw::*;
 use raylib::consts::CameraProjection::CAMERA_ORTHOGRAPHIC;
 use raylib::math::glam::Mat4;
 use raylib::prelude::*;
-use std::f32::consts::{PI, TAU};
+use std::f32::consts::{FRAC_PI_2, PI, TAU};
 use std::fs;
 use std::mem::size_of;
 use std::ops::{Add, Sub};
@@ -505,21 +505,6 @@ impl Default for JugemuState {
     }
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum FieldDisrupter {
-    Base,
-    DoorPrimary,
-    Window,
-    BackWall,
-}
-
-pub struct FieldSample {
-    pub position: Vector3,
-    pub direction: Vector2,
-    pub magnitude: f32,
-    pub dominant: FieldDisrupter,
-}
-
 pub struct HoverState {
     pub indices: Option<(i32, i32, i32)>,
     pub center: Option<Vector3>,
@@ -761,7 +746,6 @@ impl Opening {
         let mid = self.center();
         match self.kind {
             //TODO: consolidate the h0 and the concepts of model "heart" (i.e. model coords 0,0,0 has meaning beyond just logic for placement in world space)
-            // (hikite makes sense for fusuma but deriving for others should help solidify the positioning on the walls i i think
             OpeningKind::Door { .. } => Vector3::new(mid.x, self.p0.y + self.h0, mid.z),
             OpeningKind::Window => Vector3::new(mid.x, self.p0.y + room.h as f32 * 0.5, mid.z),
         }
@@ -803,6 +787,23 @@ impl Opening {
             _ => 0.0,
         }
     }
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum FieldDisrupter {
+    DoorPrimary,
+    Window,
+    BackWall,
+}
+
+pub struct FieldSample {
+    pub position: Vector3,
+    pub direction: Vector2,
+    pub magnitude: f32,
+    pub dominant: FieldDisrupter,
+    pub door_influence: f32,
+    pub window_influence: f32,
+    pub wall_influence: f32,
 }
 
 pub struct Room {
@@ -988,9 +989,66 @@ impl Room {
         (dir, mag)
     }
 
-    fn converging_duct_to_opening(&self, point: Vector3, dir: Vector2, mag: f32, opening: &Opening) -> (Vector2, f32) {
+    pub fn generate_chi_field(&mut self) {
+        self.field_samples.clear();
+        let door = *self.primary_door();
+        let window = self.primary_window().copied();
+        let base_y = self.origin.y + self.config.chi_sample_height;
+
+        for iy in 0..self.h {
+            for iz in 0..self.d {
+                for ix in 0..self.w {
+                    if iy != 0 {
+                        continue;
+                    }
+                    let center = self.cell_center(ix, iy, iz);
+                    let center_pos = Vector3::new(center.x, base_y, center.z);
+                    let (dir, mag) = self.compute_energy_at_point(center_pos, &door, window.as_ref());
+                    let dominant = self.classify_dominant_disrupter(center_pos, &door, window.as_ref());
+                    let (door_inf, window_inf, wall_inf) =
+                        self.source_influences_at_point(center_pos, &door, window.as_ref());
+
+                    self.field_samples.push(FieldSample {
+                        position: center_pos,
+                        direction: dir,
+                        magnitude: mag,
+                        dominant,
+                        door_influence: door_inf,
+                        window_influence: window_inf,
+                        wall_influence: wall_inf,
+                    });
+
+                    for &(dx, dz) in &[(-0.5, -0.5), (0.5, -0.5), (-0.5, 0.5), (0.5, 0.5)] {
+                        let pos = Vector3::new(center_pos.x + dx, base_y, center_pos.z + dz);
+                        let (d2, m2) = self.compute_energy_at_point(pos, &door, window.as_ref());
+                        let dominant2 = self.classify_dominant_disrupter(pos, &door, window.as_ref());
+                        let (door_inf2, window_inf2, wall_inf2) =
+                            self.source_influences_at_point(pos, &door, window.as_ref());
+
+                        self.field_samples.push(FieldSample {
+                            position: pos,
+                            direction: d2,
+                            magnitude: m2,
+                            dominant: dominant2,
+                            door_influence: door_inf2,
+                            window_influence: window_inf2,
+                            wall_influence: wall_inf2,
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    fn converging_duct_to_opening(
+        &self,
+        point: Vector3,
+        dir: Vector2,
+        mag: f32,
+        opening: &Opening,
+    ) -> (Vector2, f32, f32) {
         if !matches!(opening.kind, OpeningKind::Window) {
-            return (dir, mag);
+            return (dir, mag, 0.0);
         }
 
         let center = opening.center();
@@ -1003,10 +1061,10 @@ impl Room {
 
         let dist_from_window = to_point.dot(normal);
         if dist_from_window <= 0.0 {
-            return (dir, mag);
+            return (dir, mag, 0.0);
         }
         if dist_from_window > self.config.funnel_reach {
-            return (dir, mag);
+            return (dir, mag, 0.0);
         }
 
         let lateral = to_point.dot(tangent);
@@ -1016,7 +1074,7 @@ impl Room {
             + (self.config.funnel_catch_radius - self.config.funnel_sink_radius) * width_interp;
 
         if lateral.abs() > funnel_radius {
-            return (dir, mag);
+            return (dir, mag, 0.0);
         }
 
         let target_lateral = if funnel_radius > 0.0 {
@@ -1037,16 +1095,16 @@ impl Room {
             mag
         };
 
-        (new_dir, new_mag)
+        (new_dir, new_mag, weight)
     }
 
-    fn apply_back_wall_redirect(&self, point: Vector3, dir: Vector2, mag: f32) -> (Vector2, f32) {
+    fn apply_back_wall_redirect(&self, point: Vector3, dir: Vector2, mag: f32) -> (Vector2, f32, f32) {
         let origin = self.origin;
         let back_wall_z = origin.z;
         let dist = (point.z - back_wall_z).abs();
         let max_dist = self.config.wall_redirect_distance;
         if max_dist <= 0.0 || dist >= max_dist {
-            return (dir, mag);
+            return (dir, mag, 0.0);
         }
 
         let base = self.config.wall_redirect_strength.clamp(0.0, 1.0);
@@ -1056,7 +1114,7 @@ impl Room {
         let lateral = point.x - center_x;
         let desired_dir = Vector2::new(if lateral >= 0.0 { 1.0 } else { -1.0 }, 0.0);
         let new_dir = blend_directions(dir, desired_dir, weight);
-        (new_dir, mag)
+        (new_dir, mag, weight)
     }
 
     fn compute_energy_at_point(
@@ -1068,121 +1126,79 @@ impl Room {
         let (mut dir, mut mag) = self.rectangular_jet_from_opening(point, door);
 
         if let Some(win) = maybe_window {
-            let (d, m) = self.converging_duct_to_opening(point, dir, mag, win);
+            let (d, m, _weight) = self.converging_duct_to_opening(point, dir, mag, win);
             dir = d;
             mag = m;
         }
 
-        let (d, m) = self.apply_back_wall_redirect(point, dir, mag);
+        let (d, m, _weight) = self.apply_back_wall_redirect(point, dir, mag);
         dir = d;
         mag = m;
 
         (dir.normalize_or_zero(), mag)
     }
-    pub fn generate_chi_field(&mut self) {
-        self.field_samples.clear();
-        let door = *self.primary_door();
-        let window = self.primary_window().copied();
-        let base_y = self.origin.y + self.config.chi_sample_height;
-
-        for iy in 0..self.h {
-            for iz in 0..self.d {
-                for ix in 0..self.w {
-                    if iy != 0 {
-                        continue;
-                    }
-                    let center = self.cell_center(ix, iy, iz);
-                    let center_pos = Vector3::new(center.x, base_y, center.z);
-                    let (dir, mag) = self.compute_energy_at_point(center_pos, &door, window.as_ref());
-                    let dominant = self.classify_dominant_disrupter(center_pos, &door, window.as_ref());
-                    self.field_samples.push(FieldSample {
-                        position: center_pos,
-                        direction: dir,
-                        magnitude: mag,
-                        dominant,
-                    });
-                    for &(dx, dz) in &[(-0.5, -0.5), (0.5, -0.5), (-0.5, 0.5), (0.5, 0.5)] {
-                        let pos = Vector3::new(center_pos.x + dx, base_y, center_pos.z + dz);
-                        let (d2, m2) = self.compute_energy_at_point(pos, &door, window.as_ref());
-                        let dominant2 = self.classify_dominant_disrupter(pos, &door, window.as_ref());
-
-                        self.field_samples.push(FieldSample {
-                            position: pos,
-                            direction: d2,
-                            magnitude: m2,
-                            dominant: dominant2,
-                        });
-                    }
-                }
-            }
-        }
-    }
-
     fn source_influences_at_point(
         &self,
         point: Vector3,
         door: &Opening,
         maybe_window: Option<&Opening>,
     ) -> (f32, f32, f32) {
-        let (_dir_door, mag_door) = self.rectangular_jet_from_opening(point, door);
-        let mut door_inf = mag_door.max(0.0);
+        let (door_dir, mag_door) = self.rectangular_jet_from_opening(point, door);
+
+        let mut dir_after_window = door_dir;
+        let mut mag_after_window = mag_door;
         let mut window_inf = 0.0;
 
         if let Some(win) = maybe_window {
-            let center = win.center();
-            let p2d = Vector2::new(point.x, point.z);
-            let c2d = Vector2::new(center.x, center.z);
-            let normal = win.normal();
-            let tangent = win.tangent();
-            let to_point = p2d - c2d;
+            let (dw, mw, window_weight) =
+                self.converging_duct_to_opening(point, dir_after_window, mag_after_window, win);
 
-            let dist_from_window = to_point.dot(normal);
-            if dist_from_window > 0.0 && dist_from_window <= self.config.funnel_reach {
-                let lateral = to_point.dot(tangent);
-
-                let nd = dist_from_window / self.config.funnel_reach;
-                let width_interp = nd.powf(self.config.funnel_curve_power);
-                let funnel_radius = self.config.funnel_sink_radius
-                    + (self.config.funnel_catch_radius - self.config.funnel_sink_radius) * width_interp;
-
-                if funnel_radius > 0.0 && lateral.abs() <= funnel_radius {
-                    let proximity = 1.0 - nd;
-                    let lateral_factor = 1.0 - (lateral.abs() / funnel_radius).powf(2.0);
-                    window_inf = (proximity * lateral_factor * self.config.funnel_strength).max(0.0);
-                }
+            let mut window_angle_inf = 0.0;
+            if dir_after_window.length_squared() > 0.0 && dw.length_squared() > 0.0 {
+                let angle = angle_between(dir_after_window, dw);
+                window_angle_inf = (angle / FRAC_PI_2).clamp(0.0, 1.0);
             }
+
+            let window_strength_inf = window_weight.clamp(0.0, 1.0);
+
+            window_inf = window_angle_inf.max(window_strength_inf);
+
+            dir_after_window = dw;
+            mag_after_window = mw;
         }
 
         let mut wall_inf = 0.0;
-        let back_wall_z = self.origin.z;
-        let dist = (point.z - back_wall_z).abs();
+        if dir_after_window.length_squared() > 0.0 {
+            let (dir_after_wall, _mag_after_wall, wall_weight) =
+                self.apply_back_wall_redirect(point, dir_after_window, mag_after_window);
 
-        if self.config.wall_redirect_distance > 0.0 && dist < self.config.wall_redirect_distance {
-            let falloff = 1.0 - (dist / self.config.wall_redirect_distance);
-            wall_inf = (falloff * self.config.wall_redirect_strength).max(0.0);
+            let mut wall_angle_inf = 0.0;
+            if dir_after_wall.length_squared() > 0.0 {
+                let wall_angle = angle_between(dir_after_window, dir_after_wall);
+                wall_angle_inf = (wall_angle / FRAC_PI_2).clamp(0.0, 1.0);
+            }
+
+            let wall_strength_inf = wall_weight.clamp(0.0, 1.0);
+            wall_inf = wall_angle_inf.max(wall_strength_inf);
         }
+
+        let door_inf = if mag_door > 0.0 { 1.0 } else { 0.0 };
 
         (door_inf, window_inf, wall_inf)
     }
 
-    fn classify_dominant_disrupter(
+    pub fn classify_dominant_disrupter(
         &self,
         point: Vector3,
         door: &Opening,
         maybe_window: Option<&Opening>,
     ) -> FieldDisrupter {
-        let (door_inf, window_inf, wall_inf) = self.source_influences_at_point(point, door, maybe_window);
+        let (_door_present, window_inf, wall_inf) = self.source_influences_at_point(point, door, maybe_window);
 
-        let max_inf = door_inf.max(window_inf.max(wall_inf));
-        let eps = 1e-4;
-
-        if max_inf < eps {
-            return FieldDisrupter::Base;
+        if window_inf < 0.05 && wall_inf < 0.05 {
+            return FieldDisrupter::DoorPrimary;
         }
-
-        if door_inf >= window_inf && door_inf >= wall_inf {
-            FieldDisrupter::DoorPrimary
-        } else if window_inf >= door_inf && window_inf >= wall_inf {
+        if window_inf >= wall_inf {
             FieldDisrupter::Window
         } else {
             FieldDisrupter::BackWall
@@ -1650,6 +1666,13 @@ pub fn rotate_vertices_in_plane_slice(vertices: &mut [Vector3], rot: f32) {
         v.x = x0 * c + z0 * s;
         v.z = -x0 * s + z0 * c;
     }
+}
+
+fn angle_between(a: Vector2, b: Vector2) -> f32 {
+    let an = a.normalize_or_zero();
+    let bn = b.normalize_or_zero();
+    let dot = (an.x * bn.x + an.y * bn.y).clamp(-1.0, 1.0);
+    dot.acos()
 }
 
 fn translate_rotate_scale(inverse: i32, coord: Vector3, pos: Vector3, scale: Vector3, rotation: f32) -> Vector3 {
