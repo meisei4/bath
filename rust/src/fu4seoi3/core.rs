@@ -5,7 +5,6 @@ use raylib::prelude::*;
 use std::f32::consts::{FRAC_PI_2, PI, TAU};
 use std::mem::size_of;
 use std::ops::{Add, Sub};
-use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Clone, Copy)]
 pub enum OpeningKind {

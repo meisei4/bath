@@ -189,11 +189,7 @@ pub fn draw_hud(
         draw_handle,
         font,
         "JUGEMU [ P ]:",
-        if view_state.jugemu_ortho_mode {
-            "ORTHOGRAPHIC"
-        } else {
-            "PERSPECTIVE"
-        },
+        if view_state.jugemu_ortho_mode { "ORTHO" } else { "PERSP" },
         layout.left_label_x,
         layout.left_value_x,
         line_y,
@@ -278,11 +274,7 @@ pub fn draw_hud(
         draw_handle,
         font,
         "ASPECT [ Q ]:",
-        if view_state.aspect_correct {
-            "CORRECT"
-        } else {
-            "INCORRECT"
-        },
+        if view_state.aspect_correct { "Ｘ" } else { "Ｏ" },
         layout.left_label_x,
         layout.left_value_x,
         bottom_y,
@@ -300,11 +292,7 @@ pub fn draw_hud(
         draw_handle,
         font,
         "LENS [ O ]:",
-        if view_state.ortho_mode {
-            "ORTHOGRAPHIC"
-        } else {
-            "PERSPECTIVE"
-        },
+        if view_state.ortho_mode { "ORTHO" } else { "PERSP" },
         layout.left_label_x,
         layout.left_value_x,
         bottom_y,
@@ -318,7 +306,7 @@ pub fn draw_hud(
         draw_handle,
         font,
         "SPACE [ N ]:",
-        if view_state.ndc_space { "NDC" } else { "WORLD" },
+        if view_state.ndc_space { "NDC" } else { "WRLD" },
         layout.left_label_x,
         layout.left_value_x,
         bottom_y,
@@ -483,7 +471,7 @@ fn draw_perf_hud(
             draw_handle,
             font,
             &format!(
-                "WORLD V/T/I: {}/{}/{}",
+                "WRLD XYZ/ST/IDX: {}/{}/{}",
                 active_world.vertex_count, active_world.triangle_count, active_world.index_count
             ),
             active_x,
@@ -497,7 +485,7 @@ fn draw_perf_hud(
             draw_handle,
             font,
             &format!(
-                "NDC   V/T/I: {}/{}/{}",
+                "NDC   XYZ/ST/IDX: {}/{}/{}",
                 active_ndc.vertex_count, active_ndc.triangle_count, active_ndc.index_count
             ),
             active_x,
@@ -510,7 +498,7 @@ fn draw_perf_hud(
         hud_text(
             draw_handle,
             font,
-            &format!("GEOM BYTES (W+N): {}", format_bytes(active_bytes)),
+            &format!("GEOM BYTES (WRLD+NDC): {}", format_bytes(active_bytes)),
             active_x,
             header_y,
             font_sz,
@@ -543,7 +531,7 @@ fn draw_perf_hud(
         hud_text(
             draw_handle,
             font,
-            &format!("WIRES+PTS CALLS: {} (2 passes ea.)", active_overlay_calls),
+            &format!("WIRES+PTS DRAWS: {} (2x)", active_overlay_calls),
             active_x,
             header_y,
             font_sz,
@@ -597,8 +585,11 @@ fn draw_perf_hud(
             draw_handle,
             font,
             &format!(
-                "{}: {} B (WRLD {}v, NDC {}v)",
-                name, combined_bytes, world.vertex_count, ndc.vertex_count
+                "{}: {} (WRLD {}v, NDC {}v)",
+                name,
+                format_bytes(combined_bytes),
+                world.vertex_count,
+                ndc.vertex_count
             ),
             perf_x,
             y,
@@ -609,14 +600,14 @@ fn draw_perf_hud(
     }
     if !opening_metrics.is_empty() {
         y += line;
-        hud_text(draw_handle, font, "ROOM/OPENING MESHES:", perf_x, y, font_sz, SUNFLOWER);
+        hud_text(draw_handle, font, "OPENING MESHES:", perf_x, y, font_sz, SUNFLOWER);
         y += line;
 
         for (i, m) in opening_metrics.iter().enumerate() {
             hud_text(
                 draw_handle,
                 font,
-                &format!("OPENING_{}: {} B ({}v)", i, m.total_bytes, m.vertex_count),
+                &format!("OPENING_{}: {} ({}v)", i, format_bytes(m.total_bytes), m.vertex_count),
                 perf_x,
                 y,
                 font_sz,
@@ -629,7 +620,7 @@ fn draw_perf_hud(
     hud_text(
         draw_handle,
         font,
-        &format!("GEOM MEM (W+N): {}", format_bytes(total_geom_bytes_shared)),
+        &format!("GEOM MEM (WRLD+NDC): {}", format_bytes(total_geom_bytes_shared)),
         perf_x,
         y,
         font_sz,
@@ -734,7 +725,7 @@ fn draw_perf_hud(
         draw_handle,
         font,
         &format!(
-            "BYTES WR: {}",
+            "BYTES RW: {}",
             format_bytes(frame_dynamic_metrics.total_bytes_written())
         ),
         perf_x,
