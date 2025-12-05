@@ -1,6 +1,5 @@
 use crate::fu4seoi3::config_and_state::*;
 use crate::fu4seoi3::core::*;
-use crate::fu4seoi3::draw::*;
 use raylib::prelude::*;
 
 pub const HUD_MARGIN: i32 = 12;
@@ -170,7 +169,7 @@ pub fn draw_hud(
     font: &WeakFont,
     view_state: &ViewState,
     jugemu: &Camera3D,
-    target_mesh: usize,
+    _target_mesh: usize,
     hover_state: &HoverState,
     placed_cells: &[PlacedCell],
     i_time: f32,
@@ -218,7 +217,7 @@ pub fn draw_hud(
     );
 
     let jugemu_distance = camera_distance(jugemu);
-    line_y = hud_row(
+    hud_row(
         draw_handle,
         font,
         "ZOOM [ W S ]:",
@@ -254,7 +253,7 @@ pub fn draw_hud(
     );
 
     let clr_value = if view_state.color_mode { "ON" } else { "OFF" };
-    right_y = hud_row(
+    hud_row(
         draw_handle,
         font,
         "CLR [ C ]:",
@@ -302,7 +301,7 @@ pub fn draw_hud(
         if view_state.ortho_mode { BAHAMA_BLUE } else { ANAKIWA },
     );
 
-    bottom_y = hud_row(
+    hud_row(
         draw_handle,
         font,
         "SPACE [ N ]:",

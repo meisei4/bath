@@ -4,18 +4,6 @@ use raylib::consts::MaterialMapIndex::MATERIAL_MAP_ALBEDO;
 use raylib::ffi;
 use raylib::prelude::*;
 
-pub const BAHAMA_BLUE: Color = Color::new(0, 102, 153, 255);
-pub const SUNFLOWER: Color = Color::new(255, 204, 153, 255);
-pub const PALE_CANARY: Color = Color::new(255, 255, 153, 255);
-pub const ANAKIWA: Color = Color::new(153, 204, 255, 255);
-pub const MARINER: Color = Color::new(51, 102, 204, 255);
-pub const NEON_CARROT: Color = Color::new(255, 153, 51, 255);
-pub const EGGPLANT: Color = Color::new(102, 68, 102, 255);
-pub const HOPBUSH: Color = Color::new(204, 102, 153, 255);
-pub const LILAC: Color = Color::new(204, 153, 204, 255);
-pub const RED_DAMASK: Color = Color::new(221, 102, 68, 255);
-pub const CHESTNUT_ROSE: Color = Color::new(204, 102, 102, 255);
-
 pub struct ColorGuard {
     cached_colors_ptr: *mut std::ffi::c_uchar,
     restore_target: *mut ffi::Mesh,
@@ -50,7 +38,6 @@ pub struct TextureGuard {
 
 impl TextureGuard {
     pub fn hide(model: &mut Model) -> Self {
-        use raylib::consts::MaterialMapIndex::MATERIAL_MAP_ALBEDO;
         let cached_id = model.materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize]
             .texture
             .id;
@@ -64,7 +51,6 @@ impl TextureGuard {
     }
 
     pub fn set_texture(model: &mut Model, texture_id: u32) -> Self {
-        use raylib::consts::MaterialMapIndex::MATERIAL_MAP_ALBEDO;
         let cached_id = model.materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize]
             .texture
             .id;
@@ -80,7 +66,6 @@ impl TextureGuard {
 
 impl Drop for TextureGuard {
     fn drop(&mut self) {
-        use raylib::consts::MaterialMapIndex::MATERIAL_MAP_ALBEDO;
         unsafe {
             (*self.restore_target).materials_mut()[0].maps_mut()[MATERIAL_MAP_ALBEDO as usize]
                 .texture
@@ -166,28 +151,35 @@ pub fn draw_filled_with_overlay(
     rl3d.draw_model_points_ex(&mut *model, position, Y_AXIS, rotation_deg, scale, LILAC);
 }
 
-pub fn draw_chi_field(rl3d: &mut RaylibMode3D<RaylibDrawHandle>, room: &Room, opening_models: &mut Vec<Model>) {
+pub fn draw_chi_field(
+    rl3d: &mut RaylibMode3D<RaylibDrawHandle>,
+    room: &Room,
+    chi_model: &Model,
+    opening_models: &mut Vec<Model>,
+) {
     unsafe {
         ffi::rlSetLineWidth(2.0);
     }
 
     let door = room.primary_door();
     let window = room.primary_window();
+    let chi_mesh = &chi_model.meshes()[0];
+    let vertices = chi_mesh.vertices();
+    let normals = chi_mesh.normals().expect("chi mesh must have normals");
 
-    for sample in &room.field_samples {
-        let center = sample.position;
-        let m = sample.magnitude.clamp(0.0, 1.0);
-        let scaled_length = room.config.chi_arrow_length * m;
-        let half = scaled_length * 0.5;
+    for i in chi_mesh.triangles().iter_vertices() {
+        let dir = Vector2::new(normals[i].x, normals[i].z);
+        let mag = normals[i].y.clamp(0.0, 1.0);
+        let scaled_half_length = room.config.chi_arrow_length * mag * 0.5;
         let start = Vector3::new(
-            center.x - sample.direction.x * half,
-            center.y,
-            center.z - sample.direction.y * half,
+            vertices[i].x - dir.x * scaled_half_length,
+            vertices[i].y,
+            vertices[i].z - dir.y * scaled_half_length,
         );
         let end = Vector3::new(
-            center.x + sample.direction.x * half,
-            center.y,
-            center.z + sample.direction.y * half,
+            vertices[i].x + dir.x * scaled_half_length,
+            vertices[i].y,
+            vertices[i].z + dir.y * scaled_half_length,
         );
 
         draw_partitioned_line(rl3d, room, start, end, door, window);
@@ -232,7 +224,7 @@ fn draw_partitioned_line(
     door: &Opening,
     window: Option<&Opening>,
 ) {
-    const SEGMENTS: usize = 8;
+    const SEGMENTS: usize = 3;
     let mut prev_pos = start;
     let mut prev_dominant = room.classify_dominant_disrupter(start, door, window);
 
@@ -250,14 +242,6 @@ fn draw_partitioned_line(
 
         prev_pos = curr_pos;
         prev_dominant = curr_dominant;
-    }
-}
-
-fn chi_disrupter_color(kind: FieldDisrupter) -> Color {
-    match kind {
-        FieldDisrupter::DoorPrimary => ANAKIWA,
-        FieldDisrupter::Window => PALE_CANARY,
-        FieldDisrupter::BackWall => CHESTNUT_ROSE,
     }
 }
 

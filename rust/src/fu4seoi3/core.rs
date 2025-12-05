@@ -70,18 +70,18 @@ impl Opening {
         let west_dist = (center.x - west_x).abs();
 
         let mut wall = 1;
-        let mut d_min = north_dist;
+        let mut _d_min = north_dist;
 
-        if south_dist < d_min {
-            d_min = south_dist;
+        if south_dist < _d_min {
+            _d_min = south_dist;
             wall = 2;
         }
-        if east_dist < d_min {
-            d_min = east_dist;
+        if east_dist < _d_min {
+            _d_min = east_dist;
             wall = 3;
         }
-        if west_dist < d_min {
-            d_min = west_dist;
+        if west_dist < _d_min {
+            _d_min = west_dist;
             wall = 4;
         }
 
@@ -102,6 +102,15 @@ pub enum FieldDisrupter {
     BackWall,
 }
 
+pub fn chi_disrupter_color(kind: FieldDisrupter) -> Color {
+    match kind {
+        FieldDisrupter::DoorPrimary => ANAKIWA,
+        FieldDisrupter::Window => PALE_CANARY,
+        FieldDisrupter::BackWall => CHESTNUT_ROSE,
+    }
+}
+
+//TODO: this is absolutely insane, needs massive refactor into actual Functional programming style of vector field generation, not adhoc sampling stage generation of the field every time we want to draw it.
 pub struct FieldSample {
     pub position: Vector3,
     pub direction: Vector2,
@@ -110,6 +119,33 @@ pub struct FieldSample {
     pub door_influence: f32,
     pub window_influence: f32,
     pub wall_influence: f32,
+}
+
+pub fn build_chi_field_model(handle: &mut RaylibHandle, thread: &RaylibThread, room: &Room) -> Model {
+    let mut vertices = Vec::new();
+    let mut normals = Vec::new();
+    let mut colors = Vec::new();
+    let mut texcoords = Vec::new();
+
+    room.sample_chi_field(
+        |position, direction, magnitude, dominant, door_inf, window_inf, _wall_inf| {
+            vertices.push(position);
+            normals.push(Vector3::new(direction.x, magnitude, direction.y));
+            texcoords.push(Vector2::new(door_inf, window_inf));
+            colors.push(chi_disrupter_color(dominant));
+        },
+    );
+
+    let mesh = Mesh::init_mesh(&vertices)
+        .normals(&normals)
+        .colors(&colors)
+        .texcoords(&texcoords)
+        .build_dynamic(thread)
+        .expect("failed to build chi field mesh");
+
+    handle
+        .load_model_from_mesh(thread, mesh)
+        .expect("failed to create chi field model")
 }
 
 pub struct Room {
@@ -255,6 +291,64 @@ impl Room {
         self.generate_chi_field();
     }
 
+    pub fn generate_chi_field(&mut self) {
+        let mut samples = Vec::new();
+
+        self.sample_chi_field(
+            |position, direction, magnitude, dominant, door_inf, window_inf, wall_inf| {
+                samples.push(FieldSample {
+                    position,
+                    direction,
+                    magnitude,
+                    dominant,
+                    door_influence: door_inf,
+                    window_influence: window_inf,
+                    wall_influence: wall_inf,
+                });
+            },
+        );
+
+        self.field_samples = samples;
+    }
+
+    pub fn sample_chi_field<F>(&self, mut emit: F)
+    where
+        F: FnMut(Vector3, Vector2, f32, FieldDisrupter, f32, f32, f32),
+    {
+        let door = *self.primary_door();
+        let window = self.primary_window().copied();
+        let base_y = self.origin.y + self.config.chi_sample_height;
+
+        for iy in 0..self.h {
+            if iy != 0 {
+                continue;
+            }
+            for iz in 0..self.d {
+                for ix in 0..self.w {
+                    let center = self.cell_center(ix, iy, iz);
+                    let center_pos = Vector3::new(center.x, base_y, center.z);
+
+                    let (dir, mag) = self.compute_energy_at_point(center_pos, &door, window.as_ref());
+                    let dominant = self.classify_dominant_disrupter(center_pos, &door, window.as_ref());
+                    let (door_inf, window_inf, wall_inf) =
+                        self.source_influences_at_point(center_pos, &door, window.as_ref());
+
+                    emit(center_pos, dir, mag, dominant, door_inf, window_inf, wall_inf);
+
+                    for &(dx, dz) in &[(-0.5, -0.5), (0.5, -0.5), (-0.5, 0.5), (0.5, 0.5)] {
+                        let pos = Vector3::new(center_pos.x + dx, base_y, center_pos.z + dz);
+                        let (d2, m2) = self.compute_energy_at_point(pos, &door, window.as_ref());
+                        let dominant2 = self.classify_dominant_disrupter(pos, &door, window.as_ref());
+                        let (door_inf2, window_inf2, wall_inf2) =
+                            self.source_influences_at_point(pos, &door, window.as_ref());
+
+                        emit(pos, d2, m2, dominant2, door_inf2, window_inf2, wall_inf2);
+                    }
+                }
+            }
+        }
+    }
+
     fn rectangular_jet_from_opening(&self, point: Vector3, opening: &Opening) -> (Vector2, f32) {
         if !matches!(opening.kind, OpeningKind::Door { .. }) {
             return (Vector2::ZERO, 0.0);
@@ -293,57 +387,6 @@ impl Room {
         let mag = self.config.jet_strength * edge * dist;
 
         (dir, mag)
-    }
-
-    pub fn generate_chi_field(&mut self) {
-        self.field_samples.clear();
-        let door = *self.primary_door();
-        let window = self.primary_window().copied();
-        let base_y = self.origin.y + self.config.chi_sample_height;
-
-        for iy in 0..self.h {
-            for iz in 0..self.d {
-                for ix in 0..self.w {
-                    if iy != 0 {
-                        continue;
-                    }
-                    let center = self.cell_center(ix, iy, iz);
-                    let center_pos = Vector3::new(center.x, base_y, center.z);
-                    let (dir, mag) = self.compute_energy_at_point(center_pos, &door, window.as_ref());
-                    let dominant = self.classify_dominant_disrupter(center_pos, &door, window.as_ref());
-                    let (door_inf, window_inf, wall_inf) =
-                        self.source_influences_at_point(center_pos, &door, window.as_ref());
-
-                    self.field_samples.push(FieldSample {
-                        position: center_pos,
-                        direction: dir,
-                        magnitude: mag,
-                        dominant,
-                        door_influence: door_inf,
-                        window_influence: window_inf,
-                        wall_influence: wall_inf,
-                    });
-
-                    for &(dx, dz) in &[(-0.5, -0.5), (0.5, -0.5), (-0.5, 0.5), (0.5, 0.5)] {
-                        let pos = Vector3::new(center_pos.x + dx, base_y, center_pos.z + dz);
-                        let (d2, m2) = self.compute_energy_at_point(pos, &door, window.as_ref());
-                        let dominant2 = self.classify_dominant_disrupter(pos, &door, window.as_ref());
-                        let (door_inf2, window_inf2, wall_inf2) =
-                            self.source_influences_at_point(pos, &door, window.as_ref());
-
-                        self.field_samples.push(FieldSample {
-                            position: pos,
-                            direction: d2,
-                            magnitude: m2,
-                            dominant: dominant2,
-                            door_influence: door_inf2,
-                            window_influence: window_inf2,
-                            wall_influence: wall_inf2,
-                        });
-                    }
-                }
-            }
-        }
     }
 
     fn converging_duct_to_opening(
@@ -512,58 +555,6 @@ impl Room {
     }
 }
 
-pub fn update_spatial_frame(
-    main: &Camera3D,
-    aspect: f32,
-    near: f32,
-    far: f32,
-    spatial_frame: &mut WeakMesh,
-    space_factor: f32,
-    aspect_factor: f32,
-    ortho_factor: f32,
-    view_config: &ViewConfig,
-) {
-    let (depth, right, up) = basis_vector(&main);
-    let half_h_near = lerp(
-        near * (view_config.fovy_perspective * 0.5).to_radians().tan(),
-        0.5 * near_plane_height_orthographic(view_config),
-        ortho_factor,
-    );
-    let half_w_near = lerp(half_h_near, half_h_near * aspect, aspect_factor);
-    let half_h_far = lerp(
-        far * (view_config.fovy_perspective * 0.5).to_radians().tan(),
-        0.5 * near_plane_height_orthographic(view_config),
-        ortho_factor,
-    );
-    let half_w_far = lerp(half_h_far, half_h_far * aspect, aspect_factor);
-    let half_depth_ndc = lerp(half_h_near, 0.5 * (far - near), lerp(aspect_factor, 0.0, ortho_factor));
-    let half_depth = lerp(0.5 * (far - near), half_depth_ndc, space_factor);
-    let far_half_w = lerp(half_w_far, half_w_near, space_factor);
-    let far_half_h = lerp(half_h_far, half_h_near, space_factor);
-    let center_near = main.position.add(depth * near);
-
-    let src_vertices = spatial_frame.vertices().to_vec();
-    let mut out_vertices = src_vertices.clone();
-
-    for [a, b, c] in spatial_frame.triangles() {
-        for &i in [a, b, c].iter() {
-            let offset = src_vertices[i].sub(center_near);
-
-            let x_sign = if offset.dot(right) >= 0.0 { 1.0 } else { -1.0 };
-            let y_sign = if offset.dot(up) >= 0.0 { 1.0 } else { -1.0 };
-            let far_mask = if offset.dot(depth) > half_depth { 1.0 } else { 0.0 };
-            let final_half_w = half_w_near + far_mask * (far_half_w - half_w_near);
-            let final_half_h = half_h_near + far_mask * (far_half_h - half_h_near);
-            let center = center_near.add(depth * (far_mask * 2.0 * half_depth));
-
-            out_vertices[i] = center
-                .add(right * (x_sign * final_half_w))
-                .add(up * (y_sign * final_half_h));
-        }
-    }
-    spatial_frame.vertices_mut().copy_from_slice(&out_vertices);
-}
-
 #[derive(Copy, Clone)]
 pub struct MeshMetrics {
     pub vertex_count: usize,
@@ -679,6 +670,58 @@ pub struct MeshDescriptor {
     pub combined_bytes: usize,
     pub z_shift_anisotropic: f32,
     pub z_shift_isotropic: f32,
+}
+
+pub fn update_spatial_frame(
+    main: &Camera3D,
+    aspect: f32,
+    near: f32,
+    far: f32,
+    spatial_frame: &mut WeakMesh,
+    space_factor: f32,
+    aspect_factor: f32,
+    ortho_factor: f32,
+    view_config: &ViewConfig,
+) {
+    let (depth, right, up) = basis_vector(&main);
+    let half_h_near = lerp(
+        near * (view_config.fovy_perspective * 0.5).to_radians().tan(),
+        0.5 * near_plane_height_orthographic(view_config),
+        ortho_factor,
+    );
+    let half_w_near = lerp(half_h_near, half_h_near * aspect, aspect_factor);
+    let half_h_far = lerp(
+        far * (view_config.fovy_perspective * 0.5).to_radians().tan(),
+        0.5 * near_plane_height_orthographic(view_config),
+        ortho_factor,
+    );
+    let half_w_far = lerp(half_h_far, half_h_far * aspect, aspect_factor);
+    let half_depth_ndc = lerp(half_h_near, 0.5 * (far - near), lerp(aspect_factor, 0.0, ortho_factor));
+    let half_depth = lerp(0.5 * (far - near), half_depth_ndc, space_factor);
+    let far_half_w = lerp(half_w_far, half_w_near, space_factor);
+    let far_half_h = lerp(half_h_far, half_h_near, space_factor);
+    let center_near = main.position.add(depth * near);
+
+    let src_vertices = spatial_frame.vertices().to_vec();
+    let mut out_vertices = src_vertices.clone();
+
+    for [a, b, c] in spatial_frame.triangles() {
+        for &i in [a, b, c].iter() {
+            let offset = src_vertices[i].sub(center_near);
+
+            let x_sign = if offset.dot(right) >= 0.0 { 1.0 } else { -1.0 };
+            let y_sign = if offset.dot(up) >= 0.0 { 1.0 } else { -1.0 };
+            let far_mask = if offset.dot(depth) > half_depth { 1.0 } else { 0.0 };
+            let final_half_w = half_w_near + far_mask * (far_half_w - half_w_near);
+            let final_half_h = half_h_near + far_mask * (far_half_h - half_h_near);
+            let center = center_near.add(depth * (far_mask * 2.0 * half_depth));
+
+            out_vertices[i] = center
+                .add(right * (x_sign * final_half_w))
+                .add(up * (y_sign * final_half_h));
+        }
+    }
+    spatial_frame.vertices_mut().copy_from_slice(&out_vertices);
 }
 
 pub fn world_to_ndc_space(
@@ -876,7 +919,7 @@ pub fn interpolate_between_deformed_vertices(
     mesh_rotation: f32,
     samples: &[Vec<Vector3>],
     frame_metrics: &mut FrameDynamicMetrics,
-    field_config: &FieldConfig,
+    _field_config: &FieldConfig,
 ) {
     let normalized_rotation = (-mesh_rotation).rem_euclid(TAU);
     let rotation_progress = normalized_rotation / TAU;

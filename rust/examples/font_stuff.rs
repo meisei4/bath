@@ -1,6 +1,6 @@
-use asset_payload::FONT_PATH;
+use asset_payload::{FONT_IMAGE_PATH, FONT_PATH};
 use raylib::init;
-use raylib::prelude::RaylibFont;
+use raylib::prelude::{Image, RaylibFont};
 use ttf_parser::{name_id, Face};
 
 fn main() {
@@ -8,6 +8,9 @@ fn main() {
         .size(100, 100)
         .title("raylib [core] example - fixed function didactic")
         .build();
+
+    let font_image = Image::load_image(FONT_IMAGE_PATH).unwrap();
+
     let font = handle
         // .load_font(&thread, FONT_PATH)
         .load_font_ex(&thread, FONT_PATH, 32, None)

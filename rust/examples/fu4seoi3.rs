@@ -1,6 +1,5 @@
 use asset_payload::{
-    CHI_CONFIG_PATH, FONT_IMAGE_PATH, FONT_PATH, FUSUMA_GLTF_PATH, SPHERE_GLTF_PATH, SPHERE_PATH, VIEW_CONFIG_PATH,
-    WINDOW_GLTF_PATH,
+    CHI_CONFIG_PATH, FONT_PATH, FUSUMA_GLTF_PATH, SPHERE_GLTF_PATH, SPHERE_PATH, VIEW_CONFIG_PATH, WINDOW_GLTF_PATH,
 };
 use bath::fu4seoi3::config_and_state::*;
 use bath::fu4seoi3::core::*;
@@ -25,13 +24,10 @@ fn main() {
         .title("raylib [core] example - fixed function didactic")
         .build();
 
-    let font_image = Image::load_image(FONT_IMAGE_PATH).unwrap();
-    let font = unsafe {
-        handle
-            .load_font_ex(&thread, FONT_PATH, 32, None)
-            .expect("Failed to load font")
-            .make_weak()
-    };
+    let font = handle
+        .load_font_ex(&thread, FONT_PATH, 32, None)
+        .expect("Failed to load font")
+        .make_weak();
 
     let font = handle.get_font_default();
 
@@ -282,16 +278,18 @@ fn main() {
         window.h0 = -window_bb.min.y;
     }
 
-    let mut needs_sample_regeneration = false;
+    let mut chi_field_model = build_chi_field_model(&mut handle, &thread, &room);
+    let mut animated_meshes_need_regeneration = false;
 
     while !handle.window_should_close() {
         if let Some(new_field_config) = field_config_watcher.check_reload() {
             let samples_changed = new_field_config.log_delta(&field_config);
             field_config = new_field_config;
             room.reload_config(field_config.clone());
+            chi_field_model = build_chi_field_model(&mut handle, &thread, &room);
 
             if samples_changed {
-                needs_sample_regeneration = true;
+                animated_meshes_need_regeneration = true;
             }
         }
 
@@ -325,14 +323,14 @@ fn main() {
             };
         }
 
-        if needs_sample_regeneration {
+        if animated_meshes_need_regeneration {
             mesh_samples = collect_deformed_vertex_samples(&world_ghost_pre_animation_vertices, &field_config);
             println!(
                 "{} Animated vertex samples regenerated: {} samples",
                 timestamp(),
                 mesh_samples.len()
             );
-            needs_sample_regeneration = false;
+            animated_meshes_need_regeneration = false;
         }
 
         let dt = handle.get_frame_time();
@@ -592,7 +590,7 @@ fn main() {
                     );
                 }
             }
-            draw_chi_field(&mut rl3d, &room, &mut opening_models);
+            draw_chi_field(&mut rl3d, &room, &chi_field_model, &mut opening_models);
         });
 
         draw_hud(

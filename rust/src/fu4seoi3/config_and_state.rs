@@ -4,6 +4,18 @@ use std::f32::consts::TAU;
 use std::fs;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+pub const BAHAMA_BLUE: Color = Color::new(0, 102, 153, 255);
+pub const SUNFLOWER: Color = Color::new(255, 204, 153, 255);
+pub const PALE_CANARY: Color = Color::new(255, 255, 153, 255);
+pub const ANAKIWA: Color = Color::new(153, 204, 255, 255);
+pub const MARINER: Color = Color::new(51, 102, 204, 255);
+pub const NEON_CARROT: Color = Color::new(255, 153, 51, 255);
+pub const EGGPLANT: Color = Color::new(102, 68, 102, 255);
+pub const HOPBUSH: Color = Color::new(204, 102, 153, 255);
+pub const LILAC: Color = Color::new(204, 153, 204, 255);
+pub const RED_DAMASK: Color = Color::new(221, 102, 68, 255);
+pub const CHESTNUT_ROSE: Color = Color::new(204, 102, 102, 255);
+
 pub const RES_SCALE: f32 = 1.5;
 pub const DC_WIDTH_BASE: f32 = 640.0;
 pub const DC_HEIGHT_BASE: f32 = 480.0;
