@@ -1,4 +1,7 @@
-use asset_payload::{CHI_CONFIG_PATH, FONT_IMAGE_PATH, FONT_PATH, SPHERE_GLTF_PATH, SPHERE_PATH, VIEW_CONFIG_PATH};
+use asset_payload::{
+    CHI_CONFIG_PATH, FONT_IMAGE_PATH, FONT_PATH, FUSUMA_GLTF_PATH, SPHERE_GLTF_PATH, SPHERE_PATH, VIEW_CONFIG_PATH,
+    WINDOW_GLTF_PATH,
+};
 use bath::fu4seoi3::core::*;
 use bath::fu4seoi3::draw::*;
 use raylib::consts::CameraProjection::{CAMERA_ORTHOGRAPHIC, CAMERA_PERSPECTIVE};
@@ -77,17 +80,39 @@ fn main() {
     view_state.jugemu_zoom.distance_ortho = view_config.jugemu_distance_ortho;
     view_state.jugemu_zoom.distance_perspective = view_config.jugemu_distance_perspective;
 
+    let checked_img = Image::gen_image_checked(16, 16, 1, 1, Color::BLACK, Color::WHITE);
+    let checked_texture = handle
+        .load_texture_from_image(&thread, &checked_img)
+        .expect("Failed to create texture");
+
+    let mut fusuma = handle
+        .load_model(&thread, FUSUMA_GLTF_PATH)
+        .expect("Failed to load fusuma GLTF");
+
+    let fusuma_bb = &fusuma.get_model_bounding_box();
+    fill_planar_texcoords(&mut fusuma.meshes_mut()[0]);
+    fusuma.materials_mut()[0].set_material_texture(MATERIAL_MAP_ALBEDO, &checked_texture);
+
+    let mut window = handle
+        .load_model(&thread, WINDOW_GLTF_PATH)
+        .expect("Failed to load fusuma GLTF");
+
+    let window_bb = &window.get_model_bounding_box();
+    fill_planar_texcoords(&mut window.meshes_mut()[0]);
+    window.materials_mut()[0].set_material_texture(MATERIAL_MAP_ALBEDO, &checked_texture);
+
+    let mut opening_models: Vec<Model> = vec![fusuma, window];
+    let opening_metrics: Vec<MeshMetrics> = opening_models
+        .iter()
+        .map(|m| MeshMetrics::measure(&m.meshes()[0]))
+        .collect();
     let mut meshes: Vec<MeshDescriptor> = Vec::new();
 
     let mut ghost_world = handle
         .load_model(&thread, SPHERE_GLTF_PATH)
         .expect("Failed to load ghost GLTF");
 
-    let checked_img = Image::gen_image_checked(16, 16, 1, 1, Color::BLACK, Color::WHITE);
-    let ghost_tex = handle
-        .load_texture_from_image(&thread, &checked_img)
-        .expect("Failed to create ghost texture");
-    ghost_world.materials_mut()[0].set_material_texture(MATERIAL_MAP_ALBEDO, &ghost_tex);
+    ghost_world.materials_mut()[0].set_material_texture(MATERIAL_MAP_ALBEDO, &checked_texture);
 
     let original_mesh_vertices = ghost_world.meshes()[0].vertices().to_vec();
 
@@ -114,7 +139,7 @@ fn main() {
     let mut ghost_ndc = handle
         .load_model_from_mesh(&thread, ghost_ndc_mesh)
         .expect("Failed to create ghost NDC model");
-    ghost_ndc.materials_mut()[0].set_material_texture(MATERIAL_MAP_ALBEDO, &ghost_tex);
+    ghost_ndc.materials_mut()[0].set_material_texture(MATERIAL_MAP_ALBEDO, &checked_texture);
 
     let ghost_metrics_world = MeshMetrics::measure(&ghost_world.meshes()[0]);
     let ghost_metrics_ndc = MeshMetrics::measure(&ghost_ndc.meshes()[0]);
@@ -124,7 +149,7 @@ fn main() {
         name: "GHOST",
         world: ghost_world,
         ndc: ghost_ndc,
-        texture: ghost_tex,
+        texture: checked_texture,
         metrics_world: ghost_metrics_world,
         metrics_ndc: ghost_metrics_ndc,
         combined_bytes: ghost_combined_bytes,
@@ -244,6 +269,16 @@ fn main() {
     handle.set_target_fps(60);
     let mut frame_dynamic_metrics = FrameDynamicMetrics::new();
     let mut room = Room::default();
+
+    if let Some(door) = room.openings.get_mut(0) {
+        door.model_index = Some(0);
+        door.h0 = -fusuma_bb.min.y;
+    }
+    if let Some(window) = room.openings.get_mut(1) {
+        window.model_index = Some(1);
+        window.h0 = -window_bb.min.y;
+    }
+
     let mut needs_sample_regeneration = false;
 
     while !handle.window_should_close() {
@@ -539,6 +574,7 @@ fn main() {
                     MODEL_SCALE,
                     view_state.color_mode,
                     view_state.texture_mode,
+                    None,
                 );
                 if let Some(center) = hover_state.center {
                     let hint_scale =
@@ -553,7 +589,7 @@ fn main() {
                     );
                 }
             }
-            draw_chi_field(&mut rl3d, &room);
+            draw_chi_field(&mut rl3d, &room, &mut opening_models);
         });
 
         draw_hud(
@@ -571,6 +607,7 @@ fn main() {
             &room,
             &edit_stack,
             edit_cursor,
+            &opening_metrics,
         );
     }
 }

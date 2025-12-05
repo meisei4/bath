@@ -17,9 +17,13 @@ const FUSUMA_OBJ_OUT: &str = "../assets/meshes/fusuma_PREBAKE.obj";
 const FUSUMA_GLTF_OUT: &str = "../assets/meshes/fusuma_PREBAKE.gltf";
 const FUSUMA_GLB_OUT: &str = "../assets/meshes/fusuma_PREBAKE.glb";
 
-const WINDOW_OBJ_OUT: &str = "../assets/meshes/window_PREBAKE.obj";
-const WINDOW_GLTF_OUT: &str = "../assets/meshes/window_PREBAKE.gltf";
-const WINDOW_GLB_OUT: &str = "../assets/meshes/window_PREBAKE.glb";
+const KIWAKU_OBJ_OUT: &str = "../assets/meshes/kiwaku_PREBAKE.obj";
+const KIWAKU_GLTF_OUT: &str = "../assets/meshes/kiwaku_PREBAKE.gltf";
+const KIWAKU_GLB_OUT: &str = "../assets/meshes/window_PREBAKE.glb";
+
+const KOSHIDAKA_OBJ_OUT: &str = "../assets/meshes/koshidaka_PREBAKE.obj";
+const KOSHIDAKA_GLTF_OUT: &str = "../assets/meshes/koshidaka_PREBAKE.gltf";
+const KOSHIDAKA_GLB_OUT: &str = "../assets/meshes/window_PREBAKE.glb";
 
 enum TexcoordMapping {
     PlanarProjectionXY,
@@ -27,19 +31,71 @@ enum TexcoordMapping {
     SphericalEquirectangularUnwrapped,
 }
 
+struct WindowSpec {
+    frame_w_mm: f32,
+    frame_h_mm: f32,
+    frame_d_mm: f32,
+    frame_border_mm: f32,
+    mullion_mm: f32,
+    glass_recess_mm: f32,
+    chamfer_mm: f32,
+    mullion_inset_mm: f32,
+}
+
+#[derive(Clone, Copy)]
+struct MullionConfig {
+    vertical_count: u32,
+    horizontal_count: u32,
+}
+
+const KOSHIDAKA_SPEC: WindowSpec = WindowSpec {
+    frame_w_mm: 850.0,
+    frame_h_mm: 1170.0,
+    frame_d_mm: 75.0,
+    frame_border_mm: 50.0,
+    mullion_mm: 26.0,
+    glass_recess_mm: 8.0,
+    chamfer_mm: 7.0,
+    mullion_inset_mm: 6.0,
+};
+
+const KIWAKU_SPEC: WindowSpec = WindowSpec {
+    frame_w_mm: 800.0,
+    frame_h_mm: 800.0,
+    frame_d_mm: 68.0,
+    frame_border_mm: 45.0,
+    mullion_mm: 20.0,
+    glass_recess_mm: 8.0,
+    chamfer_mm: 7.0,
+    mullion_inset_mm: 6.0,
+};
+
 fn main() {
     println!("=== Step 1: Generating OBJ ===");
 
-    let obj_out = WINDOW_OBJ_OUT;
-    let gltf_out = WINDOW_GLTF_OUT;
-    let glb_out = WINDOW_GLB_OUT;
+    let obj_out = KOSHIDAKA_OBJ_OUT;
+    let gltf_out = KOSHIDAKA_GLTF_OUT;
+    let glb_out = KOSHIDAKA_GLB_OUT;
+    let obj_name = "koshidaka";
+    let spec = &KOSHIDAKA_SPEC;
+
+    // let obj_out = KIWAKU_OBJ_OUT;
+    // let gltf_out = KIWAKU_GLTF_OUT;
+    // let glb_out = KIWAKU_GLB_OUT;
+    // let obj_name = "kiwaku";
+    // let spec = &KIWAKU_SPEC;
 
     let mut file = File::create(obj_out).unwrap();
 
+    let mullion_config = MullionConfig {
+        vertical_count: 2,
+        horizontal_count: 2,
+    };
+
+    write_window_obj(&mut file, spec, mullion_config, obj_name);
+
     //write_sphere_obj(&mut file);
     //write_fusuma_with_handle_obj(&mut file); //TODO: need to get the CLAM vs PIE disk back but whatever..
-    // write_koshidaka_single_obj(&mut file, KOSHIDAKA_2V_2H);
-    write_kiwaku_a_obj(&mut file, KIWAKU_2V_2H);
 
     drop(file);
 
@@ -60,69 +116,23 @@ fn main() {
 
     println!("\n=== Step 7: Verifying final GLB ===");
     verify_glb_attributes(glb_out);
+
+    println!("\n=== Step 8: Cleaning up intermediate files ===");
+
+    if let Err(e) = fs::remove_file(gltf_out) {
+        eprintln!("Failed to delete GLTF: {}", e);
+    } else {
+        println!("Deleted: {}", gltf_out);
+    }
+
+    let bin_out = format!("{}.bin", gltf_out.trim_end_matches(".gltf"));
+
+    if let Err(e) = fs::remove_file(&bin_out) {
+        eprintln!("Failed to delete BIN: {}", e);
+    } else {
+        println!("Deleted: {}", bin_out);
+    }
 }
-
-#[derive(Clone, Copy)]
-struct MullionConfig {
-    vertical_count: u32,
-    horizontal_count: u32,
-}
-
-const KOSHIDAKA_2V_0H: MullionConfig = MullionConfig {
-    vertical_count: 2,
-    horizontal_count: 0,
-};
-
-const KOSHIDAKA_2V_2H: MullionConfig = MullionConfig {
-    vertical_count: 2,
-    horizontal_count: 2,
-};
-
-const KIWAKU_2V_2H: MullionConfig = MullionConfig {
-    vertical_count: 2,
-    horizontal_count: 2,
-};
-
-fn write_koshidaka_single_obj(file: &mut File, mullions: MullionConfig) {
-    write_window_obj(file, &SPEC_KOSHIDAKA_SINGLE, mullions, "koshidaka_single");
-}
-
-fn write_kiwaku_a_obj(file: &mut File, mullions: MullionConfig) {
-    write_window_obj(file, &SPEC_KIWAKU_A, mullions, "kiwaku_type_a");
-}
-
-struct WindowSpec {
-    frame_w_mm: f32,
-    frame_h_mm: f32,
-    frame_d_mm: f32,
-    frame_border_mm: f32,
-    mullion_mm: f32,
-    glass_recess_mm: f32,
-    chamfer_mm: f32,
-    mullion_inset_mm: f32,
-}
-
-const SPEC_KOSHIDAKA_SINGLE: WindowSpec = WindowSpec {
-    frame_w_mm: 850.0,
-    frame_h_mm: 1170.0,
-    frame_d_mm: 75.0,
-    frame_border_mm: 50.0,
-    mullion_mm: 26.0,
-    glass_recess_mm: 8.0,
-    chamfer_mm: 7.0,
-    mullion_inset_mm: 6.0,
-};
-
-const SPEC_KIWAKU_A: WindowSpec = WindowSpec {
-    frame_w_mm: 800.0,
-    frame_h_mm: 800.0,
-    frame_d_mm: 68.0,
-    frame_border_mm: 45.0,
-    mullion_mm: 20.0,
-    glass_recess_mm: 8.0,
-    chamfer_mm: 7.0,
-    mullion_inset_mm: 6.0,
-};
 
 fn write_window_obj(file: &mut File, spec: &WindowSpec, mullions: MullionConfig, object_name: &str) {
     let mm_to_unit = 1.0_f32 / 800.0_f32;

@@ -1,4 +1,5 @@
 use crate::fu4seoi3::core::*;
+use raylib::consts::MaterialMapIndex::MATERIAL_MAP_ALBEDO;
 use raylib::ffi;
 use raylib::prelude::*;
 
@@ -94,20 +95,26 @@ pub fn draw_filled(
     position: Vector3,
     rotation_deg: f32,
     scale: Vector3,
-    color_enabled: bool,
+    vertex_colors_enabled: bool,
     texture_enabled: bool,
+    color: Option<Color>,
 ) {
-    if !(color_enabled || texture_enabled) {
+    if !vertex_colors_enabled && !texture_enabled && color.is_none() {
         return;
     }
-    let _color_guard = if texture_enabled && !color_enabled {
+    let _color_guard = if !vertex_colors_enabled {
         Some(ColorGuard::hide(&mut model.meshes_mut()[0]))
     } else {
         None
     };
     let texture_id = if texture_enabled { texture.id } else { 0 };
     let _texture_guard = TextureGuard::set_texture(model, texture_id);
-    rl3d.draw_model_ex(model, position, Y_AXIS, rotation_deg, scale, Color::WHITE);
+    let tint = if vertex_colors_enabled {
+        Color::WHITE
+    } else {
+        color.unwrap_or(Color::WHITE)
+    };
+    rl3d.draw_model_ex(model, position, Y_AXIS, rotation_deg, scale, tint);
 }
 
 pub fn draw_wires_and_points(
@@ -133,8 +140,9 @@ pub fn draw_filled_with_overlay(
     scale: Vector3,
     color_enabled: bool,
     texture_enabled: bool,
+    color: Option<Color>,
 ) {
-    if color_enabled || texture_enabled {
+    if color_enabled || texture_enabled || color.is_some() {
         draw_filled(
             rl3d,
             model,
@@ -144,35 +152,24 @@ pub fn draw_filled_with_overlay(
             scale,
             color_enabled,
             texture_enabled,
+            color,
         );
     }
     let _color_guard = ColorGuard::hide(&mut model.meshes_mut()[0]);
     let _texture_guard = TextureGuard::hide(model);
+    unsafe {
+        ffi::rlSetLineWidth(1.0);
+    }
     rl3d.draw_model_wires_ex(&mut *model, position, Y_AXIS, rotation_deg, scale, MARINER);
     unsafe { ffi::rlSetPointSize(4.0) };
     rl3d.draw_model_points_ex(&mut *model, position, Y_AXIS, rotation_deg, scale, LILAC);
 }
 
-pub fn draw_hint(
-    rl3d: &mut RaylibMode3D<RaylibDrawHandle>,
-    model: &mut Model,
-    position: Vector3,
-    rotation_deg: f32,
-    scale: Vector3,
-    occupied: bool,
-) {
-    let _color_guard = ColorGuard::hide(&mut model.meshes_mut()[0]);
-    let _texture_guard = TextureGuard::hide(model);
-    let hint_color = if occupied { RED_DAMASK } else { ANAKIWA };
-    unsafe { ffi::rlDisableDepthTest() };
-    rl3d.draw_model_wires_ex(&mut *model, position, Y_AXIS, rotation_deg, scale, hint_color);
-    unsafe { ffi::rlEnableDepthTest() };
-}
-
-pub fn draw_chi_field(rl3d: &mut RaylibMode3D<RaylibDrawHandle>, room: &Room) {
+pub fn draw_chi_field(rl3d: &mut RaylibMode3D<RaylibDrawHandle>, room: &Room, opening_models: &mut Vec<Model>) {
     unsafe {
         ffi::rlSetLineWidth(2.0);
     }
+
     for sample in &room.field_samples {
         let center = sample.position;
         let m = sample.magnitude.clamp(0.0, 1.0);
@@ -194,13 +191,30 @@ pub fn draw_chi_field(rl3d: &mut RaylibMode3D<RaylibDrawHandle>, room: &Room) {
     }
 
     for opening in &room.openings {
-        let (color, radius) = match opening.kind {
-            OpeningKind::Door { primary: true } => (chi_disrupter_color(FieldDisrupter::DoorPrimary), 0.5),
-            OpeningKind::Door { primary: false } => (LILAC, 0.4),
-            OpeningKind::Window => (chi_disrupter_color(FieldDisrupter::Window), 0.25),
+        let color = match opening.kind {
+            OpeningKind::Door { primary: true } => chi_disrupter_color(FieldDisrupter::DoorPrimary),
+            OpeningKind::Door { primary: false } => Color::WHITE, // TODO: ew, but fine for now
+            OpeningKind::Window => chi_disrupter_color(FieldDisrupter::Window),
         };
-        rl3d.draw_line3D(opening.p1, opening.p2, color);
-        rl3d.draw_sphere(opening.center(), radius, color);
+
+        rl3d.draw_line3D(opening.p0, opening.p1, color);
+
+        if let Some(opening_model_index) = opening.model_index {
+            let pos = opening.position(room);
+            draw_filled_with_overlay(
+                rl3d,
+                &mut opening_models[opening_model_index],
+                &Texture2D::default(), // TODO: get actual Texture or WeakTexture
+                pos,
+                opening.rotation_into_room(room),
+                MODEL_SCALE,
+                false,
+                false,
+                Some(color),
+            );
+        } else {
+            rl3d.draw_sphere(opening.center(), 0.33, color);
+        }
     }
     unsafe {
         ffi::rlSetLineWidth(1.0);
@@ -214,6 +228,22 @@ fn chi_disrupter_color(kind: FieldDisrupter) -> Color {
         FieldDisrupter::Window => PALE_CANARY,
         FieldDisrupter::BackWall => LILAC,
     }
+}
+
+pub fn draw_hint(
+    rl3d: &mut RaylibMode3D<RaylibDrawHandle>,
+    model: &mut Model,
+    position: Vector3,
+    rotation_deg: f32,
+    scale: Vector3,
+    occupied: bool,
+) {
+    let _color_guard = ColorGuard::hide(&mut model.meshes_mut()[0]);
+    let _texture_guard = TextureGuard::hide(model);
+    let hint_color = if occupied { RED_DAMASK } else { ANAKIWA };
+    unsafe { ffi::rlDisableDepthTest() };
+    rl3d.draw_model_wires_ex(&mut *model, position, Y_AXIS, rotation_deg, scale, hint_color);
+    unsafe { ffi::rlEnableDepthTest() };
 }
 
 pub fn draw_camera_basis(
@@ -282,6 +312,7 @@ pub fn draw_placed_cells(
                 MODEL_SCALE,
                 cell.color_enabled,
                 cell.texture_enabled,
+                None,
             );
         } else {
             let scale_vec = Vector3::new(current_scale, current_scale, current_scale);
@@ -507,6 +538,7 @@ pub fn draw_hud(
     room: &Room,
     edit_stack: &[EditStack],
     edit_cursor: usize,
+    opening_metrics: &[MeshMetrics],
 ) {
     let layout = compute_hud_layout(draw_handle, font);
     let mut line_y = layout.margin;
@@ -663,6 +695,7 @@ pub fn draw_hud(
         meshes,
         mesh_samples,
         frame_dynamic_metrics,
+        opening_metrics,
     );
 
     if let (Some(cell_idx), Some((ix, iy, iz))) = (hover_state.placed_cell_index, hover_state.indices) {
@@ -709,6 +742,7 @@ fn draw_perf_hud(
     meshes: &[MeshDescriptor],
     mesh_samples: &[Vec<Vector3>],
     frame_dynamic_metrics: &FrameDynamicMetrics,
+    opening_metrics: &[MeshMetrics],
 ) {
     let screen_width = draw_handle.get_screen_width();
 
@@ -727,8 +761,9 @@ fn draw_perf_hud(
             per_mesh_instance_counts[cell.mesh_index] += 1;
         }
     }
-
-    let total_geom_bytes_shared: usize = meshes.iter().map(|m| m.combined_bytes).sum();
+    let total_geom_bytes_meshes: usize = meshes.iter().map(|m| m.combined_bytes).sum();
+    let total_geom_bytes_openings: usize = opening_metrics.iter().map(|m| m.total_bytes).sum();
+    let total_geom_bytes_shared: usize = total_geom_bytes_meshes + total_geom_bytes_openings;
     let mut filled_draws_per_mesh = vec![0usize; mesh_count];
     let mut overlay_calls_per_mesh = vec![0usize; mesh_count];
 
@@ -920,7 +955,7 @@ fn draw_perf_hud(
             draw_handle,
             font,
             &format!(
-                "{}: {} B (W {}v, N {}v)",
+                "{}: {} B (WRLD {}v, NDC {}v)",
                 name, combined_bytes, world.vertex_count, ndc.vertex_count
             ),
             perf_x,
@@ -929,6 +964,24 @@ fn draw_perf_hud(
             ANAKIWA,
         );
         y += line;
+    }
+    if !opening_metrics.is_empty() {
+        y += line;
+        hud_text(draw_handle, font, "ROOM/OPENING MESHES:", perf_x, y, font_sz, SUNFLOWER);
+        y += line;
+
+        for (i, m) in opening_metrics.iter().enumerate() {
+            hud_text(
+                draw_handle,
+                font,
+                &format!("OPENING_{}: {} B ({}v)", i, m.total_bytes, m.vertex_count),
+                perf_x,
+                y,
+                font_sz,
+                ANAKIWA,
+            );
+            y += line;
+        }
     }
 
     hud_text(

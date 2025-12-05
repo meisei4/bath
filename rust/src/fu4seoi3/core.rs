@@ -520,123 +520,6 @@ pub struct FieldSample {
     pub dominant: FieldDisrupter,
 }
 
-#[derive(Copy, Clone)]
-pub struct MeshMetrics {
-    pub vertex_count: usize,
-    pub triangle_count: usize,
-    pub normal_count: usize,
-    pub texcoord_count: usize,
-    pub color_count: usize,
-    pub index_count: usize,
-    pub total_bytes: usize,
-}
-
-impl MeshMetrics {
-    pub fn measure(mesh: &WeakMesh) -> Self {
-        let vertex_count = mesh.vertices().len();
-        let triangle_count = mesh.triangles().count();
-        let normal_count = mesh.normals().map(|n| n.len()).unwrap_or(0);
-        let texcoord_count = mesh.texcoords().map(|t| t.len()).unwrap_or(0);
-        let color_count = mesh.colors().map(|c| c.len()).unwrap_or(0);
-        let index_count = mesh.indices().map(|i| i.len()).unwrap_or(0);
-
-        let mut total_bytes = 0;
-        total_bytes += vertex_count * size_of::<Vector3>();
-        total_bytes += normal_count * size_of::<Vector3>();
-        total_bytes += texcoord_count * size_of::<Vector2>();
-        total_bytes += color_count * size_of::<Color>();
-        total_bytes += index_count * size_of::<u16>();
-
-        MeshMetrics {
-            vertex_count,
-            triangle_count,
-            normal_count,
-            texcoord_count,
-            color_count,
-            index_count,
-            total_bytes,
-        }
-    }
-}
-
-pub fn gpu_vertex_stride_bytes(metrics: &MeshMetrics) -> usize {
-    let mut stride = size_of::<Vector3>();
-    if metrics.normal_count > 0 {
-        stride += size_of::<Vector3>();
-    }
-    if metrics.texcoord_count > 0 {
-        stride += size_of::<Vector2>();
-    }
-    if metrics.color_count > 0 {
-        stride += size_of::<Color>();
-    }
-    stride
-}
-
-pub struct FrameDynamicMetrics {
-    pub vertex_positions_written: usize,
-    pub vertex_normals_written: usize,
-    pub vertex_colors_written: usize,
-}
-
-impl FrameDynamicMetrics {
-    pub fn new() -> Self {
-        FrameDynamicMetrics {
-            vertex_positions_written: 0,
-            vertex_normals_written: 0,
-            vertex_colors_written: 0,
-        }
-    }
-
-    pub fn reset(&mut self) {
-        self.vertex_positions_written = 0;
-        self.vertex_normals_written = 0;
-        self.vertex_colors_written = 0;
-    }
-
-    pub fn total_bytes_written(&self) -> usize {
-        self.vertex_positions_written * size_of::<Vector3>()
-            + self.vertex_normals_written * size_of::<Vector3>()
-            + self.vertex_colors_written * size_of::<Color>()
-    }
-}
-
-pub struct AnimationMetrics {
-    pub sample_count: usize,
-    pub verts_per_sample: usize,
-    pub total_bytes: usize,
-}
-
-impl AnimationMetrics {
-    pub fn measure(mesh_samples: &[Vec<Vector3>]) -> Option<Self> {
-        if mesh_samples.is_empty() {
-            return None;
-        }
-
-        let sample_count = mesh_samples.len();
-        let verts_per_sample = mesh_samples[0].len();
-        let total_bytes = sample_count * verts_per_sample * size_of::<Vector3>();
-
-        Some(AnimationMetrics {
-            sample_count,
-            verts_per_sample,
-            total_bytes,
-        })
-    }
-}
-
-pub struct MeshDescriptor {
-    pub name: &'static str,
-    pub world: Model,
-    pub ndc: Model,
-    pub texture: Texture2D,
-    pub metrics_world: MeshMetrics,
-    pub metrics_ndc: MeshMetrics,
-    pub combined_bytes: usize,
-    pub z_shift_anisotropic: f32,
-    pub z_shift_isotropic: f32,
-}
-
 pub struct HoverState {
     pub indices: Option<(i32, i32, i32)>,
     pub center: Option<Vector3>,
@@ -840,36 +723,85 @@ pub enum OpeningKind {
 
 #[derive(Clone, Copy)]
 pub struct Opening {
+    pub p0: Vector3,
     pub p1: Vector3,
-    pub p2: Vector3,
+    pub h0: f32,
     pub kind: OpeningKind,
+    pub model_index: Option<usize>,
 }
 
 impl Opening {
     pub fn center(&self) -> Vector3 {
         Vector3::new(
-            (self.p1.x + self.p2.x) * 0.5,
-            (self.p1.y + self.p2.y) * 0.5,
-            (self.p1.z + self.p2.z) * 0.5,
+            (self.p0.x + self.p1.x) * 0.5,
+            (self.p0.y + self.p1.y) * 0.5,
+            (self.p0.z + self.p1.z) * 0.5,
         )
     }
 
     pub fn normal(&self) -> Vector2 {
-        let dx = self.p2.x - self.p1.x;
-        let dz = self.p2.z - self.p1.z;
+        let dx = self.p1.x - self.p0.x;
+        let dz = self.p1.z - self.p0.z;
         Vector2::new(dz, -dx).normalize_or_zero()
     }
 
     pub fn tangent(&self) -> Vector2 {
-        let dx = self.p2.x - self.p1.x;
-        let dz = self.p2.z - self.p1.z;
+        let dx = self.p1.x - self.p0.x;
+        let dz = self.p1.z - self.p0.z;
         Vector2::new(dx, dz).normalize_or_zero()
     }
 
     pub fn width(&self) -> f32 {
-        let dx = self.p2.x - self.p1.x;
-        let dz = self.p2.z - self.p1.z;
+        let dx = self.p1.x - self.p0.x;
+        let dz = self.p1.z - self.p0.z;
         (dx * dx + dz * dz).sqrt()
+    }
+
+    pub fn position(&self, room: &Room) -> Vector3 {
+        let mid = self.center();
+        match self.kind {
+            //TODO: consolidate the h0 and the concepts of model "heart" (i.e. model coords 0,0,0 has meaning beyond just logic for placement in world space)
+            // (hikite makes sense for fusuma but deriving for others should help solidify the positioning on the walls i i think
+            OpeningKind::Door { .. } => Vector3::new(mid.x, self.p0.y + self.h0, mid.z),
+            OpeningKind::Window => Vector3::new(mid.x, self.p0.y + room.h as f32 * 0.5, mid.z),
+        }
+    }
+
+    pub fn rotation_into_room(&self, room: &Room) -> f32 {
+        let center = self.center();
+        let north_z = room.origin.z + room.d as f32;
+        let south_z = room.origin.z;
+        let east_x = room.origin.x + room.w as f32;
+        let west_x = room.origin.x;
+
+        let north_dist = (center.z - north_z).abs();
+        let south_dist = (center.z - south_z).abs();
+        let east_dist = (center.x - east_x).abs();
+        let west_dist = (center.x - west_x).abs();
+
+        let mut wall = 1;
+        let mut d_min = north_dist;
+
+        if south_dist < d_min {
+            d_min = south_dist;
+            wall = 2;
+        }
+        if east_dist < d_min {
+            d_min = east_dist;
+            wall = 3;
+        }
+        if west_dist < d_min {
+            d_min = west_dist;
+            wall = 4;
+        }
+
+        match wall {
+            1 => 180.0, // north: +Z -> -Z
+            2 => 0.0,   // south: +Z -> +Z
+            3 => -90.0, // east:  +Z -> -X
+            4 => 90.0,  // west:  +Z -> +X
+            _ => 0.0,
+        }
     }
 }
 
@@ -889,16 +821,20 @@ impl Default for Room {
         let center_x = origin.x + ROOM_W as f32 * 0.5;
         let north_z = origin.z + ROOM_D as f32;
         let primary_door = Opening {
-            p1: Vector3::new(center_x - 1.0, origin.y, north_z),
-            p2: Vector3::new(center_x + 1.0, origin.y, north_z),
+            p0: Vector3::new(center_x - 1.0, origin.y, north_z),
+            p1: Vector3::new(center_x + 1.0, origin.y, north_z),
+            h0: 0.0,
             kind: OpeningKind::Door { primary: true },
+            model_index: None,
         };
         let west_x = origin.x;
         let center_z = origin.z + ROOM_D as f32 * 0.5;
         let window = Opening {
-            p1: Vector3::new(west_x, origin.y, center_z - 1.5),
-            p2: Vector3::new(west_x, origin.y, center_z + 1.5),
+            p0: Vector3::new(west_x, origin.y, center_z - 1.5),
+            p1: Vector3::new(west_x, origin.y, center_z + 1.5),
+            h0: 0.0,
             kind: OpeningKind::Window,
+            model_index: None,
         };
         let mut room = Room {
             w: ROOM_W,
@@ -1304,6 +1240,123 @@ pub fn update_spatial_frame(
         }
     }
     spatial_frame.vertices_mut().copy_from_slice(&out_vertices);
+}
+
+#[derive(Copy, Clone)]
+pub struct MeshMetrics {
+    pub vertex_count: usize,
+    pub triangle_count: usize,
+    pub normal_count: usize,
+    pub texcoord_count: usize,
+    pub color_count: usize,
+    pub index_count: usize,
+    pub total_bytes: usize,
+}
+
+impl MeshMetrics {
+    pub fn measure(mesh: &WeakMesh) -> Self {
+        let vertex_count = mesh.vertices().len();
+        let triangle_count = mesh.triangles().count();
+        let normal_count = mesh.normals().map(|n| n.len()).unwrap_or(0);
+        let texcoord_count = mesh.texcoords().map(|t| t.len()).unwrap_or(0);
+        let color_count = mesh.colors().map(|c| c.len()).unwrap_or(0);
+        let index_count = mesh.indices().map(|i| i.len()).unwrap_or(0);
+
+        let mut total_bytes = 0;
+        total_bytes += vertex_count * size_of::<Vector3>();
+        total_bytes += normal_count * size_of::<Vector3>();
+        total_bytes += texcoord_count * size_of::<Vector2>();
+        total_bytes += color_count * size_of::<Color>();
+        total_bytes += index_count * size_of::<u16>();
+
+        MeshMetrics {
+            vertex_count,
+            triangle_count,
+            normal_count,
+            texcoord_count,
+            color_count,
+            index_count,
+            total_bytes,
+        }
+    }
+}
+
+pub fn gpu_vertex_stride_bytes(metrics: &MeshMetrics) -> usize {
+    let mut stride = size_of::<Vector3>();
+    if metrics.normal_count > 0 {
+        stride += size_of::<Vector3>();
+    }
+    if metrics.texcoord_count > 0 {
+        stride += size_of::<Vector2>();
+    }
+    if metrics.color_count > 0 {
+        stride += size_of::<Color>();
+    }
+    stride
+}
+
+pub struct FrameDynamicMetrics {
+    pub vertex_positions_written: usize,
+    pub vertex_normals_written: usize,
+    pub vertex_colors_written: usize,
+}
+
+impl FrameDynamicMetrics {
+    pub fn new() -> Self {
+        FrameDynamicMetrics {
+            vertex_positions_written: 0,
+            vertex_normals_written: 0,
+            vertex_colors_written: 0,
+        }
+    }
+
+    pub fn reset(&mut self) {
+        self.vertex_positions_written = 0;
+        self.vertex_normals_written = 0;
+        self.vertex_colors_written = 0;
+    }
+
+    pub fn total_bytes_written(&self) -> usize {
+        self.vertex_positions_written * size_of::<Vector3>()
+            + self.vertex_normals_written * size_of::<Vector3>()
+            + self.vertex_colors_written * size_of::<Color>()
+    }
+}
+
+pub struct AnimationMetrics {
+    pub sample_count: usize,
+    pub verts_per_sample: usize,
+    pub total_bytes: usize,
+}
+
+impl AnimationMetrics {
+    pub fn measure(mesh_samples: &[Vec<Vector3>]) -> Option<Self> {
+        if mesh_samples.is_empty() {
+            return None;
+        }
+
+        let sample_count = mesh_samples.len();
+        let verts_per_sample = mesh_samples[0].len();
+        let total_bytes = sample_count * verts_per_sample * size_of::<Vector3>();
+
+        Some(AnimationMetrics {
+            sample_count,
+            verts_per_sample,
+            total_bytes,
+        })
+    }
+}
+
+pub struct MeshDescriptor {
+    pub name: &'static str,
+    pub world: Model,
+    pub ndc: Model,
+    pub texture: Texture2D,
+    pub metrics_world: MeshMetrics,
+    pub metrics_ndc: MeshMetrics,
+    pub combined_bytes: usize,
+    pub z_shift_anisotropic: f32,
+    pub z_shift_isotropic: f32,
 }
 
 pub fn world_to_ndc_space(
