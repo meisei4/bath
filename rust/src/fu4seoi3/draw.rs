@@ -161,8 +161,6 @@ pub fn draw_chi_field(
         ffi::rlSetLineWidth(2.0);
     }
 
-    let door = room.primary_door();
-    let window = room.primary_window();
     let chi_mesh = &chi_model.meshes()[0];
     let vertices = chi_mesh.vertices();
     let normals = chi_mesh.normals().expect("chi mesh must have normals");
@@ -182,17 +180,17 @@ pub fn draw_chi_field(
             vertices[i].z + dir.y * scaled_half_length,
         );
 
-        draw_partitioned_line(rl3d, room, start, end, door, window);
+        draw_partitioned_line(rl3d, room, start, end);
     }
 
     for opening in &room.openings {
-        let color = match opening.kind {
-            OpeningKind::Door { primary: true } => chi_disrupter_color(FieldDisrupter::DoorPrimary),
+        let field_disrupter_color = match opening.kind {
+            OpeningKind::Door { primary: true } => field_disrupter_color(FieldDisrupter::DoorPrimary),
             OpeningKind::Door { primary: false } => Color::WHITE, // TODO: ew, but fine for now
-            OpeningKind::Window => chi_disrupter_color(FieldDisrupter::Window),
+            OpeningKind::Window => field_disrupter_color(FieldDisrupter::Window),
         };
 
-        rl3d.draw_line3D(opening.p0, opening.p1, color);
+        rl3d.draw_line3D(opening.p0, opening.p1, field_disrupter_color);
 
         if let Some(opening_model_index) = opening.model_index {
             let pos = opening.position(room);
@@ -205,10 +203,10 @@ pub fn draw_chi_field(
                 MODEL_SCALE,
                 false,
                 false,
-                Some(color),
+                Some(field_disrupter_color),
             );
         } else {
-            rl3d.draw_sphere(opening.center(), 0.33, color);
+            rl3d.draw_sphere(opening.center(), 0.33, field_disrupter_color);
         }
     }
     unsafe {
@@ -216,17 +214,10 @@ pub fn draw_chi_field(
     }
 }
 
-fn draw_partitioned_line(
-    rl3d: &mut RaylibMode3D<RaylibDrawHandle>,
-    room: &Room,
-    start: Vector3,
-    end: Vector3,
-    door: &Opening,
-    window: Option<&Opening>,
-) {
+fn draw_partitioned_line(rl3d: &mut RaylibMode3D<RaylibDrawHandle>, room: &Room, start: Vector3, end: Vector3) {
     const SEGMENTS: usize = 3;
     let mut prev_pos = start;
-    let mut prev_dominant = room.classify_dominant_disrupter(start, door, window);
+    let mut prev_dominant = room.get_dominant_disrupter_at(start);
 
     for i in 1..=SEGMENTS {
         let t = i as f32 / SEGMENTS as f32;
@@ -236,8 +227,8 @@ fn draw_partitioned_line(
             start.z + (end.z - start.z) * t,
         );
 
-        let curr_dominant = room.classify_dominant_disrupter(curr_pos, door, window);
-        let color = chi_disrupter_color(prev_dominant);
+        let curr_dominant = room.get_dominant_disrupter_at(curr_pos);
+        let color = field_disrupter_color(prev_dominant);
         rl3d.draw_line3D(prev_pos, curr_pos, color);
 
         prev_pos = curr_pos;
