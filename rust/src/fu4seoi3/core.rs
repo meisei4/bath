@@ -1245,3 +1245,31 @@ pub fn orbit_space(handle: &mut RaylibHandle, camera: &mut Camera3D) {
     camera.position.y = camera.target.y + radius * elevation.sin();
     camera.position.z = camera.target.z + radius * elevation.cos() * azimuth.sin();
 }
+
+pub fn fill_room_with_ghosts(
+    room_w: i32,
+    room_h: i32,
+    room_d: i32,
+    placed_time: f32,
+    texture_enabled: bool,
+    color_enabled: bool,
+) -> Vec<PlacedCell> {
+    let mut cells = Vec::new();
+    for ix in 0..room_w {
+        for iy in 0..room_h {
+            for iz in 0..room_d {
+                cells.push(PlacedCell {
+                    ix,
+                    iy,
+                    iz,
+                    mesh_index: 0,
+                    placed_time,
+                    settled: false,
+                    texture_enabled,
+                    color_enabled,
+                });
+            }
+        }
+    }
+    cells
+}

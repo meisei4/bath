@@ -449,6 +449,23 @@ fn main() {
             view_state.ortho_blend,
             &view_config,
         );
+        if handle.is_key_pressed(KeyboardKey::KEY_F) {
+            let max_cells: usize = (ROOM_W * ROOM_H * ROOM_D) as usize;
+            if placed_cells.len() == max_cells {
+                placed_cells.clear();
+            } else {
+                placed_cells = fill_room_with_ghosts(
+                    ROOM_W,
+                    ROOM_H,
+                    ROOM_D,
+                    total_time,
+                    view_state.texture_mode,
+                    view_state.color_mode,
+                );
+            }
+            edit_stack.clear();
+            edit_cursor = 0;
+        }
 
         let hover_state = compute_hover_state(&handle, &jugemu, &room, &placed_cells);
 
@@ -584,6 +601,7 @@ fn main() {
                         .cloned()
                         .unwrap()
                 };
+                unsafe { ffi::rlSetPointSize(4.0) };
                 draw_filled_with_overlay(
                     &mut rl3d,
                     &mut desc.ndc,
@@ -615,6 +633,7 @@ fn main() {
                     .cloned() //TODO dear lord
                     .unwrap()
             };
+            unsafe { ffi::rlSetPointSize(1.0) };
             draw_filled_with_overlay(
                 &mut rl3d,
                 &mut chi_field_model,

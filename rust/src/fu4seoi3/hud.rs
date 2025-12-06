@@ -273,7 +273,7 @@ pub fn draw_hud(
         draw_handle,
         font,
         "ASPECT [ Q ]:",
-        if view_state.aspect_correct { "Ｘ" } else { "Ｏ" },
+        if view_state.aspect_correct { "X" } else { "O" },
         layout.left_label_x,
         layout.left_value_x,
         bottom_y,

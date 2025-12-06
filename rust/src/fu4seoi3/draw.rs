@@ -152,10 +152,10 @@ pub fn draw_filled_with_overlay(
         ffi::rlSetLineWidth(1.0);
     }
     rl3d.draw_model_wires_ex(&mut *model, position, Y_AXIS, rotation_deg, scale, MARINER);
-    unsafe { ffi::rlSetPointSize(4.0) };
     rl3d.draw_model_points_ex(&mut *model, position, Y_AXIS, rotation_deg, scale, LILAC);
 }
 
+//TODO: this needs to go, keep the draqw line segments, but the moment you get the arrow meshes colored and oriented uniquely nuke the entire "ribbon" stuff completely
 pub fn draw_meta_field(
     rl3d: &mut RaylibMode3D<RaylibDrawHandle>,
     room: &Room,
@@ -194,6 +194,7 @@ pub fn draw_meta_field(
             .cloned() //TODO dear lord
             .unwrap()
     };
+    unsafe { ffi::rlSetPointSize(2.0) };
     draw_filled_with_overlay(rl3d, meta_model, texture, MODEL_POS, 0.0, MODEL_SCALE, true, true, None);
 
     for field_entity in &room.field.entities {
