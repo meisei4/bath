@@ -74,15 +74,6 @@ const KIWAKU_SPEC: WindowSpec = WindowSpec {
     mullion_inset_mm: 6.0,
 };
 
-const ARROW_SPEC_TEST: ArrowSpec = ArrowSpec {
-    width: 0.25,             //NOT NEEDED, I JUST WANT A SHAFT LENGTH, HEAD SHAPE AND SIZE SHOULD NEVER CHANGE
-    length: 0.25,            //NOT NEEDED, I JUST WANT A SHAFT LENGTH, HEAD SHAPE AND SIZE SHOULD NEVER CHANGE
-    head_portion: 0.25,      //NOT NEEDED, I JUST WANT A SHAFT LENGTH, HEAD SHAPE AND SIZE SHOULD NEVER CHANGE
-    shaft_width_ratio: 0.35, //NOT NEEDED, I JUST WANT A SHAFT LENGTH, HEAD SHAPE AND SIZE SHOULD NEVER CHANGE
-    thickness: 0.08,
-    chamfer: 0.1,
-};
-
 fn main() {
     println!("=== Step 1: Generating OBJ ===");
 
@@ -139,86 +130,158 @@ fn main() {
 struct ArrowSpec {
     width: f32,
     length: f32,
-    head_portion: f32,
-    shaft_width_ratio: f32,
+    tail_scale: f32,
     thickness: f32,
-    chamfer: f32,
+    chamfer_xy: f32,
+    chamfer_z: f32,
+}
+
+const ARROW_SPEC_TEST: ArrowSpec = ArrowSpec {
+    width: 0.25,
+    length: 0.25,
+    tail_scale: 1.0,
+    thickness: 0.1,
+    chamfer_xy: 0.03,
+    chamfer_z: 0.03,
+};
+
+const ARROW_OUTLINE_BASE: [[f32; 2]; 16] = [
+    [-0.004027, 0.125000],
+    [-0.125000, 0.004027],
+    [-0.125000, -0.028353],
+    [-0.100674, -0.052515],
+    [-0.066732, -0.052515],
+    [-0.044379, -0.028600],
+    [-0.044297, -0.088675],
+    [-0.008054, -0.125000],
+    [0.008054, -0.125000],
+    [0.044297, -0.088675],
+    [0.044379, -0.028600],
+    [0.066732, -0.052515],
+    [0.100674, -0.052515],
+    [0.125000, -0.028353],
+    [0.125000, 0.004027],
+    [0.004027, 0.125000],
+];
+
+const ARROW_TAIL_PIVOT_Y: f32 = -0.052515;
+
+fn build_arrow_outline_2d(spec: &ArrowSpec) -> Vec<[f32; 2]> {
+    let tail_scale = spec.tail_scale.max(0.01);
+
+    let mut pts: Vec<[f32; 2]> = ARROW_OUTLINE_BASE.iter().copied().collect();
+
+    if (tail_scale - 1.0).abs() > f32::EPSILON {
+        for p in pts.iter_mut() {
+            if p[1] <= ARROW_TAIL_PIVOT_Y {
+                p[1] = ARROW_TAIL_PIVOT_Y + (p[1] - ARROW_TAIL_PIVOT_Y) * tail_scale;
+            }
+        }
+    }
+
+    let mut min_x = f32::INFINITY;
+    let mut max_x = f32::NEG_INFINITY;
+    let mut min_y = f32::INFINITY;
+    let mut max_y = f32::NEG_INFINITY;
+
+    for p in &pts {
+        min_x = min_x.min(p[0]);
+        max_x = max_x.max(p[0]);
+        min_y = min_y.min(p[1]);
+        max_y = max_y.max(p[1]);
+    }
+
+    let width_base = max_x - min_x;
+    let length_base = max_y - min_y;
+
+    let cx = 0.5 * (min_x + max_x);
+    let cy = 0.5 * (min_y + max_y);
+
+    let sx = if width_base > 0.0 { spec.width / width_base } else { 1.0 };
+    let sy = if length_base > 0.0 {
+        spec.length / length_base
+    } else {
+        1.0
+    };
+
+    for p in pts.iter_mut() {
+        p[0] = (p[0] - cx) * sx;
+        p[1] = (p[1] - cy) * sy;
+    }
+
+    pts
 }
 
 fn write_arrow_obj(file: &mut File, spec: &ArrowSpec, object_name: &str) {
-    let scale = 1.0;
-    let outline: [[f32; 2]; 16] = [
-        [-0.004027, 0.125000],
-        [-0.125000, 0.004027],
-        [-0.125000, -0.028353],
-        [-0.100674, -0.052515],
-        [-0.066732, -0.052515],
-        [-0.044379, -0.028600],
-        [-0.044297, -0.088675],
-        [-0.008054, -0.125000],
-        [0.008054, -0.125000],
-        [0.044297, -0.088675],
-        [0.044379, -0.028600],
-        [0.066732, -0.052515],
-        [0.100674, -0.052515],
-        [0.125000, -0.028353],
-        [0.125000, 0.004027],
-        [0.004027, 0.125000],
-    ];
-    let outline_2d = outline
-        .iter()
-        .map(|p| [p[0] * scale, p[1] * scale])
-        .collect::<Vec<[f32; 2]>>();
+    let outline_2d = build_arrow_outline_2d(spec);
     let tris_2d = triangulate_polygon_ccw(&outline_2d);
-
     let n = outline_2d.len();
-    let thickness = spec.thickness;
-    let half_t = 0.5 * thickness;
-    let z_bottom = -half_t;
-    let z_top = half_t;
-
-    let chamfer_z = spec.chamfer.min(thickness * 0.49);
-    let z_mid = z_top - chamfer_z;
-
-    let r = 0.5 * spec.width.max(spec.length);
-    let chamfer_xy = spec.chamfer.min(r * 0.4);
-    let inner_scale = if r > 0.0 { (r - chamfer_xy) / r } else { 1.0 };
 
     let mut verts: Vec<[f32; 3]> = Vec::new();
     let mut faces: Vec<[usize; 3]> = Vec::new();
 
-    let bottom_start = verts.len();
-    for p in &outline_2d {
-        verts.push([p[0], p[1], z_bottom]);
-    }
-    let bottom_ring: Vec<usize> = (bottom_start..bottom_start + n).collect();
+    let thickness = spec.thickness.max(0.0001);
+    let half_t = 0.5 * thickness;
 
-    let mid_start = verts.len();
-    for p in &outline_2d {
-        verts.push([p[0], p[1], z_mid]);
-    }
-    let mid_ring: Vec<usize> = (mid_start..mid_start + n).collect();
+    let chamfer_z = spec.chamfer_z.min(half_t * 0.99).max(0.0001);
 
-    let top_start = verts.len();
-    for p in &outline_2d {
-        verts.push([p[0] * inner_scale, p[1] * inner_scale, z_top]);
-    }
-    let top_ring: Vec<usize> = (top_start..top_start + n).collect();
+    let z0 = -half_t;
+    let z1 = -half_t + chamfer_z;
+    let z2 = half_t - chamfer_z;
+    let z3 = half_t;
 
-    connect_rings(&mut faces, &bottom_ring, &mid_ring);
-    connect_rings(&mut faces, &mid_ring, &top_ring);
+    let mut max_extent = 0.0f32;
+    for p in &outline_2d {
+        max_extent = max_extent.max(p[0].abs());
+        max_extent = max_extent.max(p[1].abs());
+    }
+
+    let chamfer_xy = spec.chamfer_xy.min(max_extent * 0.99).max(0.0);
+    let inner_scale = if max_extent > 0.0 {
+        (max_extent - chamfer_xy) / max_extent
+    } else {
+        1.0
+    };
+
+    let r0_start = verts.len();
+    for p in &outline_2d {
+        verts.push([p[0] * inner_scale, p[1] * inner_scale, z0]);
+    }
+    let r0: Vec<usize> = (r0_start..r0_start + n).collect();
+
+    let r1_start = verts.len();
+    for p in &outline_2d {
+        verts.push([p[0], p[1], z1]);
+    }
+    let r1: Vec<usize> = (r1_start..r1_start + n).collect();
+
+    let r2_start = verts.len();
+    for p in &outline_2d {
+        verts.push([p[0], p[1], z2]);
+    }
+    let r2: Vec<usize> = (r2_start..r2_start + n).collect();
+
+    let r3_start = verts.len();
+    for p in &outline_2d {
+        verts.push([p[0] * inner_scale, p[1] * inner_scale, z3]);
+    }
+    let r3: Vec<usize> = (r3_start..r3_start + n).collect();
+
+    connect_rings(&mut faces, &r0, &r1);
+    connect_rings(&mut faces, &r1, &r2);
+    connect_rings(&mut faces, &r2, &r3);
 
     for tri in &tris_2d {
-        let i0 = bottom_ring[tri[0]];
-        let i1 = bottom_ring[tri[1]];
-        let i2 = bottom_ring[tri[2]];
+        let i0 = r0[tri[0]];
+        let i1 = r0[tri[1]];
+        let i2 = r0[tri[2]];
         faces.push([i0 + 1, i2 + 1, i1 + 1]);
     }
 
     for tri in &tris_2d {
-        let i0 = top_ring[tri[0]];
-        let i1 = top_ring[tri[1]];
-        let i2 = top_ring[tri[2]];
+        let i0 = r3[tri[0]];
+        let i1 = r3[tri[1]];
+        let i2 = r3[tri[2]];
         faces.push([i0 + 1, i1 + 1, i2 + 1]);
     }
 
