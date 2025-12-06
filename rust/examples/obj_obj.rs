@@ -138,11 +138,11 @@ struct ArrowSpec {
 
 const ARROW_SPEC_TEST: ArrowSpec = ArrowSpec {
     width: 0.25,
-    length: 0.25,
+    length: 0.33,
     tail_scale: 1.0,
     thickness: 0.1,
-    chamfer_xy: 0.03,
-    chamfer_z: 0.03,
+    chamfer_xy: 0.033,
+    chamfer_z: 0.033,
 };
 
 const ARROW_OUTLINE_BASE: [[f32; 2]; 16] = [
