@@ -279,6 +279,7 @@ fn main() {
     }
 
     let mut chi_field_model = build_chi_field_model(&mut handle, &thread, &room);
+    chi_field_model.materials_mut()[0].set_material_texture(MATERIAL_MAP_ALBEDO, &meshes[0].texture);
     let mut animated_meshes_need_regeneration = false;
 
     while !handle.window_should_close() {
@@ -287,6 +288,7 @@ fn main() {
             field_config = new_field_config;
             room.reload_config(field_config.clone());
             chi_field_model = build_chi_field_model(&mut handle, &thread, &room);
+            chi_field_model.materials_mut()[0].set_material_texture(MATERIAL_MAP_ALBEDO, &meshes[0].texture);
 
             if samples_changed {
                 animated_meshes_need_regeneration = true;
@@ -590,7 +592,7 @@ fn main() {
                     );
                 }
             }
-            draw_chi_field(&mut rl3d, &room, &chi_field_model, &mut opening_models);
+            draw_chi_field(&mut rl3d, &room, &mut chi_field_model, &mut opening_models);
         });
 
         draw_hud(

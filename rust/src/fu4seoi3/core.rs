@@ -476,6 +476,59 @@ pub fn build_chi_field_model(handle: &mut RaylibHandle, thread: &RaylibThread, r
         texcoords.push(Vector2::new(field_sample.door_component, field_sample.window_component));
         colors.push(field_sample.dominant_field_operator.color());
     }
+    // let base_length = room.field.config.chi_arrow_length;
+    // let base_half_width = base_length * 0.15;
+    // for field_sample in room.field_samples().iter() {
+    //     let dir2 = field_sample.direction;
+    //     if dir2.length_squared() < 1e-6 {
+    //         continue;
+    //     }
+    //     let dir3 = Vector3::new(dir2.x, 0.0, dir2.y).normalize();
+    //     let ortho = Vector3::new(-dir3.z, 0.0, dir3.x);
+    //     let m = field_sample.magnitude.clamp(0.0, 1.0);
+    //     let half_length = base_length * m * 0.5;
+    //     let half_width = base_half_width;
+    //     let center = field_sample.position;
+    //     let p0 = center - dir3 * half_length - ortho * half_width;
+    //     let p1 = center - dir3 * half_length + ortho * half_width;
+    //     let p2 = center + dir3 * half_length + ortho * half_width;
+    //     let p3 = center + dir3 * half_length - ortho * half_width;
+    //     let st0 = Vector2::new(0.0, 0.0);
+    //     let st1 = Vector2::new(0.0, 1.0);
+    //     let st2 = Vector2::new(1.0, 1.0);
+    //     let st3 = Vector2::new(1.0, 0.0);
+    //     let red = field_sample.door_component;
+    //     let green = field_sample.window_component;
+    //     let blue = field_sample.wall_component;
+    //     let sum = red + green + blue;
+    //     let (mut r, mut g, mut b) = if sum > 0.0 {
+    //         (red / sum, green / sum, blue / sum)
+    //     } else {
+    //         (0.0, 0.0, 0.0)
+    //     };
+    //
+    //     let brightness = 0.25 + 0.75 * m;
+    //     r *= brightness;
+    //     g *= brightness;
+    //     b *= brightness;
+    //
+    //     let color = Color {
+    //         r: (r * 255.0).round() as u8,
+    //         g: (g * 255.0).round() as u8,
+    //         b: (b * 255.0).round() as u8,
+    //         a: 255,
+    //     };
+    //
+    //     let normal = Vector3::new(0.0, 1.0, 0.0);
+    //     let positions = [p0, p1, p2, p0, p2, p3];
+    //     let dst_texcoords = [st0, st1, st2, st0, st2, st3];
+    //     for i in 0..6 {
+    //         vertices.push(positions[i]);
+    //         normals.push(normal);
+    //         texcoords.push(dst_texcoords[i]);
+    //         colors.push(color);
+    //     }
+    // }
 
     let mesh = Mesh::init_mesh(&vertices)
         .normals(&normals)

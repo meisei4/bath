@@ -110,6 +110,8 @@ define_payloads! {
         FUSUMA_GLTF              => "meshes/fusuma_PREBAKE.glb",
         WINDOW_MIN               => "meshes/window_min.obj",
         WINDOW_GLTF              => "meshes/window_PREBAKE.glb",
+        ARROW_MIN                => "meshes/arrow_min.obj",
+        ARROW_GLTF               => "meshes/arrow_PREBAKE.glb",
         CUBE                     => "meshes/cube_unit.obj",
         CCW_CUBE                 => "meshes/ccw_cube.obj",
         FONT                     => "fonts/font.ttf",

@@ -4,7 +4,7 @@ use raylib::core::math::Vector3;
 use raylib::models::{Mesh, Model, RaylibMaterial, RaylibMesh, RaylibModel, WeakMesh};
 use raylib::{ffi, RaylibHandle, RaylibThread};
 
-use asset_payload::{FUSUMA_MIN_PATH, SPHERE_PATH, WINDOW_MIN_PATH};
+use asset_payload::{ARROW_MIN_PATH, FUSUMA_MIN_PATH, SPHERE_PATH, WINDOW_MIN_PATH};
 use raylib::camera::Camera3D;
 use raylib::color::Color;
 use raylib::consts::CameraProjection::{CAMERA_ORTHOGRAPHIC, CAMERA_PERSPECTIVE};
@@ -223,7 +223,8 @@ fn main() {
             // 2 => handle
             //     .load_model_from_mesh(&thread, Mesh::try_gen_mesh_sphere(&thread, 0.5, 8, 8).unwrap())
             //     .expect("load model sphere gen"),
-            3 => handle.load_model(&thread, SPHERE_PATH).expect("load sphere obj"),
+            3 => handle.load_model(&thread, ARROW_MIN_PATH).expect("load arrow obj"), //TODO: REQUIRES LATEST RAYLIB_SYS PIN!!
+            // 3 => handle.load_model(&thread, SPHERE_PATH).expect("load sphere obj"),
             _ => handle
                 .load_model_from_mesh(&thread, Mesh::try_gen_mesh_knot(&thread, 1.0, 1.0, 16, 128).unwrap())
                 .expect("load model knot gen"),

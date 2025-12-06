@@ -25,6 +25,10 @@ const KOSHIDAKA_OBJ_OUT: &str = "../assets/meshes/koshidaka_PREBAKE.obj";
 const KOSHIDAKA_GLTF_OUT: &str = "../assets/meshes/koshidaka_PREBAKE.gltf";
 const KOSHIDAKA_GLB_OUT: &str = "../assets/meshes/window_PREBAKE.glb";
 
+const ARROW_OBJ_OUT: &str = "../assets/meshes/arrow_PREBAKE.obj";
+const ARROW_GLTF_OUT: &str = "../assets/meshes/arrow_PREBAKE.gltf";
+const ARROW_GLB_OUT: &str = "../assets/meshes/arrow_PREBAKE.glb";
+
 enum TexcoordMapping {
     PlanarProjectionXY,
     SphericalEquirectangularAnalytic,
@@ -70,32 +74,29 @@ const KIWAKU_SPEC: WindowSpec = WindowSpec {
     mullion_inset_mm: 6.0,
 };
 
+const ARROW_SPEC_TEST: ArrowSpec = ArrowSpec {
+    width: 0.25,             //NOT NEEDED, I JUST WANT A SHAFT LENGTH, HEAD SHAPE AND SIZE SHOULD NEVER CHANGE
+    length: 0.25,            //NOT NEEDED, I JUST WANT A SHAFT LENGTH, HEAD SHAPE AND SIZE SHOULD NEVER CHANGE
+    head_portion: 0.25,      //NOT NEEDED, I JUST WANT A SHAFT LENGTH, HEAD SHAPE AND SIZE SHOULD NEVER CHANGE
+    shaft_width_ratio: 0.35, //NOT NEEDED, I JUST WANT A SHAFT LENGTH, HEAD SHAPE AND SIZE SHOULD NEVER CHANGE
+    thickness: 0.08,
+    chamfer: 0.1,
+};
+
 fn main() {
     println!("=== Step 1: Generating OBJ ===");
 
-    let obj_out = KOSHIDAKA_OBJ_OUT;
-    let gltf_out = KOSHIDAKA_GLTF_OUT;
-    let glb_out = KOSHIDAKA_GLB_OUT;
-    let obj_name = "koshidaka";
-    let spec = &KOSHIDAKA_SPEC;
-
-    // let obj_out = KIWAKU_OBJ_OUT;
-    // let gltf_out = KIWAKU_GLTF_OUT;
-    // let glb_out = KIWAKU_GLB_OUT;
-    // let obj_name = "kiwaku";
-    // let spec = &KIWAKU_SPEC;
+    let obj_out = ARROW_OBJ_OUT;
+    let gltf_out = ARROW_GLTF_OUT;
+    let glb_out = ARROW_GLB_OUT;
+    let obj_name = "arrow";
+    let spec = &ARROW_SPEC_TEST;
 
     let mut file = File::create(obj_out).unwrap();
 
-    let mullion_config = MullionConfig {
-        vertical_count: 2,
-        horizontal_count: 2,
-    };
-
-    write_window_obj(&mut file, spec, mullion_config, obj_name);
-
-    //write_sphere_obj(&mut file);
     //write_fusuma_with_handle_obj(&mut file); //TODO: need to get the CLAM vs PIE disk back but whatever..
+
+    write_arrow_obj(&mut file, spec, obj_name);
 
     drop(file);
 
@@ -131,6 +132,199 @@ fn main() {
         eprintln!("Failed to delete BIN: {}", e);
     } else {
         println!("Deleted: {}", bin_out);
+    }
+}
+
+#[derive(Clone, Copy)]
+struct ArrowSpec {
+    width: f32,
+    length: f32,
+    head_portion: f32,
+    shaft_width_ratio: f32,
+    thickness: f32,
+    chamfer: f32,
+}
+
+fn write_arrow_obj(file: &mut File, spec: &ArrowSpec, object_name: &str) {
+    let scale = 1.0;
+    let outline: [[f32; 2]; 16] = [
+        [-0.004027, 0.125000],
+        [-0.125000, 0.004027],
+        [-0.125000, -0.028353],
+        [-0.100674, -0.052515],
+        [-0.066732, -0.052515],
+        [-0.044379, -0.028600],
+        [-0.044297, -0.088675],
+        [-0.008054, -0.125000],
+        [0.008054, -0.125000],
+        [0.044297, -0.088675],
+        [0.044379, -0.028600],
+        [0.066732, -0.052515],
+        [0.100674, -0.052515],
+        [0.125000, -0.028353],
+        [0.125000, 0.004027],
+        [0.004027, 0.125000],
+    ];
+    let outline_2d = outline
+        .iter()
+        .map(|p| [p[0] * scale, p[1] * scale])
+        .collect::<Vec<[f32; 2]>>();
+    let tris_2d = triangulate_polygon_ccw(&outline_2d);
+
+    let n = outline_2d.len();
+    let thickness = spec.thickness;
+    let half_t = 0.5 * thickness;
+    let z_bottom = -half_t;
+    let z_top = half_t;
+
+    let chamfer_z = spec.chamfer.min(thickness * 0.49);
+    let z_mid = z_top - chamfer_z;
+
+    let r = 0.5 * spec.width.max(spec.length);
+    let chamfer_xy = spec.chamfer.min(r * 0.4);
+    let inner_scale = if r > 0.0 { (r - chamfer_xy) / r } else { 1.0 };
+
+    let mut verts: Vec<[f32; 3]> = Vec::new();
+    let mut faces: Vec<[usize; 3]> = Vec::new();
+
+    let bottom_start = verts.len();
+    for p in &outline_2d {
+        verts.push([p[0], p[1], z_bottom]);
+    }
+    let bottom_ring: Vec<usize> = (bottom_start..bottom_start + n).collect();
+
+    let mid_start = verts.len();
+    for p in &outline_2d {
+        verts.push([p[0], p[1], z_mid]);
+    }
+    let mid_ring: Vec<usize> = (mid_start..mid_start + n).collect();
+
+    let top_start = verts.len();
+    for p in &outline_2d {
+        verts.push([p[0] * inner_scale, p[1] * inner_scale, z_top]);
+    }
+    let top_ring: Vec<usize> = (top_start..top_start + n).collect();
+
+    connect_rings(&mut faces, &bottom_ring, &mid_ring);
+    connect_rings(&mut faces, &mid_ring, &top_ring);
+
+    for tri in &tris_2d {
+        let i0 = bottom_ring[tri[0]];
+        let i1 = bottom_ring[tri[1]];
+        let i2 = bottom_ring[tri[2]];
+        faces.push([i0 + 1, i2 + 1, i1 + 1]);
+    }
+
+    for tri in &tris_2d {
+        let i0 = top_ring[tri[0]];
+        let i1 = top_ring[tri[1]];
+        let i2 = top_ring[tri[2]];
+        faces.push([i0 + 1, i1 + 1, i2 + 1]);
+    }
+
+    writeln!(file, "o {}", object_name).unwrap();
+    writeln!(file, "s off").unwrap();
+
+    for v in &verts {
+        writeln!(file, "v {:.6} {:.6} {:.6}", v[0], v[1], v[2]).unwrap();
+    }
+
+    for f in &faces {
+        writeln!(file, "f {} {} {}", f[0], f[1], f[2]).unwrap();
+    }
+}
+
+fn triangulate_polygon_ccw(points: &[[f32; 2]]) -> Vec<[usize; 3]> {
+    let n = points.len();
+    assert!(n >= 3);
+
+    let mut indices: Vec<usize> = (0..n).collect();
+    let mut tris: Vec<[usize; 3]> = Vec::new();
+
+    fn is_convex(points: &[[f32; 2]], i0: usize, i1: usize, i2: usize) -> bool {
+        let (x0, y0) = (points[i0][0], points[i0][1]);
+        let (x1, y1) = (points[i1][0], points[i1][1]);
+        let (x2, y2) = (points[i2][0], points[i2][1]);
+        let ux = x1 - x0;
+        let uy = y1 - y0;
+        let vx = x2 - x1;
+        let vy = y2 - y1;
+        (ux * vy - uy * vx) > 0.0
+    }
+
+    fn point_in_tri(points: &[[f32; 2]], px: f32, py: f32, i0: usize, i1: usize, i2: usize) -> bool {
+        fn sign(ax: f32, ay: f32, bx: f32, by: f32, cx: f32, cy: f32) -> f32 {
+            (ax - cx) * (by - cy) - (bx - cx) * (ay - cy)
+        }
+
+        let (x0, y0) = (points[i0][0], points[i0][1]);
+        let (x1, y1) = (points[i1][0], points[i1][1]);
+        let (x2, y2) = (points[i2][0], points[i2][1]);
+
+        let b1 = sign(px, py, x0, y0, x1, y1) < 0.0;
+        let b2 = sign(px, py, x1, y1, x2, y2) < 0.0;
+        let b3 = sign(px, py, x2, y2, x0, y0) < 0.0;
+
+        (b1 == b2) && (b2 == b3)
+    }
+
+    while indices.len() > 3 {
+        let m = indices.len();
+        let mut ear_found = false;
+
+        for k in 0..m {
+            let i_prev = indices[(k + m - 1) % m];
+            let i_curr = indices[k];
+            let i_next = indices[(k + 1) % m];
+
+            if !is_convex(points, i_prev, i_curr, i_next) {
+                continue;
+            }
+
+            let mut has_inside = false;
+            for &j in &indices {
+                if j == i_prev || j == i_curr || j == i_next {
+                    continue;
+                }
+                let (px, py) = (points[j][0], points[j][1]);
+                if point_in_tri(points, px, py, i_prev, i_curr, i_next) {
+                    has_inside = true;
+                    break;
+                }
+            }
+
+            if has_inside {
+                continue;
+            }
+
+            tris.push([i_prev, i_curr, i_next]);
+            indices.remove(k);
+            ear_found = true;
+            break;
+        }
+
+        if !ear_found {
+            panic!("triangulate_polygon_ccw: no ear found (degenerate polygon?)");
+        }
+    }
+
+    tris.push([indices[0], indices[1], indices[2]]);
+
+    tris
+}
+
+fn connect_rings(faces: &mut Vec<[usize; 3]>, ring_a: &[usize], ring_b: &[usize]) {
+    assert_eq!(ring_a.len(), ring_b.len());
+    let m = ring_a.len();
+    for i in 0..m {
+        let j = (i + 1) % m;
+        let a0 = ring_a[i];
+        let a1 = ring_a[j];
+        let b0 = ring_b[i];
+        let b1 = ring_b[j];
+
+        faces.push([a0 + 1, a1 + 1, b1 + 1]);
+        faces.push([a0 + 1, b1 + 1, b0 + 1]);
     }
 }
 

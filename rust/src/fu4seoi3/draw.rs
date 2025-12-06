@@ -154,7 +154,7 @@ pub fn draw_filled_with_overlay(
 pub fn draw_chi_field(
     rl3d: &mut RaylibMode3D<RaylibDrawHandle>,
     room: &Room,
-    chi_model: &Model,
+    chi_model: &mut Model,
     opening_models: &mut Vec<Model>,
 ) {
     unsafe {
@@ -183,10 +183,22 @@ pub fn draw_chi_field(
         draw_partitioned_line(rl3d, room, start, end);
     }
 
+    // draw_filled_with_overlay(
+    //     rl3d,
+    //     chi_model,
+    //     &Texture2D::default(), //TODO: need to get the actual models texture from materials, as a Texture2D, not raw, and not Weak
+    //     MODEL_POS,
+    //     0.0,
+    //     MODEL_SCALE,
+    //     false,
+    //     true,
+    //     None,
+    // );
+
     for field_entity in &room.field.entities {
         let field_disrupter_color = match field_entity.kind {
             FieldEntityKind::Door { primary: true } => FieldOperatorKind::Emit.color(),
-            FieldEntityKind::Door { primary: false } => Color::WHITE, //TODO ew but fine for now
+            FieldEntityKind::Door { primary: false } => Color::WHITE,
             FieldEntityKind::Window => FieldOperatorKind::Absorb.color(),
             FieldEntityKind::BackWall => FieldOperatorKind::Scatter.color(),
         };
@@ -199,7 +211,7 @@ pub fn draw_chi_field(
             draw_filled_with_overlay(
                 rl3d,
                 &mut opening_models[opening_model_index],
-                &Texture2D::default(), // TODO: get actual Texture or WeakTexture
+                &Texture2D::default(), //TODO: need to get the actual models texture from materials, as a Texture2D, not raw, and not Weak
                 pos,
                 field_entity.rotation_into_room(room).unwrap(), //TODO: just be careful here later
                 MODEL_SCALE,
