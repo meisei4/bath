@@ -215,14 +215,12 @@ fn build_arrow_outline_2d(spec: &ArrowSpec) -> Vec<[f32; 2]> {
 
     pts
 }
-
+//TODO: still need to consolidate the chamfering in the arrow tail-> head nooks, its resulting in intersecting geometry still...
 fn write_arrow_obj(file: &mut File, spec: &ArrowSpec, object_name: &str) {
     let outline_2d = build_arrow_outline_2d(spec);
-    let tris_2d = triangulate_polygon_ccw(&outline_2d); // We won't use this anymore!
     let n = outline_2d.len();
 
     let mut verts: Vec<[f32; 3]> = Vec::new();
-    let mut faces: Vec<[usize; 3]> = Vec::new();
 
     let thickness = spec.thickness.max(0.0001);
     let half_t = 0.5 * thickness;
@@ -246,55 +244,21 @@ fn write_arrow_obj(file: &mut File, spec: &ArrowSpec, object_name: &str) {
         1.0
     };
 
-    let r0_start = verts.len();
-    for p in &outline_2d {
-        verts.push([p[0] * inner_scale, y0, -p[1] * inner_scale]);
-    }
-    let r0: Vec<usize> = (r0_start..r0_start + n).collect();
-
-    let r1_start = verts.len();
-    for p in &outline_2d {
-        verts.push([p[0], y1, -p[1]]);
-    }
-    let r1: Vec<usize> = (r1_start..r1_start + n).collect();
-
-    let r2_start = verts.len();
-    for p in &outline_2d {
-        verts.push([p[0], y2, -p[1]]);
-    }
-    let r2: Vec<usize> = (r2_start..r2_start + n).collect();
-
-    let r3_start = verts.len();
-    for p in &outline_2d {
-        verts.push([p[0] * inner_scale, y3, -p[1] * inner_scale]);
-    }
-    let r3: Vec<usize> = (r3_start..r3_start + n).collect();
-
-    let bottom_center_idx = verts.len();
-    verts.push([0.0, y0, 0.0]);
-
-    let top_center_idx = verts.len();
     verts.push([0.0, y3, 0.0]);
 
-    connect_rings(&mut faces, &r0, &r1);
-    connect_rings(&mut faces, &r1, &r2);
-    connect_rings(&mut faces, &r2, &r3);
-
-    for i in 0..n {
-        let j = (i + 1) % n;
-        let v0 = bottom_center_idx + 1;
-        let v1 = r0[i] + 1;
-        let v2 = r0[j] + 1;
-        faces.push([v0, v2, v1]);
+    for p in outline_2d.iter().rev() {
+        verts.push([p[0] * inner_scale, y3, -p[1] * inner_scale]);
     }
-
-    for i in 0..n {
-        let j = (i + 1) % n;
-        let v0 = top_center_idx + 1;
-        let v1 = r3[i] + 1;
-        let v2 = r3[j] + 1;
-        faces.push([v0, v1, v2]);
+    for p in outline_2d.iter().rev() {
+        verts.push([p[0], y2, -p[1]]);
     }
+    for p in outline_2d.iter().rev() {
+        verts.push([p[0], y1, -p[1]]);
+    }
+    for p in outline_2d.iter().rev() {
+        verts.push([p[0] * inner_scale, y0, -p[1] * inner_scale]);
+    }
+    verts.push([0.0, y0, 0.0]);
 
     writeln!(file, "o {}", object_name).unwrap();
     writeln!(file, "s off").unwrap();
@@ -303,108 +267,12 @@ fn write_arrow_obj(file: &mut File, spec: &ArrowSpec, object_name: &str) {
         writeln!(file, "v {:.6} {:.6} {:.6}", v[0], v[1], v[2]).unwrap();
     }
 
-    let stacks = 4;
+    let stacks = 5;
     let slices = n;
-    let mode = TexcoordMapping::Cylindrical;
+    let mode = TexcoordMapping::SphericalEquirectangularUnwrapped;
+
     emit_sphere_texcoords(file, &verts, stacks, slices, &mode);
-
-    for f in &faces {
-        writeln!(file, "f {0}/{0} {1}/{1} {2}/{2}", f[0], f[1], f[2]).unwrap();
-    }
-}
-
-fn triangulate_polygon_ccw(points: &[[f32; 2]]) -> Vec<[usize; 3]> {
-    let n = points.len();
-    assert!(n >= 3);
-
-    let mut indices: Vec<usize> = (0..n).collect();
-    let mut tris: Vec<[usize; 3]> = Vec::new();
-
-    fn is_convex(points: &[[f32; 2]], i0: usize, i1: usize, i2: usize) -> bool {
-        let (x0, y0) = (points[i0][0], points[i0][1]);
-        let (x1, y1) = (points[i1][0], points[i1][1]);
-        let (x2, y2) = (points[i2][0], points[i2][1]);
-        let ux = x1 - x0;
-        let uy = y1 - y0;
-        let vx = x2 - x1;
-        let vy = y2 - y1;
-        (ux * vy - uy * vx) > 0.0
-    }
-
-    fn point_in_tri(points: &[[f32; 2]], px: f32, py: f32, i0: usize, i1: usize, i2: usize) -> bool {
-        fn sign(ax: f32, ay: f32, bx: f32, by: f32, cx: f32, cy: f32) -> f32 {
-            (ax - cx) * (by - cy) - (bx - cx) * (ay - cy)
-        }
-
-        let (x0, y0) = (points[i0][0], points[i0][1]);
-        let (x1, y1) = (points[i1][0], points[i1][1]);
-        let (x2, y2) = (points[i2][0], points[i2][1]);
-
-        let b1 = sign(px, py, x0, y0, x1, y1) < 0.0;
-        let b2 = sign(px, py, x1, y1, x2, y2) < 0.0;
-        let b3 = sign(px, py, x2, y2, x0, y0) < 0.0;
-
-        (b1 == b2) && (b2 == b3)
-    }
-
-    while indices.len() > 3 {
-        let m = indices.len();
-        let mut ear_found = false;
-
-        for k in 0..m {
-            let i_prev = indices[(k + m - 1) % m];
-            let i_curr = indices[k];
-            let i_next = indices[(k + 1) % m];
-
-            if !is_convex(points, i_prev, i_curr, i_next) {
-                continue;
-            }
-
-            let mut has_inside = false;
-            for &j in &indices {
-                if j == i_prev || j == i_curr || j == i_next {
-                    continue;
-                }
-                let (px, py) = (points[j][0], points[j][1]);
-                if point_in_tri(points, px, py, i_prev, i_curr, i_next) {
-                    has_inside = true;
-                    break;
-                }
-            }
-
-            if has_inside {
-                continue;
-            }
-
-            tris.push([i_prev, i_curr, i_next]);
-            indices.remove(k);
-            ear_found = true;
-            break;
-        }
-
-        if !ear_found {
-            panic!("triangulate_polygon_ccw: no ear found (degenerate polygon?)");
-        }
-    }
-
-    tris.push([indices[0], indices[1], indices[2]]);
-
-    tris
-}
-
-fn connect_rings(faces: &mut Vec<[usize; 3]>, ring_a: &[usize], ring_b: &[usize]) {
-    assert_eq!(ring_a.len(), ring_b.len());
-    let m = ring_a.len();
-    for i in 0..m {
-        let j = (i + 1) % m;
-        let a0 = ring_a[i];
-        let a1 = ring_a[j];
-        let b0 = ring_b[i];
-        let b1 = ring_b[j];
-
-        faces.push([a0 + 1, a1 + 1, b1 + 1]);
-        faces.push([a0 + 1, b1 + 1, b0 + 1]);
-    }
+    emit_sphere_indexed_triangles(file, stacks, slices, &mode);
 }
 
 fn write_window_obj(file: &mut File, spec: &WindowSpec, mullions: MullionConfig, object_name: &str) {
