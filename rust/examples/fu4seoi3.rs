@@ -100,8 +100,8 @@ fn main() {
     fill_planar_texcoords(&mut window.meshes_mut()[0]);
     window.materials_mut()[0].set_material_texture(MATERIAL_MAP_ALBEDO, &checked_texture);
 
-    let mut opening_models: Vec<Model> = vec![fusuma, window];
-    let opening_metrics: Vec<MeshMetrics> = opening_models
+    let mut field_entity_models: Vec<Model> = vec![fusuma, window];
+    let field_entity_metrics: Vec<MeshMetrics> = field_entity_models
         .iter()
         .map(|m| MeshMetrics::measure(&m.meshes()[0]))
         .collect();
@@ -286,9 +286,11 @@ fn main() {
         window.h0 = -window_bb.min.y;
     }
 
-    let mut meta_model = build_meta_model(&mut handle, &thread, &room);
-    let mut chi_field_model = build_chi_field_model(&mut handle, &thread, &room, &arrow_model.meshes()[0]);
-    chi_field_model.materials_mut()[0].set_material_texture(MATERIAL_MAP_ALBEDO, &meshes[0].texture);
+    let mut field_model_lines = build_field_model_lines(&mut handle, &thread, &room);
+    let mut field_model_ribbons = build_field_model_ribbons(&mut handle, &thread, &room);
+
+    let mut field_model_arrows = build_field_model_arrows(&mut handle, &thread, &room, &arrow_model.meshes()[0]);
+    field_model_arrows.materials_mut()[0].set_material_texture(MATERIAL_MAP_ALBEDO, &meshes[0].texture);
     let mut animated_meshes_need_regeneration = false;
 
     while !handle.window_should_close() {
@@ -296,9 +298,10 @@ fn main() {
             let samples_changed = new_field_config.log_delta(&field_config);
             field_config = new_field_config;
             room.reload_config(field_config.clone());
-            meta_model = build_meta_model(&mut handle, &thread, &room);
-            chi_field_model = build_chi_field_model(&mut handle, &thread, &room, &arrow_model.meshes()[0]);
-            chi_field_model.materials_mut()[0].set_material_texture(MATERIAL_MAP_ALBEDO, &meshes[0].texture);
+            field_model_lines = build_field_model_lines(&mut handle, &thread, &room);
+            field_model_ribbons = build_field_model_ribbons(&mut handle, &thread, &room);
+            field_model_arrows = build_field_model_arrows(&mut handle, &thread, &room, &arrow_model.meshes()[0]);
+            field_model_arrows.materials_mut()[0].set_material_texture(MATERIAL_MAP_ALBEDO, &meshes[0].texture);
 
             if samples_changed {
                 animated_meshes_need_regeneration = true;
@@ -626,25 +629,10 @@ fn main() {
                     );
                 }
             }
-            draw_meta_field(&mut rl3d, &room, &mut meta_model, &mut opening_models);
-            let texture = {
-                &chi_field_model.materials()[0]
-                    .get_material_texture(MATERIAL_MAP_ALBEDO)
-                    .cloned() //TODO dear lord
-                    .unwrap()
-            };
-            unsafe { ffi::rlSetPointSize(1.0) };
-            draw_filled_with_overlay(
-                &mut rl3d,
-                &mut chi_field_model,
-                texture,
-                MODEL_POS,
-                0.0,
-                MODEL_SCALE,
-                true,
-                true,
-                None,
-            );
+            draw_field_entities(&mut rl3d, &room, &mut field_entity_models);
+            // draw_field_lines(&mut rl3d, &room, &mut field_model_lines);
+            // draw_field_ribbons(&mut rl3d, &mut field_model_ribbons);
+            draw_field_arrows(&mut rl3d, &mut field_model_arrows);
         });
 
         draw_hud(
@@ -662,7 +650,7 @@ fn main() {
             &room,
             &edit_stack,
             edit_cursor,
-            &opening_metrics,
+            &field_entity_metrics,
         );
     }
 }

@@ -460,22 +460,40 @@ impl Default for Room {
     }
 }
 
-pub fn build_meta_model(handle: &mut RaylibHandle, thread: &RaylibThread, room: &Room) -> Model {
+pub fn build_field_model_lines(handle: &mut RaylibHandle, thread: &RaylibThread, room: &Room) -> Model {
     let mut vertices = Vec::new();
     let mut normals = Vec::new();
     let mut colors = Vec::new();
     let mut texcoords = Vec::new();
 
-    // for field_sample in room.field_samples() {
-    //     vertices.push(field_sample.position);
-    //     normals.push(Vector3::new(
-    //         field_sample.direction.x,
-    //         field_sample.magnitude,
-    //         field_sample.direction.y,
-    //     ));
-    //     texcoords.push(Vector2::new(field_sample.door_component, field_sample.window_component));
-    //     colors.push(field_sample.dominant_field_operator.color());
-    // }
+    for field_sample in room.field_samples() {
+        vertices.push(field_sample.position);
+        normals.push(Vector3::new(
+            field_sample.direction.x,
+            field_sample.magnitude,
+            field_sample.direction.y,
+        ));
+        texcoords.push(Vector2::new(field_sample.door_component, field_sample.window_component));
+        colors.push(field_sample.dominant_field_operator.color());
+    }
+
+    let mesh = Mesh::init_mesh(&vertices)
+        .normals(&normals)
+        .colors(&colors)
+        .texcoords(&texcoords)
+        .build_dynamic(thread)
+        .expect("failed to build chi field mesh");
+
+    handle
+        .load_model_from_mesh(thread, mesh)
+        .expect("failed to create chi field model")
+}
+
+pub fn build_field_model_ribbons(handle: &mut RaylibHandle, thread: &RaylibThread, room: &Room) -> Model {
+    let mut vertices = Vec::new();
+    let mut normals = Vec::new();
+    let mut colors = Vec::new();
+    let mut texcoords = Vec::new();
     let base_length = room.field.config.chi_arrow_length;
     let base_half_width = base_length * 0.15;
     for field_sample in room.field_samples().iter() {
@@ -542,26 +560,22 @@ pub fn build_meta_model(handle: &mut RaylibHandle, thread: &RaylibThread, room: 
         .expect("failed to create chi field model")
 }
 
-pub fn build_chi_field_model(
+pub fn build_field_model_arrows(
     handle: &mut RaylibHandle,
     thread: &RaylibThread,
     room: &Room,
-    arrow_glyph: &WeakMesh,
+    arrow_mesh: &WeakMesh,
 ) -> Model {
     let samples: &[FieldSample] = room.field_samples();
     let sample_count = samples.len();
     assert!(sample_count > 0, "need at least one field sample");
     let first_mesh = {
-        let vertices: Vec<Vector3> = arrow_glyph
-            .vertices()
-            .iter()
-            .map(|&v| v + samples[0].position)
-            .collect();
+        let vertices: Vec<Vector3> = arrow_mesh.vertices().iter().map(|&v| v + samples[0].position).collect();
         Mesh::init_mesh(&vertices)
-            .normals_opt(arrow_glyph.normals())
-            .texcoords_opt(arrow_glyph.texcoords())
-            .colors_opt(arrow_glyph.colors())
-            .indices_opt(arrow_glyph.indices())
+            .normals_opt(arrow_mesh.normals())
+            .texcoords_opt(arrow_mesh.texcoords())
+            .colors_opt(arrow_mesh.colors())
+            .indices_opt(arrow_mesh.indices())
             .build_dynamic(thread)
             .unwrap()
     };
@@ -588,16 +602,12 @@ pub fn build_chi_field_model(
     raw_model.meshCount = sample_count as i32;
     raw_model.meshMaterial = new_mesh_material;
     for i in 1..sample_count {
-        let vertices: Vec<Vector3> = arrow_glyph
-            .vertices()
-            .iter()
-            .map(|&v| v + samples[i].position)
-            .collect();
+        let vertices: Vec<Vector3> = arrow_mesh.vertices().iter().map(|&v| v + samples[i].position).collect();
         let mesh = Mesh::init_mesh(&vertices)
-            .normals_opt(arrow_glyph.normals())
-            .texcoords_opt(arrow_glyph.texcoords())
-            .colors_opt(arrow_glyph.colors())
-            .indices_opt(arrow_glyph.indices())
+            .normals_opt(arrow_mesh.normals())
+            .texcoords_opt(arrow_mesh.texcoords())
+            .colors_opt(arrow_mesh.colors())
+            .indices_opt(arrow_mesh.indices())
             .build_dynamic(thread)
             .unwrap();
 

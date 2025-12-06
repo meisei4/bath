@@ -155,20 +155,55 @@ pub fn draw_filled_with_overlay(
     rl3d.draw_model_points_ex(&mut *model, position, Y_AXIS, rotation_deg, scale, LILAC);
 }
 
-//TODO: this needs to go, keep the draqw line segments, but the moment you get the arrow meshes colored and oriented uniquely nuke the entire "ribbon" stuff completely
-pub fn draw_meta_field(
+pub fn draw_field_entities(
     rl3d: &mut RaylibMode3D<RaylibDrawHandle>,
     room: &Room,
-    meta_model: &mut Model,
-    opening_models: &mut Vec<Model>,
+    field_entity_models: &mut Vec<Model>,
 ) {
+    for field_entity in &room.field.entities {
+        let field_entity_color = match field_entity.kind {
+            FieldEntityKind::Door { primary: true } => FieldOperatorKind::Emit.color(),
+            FieldEntityKind::Door { primary: false } => Color::WHITE,
+            FieldEntityKind::Window => FieldOperatorKind::Absorb.color(),
+            FieldEntityKind::BackWall => FieldOperatorKind::Scatter.color(),
+        };
+
+        rl3d.draw_line3D(field_entity.p0, field_entity.p1, field_entity_color);
+
+        if let Some(model_index) = field_entity.model_index {
+            //TODO: HOW TO AVOID BACKWALL? just dont make a model? Option on rotation is a dumb check imo
+            let texture = {
+                &field_entity_models[model_index].materials()[0]
+                    .get_material_texture(MATERIAL_MAP_ALBEDO)
+                    .cloned() //TODO dear lord
+                    .unwrap()
+            };
+
+            draw_filled_with_overlay(
+                rl3d,
+                &mut field_entity_models[model_index],
+                texture,
+                field_entity.position(room),
+                field_entity.rotation_into_room(room).unwrap(), //TODO: just be careful here later
+                MODEL_SCALE,
+                false,
+                true,
+                Some(field_entity_color),
+            );
+        } else {
+            rl3d.draw_sphere(field_entity.center(), 0.33, field_entity_color);
+        }
+    }
+}
+
+pub fn draw_field_lines(rl3d: &mut RaylibMode3D<RaylibDrawHandle>, room: &Room, meta_model: &mut Model) {
     unsafe {
         ffi::rlSetLineWidth(2.0);
     }
 
     let mesh = &meta_model.meshes()[0];
     let vertices = mesh.vertices();
-    let normals = mesh.normals().unwrap(); //TODO idk itll die
+    let normals = mesh.normals().unwrap();
 
     for i in mesh.triangles().iter_vertices() {
         let dir = Vector2::new(normals[i].x, normals[i].z);
@@ -188,49 +223,6 @@ pub fn draw_meta_field(
         draw_partitioned_line(rl3d, room, start, end);
     }
 
-    let texture = {
-        &meta_model.materials()[0]
-            .get_material_texture(MATERIAL_MAP_ALBEDO)
-            .cloned() //TODO dear lord
-            .unwrap()
-    };
-    unsafe { ffi::rlSetPointSize(2.0) };
-    draw_filled_with_overlay(rl3d, meta_model, texture, MODEL_POS, 0.0, MODEL_SCALE, true, true, None);
-
-    for field_entity in &room.field.entities {
-        let field_disrupter_color = match field_entity.kind {
-            FieldEntityKind::Door { primary: true } => FieldOperatorKind::Emit.color(),
-            FieldEntityKind::Door { primary: false } => Color::WHITE,
-            FieldEntityKind::Window => FieldOperatorKind::Absorb.color(),
-            FieldEntityKind::BackWall => FieldOperatorKind::Scatter.color(),
-        };
-
-        rl3d.draw_line3D(field_entity.p0, field_entity.p1, field_disrupter_color);
-
-        if let Some(opening_model_index) = field_entity.model_index {
-            //TODO: HOW TO AVOID BACKWALL? just dont make a model? Option on rotation is a dumb check imo
-            let texture = {
-                &opening_models[opening_model_index].materials()[0]
-                    .get_material_texture(MATERIAL_MAP_ALBEDO)
-                    .cloned() //TODO dear lord
-                    .unwrap()
-            };
-
-            draw_filled_with_overlay(
-                rl3d,
-                &mut opening_models[opening_model_index],
-                texture,
-                field_entity.position(room),
-                field_entity.rotation_into_room(room).unwrap(), //TODO: just be careful here later
-                MODEL_SCALE,
-                false,
-                true,
-                Some(field_disrupter_color),
-            );
-        } else {
-            rl3d.draw_sphere(field_entity.center(), 0.33, field_disrupter_color);
-        }
-    }
     unsafe {
         ffi::rlSetLineWidth(1.0);
     }
@@ -256,6 +248,49 @@ fn draw_partitioned_line(rl3d: &mut RaylibMode3D<RaylibDrawHandle>, room: &Room,
         prev_pos = curr_pos;
         prev_kind = curr_kind;
     }
+}
+
+//TODO: this needs to go, keep the draqw line segments, but the moment you get the arrow meshes colored and oriented uniquely nuke the entire "ribbon" stuff completely
+pub fn draw_field_ribbons(rl3d: &mut RaylibMode3D<RaylibDrawHandle>, field_model_ribbons: &mut Model) {
+    let texture = {
+        &field_model_ribbons.materials()[0]
+            .get_material_texture(MATERIAL_MAP_ALBEDO)
+            .cloned() //TODO dear lord
+            .unwrap()
+    };
+    unsafe { ffi::rlSetPointSize(2.0) };
+    draw_filled_with_overlay(
+        rl3d,
+        field_model_ribbons,
+        texture,
+        MODEL_POS,
+        0.0,
+        MODEL_SCALE,
+        true,
+        true,
+        None,
+    );
+}
+
+pub fn draw_field_arrows(rl3d: &mut RaylibMode3D<RaylibDrawHandle>, field_model_arrows: &mut Model) {
+    let texture = {
+        &field_model_arrows.materials()[0]
+            .get_material_texture(MATERIAL_MAP_ALBEDO)
+            .cloned() //TODO dear lord
+            .unwrap()
+    };
+    unsafe { ffi::rlSetPointSize(1.0) };
+    draw_filled_with_overlay(
+        rl3d,
+        field_model_arrows,
+        texture,
+        MODEL_POS,
+        0.0,
+        MODEL_SCALE,
+        true,
+        true,
+        None,
+    );
 }
 
 pub fn draw_hint(

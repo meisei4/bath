@@ -33,6 +33,7 @@ enum TexcoordMapping {
     PlanarProjectionXY,
     SphericalEquirectangularAnalytic,
     SphericalEquirectangularUnwrapped,
+    Cylindrical,
 }
 
 struct WindowSpec {
@@ -83,10 +84,13 @@ fn main() {
     let obj_name = "arrow";
     let spec = &ARROW_SPEC_TEST;
 
+    // let obj_out = FUSUMA_OBJ_OUT;
+    // let gltf_out = FUSUMA_GLTF_OUT;
+    // let glb_out = FUSUMA_GLB_OUT;
+
     let mut file = File::create(obj_out).unwrap();
 
-    //write_fusuma_with_handle_obj(&mut file); //TODO: need to get the CLAM vs PIE disk back but whatever..
-
+    // write_fusuma_with_handle_obj(&mut file); //TODO: need to get the CLAM vs PIE disk back but whatever..
     write_arrow_obj(&mut file, spec, obj_name);
 
     drop(file);
@@ -214,7 +218,7 @@ fn build_arrow_outline_2d(spec: &ArrowSpec) -> Vec<[f32; 2]> {
 
 fn write_arrow_obj(file: &mut File, spec: &ArrowSpec, object_name: &str) {
     let outline_2d = build_arrow_outline_2d(spec);
-    let tris_2d = triangulate_polygon_ccw(&outline_2d);
+    let tris_2d = triangulate_polygon_ccw(&outline_2d); // We won't use this anymore!
     let n = outline_2d.len();
 
     let mut verts: Vec<[f32; 3]> = Vec::new();
@@ -222,13 +226,12 @@ fn write_arrow_obj(file: &mut File, spec: &ArrowSpec, object_name: &str) {
 
     let thickness = spec.thickness.max(0.0001);
     let half_t = 0.5 * thickness;
-
     let chamfer_z = spec.chamfer_z.min(half_t * 0.99).max(0.0001);
 
-    let z0 = -half_t;
-    let z1 = -half_t + chamfer_z;
-    let z2 = half_t - chamfer_z;
-    let z3 = half_t;
+    let y0 = -half_t;
+    let y1 = -half_t + chamfer_z;
+    let y2 = half_t - chamfer_z;
+    let y3 = half_t;
 
     let mut max_extent = 0.0f32;
     for p in &outline_2d {
@@ -245,44 +248,52 @@ fn write_arrow_obj(file: &mut File, spec: &ArrowSpec, object_name: &str) {
 
     let r0_start = verts.len();
     for p in &outline_2d {
-        verts.push([p[0] * inner_scale, p[1] * inner_scale, z0]);
+        verts.push([p[0] * inner_scale, y0, -p[1] * inner_scale]);
     }
     let r0: Vec<usize> = (r0_start..r0_start + n).collect();
 
     let r1_start = verts.len();
     for p in &outline_2d {
-        verts.push([p[0], p[1], z1]);
+        verts.push([p[0], y1, -p[1]]);
     }
     let r1: Vec<usize> = (r1_start..r1_start + n).collect();
 
     let r2_start = verts.len();
     for p in &outline_2d {
-        verts.push([p[0], p[1], z2]);
+        verts.push([p[0], y2, -p[1]]);
     }
     let r2: Vec<usize> = (r2_start..r2_start + n).collect();
 
     let r3_start = verts.len();
     for p in &outline_2d {
-        verts.push([p[0] * inner_scale, p[1] * inner_scale, z3]);
+        verts.push([p[0] * inner_scale, y3, -p[1] * inner_scale]);
     }
     let r3: Vec<usize> = (r3_start..r3_start + n).collect();
+
+    let bottom_center_idx = verts.len();
+    verts.push([0.0, y0, 0.0]);
+
+    let top_center_idx = verts.len();
+    verts.push([0.0, y3, 0.0]);
 
     connect_rings(&mut faces, &r0, &r1);
     connect_rings(&mut faces, &r1, &r2);
     connect_rings(&mut faces, &r2, &r3);
 
-    for tri in &tris_2d {
-        let i0 = r0[tri[0]];
-        let i1 = r0[tri[1]];
-        let i2 = r0[tri[2]];
-        faces.push([i0 + 1, i2 + 1, i1 + 1]);
+    for i in 0..n {
+        let j = (i + 1) % n;
+        let v0 = bottom_center_idx + 1;
+        let v1 = r0[i] + 1;
+        let v2 = r0[j] + 1;
+        faces.push([v0, v2, v1]);
     }
 
-    for tri in &tris_2d {
-        let i0 = r3[tri[0]];
-        let i1 = r3[tri[1]];
-        let i2 = r3[tri[2]];
-        faces.push([i0 + 1, i1 + 1, i2 + 1]);
+    for i in 0..n {
+        let j = (i + 1) % n;
+        let v0 = top_center_idx + 1;
+        let v1 = r3[i] + 1;
+        let v2 = r3[j] + 1;
+        faces.push([v0, v1, v2]);
     }
 
     writeln!(file, "o {}", object_name).unwrap();
@@ -292,8 +303,13 @@ fn write_arrow_obj(file: &mut File, spec: &ArrowSpec, object_name: &str) {
         writeln!(file, "v {:.6} {:.6} {:.6}", v[0], v[1], v[2]).unwrap();
     }
 
+    let stacks = 4;
+    let slices = n;
+    let mode = TexcoordMapping::Cylindrical;
+    emit_sphere_texcoords(file, &verts, stacks, slices, &mode);
+
     for f in &faces {
-        writeln!(file, "f {} {} {}", f[0], f[1], f[2]).unwrap();
+        writeln!(file, "f {0}/{0} {1}/{1} {2}/{2}", f[0], f[1], f[2]).unwrap();
     }
 }
 
@@ -646,7 +662,6 @@ fn add_box(verts: &mut Vec<[f32; 3]>, faces: &mut Vec<[usize; 3]>, min: [f32; 3]
         faces.push([a + 1, c + 1, d + 1]);
     }
 }
-
 fn write_fusuma_with_handle_obj(file: &mut File) {
     let room_height = 3.0_f32;
     let fusuma_height_ratio = 0.85_f32;
@@ -713,6 +728,7 @@ fn write_fusuma_with_handle_obj(file: &mut File) {
         verts.push([x, y, z]);
     }
 
+    verts.push([hikite_center_x, hikite_center_y, hikite_center_z]);
     writeln!(file, "o fusuma").unwrap();
     for v in &verts {
         writeln!(
@@ -746,6 +762,7 @@ fn write_fusuma_with_handle_obj(file: &mut File) {
     }
     let front_start = panel_verts.len() as i32 + 1;
     let back_start = front_start + handle_segments as i32;
+    let center_vertex = back_start + handle_segments as i32;
 
     for i in 0..handle_segments {
         let a1 = front_start + i as i32;
@@ -758,12 +775,21 @@ fn write_fusuma_with_handle_obj(file: &mut File) {
         writeln!(file, "f {} {} {}", a1, b2, b1).unwrap();
     }
 
-    for i in 1..(handle_segments - 1) {
-        let c0 = back_start;
-        let c1 = back_start + i as i32;
-        let c2 = back_start + i as i32 + 1;
-        writeln!(file, "f {} {} {}", c0, c1, c2).unwrap();
+    // PIZZA-STYLE: Back cap radiating from center (UNCOMMENT FOR PIZZA)
+    for i in 0..handle_segments {
+        let i_next = if i + 1 == handle_segments { 0 } else { i + 1 };
+        let b1 = back_start + i as i32;
+        let b2 = back_start + i_next as i32;
+        writeln!(file, "f {} {} {}", center_vertex, b1, b2).unwrap();
     }
+
+    // CLAMSHELL-STYLE: CLAM clipping triangulation (UNCOMMENT FOR CLAMSHELL)
+    // for i in 1..(handle_segments - 1) {
+    //     let c0 = back_start;
+    //     let c1 = back_start + i as i32;
+    //     let c2 = back_start + i as i32 + 1;
+    //     writeln!(file, "f {} {} {}", c0, c1, c2).unwrap();
+    // }
 }
 
 fn write_sphere_obj(file: &mut File) {
@@ -903,12 +929,17 @@ fn emit_sphere_texcoords(file: &mut File, verts: &[[f32; 3]], stacks: usize, sli
         TexcoordMapping::SphericalEquirectangularUnwrapped => {
             emit_sphere_equirectangular_unwrapped_texcoords(file, stacks, slices);
         },
+        TexcoordMapping::Cylindrical => {
+            emit_cylindrical_texcoords(file, verts.len(), stacks, slices);
+        },
     }
 }
 
 fn emit_sphere_indexed_triangles(file: &mut File, stacks: usize, slices: usize, mode: &TexcoordMapping) {
     match mode {
-        TexcoordMapping::PlanarProjectionXY | TexcoordMapping::SphericalEquirectangularAnalytic => {
+        TexcoordMapping::PlanarProjectionXY
+        | TexcoordMapping::SphericalEquirectangularAnalytic
+        | TexcoordMapping::Cylindrical => {
             emit_indexed_triangles_shared_texcoords(file, stacks, slices);
         },
         TexcoordMapping::SphericalEquirectangularUnwrapped => {
@@ -1016,6 +1047,36 @@ fn spherical_equirectangular_analytic_st(x: f32, y: f32, z: f32) -> (f32, f32) {
     let ny = (y / r).clamp(-1.0, 1.0);
     let t = 1.0 - ny.acos() / PI;
     (s, t)
+}
+
+fn emit_cylindrical_texcoords(file: &mut File, vert_count: usize, stacks: usize, slices: usize) {
+    let has_poles = vert_count == (2 + (stacks - 1) * slices);
+
+    if has_poles {
+        let s = 0.5;
+        let t = 1.0;
+        writeln!(file, "vt {:.6} {:.6}", s, t).unwrap();
+    }
+
+    let num_rings = if has_poles { stacks - 1 } else { stacks };
+    for ring_idx in 0..num_rings {
+        let t = if has_poles {
+            1.0 - ((ring_idx + 1) as f32) / (stacks as f32)
+        } else {
+            (num_rings - 1 - ring_idx) as f32 / (num_rings - 1).max(1) as f32
+        };
+
+        for i in 0..slices {
+            let s = i as f32 / slices as f32;
+            writeln!(file, "vt {:.6} {:.6}", s, t).unwrap();
+        }
+    }
+
+    if has_poles {
+        let s = 0.5;
+        let t = 0.0;
+        writeln!(file, "vt {:.6} {:.6}", s, t).unwrap();
+    }
 }
 
 fn planar_projection_xy_st(x: f32, y: f32, _z: f32) -> (f32, f32) {
