@@ -6,22 +6,133 @@ use std::f32::consts::{FRAC_PI_2, PI, TAU};
 use std::mem::size_of;
 use std::ops::{Add, Sub};
 
-#[derive(Clone, Copy)]
-pub enum OpeningKind { //TODO: turn into FieldEntityKind to include BackWall
-    Door { primary: bool },
-    Window,
+pub struct Field {
+    pub boundary: FieldBoundary,
+    pub entities: Vec<FieldEntity>,
+    pub config: FieldConfig,
+    operators: Vec<Box<dyn FieldOperator>>,
+    pub samples: Vec<FieldSample>,
+}
+
+impl Field {
+    pub fn new(boundary: FieldBoundary, entities: Vec<FieldEntity>, config: FieldConfig) -> Self {
+        Field {
+            boundary,
+            entities,
+            config,
+            operators: Vec::new(),
+            samples: Vec::new(),
+        }
+    }
+
+    #[inline]
+    pub fn cell_center(&self, ix: i32, iy: i32, iz: i32) -> Vector3 {
+        Vector3::new(
+            self.boundary.origin.x + ix as f32 + 0.5,
+            self.boundary.origin.y + iy as f32 + 0.5,
+            self.boundary.origin.z + iz as f32 + 0.5,
+        )
+    }
+
+    pub fn sample_at(&self, point: Vector3) -> FieldSample {
+        let mut accumulator = FieldOperationAccumulator::default();
+        for operator in &self.operators {
+            operator.apply(point, &mut accumulator, self);
+        }
+        FieldSample::from_accumulator(point, accumulator)
+    }
+
+    pub fn regenerate_samples(&mut self, sample_height: f32) {
+        let (w, h, d) = (self.boundary.w as i32, self.boundary.h as i32, self.boundary.d as i32);
+        let mut samples = Vec::new();
+        let base_y = self.boundary.origin.y + sample_height;
+
+        for iy in 0..h {
+            if iy != 0 {
+                continue;
+            }
+            for iz in 0..d {
+                for ix in 0..w {
+                    let center = self.cell_center(ix, iy, iz);
+                    let center_pos = Vector3::new(center.x, base_y, center.z);
+                    samples.push(self.sample_at(center_pos));
+
+                    for &(dx, dz) in &[(-0.5, -0.5), (0.5, -0.5), (-0.5, 0.5), (0.5, 0.5)] {
+                        let pos = Vector3::new(center_pos.x + dx, base_y, center_pos.z + dz);
+                        samples.push(self.sample_at(pos));
+                    }
+                }
+            }
+        }
+
+        self.samples = samples;
+    }
+}
+
+#[derive(Default)]
+struct FieldOperationAccumulator {
+    direction: Vector2,
+    magnitude: f32,
+    door_component: f32,
+    window_component: f32,
+    wall_component: f32,
+}
+
+pub struct FieldSample {
+    pub position: Vector3,
+    pub direction: Vector2,
+    pub magnitude: f32,
+    pub dominant_field_operator: FieldOperatorKind,
+    pub door_component: f32,
+    pub window_component: f32,
+    pub wall_component: f32,
+}
+
+impl FieldSample {
+    fn from_accumulator(position: Vector3, accumulator: FieldOperationAccumulator) -> Self {
+        let dominant = if accumulator.window_component < 0.05 && accumulator.wall_component < 0.05 {
+            FieldOperatorKind::Emit
+        } else if accumulator.window_component >= accumulator.wall_component {
+            FieldOperatorKind::Absorb
+        } else {
+            FieldOperatorKind::Scatter
+        };
+
+        FieldSample {
+            position,
+            direction: accumulator.direction.normalize_or_zero(),
+            magnitude: accumulator.magnitude,
+            dominant_field_operator: dominant,
+            door_component: accumulator.door_component,
+            window_component: accumulator.window_component,
+            wall_component: accumulator.wall_component,
+        }
+    }
+}
+
+pub struct FieldBoundary {
+    pub origin: Vector3,
+    pub w: f32,
+    pub h: f32,
+    pub d: f32,
 }
 
 #[derive(Clone, Copy)]
-pub struct Opening { //TODO: turn into FieldEntity to include BackWall and then also Add FieldOperator
-    pub p0: Vector3,
+pub enum FieldEntityKind {
+    Door { primary: bool },
+    Window,
+    BackWall,
+}
+
+pub struct FieldEntity {
+    pub p0: Vector3, //TODO: how to consolidate this anchoring stuff with any kind of entity? seems fine? like bones? idk
     pub p1: Vector3,
     pub h0: f32,
-    pub kind: OpeningKind,
+    pub kind: FieldEntityKind,
     pub model_index: Option<usize>,
 }
 
-impl Opening {
+impl FieldEntity {
     pub fn center(&self) -> Vector3 {
         Vector3::new(
             (self.p0.x + self.p1.x) * 0.5,
@@ -52,13 +163,17 @@ impl Opening {
         let mid = self.center();
         match self.kind {
             //TODO: consolidate the h0 and the concepts of model "heart" (i.e. model coords 0,0,0 has meaning beyond just logic for placement in world space)
-            OpeningKind::Door { .. } => Vector3::new(mid.x, self.p0.y + self.h0, mid.z),
-            OpeningKind::Window => Vector3::new(mid.x, self.p0.y + room.h as f32 * 0.5, mid.z),
+            FieldEntityKind::Door { .. } => Vector3::new(mid.x, self.p0.y + self.h0, mid.z),
+            FieldEntityKind::Window => Vector3::new(mid.x, self.p0.y + room.h as f32 * 0.5, mid.z),
+            FieldEntityKind::BackWall => Vector3::new(mid.x, mid.y, mid.z),
         }
     }
 
-    //TODO how to consolidate this as a fieldEntity that is a wall?? cant be rotated into room? or this returns just "nothing to do"
-    pub fn rotation_into_room(&self, room: &Room) -> f32 {
+    pub fn rotation_into_room(&self, room: &Room) -> Option<f32> {
+        if matches!(self.kind, FieldEntityKind::BackWall) {
+            return None;
+        }
+
         let center = self.center();
         let north_z = room.origin.z + room.d as f32;
         let south_z = room.origin.z;
@@ -86,261 +201,206 @@ impl Opening {
             wall = 4;
         }
 
-        match wall {
+        let rotation = match wall {
             1 => 180.0, // north: +Z -> -Z
             2 => 0.0,   // south: +Z -> +Z
             3 => -90.0, // east:  +Z -> -X
             4 => 90.0,  // west:  +Z -> +X
             _ => 0.0,
-        }
+        };
+
+        Some(rotation)
     }
-}
-
-pub struct FieldSample {
-    pub position: Vector3,
-    pub direction: Vector2,
-    pub magnitude: f32,
-    pub dominant: FieldOperator,
-    pub door_influence: f32,
-    pub window_influence: f32,
-    pub wall_influence: f32,
-}
-
-#[derive(Default)]
-struct FieldAccumulator {
-    direction: Vector2,
-    magnitude: f32,
-    door_influence: f32,
-    window_influence: f32,
-    wall_influence: f32,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum FieldOperator {
-    DoorPrimary, // TODO: Turn into Emit and then update openings
-    Window, // Absorb
-    BackWall, // Scatter
+pub enum FieldOperatorKind {
+    Emit,
+    Absorb,
+    Scatter,
 }
 
-impl FieldOperator {
-    fn apply(self, point: Vector3, acc: &mut FieldAccumulator, room: &Room, opening_index: Option<usize>) {
+impl FieldOperatorKind {
+    pub fn color(self) -> Color {
         match self {
-            FieldOperator::DoorPrimary => {
-                let idx = match opening_index {
-                    Some(i) => i,
-                    None => return,
-                };
-                if idx >= room.openings.len() {
-                    return;
-                }
-                let opening = &room.openings[idx];
-                let (dir, mag) = emitter_jet_flow(point, opening, &room.config);
-                if mag > 0.0 {
-                    acc.direction = dir;
-                    acc.magnitude = mag;
-                    acc.door_influence = 1.0;
-                } else {
-                    acc.door_influence = 0.0;
-                }
-            },
-            FieldOperator::Window => {
-                let idx = match opening_index {
-                    Some(i) => i,
-                    None => return,
-                };
-                if idx >= room.openings.len() {
-                    return;
-                }
-                let opening = &room.openings[idx];
-
-                let dir_before = acc.direction;
-                let mag_before = acc.magnitude;
-
-                let (dir_after, mag_after, window_weight) =
-                    sink_convergence_duct(point, dir_before, mag_before, opening, &room.config);
-
-                let window_strength_inf = window_weight.clamp(0.0, 1.0);
-
-                let mut window_angle_inf = 0.0;
-                if dir_before.length_squared() > 0.0 && dir_after.length_squared() > 0.0 {
-                    let angle = angle_between(dir_before, dir_after);
-                    window_angle_inf = (angle / FRAC_PI_2).clamp(0.0, 1.0);
-                }
-
-                let inf = window_angle_inf.max(window_strength_inf);
-                if inf > acc.window_influence {
-                    acc.window_influence = inf;
-                }
-
-                acc.direction = dir_after;
-                acc.magnitude = mag_after;
-            },
-            FieldOperator::BackWall => {
-                let dir_before = acc.direction;
-                let mag_before = acc.magnitude;
-
-                let (dir_after, mag_after, wall_weight) = emitter_tangential_redirect(
-                    point,
-                    dir_before,
-                    mag_before,
-                    room.origin,
-                    room.w as f32,
-                    &room.config,
-                );
-
-                if dir_before.length_squared() > 0.0 && dir_after.length_squared() > 0.0 {
-                    let angle = angle_between(dir_before, dir_after);
-                    let wall_angle_inf = (angle / FRAC_PI_2).clamp(0.0, 1.0);
-                    let wall_strength_inf = wall_weight.clamp(0.0, 1.0);
-                    let inf = wall_angle_inf.max(wall_strength_inf);
-                    if inf > acc.wall_influence {
-                        acc.wall_influence = inf;
-                    }
-                }
-
-                acc.direction = dir_after;
-                acc.magnitude = mag_after;
-            },
+            FieldOperatorKind::Emit => ANAKIWA,
+            FieldOperatorKind::Absorb => PALE_CANARY,
+            FieldOperatorKind::Scatter => CHESTNUT_ROSE,
         }
     }
 
-    pub(crate) fn color(&self) -> Color {
+    pub fn name(self) -> &'static str {
         match self {
-            FieldOperator::DoorPrimary => ANAKIWA,
-            FieldOperator::Window => PALE_CANARY,
-            FieldOperator::BackWall => CHESTNUT_ROSE,
+            FieldOperatorKind::Emit => "emit",
+            FieldOperatorKind::Absorb => "absorb",
+            FieldOperatorKind::Scatter => "scatter",
         }
     }
 }
 
-#[derive(Clone)]
-struct FieldOperatorInstance {
-    kind: FieldOperator,
-    opening_index: Option<usize>,
+trait FieldOperator {
+    fn apply(&self, point: Vector3, accumulator: &mut FieldOperationAccumulator, field: &Field);
 }
 
-impl FieldOperatorInstance {
-    fn apply(&self, point: Vector3, acc: &mut FieldAccumulator, room: &Room) {
-        self.kind.apply(point, acc, room, self.opening_index);
+pub struct Emit {
+    pub field_entity_index: usize,
+}
+
+impl FieldOperator for Emit {
+    fn apply(&self, point: Vector3, accumulator: &mut FieldOperationAccumulator, field: &Field) {
+        let field_entities = &field.entities;
+        if self.field_entity_index >= field_entities.len() {
+            return;
+        }
+
+        let field_entity = &field_entities[self.field_entity_index];
+        if !matches!(field_entity.kind, FieldEntityKind::Door { .. }) {
+            return;
+        }
+
+        let cfg = &field.config;
+        let center = field_entity.center();
+        let p2d = Vector2::new(point.x, point.z);
+        let c2d = Vector2::new(center.x, center.z);
+        let to_point = p2d - c2d;
+        let jet_normal = field_entity.normal();
+        let jet_tangent = field_entity.tangent();
+        let forward_dist = to_point.dot(jet_normal);
+        let lateral_offset = to_point.dot(jet_tangent);
+        if forward_dist <= 0.0 || forward_dist > cfg.jet_max_distance {
+            return;
+        }
+
+        let half_width = field_entity.width() * 0.5;
+        let spread_rad = cfg.jet_spread_angle.to_radians();
+        let spread_amount = forward_dist * spread_rad.tan();
+        let jet_half_width = half_width + spread_amount;
+        if lateral_offset.abs() > jet_half_width {
+            return;
+        }
+
+        let dir = jet_normal;
+        let edge = 1.0 - (lateral_offset.abs() / jet_half_width).powf(2.0);
+        let dist = 1.0 - (forward_dist / cfg.jet_max_distance);
+        let mag = cfg.jet_strength * edge * dist;
+        if mag <= 0.0 {
+            return;
+        }
+
+        accumulator.direction = dir;
+        accumulator.magnitude = mag;
+        accumulator.door_component = 1.0;
     }
 }
 
-fn emitter_jet_flow(point: Vector3, opening: &Opening, cfg: &FieldConfig) -> (Vector2, f32) {
-    if !matches!(opening.kind, OpeningKind::Door { .. }) {
-        return (Vector2::ZERO, 0.0);
-    }
-
-    let center = opening.center();
-    let p2d = Vector2::new(point.x, point.z);
-    let c2d = Vector2::new(center.x, center.z);
-
-    let to_point = p2d - c2d;
-    let jet_normal = opening.normal();
-    let jet_tangent = opening.tangent();
-
-    let forward_dist = to_point.dot(jet_normal);
-    let lateral_offset = to_point.dot(jet_tangent);
-
-    if forward_dist <= 0.0 {
-        return (Vector2::ZERO, 0.0);
-    }
-    if forward_dist > cfg.jet_max_distance {
-        return (Vector2::ZERO, 0.0);
-    }
-
-    let half_width = opening.width() * 0.5;
-    let spread_rad = cfg.jet_spread_angle.to_radians();
-    let spread_amount = forward_dist * spread_rad.tan();
-    let jet_half_width = half_width + spread_amount;
-
-    if lateral_offset.abs() > jet_half_width {
-        return (Vector2::ZERO, 0.0);
-    }
-
-    let dir = jet_normal;
-    let edge = 1.0 - (lateral_offset.abs() / jet_half_width).powf(2.0);
-    let dist = 1.0 - (forward_dist / cfg.jet_max_distance);
-    let mag = cfg.jet_strength * edge * dist;
-
-    (dir, mag)
+pub struct Absorb {
+    pub field_entity_index: usize,
 }
 
-fn sink_convergence_duct(
-    point: Vector3,
-    dir: Vector2,
-    mag: f32,
-    opening: &Opening,
-    cfg: &FieldConfig,
-) -> (Vector2, f32, f32) {
-    if !matches!(opening.kind, OpeningKind::Window) {
-        return (dir, mag, 0.0);
+impl FieldOperator for Absorb {
+    fn apply(&self, point: Vector3, accumulator: &mut FieldOperationAccumulator, field: &Field) {
+        let field_entities = &field.entities;
+        if self.field_entity_index >= field_entities.len() {
+            return;
+        }
+
+        let field_entity = &field_entities[self.field_entity_index];
+        if !matches!(field_entity.kind, FieldEntityKind::Window) {
+            return;
+        }
+
+        let cfg = &field.config;
+        let dir_before = accumulator.direction;
+        let mag_before = accumulator.magnitude;
+        let center = field_entity.center();
+        let p2d = Vector2::new(point.x, point.z);
+        let c2d = Vector2::new(center.x, center.z);
+        let normal = field_entity.normal();
+        let tangent = field_entity.tangent();
+        let to_point = p2d - c2d;
+        let dist_from_window = to_point.dot(normal);
+        if dist_from_window <= 0.0 || dist_from_window > cfg.funnel_reach {
+            return;
+        }
+
+        let lateral = to_point.dot(tangent);
+        let nd = dist_from_window / cfg.funnel_reach;
+        let width_interp = nd.powf(cfg.funnel_curve_power);
+        let funnel_radius = cfg.funnel_sink_radius + (cfg.funnel_catch_radius - cfg.funnel_sink_radius) * width_interp;
+        if lateral.abs() > funnel_radius {
+            return;
+        }
+
+        let target_lateral = if funnel_radius > 0.0 {
+            lateral * (cfg.funnel_sink_radius / funnel_radius)
+        } else {
+            0.0
+        };
+
+        let target_point = c2d + tangent * target_lateral;
+        let desired_dir = (target_point - p2d).normalize_or_zero();
+        let proximity = 1.0 - nd;
+        let lateral_factor = 1.0 - (lateral.abs() / funnel_radius).powf(2.0);
+        let weight = cfg.funnel_strength * proximity * lateral_factor;
+        let dir_after = blend_directions(dir_before, desired_dir, weight);
+        let mag_after = if mag_before == 0.0 {
+            weight * cfg.funnel_strength
+        } else {
+            mag_before
+        };
+
+        let window_strength_weight = weight.clamp(0.0, 1.0);
+        let mut window_angle_weight = 0.0;
+        if dir_before.length_squared() > 0.0 && dir_after.length_squared() > 0.0 {
+            let angle = angle_between(dir_before, dir_after);
+            window_angle_weight = (angle / FRAC_PI_2).clamp(0.0, 1.0);
+        }
+
+        let greater_weight = window_angle_weight.max(window_strength_weight);
+        if greater_weight > accumulator.window_component {
+            accumulator.window_component = greater_weight;
+        }
+
+        accumulator.direction = dir_after;
+        accumulator.magnitude = mag_after;
     }
-
-    let center = opening.center();
-    let p2d = Vector2::new(point.x, point.z);
-    let c2d = Vector2::new(center.x, center.z);
-    let normal = opening.normal();
-    let tangent = opening.tangent();
-
-    let to_point = p2d - c2d;
-
-    let dist_from_window = to_point.dot(normal);
-    if dist_from_window <= 0.0 {
-        return (dir, mag, 0.0);
-    }
-    if dist_from_window > cfg.funnel_reach {
-        return (dir, mag, 0.0);
-    }
-
-    let lateral = to_point.dot(tangent);
-    let nd = dist_from_window / cfg.funnel_reach;
-    let width_interp = nd.powf(cfg.funnel_curve_power);
-    let funnel_radius = cfg.funnel_sink_radius + (cfg.funnel_catch_radius - cfg.funnel_sink_radius) * width_interp;
-
-    if lateral.abs() > funnel_radius {
-        return (dir, mag, 0.0);
-    }
-
-    let target_lateral = if funnel_radius > 0.0 {
-        lateral * (cfg.funnel_sink_radius / funnel_radius)
-    } else {
-        0.0
-    };
-
-    let target_point = c2d + tangent * target_lateral;
-    let desired_dir = (target_point - p2d).normalize_or_zero();
-    let proximity = 1.0 - nd;
-    let lateral_factor = 1.0 - (lateral.abs() / funnel_radius).powf(2.0);
-    let weight = cfg.funnel_strength * proximity * lateral_factor;
-    let new_dir = blend_directions(dir, desired_dir, weight);
-    let new_mag = if mag == 0.0 { weight * cfg.funnel_strength } else { mag };
-
-    (new_dir, new_mag, weight)
 }
+pub struct Scatter;
 
-fn emitter_tangential_redirect(
-    point: Vector3,
-    dir: Vector2,
-    mag: f32,
-    origin: Vector3,
-    room_width: f32,
-    cfg: &FieldConfig,
-) -> (Vector2, f32, f32) {
-    let back_wall_z = origin.z;
-    let dist = (point.z - back_wall_z).abs();
-    let max_dist = cfg.wall_redirect_distance;
-    if max_dist <= 0.0 || dist >= max_dist {
-        return (dir, mag, 0.0);
+impl FieldOperator for Scatter {
+    fn apply(&self, point: Vector3, accumulator: &mut FieldOperationAccumulator, field: &Field) {
+        let dir_before = accumulator.direction;
+        let mag_before = accumulator.magnitude;
+        let cfg = &field.config;
+        let back_wall_z = field.boundary.origin.z;
+        let dist = (point.z - back_wall_z).abs();
+        let max_dist = cfg.wall_redirect_distance;
+        if max_dist <= 0.0 || dist >= max_dist {
+            return;
+        }
+
+        let base = cfg.wall_redirect_strength.clamp(0.0, 1.0);
+        let falloff = 1.0 - (dist / max_dist);
+        let weight = base * falloff;
+        let center_x = field.boundary.origin.x + field.boundary.w * 0.5;
+        let lateral = point.x - center_x;
+        let desired_dir = Vector2::new(if lateral >= 0.0 { 1.0 } else { -1.0 }, 0.0);
+        let dir_after = blend_directions(dir_before, desired_dir, weight);
+        let mag_after = mag_before;
+        let wall_weight = weight;
+        if dir_before.length_squared() > 0.0 && dir_after.length_squared() > 0.0 {
+            let angle = angle_between(dir_before, dir_after);
+            let wall_angle_weight = (angle / FRAC_PI_2).clamp(0.0, 1.0);
+            let wall_strength_weight = wall_weight.clamp(0.0, 1.0);
+            let greater_weight = wall_angle_weight.max(wall_strength_weight);
+            if greater_weight > accumulator.wall_component {
+                accumulator.wall_component = greater_weight;
+            }
+        }
+
+        accumulator.direction = dir_after;
+        accumulator.magnitude = mag_after;
     }
-
-    let base = cfg.wall_redirect_strength.clamp(0.0, 1.0);
-    let falloff = 1.0 - (dist / max_dist);
-    let weight = base * falloff;
-    let center_x = origin.x + room_width * 0.5;
-    let lateral = point.x - center_x;
-    let desired_dir = Vector2::new(if lateral >= 0.0 { 1.0 } else { -1.0 }, 0.0);
-    let new_dir = blend_directions(dir, desired_dir, weight);
-    (new_dir, mag, weight)
 }
 
 pub struct Room {
@@ -348,65 +408,58 @@ pub struct Room {
     pub h: i32,
     pub d: i32,
     pub origin: Vector3,
-    pub openings: Vec<Opening>,
-    pub field_samples: Vec<FieldSample>,
-    pub config: FieldConfig,
-    field_disrupters: Vec<FieldOperatorInstance>,
+    pub field: Field,
 }
 
 impl Default for Room {
     fn default() -> Self {
         let origin = Vector3::new(-(ROOM_W as f32) / 2.0, -(ROOM_H as f32) / 2.0, -(ROOM_D as f32) / 2.0);
-        let center_x = origin.x + ROOM_W as f32 * 0.5;
+        let boundary = FieldBoundary {
+            origin,
+            w: ROOM_W as f32,
+            h: ROOM_H as f32,
+            d: ROOM_D as f32,
+        };
+
         let north_z = origin.z + ROOM_D as f32;
-        let primary_door = Opening {
+        let west_x = origin.x;
+        let center_x = origin.x + ROOM_W as f32 * 0.5;
+        let center_z = origin.z + ROOM_D as f32 * 0.5;
+
+        let door = FieldEntity {
             p0: Vector3::new(center_x - 1.0, origin.y, north_z),
             p1: Vector3::new(center_x + 1.0, origin.y, north_z),
             h0: 0.0,
-            kind: OpeningKind::Door { primary: true },
+            kind: FieldEntityKind::Door { primary: true },
             model_index: None,
         };
-        let west_x = origin.x;
-        let center_z = origin.z + ROOM_D as f32 * 0.5;
-        let window = Opening {
+
+        let window = FieldEntity {
             p0: Vector3::new(west_x, origin.y, center_z - 1.5),
             p1: Vector3::new(west_x, origin.y, center_z + 1.5),
             h0: 0.0,
-            kind: OpeningKind::Window,
+            kind: FieldEntityKind::Window,
             model_index: None,
         };
-        let openings = vec![primary_door, window];
-        let mut field_disrupters = Vec::new();
-        field_disrupters.push(FieldOperatorInstance {
-            kind: FieldOperator::DoorPrimary,
-            opening_index: Some(0),
-        });
-        field_disrupters.push(FieldOperatorInstance {
-            kind: FieldOperator::Window,
-            opening_index: Some(1),
-        });
-        field_disrupters.push(FieldOperatorInstance {
-            kind: FieldOperator::BackWall,
-            opening_index: None,
-        });
 
-        let mut room = Room {
+        let entities = vec![door, window];
+        let mut field = Field::new(boundary, entities, FieldConfig::default());
+        field.operators.push(Box::new(Emit { field_entity_index: 0 }));
+        field.operators.push(Box::new(Absorb { field_entity_index: 1 }));
+        field.operators.push(Box::new(Scatter));
+
+        field.regenerate_samples(field.config.chi_sample_height);
+
+        Room {
             w: ROOM_W,
             h: ROOM_H,
             d: ROOM_D,
             origin,
-            openings,
-            field_samples: Vec::new(),
-            config: FieldConfig::default(),
-            field_disrupters,
-        };
-        room.generate_chi_field();
-        room
+            field,
+        }
     }
 }
 
-//TODO: find a better place for this, in room? decouple from room at all?? maybe its because this is not entirely integrated into the new desgin
-// REMEMBER ITS A DEFAULT STATE RIGHT NOW!!
 pub fn build_chi_field_model(handle: &mut RaylibHandle, thread: &RaylibThread, room: &Room) -> Model {
     let mut vertices = Vec::new();
     let mut normals = Vec::new();
@@ -420,8 +473,8 @@ pub fn build_chi_field_model(handle: &mut RaylibHandle, thread: &RaylibThread, r
             field_sample.magnitude,
             field_sample.direction.y,
         ));
-        texcoords.push(Vector2::new(field_sample.door_influence, field_sample.window_influence));
-        colors.push(field_sample.dominant.color());
+        texcoords.push(Vector2::new(field_sample.door_component, field_sample.window_component));
+        colors.push(field_sample.dominant_field_operator.color());
     }
 
     let mesh = Mesh::init_mesh(&vertices)
@@ -508,64 +561,21 @@ impl Room {
     }
 
     pub fn reload_config(&mut self, config: FieldConfig) {
-        self.config = config;
+        self.field.config = config;
         self.generate_chi_field();
     }
 
     pub fn generate_chi_field(&mut self) {
-        let mut samples = Vec::new();
-        let base_y = self.origin.y + &self.config.chi_sample_height;
-
-        for iy in 0..self.h {
-            if iy != 0 {
-                continue;
-            }
-            for iz in 0..self.d {
-                for ix in 0..self.w {
-                    let center = self.cell_center(ix, iy, iz);
-                    let center_pos = Vector3::new(center.x, base_y, center.z);
-                    samples.push(self.sample_field_at(center_pos));
-
-                    for &(dx, dz) in &[(-0.5, -0.5), (0.5, -0.5), (-0.5, 0.5), (0.5, 0.5)] {
-                        let pos = Vector3::new(center_pos.x + dx, base_y, center_pos.z + dz);
-                        samples.push(self.sample_field_at(pos));
-                    }
-                }
-            }
-        }
-        self.field_samples = samples;
+        let sample_height = self.field.config.chi_sample_height;
+        self.field.regenerate_samples(sample_height);
     }
 
-    fn sample_field_at(&self, point: Vector3) -> FieldSample {
-        let mut acc = FieldAccumulator::default();
-        for field_disrupter in &self.field_disrupters {
-            field_disrupter.apply(point, &mut acc, self);
-        }
-        //TODO: THIS CLEARLY NEEDS TO BE PREPARED TO ITERATE OVER ALL FIELD DISRUPTERS NOT HARD CODED BLOGAL UTIL FUNCTION
-        let dominant = if acc.window_influence < 0.05 && acc.wall_influence < 0.05 {
-            FieldOperator::DoorPrimary
-        } else if acc.window_influence >= acc.wall_influence {
-            FieldOperator::Window
-        } else {
-            FieldOperator::BackWall
-        };
-        FieldSample {
-            position: point,
-            direction: acc.direction.normalize_or_zero(),
-            magnitude: acc.magnitude,
-            dominant,
-            door_influence: acc.door_influence,
-            window_influence: acc.window_influence,
-            wall_influence: acc.wall_influence,
-        }
-    }
-
-    pub fn get_dominant_disrupter_at(&self, point: Vector3) -> FieldOperator {
-        self.sample_field_at(point).dominant
+    pub fn get_dominant_field_operator_at(&self, point: Vector3) -> FieldOperatorKind {
+        self.field.sample_at(point).dominant_field_operator
     }
 
     pub fn field_samples(&self) -> &[FieldSample] {
-        &self.field_samples
+        &self.field.samples
     }
 }
 

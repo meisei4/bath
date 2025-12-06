@@ -168,7 +168,7 @@ pub fn draw_chi_field(
     for i in chi_mesh.triangles().iter_vertices() {
         let dir = Vector2::new(normals[i].x, normals[i].z);
         let mag = normals[i].y.clamp(0.0, 1.0);
-        let scaled_half_length = room.config.chi_arrow_length * mag * 0.5;
+        let scaled_half_length = room.field.config.chi_arrow_length * mag * 0.5;
         let start = Vector3::new(
             vertices[i].x - dir.x * scaled_half_length,
             vertices[i].y,
@@ -183,30 +183,32 @@ pub fn draw_chi_field(
         draw_partitioned_line(rl3d, room, start, end);
     }
 
-    for opening in &room.openings {
-        let field_disrupter_color = match opening.kind {
-            OpeningKind::Door { primary: true } => FieldOperator::DoorPrimary.color(),
-            OpeningKind::Door { primary: false } => Color::WHITE, // TODO: ew, but fine for now
-            OpeningKind::Window => FieldOperator::Window.color(),
+    for field_entity in &room.field.entities {
+        let field_disrupter_color = match field_entity.kind {
+            FieldEntityKind::Door { primary: true } => FieldOperatorKind::Emit.color(),
+            FieldEntityKind::Door { primary: false } => Color::WHITE, //TODO ew but fine for now
+            FieldEntityKind::Window => FieldOperatorKind::Absorb.color(),
+            FieldEntityKind::BackWall => FieldOperatorKind::Scatter.color(),
         };
 
-        rl3d.draw_line3D(opening.p0, opening.p1, field_disrupter_color);
+        rl3d.draw_line3D(field_entity.p0, field_entity.p1, field_disrupter_color);
 
-        if let Some(opening_model_index) = opening.model_index {
-            let pos = opening.position(room);
+        if let Some(opening_model_index) = field_entity.model_index {
+            //TODO: HOW TO AVOID BACKWALL? just dont make a model? Option on rotation is a dumb check imo
+            let pos = field_entity.position(room);
             draw_filled_with_overlay(
                 rl3d,
                 &mut opening_models[opening_model_index],
                 &Texture2D::default(), // TODO: get actual Texture or WeakTexture
                 pos,
-                opening.rotation_into_room(room),
+                field_entity.rotation_into_room(room).unwrap(), //TODO: just be careful here later
                 MODEL_SCALE,
                 false,
                 false,
                 Some(field_disrupter_color),
             );
         } else {
-            rl3d.draw_sphere(opening.center(), 0.33, field_disrupter_color);
+            rl3d.draw_sphere(field_entity.center(), 0.33, field_disrupter_color);
         }
     }
     unsafe {
@@ -217,7 +219,7 @@ pub fn draw_chi_field(
 fn draw_partitioned_line(rl3d: &mut RaylibMode3D<RaylibDrawHandle>, room: &Room, start: Vector3, end: Vector3) {
     const SEGMENTS: usize = 3;
     let mut prev_pos = start;
-    let mut prev_dominant = room.get_dominant_disrupter_at(start);
+    let mut prev_kind = room.get_dominant_field_operator_at(start);
 
     for i in 1..=SEGMENTS {
         let t = i as f32 / SEGMENTS as f32;
@@ -227,12 +229,12 @@ fn draw_partitioned_line(rl3d: &mut RaylibMode3D<RaylibDrawHandle>, room: &Room,
             start.z + (end.z - start.z) * t,
         );
 
-        let curr_dominant = room.get_dominant_disrupter_at(curr_pos);
-        let color = prev_dominant.color();
+        let curr_kind = room.get_dominant_field_operator_at(curr_pos);
+        let color = prev_kind.color();
         rl3d.draw_line3D(prev_pos, curr_pos, color);
 
         prev_pos = curr_pos;
-        prev_dominant = curr_dominant;
+        prev_kind = curr_kind;
     }
 }
 

@@ -269,11 +269,11 @@ fn main() {
     let mut frame_dynamic_metrics = FrameDynamicMetrics::new();
     let mut room = Room::default();
 
-    if let Some(door) = room.openings.get_mut(0) {
+    if let Some(door) = room.field.entities.get_mut(0) {
         door.model_index = Some(0);
         door.h0 = -fusuma_bb.min.y;
     }
-    if let Some(window) = room.openings.get_mut(1) {
+    if let Some(window) = room.field.entities.get_mut(1) {
         window.model_index = Some(1);
         window.h0 = -window_bb.min.y;
     }
