@@ -7,13 +7,13 @@ use std::mem::size_of;
 use std::ops::{Add, Sub};
 
 #[derive(Clone, Copy)]
-pub enum OpeningKind {
+pub enum OpeningKind { //TODO: turn into FieldEntityKind to include BackWall
     Door { primary: bool },
     Window,
 }
 
 #[derive(Clone, Copy)]
-pub struct Opening {
+pub struct Opening { //TODO: turn into FieldEntity to include BackWall and then also Add FieldOperator
     pub p0: Vector3,
     pub p1: Vector3,
     pub h0: f32,
@@ -57,6 +57,7 @@ impl Opening {
         }
     }
 
+    //TODO how to consolidate this as a fieldEntity that is a wall?? cant be rotated into room? or this returns just "nothing to do"
     pub fn rotation_into_room(&self, room: &Room) -> f32 {
         let center = self.center();
         let north_z = room.origin.z + room.d as f32;
@@ -99,7 +100,7 @@ pub struct FieldSample {
     pub position: Vector3,
     pub direction: Vector2,
     pub magnitude: f32,
-    pub dominant: FieldDisrupter,
+    pub dominant: FieldOperator,
     pub door_influence: f32,
     pub window_influence: f32,
     pub wall_influence: f32,
@@ -115,16 +116,16 @@ struct FieldAccumulator {
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum FieldDisrupter {
-    DoorPrimary,
-    Window,
-    BackWall,
+pub enum FieldOperator {
+    DoorPrimary, // TODO: Turn into Emit and then update openings
+    Window, // Absorb
+    BackWall, // Scatter
 }
 
-impl FieldDisrupter {
+impl FieldOperator {
     fn apply(self, point: Vector3, acc: &mut FieldAccumulator, room: &Room, opening_index: Option<usize>) {
         match self {
-            FieldDisrupter::DoorPrimary => {
+            FieldOperator::DoorPrimary => {
                 let idx = match opening_index {
                     Some(i) => i,
                     None => return,
@@ -142,7 +143,7 @@ impl FieldDisrupter {
                     acc.door_influence = 0.0;
                 }
             },
-            FieldDisrupter::Window => {
+            FieldOperator::Window => {
                 let idx = match opening_index {
                     Some(i) => i,
                     None => return,
@@ -174,7 +175,7 @@ impl FieldDisrupter {
                 acc.direction = dir_after;
                 acc.magnitude = mag_after;
             },
-            FieldDisrupter::BackWall => {
+            FieldOperator::BackWall => {
                 let dir_before = acc.direction;
                 let mag_before = acc.magnitude;
 
@@ -205,20 +206,20 @@ impl FieldDisrupter {
 
     pub(crate) fn color(&self) -> Color {
         match self {
-            FieldDisrupter::DoorPrimary => ANAKIWA,
-            FieldDisrupter::Window => PALE_CANARY,
-            FieldDisrupter::BackWall => CHESTNUT_ROSE,
+            FieldOperator::DoorPrimary => ANAKIWA,
+            FieldOperator::Window => PALE_CANARY,
+            FieldOperator::BackWall => CHESTNUT_ROSE,
         }
     }
 }
 
 #[derive(Clone)]
-struct FieldDisrupterInstance {
-    kind: FieldDisrupter,
+struct FieldOperatorInstance {
+    kind: FieldOperator,
     opening_index: Option<usize>,
 }
 
-impl FieldDisrupterInstance {
+impl FieldOperatorInstance {
     fn apply(&self, point: Vector3, acc: &mut FieldAccumulator, room: &Room) {
         self.kind.apply(point, acc, room, self.opening_index);
     }
@@ -350,7 +351,7 @@ pub struct Room {
     pub openings: Vec<Opening>,
     pub field_samples: Vec<FieldSample>,
     pub config: FieldConfig,
-    field_disrupters: Vec<FieldDisrupterInstance>,
+    field_disrupters: Vec<FieldOperatorInstance>,
 }
 
 impl Default for Room {
@@ -376,16 +377,16 @@ impl Default for Room {
         };
         let openings = vec![primary_door, window];
         let mut field_disrupters = Vec::new();
-        field_disrupters.push(FieldDisrupterInstance {
-            kind: FieldDisrupter::DoorPrimary,
+        field_disrupters.push(FieldOperatorInstance {
+            kind: FieldOperator::DoorPrimary,
             opening_index: Some(0),
         });
-        field_disrupters.push(FieldDisrupterInstance {
-            kind: FieldDisrupter::Window,
+        field_disrupters.push(FieldOperatorInstance {
+            kind: FieldOperator::Window,
             opening_index: Some(1),
         });
-        field_disrupters.push(FieldDisrupterInstance {
-            kind: FieldDisrupter::BackWall,
+        field_disrupters.push(FieldOperatorInstance {
+            kind: FieldOperator::BackWall,
             opening_index: None,
         });
 
@@ -542,11 +543,11 @@ impl Room {
         }
         //TODO: THIS CLEARLY NEEDS TO BE PREPARED TO ITERATE OVER ALL FIELD DISRUPTERS NOT HARD CODED BLOGAL UTIL FUNCTION
         let dominant = if acc.window_influence < 0.05 && acc.wall_influence < 0.05 {
-            FieldDisrupter::DoorPrimary
+            FieldOperator::DoorPrimary
         } else if acc.window_influence >= acc.wall_influence {
-            FieldDisrupter::Window
+            FieldOperator::Window
         } else {
-            FieldDisrupter::BackWall
+            FieldOperator::BackWall
         };
         FieldSample {
             position: point,
@@ -559,7 +560,7 @@ impl Room {
         }
     }
 
-    pub fn get_dominant_disrupter_at(&self, point: Vector3) -> FieldDisrupter {
+    pub fn get_dominant_disrupter_at(&self, point: Vector3) -> FieldOperator {
         self.sample_field_at(point).dominant
     }
 

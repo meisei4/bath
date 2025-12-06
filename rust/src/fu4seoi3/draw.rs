@@ -185,9 +185,9 @@ pub fn draw_chi_field(
 
     for opening in &room.openings {
         let field_disrupter_color = match opening.kind {
-            OpeningKind::Door { primary: true } => FieldDisrupter::DoorPrimary.color(),
+            OpeningKind::Door { primary: true } => FieldOperator::DoorPrimary.color(),
             OpeningKind::Door { primary: false } => Color::WHITE, // TODO: ew, but fine for now
-            OpeningKind::Window => FieldDisrupter::Window.color(),
+            OpeningKind::Window => FieldOperator::Window.color(),
         };
 
         rl3d.draw_line3D(opening.p0, opening.p1, field_disrupter_color);
