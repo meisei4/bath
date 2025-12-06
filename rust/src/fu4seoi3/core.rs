@@ -580,7 +580,7 @@ pub fn build_field_model_arrows(
             .unwrap()
     };
 
-    let mut model = handle.load_model_from_mesh(thread, first_mesh).unwrap();
+    let model = handle.load_model_from_mesh(thread, first_mesh).unwrap();
     let mut raw_model = model.to_raw();
     let mesh_size = (sample_count * size_of::<ffi::Mesh>()) as u32;
     let new_meshes = unsafe { ffi::MemAlloc(mesh_size) } as *mut ffi::Mesh;
@@ -615,6 +615,117 @@ pub fn build_field_model_arrows(
     }
 
     unsafe { Model::from_raw(raw_model) }
+}
+
+pub fn update_field_model_arrows(field_model_arrows: &mut Model, room: &Room, arrow_mesh: &WeakMesh) {
+    let samples = room.field_samples();
+    let meshes = field_model_arrows.meshes_mut();
+
+    assert_eq!(
+        samples.len(),
+        meshes.len(),
+        "update_field_model_arrows: sample/mesh count mismatch (samples: {}, meshes: {})",
+        samples.len(),
+        meshes.len()
+    );
+
+    let current_vertices = arrow_mesh.vertices();
+    let current_normals = arrow_mesh.normals().expect("arrow template must have prebaked normals");
+    let vertex_count = current_vertices.len();
+
+    const MIN_DIR_LEN2: f32 = 1e-6;
+    const MIN_MAG: f32 = 0.01;
+
+    let arrow_scale = room.field.config.chi_arrow_length;
+
+    for (i, sample) in samples.iter().enumerate() {
+        let mesh = &mut meshes[i];
+        let mesh_vertex_count = mesh.vertices().len();
+
+        debug_assert_eq!(
+            mesh_vertex_count, vertex_count,
+            "arrow vertex count mismatch at mesh {}",
+            i
+        );
+
+        let dir2 = sample.direction;
+        let dir_len2 = dir2.x * dir2.x + dir2.y * dir2.y;
+        let has_dir = dir_len2 > MIN_DIR_LEN2;
+        let m = sample.magnitude.clamp(0.0, 1.0);
+        let active = has_dir && m > MIN_MAG;
+
+        let (cos_yaw, sin_yaw) = if has_dir {
+            let yaw = (-dir2.x).atan2(-dir2.y);
+            (yaw.cos(), yaw.sin())
+        } else {
+            (1.0_f32, 0.0_f32)
+        };
+
+        let (r_f, g_f, b_f) = {
+            let red = sample.door_component;
+            let green = sample.window_component;
+            let blue = sample.wall_component;
+            let sum = red + green + blue;
+
+            let (mut r, mut g, mut b) = if sum > 0.0 {
+                (red / sum, green / sum, blue / sum)
+            } else {
+                (0.0, 0.0, 0.0)
+            };
+
+            let brightness = 0.25 + 0.75 * m;
+            r *= brightness;
+            g *= brightness;
+            b *= brightness;
+
+            (r, g, b)
+        };
+
+        let vertex_color = Color {
+            r: (r_f * 255.0).round() as u8,
+            g: (g_f * 255.0).round() as u8,
+            b: (b_f * 255.0).round() as u8,
+            a: 255,
+        };
+
+        let center = sample.position;
+        let mut new_vertices = Vec::with_capacity(vertex_count);
+        let mut new_normals = Vec::with_capacity(vertex_count);
+        let mut new_colors = Vec::with_capacity(vertex_count);
+
+        for idx in 0..vertex_count {
+            if !active {
+                new_vertices.push(center);
+                new_normals.push(Vector3::ZERO);
+                new_colors.push(Color { r: 0, g: 0, b: 0, a: 0 });
+                continue;
+            }
+
+            let base_v = current_vertices[idx];
+            let sx = base_v.x * arrow_scale;
+            let sy = base_v.y * arrow_scale;
+            let sz = base_v.z * arrow_scale;
+
+            let rx = sx * cos_yaw + sz * sin_yaw;
+            let rz = -sx * sin_yaw + sz * cos_yaw;
+
+            new_vertices.push(Vector3::new(center.x + rx, center.y + sy, center.z + rz));
+
+            let base_n = current_normals[idx];
+            let nx0 = base_n.x;
+            let ny0 = base_n.y;
+            let nz0 = base_n.z;
+            let nx = nx0 * cos_yaw + nz0 * sin_yaw;
+            let nz = -nx0 * sin_yaw + nz0 * cos_yaw;
+
+            new_normals.push(Vector3::new(nx, ny0, nz));
+            new_colors.push(vertex_color);
+        }
+
+        mesh.vertices_mut().copy_from_slice(&new_vertices);
+        mesh.normals_mut().unwrap().copy_from_slice(&new_normals);
+        mesh.colors_mut().unwrap().copy_from_slice(&new_colors);
+    }
 }
 
 impl Room {

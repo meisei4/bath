@@ -291,6 +291,8 @@ fn main() {
 
     let mut field_model_arrows = build_field_model_arrows(&mut handle, &thread, &room, &arrow_model.meshes()[0]);
     field_model_arrows.materials_mut()[0].set_material_texture(MATERIAL_MAP_ALBEDO, &meshes[0].texture);
+    update_field_model_arrows(&mut field_model_arrows, &room, &arrow_model.meshes()[0]);
+    let mut field_arrows_metrics = MeshMetrics::measure(&field_model_arrows.meshes()[0]);
     let mut animated_meshes_need_regeneration = false;
 
     while !handle.window_should_close() {
@@ -302,6 +304,8 @@ fn main() {
             field_model_ribbons = build_field_model_ribbons(&mut handle, &thread, &room);
             field_model_arrows = build_field_model_arrows(&mut handle, &thread, &room, &arrow_model.meshes()[0]);
             field_model_arrows.materials_mut()[0].set_material_texture(MATERIAL_MAP_ALBEDO, &meshes[0].texture);
+            update_field_model_arrows(&mut field_model_arrows, &room, &arrow_model.meshes()[0]);
+            field_arrows_metrics = MeshMetrics::measure(&field_model_arrows.meshes()[0]);
 
             if samples_changed {
                 animated_meshes_need_regeneration = true;
@@ -651,6 +655,7 @@ fn main() {
             &edit_stack,
             edit_cursor,
             &field_entity_metrics,
+            &field_arrows_metrics,
         );
     }
 }

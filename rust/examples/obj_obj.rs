@@ -270,7 +270,7 @@ fn write_arrow_obj(file: &mut File, spec: &ArrowSpec, object_name: &str) {
     let stacks = 5;
     let slices = n;
     let mode = TexcoordMapping::SphericalEquirectangularUnwrapped;
-
+    emit_sphere_normals(file, &verts);
     emit_sphere_texcoords(file, &verts, stacks, slices, &mode);
     emit_sphere_indexed_triangles(file, stacks, slices, &mode);
 }

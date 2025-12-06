@@ -179,7 +179,8 @@ pub fn draw_hud(
     room: &Room,
     edit_stack: &[EditStack],
     edit_cursor: usize,
-    opening_metrics: &[MeshMetrics],
+    field_entity_metrics: &[MeshMetrics],
+    field_arrows_metrics: &MeshMetrics,
 ) {
     let layout = compute_hud_layout(draw_handle, font);
     let mut line_y = layout.margin;
@@ -324,7 +325,8 @@ pub fn draw_hud(
         meshes,
         mesh_samples,
         frame_dynamic_metrics,
-        opening_metrics,
+        field_entity_metrics,
+        field_arrows_metrics,
     );
 
     if let (Some(cell_index), Some((ix, iy, iz))) = (hover_state.placed_cell_index, hover_state.indices) {
@@ -388,7 +390,8 @@ fn draw_perf_hud(
     meshes: &[MeshDescriptor],
     mesh_samples: &[Vec<Vector3>],
     frame_dynamic_metrics: &FrameDynamicMetrics,
-    opening_metrics: &[MeshMetrics],
+    field_entity_metrics: &[MeshMetrics],
+    field_arrows_metrics: &MeshMetrics,
 ) {
     let screen_width = draw_handle.get_screen_width();
 
@@ -408,8 +411,10 @@ fn draw_perf_hud(
         }
     }
     let total_geom_bytes_meshes: usize = meshes.iter().map(|m| m.combined_bytes).sum();
-    let total_geom_bytes_openings: usize = opening_metrics.iter().map(|m| m.total_bytes).sum();
-    let total_geom_bytes_shared: usize = total_geom_bytes_meshes + total_geom_bytes_openings;
+    let total_geom_bytes_field_entities: usize = field_entity_metrics.iter().map(|m| m.total_bytes).sum();
+    let total_geom_bytes_chi_arrows: usize = field_arrows_metrics.total_bytes;
+    let total_geom_bytes_shared: usize =
+        total_geom_bytes_meshes + total_geom_bytes_field_entities + total_geom_bytes_chi_arrows;
     let mut filled_draws_per_mesh = vec![0usize; mesh_count];
     let mut overlay_calls_per_mesh = vec![0usize; mesh_count];
 
@@ -614,16 +619,21 @@ fn draw_perf_hud(
         );
         y += line;
     }
-    if !opening_metrics.is_empty() {
+    if !field_entity_metrics.is_empty() {
         y += line;
-        hud_text(draw_handle, font, "OPENING MESHES:", perf_x, y, font_sz, SUNFLOWER);
+        hud_text(draw_handle, font, "FIELD ENTITY MESHES:", perf_x, y, font_sz, SUNFLOWER);
         y += line;
 
-        for (i, m) in opening_metrics.iter().enumerate() {
+        for (i, m) in field_entity_metrics.iter().enumerate() {
             hud_text(
                 draw_handle,
                 font,
-                &format!("OPENING_{}: {} ({}v)", i, format_bytes(m.total_bytes), m.vertex_count),
+                &format!(
+                    "FIELD_ENTITY_{}: {} ({}v)",
+                    i,
+                    format_bytes(m.total_bytes),
+                    m.vertex_count
+                ),
                 perf_x,
                 y,
                 font_sz,
@@ -631,6 +641,27 @@ fn draw_perf_hud(
             );
             y += line;
         }
+    }
+
+    if field_arrows_metrics.total_bytes > 0 {
+        y += line;
+        hud_text(draw_handle, font, "FIELD:", perf_x, y, font_sz, SUNFLOWER);
+        y += line;
+
+        hud_text(
+            draw_handle,
+            font,
+            &format!(
+                "FIELD_ARROWS: {} ({}v)",
+                format_bytes(field_arrows_metrics.total_bytes),
+                field_arrows_metrics.vertex_count
+            ),
+            perf_x,
+            y,
+            font_sz,
+            ANAKIWA,
+        );
+        y += line;
     }
 
     hud_text(
