@@ -360,6 +360,23 @@ pub fn draw_hud(
         }
     }
     draw_edit_stack_hud(draw_handle, font, &layout, edit_stack, edit_cursor);
+
+    let fps_text = format!("FPS: {}", draw_handle.get_fps());
+    let fps_x = draw_handle.get_screen_width()
+        - layout.margin
+        - font
+            .measure_text(&fps_text, layout.font_size_main as f32, HUD_CHAR_SPACING)
+            .x as i32;
+    let fps_y = draw_handle.get_screen_height() - layout.margin - layout.line_height_main;
+    hud_text(
+        draw_handle,
+        font,
+        &fps_text,
+        fps_x,
+        fps_y,
+        layout.font_size_main,
+        SUNFLOWER,
+    );
 }
 
 fn draw_perf_hud(

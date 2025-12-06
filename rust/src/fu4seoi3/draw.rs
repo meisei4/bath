@@ -5,28 +5,33 @@ use raylib::ffi;
 use raylib::prelude::*;
 
 pub struct ColorGuard {
-    cached_colors_ptr: *mut std::ffi::c_uchar,
-    restore_target: *mut ffi::Mesh,
+    mesh_colors_entries: Vec<(*mut ffi::Mesh, *mut std::ffi::c_uchar)>,
 }
 
 impl ColorGuard {
-    pub fn hide(mesh: &mut WeakMesh) -> Self {
-        let mesh_ptr = mesh.as_mut() as *mut ffi::Mesh;
-        let colors_ptr = unsafe { (*mesh_ptr).colors };
-        unsafe {
-            (*mesh_ptr).colors = std::ptr::null_mut();
+    pub fn hide(model: &mut Model) -> Self {
+        let mut entries = Vec::new();
+        for mesh in model.meshes_mut() {
+            let mesh_ptr = mesh.as_mut() as *mut ffi::Mesh;
+            let colors_ptr = unsafe { (*mesh_ptr).colors };
+            unsafe {
+                (*mesh_ptr).colors = std::ptr::null_mut();
+            }
+
+            entries.push((mesh_ptr, colors_ptr));
         }
         Self {
-            cached_colors_ptr: colors_ptr,
-            restore_target: mesh_ptr,
+            mesh_colors_entries: entries,
         }
     }
 }
 
 impl Drop for ColorGuard {
     fn drop(&mut self) {
-        unsafe {
-            (*self.restore_target).colors = self.cached_colors_ptr;
+        for (mesh_ptr, cached_color_ptrs) in self.mesh_colors_entries.iter() {
+            unsafe {
+                (**mesh_ptr).colors = *cached_color_ptrs;
+            }
         }
     }
 }
@@ -77,7 +82,7 @@ impl Drop for TextureGuard {
 pub fn draw_filled(
     rl3d: &mut RaylibMode3D<RaylibDrawHandle>,
     model: &mut Model,
-    texture: &Texture2D,
+    texture: &WeakTexture2D,
     position: Vector3,
     rotation_deg: f32,
     scale: Vector3,
@@ -89,7 +94,7 @@ pub fn draw_filled(
         return;
     }
     let _color_guard = if !vertex_colors_enabled {
-        Some(ColorGuard::hide(&mut model.meshes_mut()[0]))
+        Some(ColorGuard::hide(model))
     } else {
         None
     };
@@ -110,7 +115,7 @@ pub fn draw_wires_and_points(
     rotation_deg: f32,
     scale: Vector3,
 ) {
-    let _color_guard = ColorGuard::hide(&mut model.meshes_mut()[0]);
+    let _color_guard = ColorGuard::hide(model);
     let _texture_guard = TextureGuard::hide(model);
     rl3d.draw_model_wires_ex(&mut *model, position, Y_AXIS, rotation_deg, scale, ANAKIWA);
     unsafe { ffi::rlSetPointSize(4.0) };
@@ -120,7 +125,7 @@ pub fn draw_wires_and_points(
 pub fn draw_filled_with_overlay(
     rl3d: &mut RaylibMode3D<RaylibDrawHandle>,
     model: &mut Model,
-    texture: &Texture2D,
+    texture: &WeakTexture2D,
     position: Vector3,
     rotation_deg: f32,
     scale: Vector3,
@@ -141,7 +146,7 @@ pub fn draw_filled_with_overlay(
             color,
         );
     }
-    let _color_guard = ColorGuard::hide(&mut model.meshes_mut()[0]);
+    let _color_guard = ColorGuard::hide(model);
     let _texture_guard = TextureGuard::hide(model);
     unsafe {
         ffi::rlSetLineWidth(1.0);
@@ -151,21 +156,21 @@ pub fn draw_filled_with_overlay(
     rl3d.draw_model_points_ex(&mut *model, position, Y_AXIS, rotation_deg, scale, LILAC);
 }
 
-pub fn draw_chi_field(
+pub fn draw_meta_field(
     rl3d: &mut RaylibMode3D<RaylibDrawHandle>,
     room: &Room,
-    chi_model: &mut Model,
+    meta_model: &mut Model,
     opening_models: &mut Vec<Model>,
 ) {
     unsafe {
         ffi::rlSetLineWidth(2.0);
     }
 
-    let chi_mesh = &chi_model.meshes()[0];
-    let vertices = chi_mesh.vertices();
-    let normals = chi_mesh.normals().expect("chi mesh must have normals");
+    let mesh = &meta_model.meshes()[0];
+    let vertices = mesh.vertices();
+    let normals = mesh.normals().unwrap(); //TODO idk itll die
 
-    for i in chi_mesh.triangles().iter_vertices() {
+    for i in mesh.triangles().iter_vertices() {
         let dir = Vector2::new(normals[i].x, normals[i].z);
         let mag = normals[i].y.clamp(0.0, 1.0);
         let scaled_half_length = room.field.config.chi_arrow_length * mag * 0.5;
@@ -183,17 +188,13 @@ pub fn draw_chi_field(
         draw_partitioned_line(rl3d, room, start, end);
     }
 
-    // draw_filled_with_overlay(
-    //     rl3d,
-    //     chi_model,
-    //     &Texture2D::default(), //TODO: need to get the actual models texture from materials, as a Texture2D, not raw, and not Weak
-    //     MODEL_POS,
-    //     0.0,
-    //     MODEL_SCALE,
-    //     false,
-    //     true,
-    //     None,
-    // );
+    let texture = {
+        &meta_model.materials()[0]
+            .get_material_texture(MATERIAL_MAP_ALBEDO)
+            .cloned() //TODO dear lord
+            .unwrap()
+    };
+    draw_filled_with_overlay(rl3d, meta_model, texture, MODEL_POS, 0.0, MODEL_SCALE, true, true, None);
 
     for field_entity in &room.field.entities {
         let field_disrupter_color = match field_entity.kind {
@@ -207,16 +208,22 @@ pub fn draw_chi_field(
 
         if let Some(opening_model_index) = field_entity.model_index {
             //TODO: HOW TO AVOID BACKWALL? just dont make a model? Option on rotation is a dumb check imo
-            let pos = field_entity.position(room);
+            let texture = {
+                &opening_models[opening_model_index].materials()[0]
+                    .get_material_texture(MATERIAL_MAP_ALBEDO)
+                    .cloned() //TODO dear lord
+                    .unwrap()
+            };
+
             draw_filled_with_overlay(
                 rl3d,
                 &mut opening_models[opening_model_index],
-                &Texture2D::default(), //TODO: need to get the actual models texture from materials, as a Texture2D, not raw, and not Weak
-                pos,
+                texture,
+                field_entity.position(room),
                 field_entity.rotation_into_room(room).unwrap(), //TODO: just be careful here later
                 MODEL_SCALE,
                 false,
-                false,
+                true,
                 Some(field_disrupter_color),
             );
         } else {
@@ -258,7 +265,7 @@ pub fn draw_hint(
     scale: Vector3,
     occupied: bool,
 ) {
-    let _color_guard = ColorGuard::hide(&mut model.meshes_mut()[0]);
+    let _color_guard = ColorGuard::hide(model);
     let _texture_guard = TextureGuard::hide(model);
     let hint_color = if occupied { RED_DAMASK } else { ANAKIWA };
     unsafe { ffi::rlDisableDepthTest() };
@@ -323,10 +330,16 @@ pub fn draw_placed_cells(
 
         let desc = &mut meshes[cell.mesh_index];
         if cell.settled {
+            let texture = {
+                &desc.ndc.materials()[0]
+                    .get_material_texture(MATERIAL_MAP_ALBEDO)
+                    .cloned()
+                    .unwrap()
+            };
             draw_filled_with_overlay(
                 rl3d,
                 &mut desc.ndc,
-                &desc.texture,
+                texture, //TODO: raylib probably wont free this?
                 cell_pos,
                 0.0,
                 MODEL_SCALE,

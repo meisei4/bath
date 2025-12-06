@@ -460,75 +460,75 @@ impl Default for Room {
     }
 }
 
-pub fn build_chi_field_model(handle: &mut RaylibHandle, thread: &RaylibThread, room: &Room) -> Model {
+pub fn build_meta_model(handle: &mut RaylibHandle, thread: &RaylibThread, room: &Room) -> Model {
     let mut vertices = Vec::new();
     let mut normals = Vec::new();
     let mut colors = Vec::new();
     let mut texcoords = Vec::new();
 
-    for field_sample in room.field_samples() {
-        vertices.push(field_sample.position);
-        normals.push(Vector3::new(
-            field_sample.direction.x,
-            field_sample.magnitude,
-            field_sample.direction.y,
-        ));
-        texcoords.push(Vector2::new(field_sample.door_component, field_sample.window_component));
-        colors.push(field_sample.dominant_field_operator.color());
-    }
-    // let base_length = room.field.config.chi_arrow_length;
-    // let base_half_width = base_length * 0.15;
-    // for field_sample in room.field_samples().iter() {
-    //     let dir2 = field_sample.direction;
-    //     if dir2.length_squared() < 1e-6 {
-    //         continue;
-    //     }
-    //     let dir3 = Vector3::new(dir2.x, 0.0, dir2.y).normalize();
-    //     let ortho = Vector3::new(-dir3.z, 0.0, dir3.x);
-    //     let m = field_sample.magnitude.clamp(0.0, 1.0);
-    //     let half_length = base_length * m * 0.5;
-    //     let half_width = base_half_width;
-    //     let center = field_sample.position;
-    //     let p0 = center - dir3 * half_length - ortho * half_width;
-    //     let p1 = center - dir3 * half_length + ortho * half_width;
-    //     let p2 = center + dir3 * half_length + ortho * half_width;
-    //     let p3 = center + dir3 * half_length - ortho * half_width;
-    //     let st0 = Vector2::new(0.0, 0.0);
-    //     let st1 = Vector2::new(0.0, 1.0);
-    //     let st2 = Vector2::new(1.0, 1.0);
-    //     let st3 = Vector2::new(1.0, 0.0);
-    //     let red = field_sample.door_component;
-    //     let green = field_sample.window_component;
-    //     let blue = field_sample.wall_component;
-    //     let sum = red + green + blue;
-    //     let (mut r, mut g, mut b) = if sum > 0.0 {
-    //         (red / sum, green / sum, blue / sum)
-    //     } else {
-    //         (0.0, 0.0, 0.0)
-    //     };
-    //
-    //     let brightness = 0.25 + 0.75 * m;
-    //     r *= brightness;
-    //     g *= brightness;
-    //     b *= brightness;
-    //
-    //     let color = Color {
-    //         r: (r * 255.0).round() as u8,
-    //         g: (g * 255.0).round() as u8,
-    //         b: (b * 255.0).round() as u8,
-    //         a: 255,
-    //     };
-    //
-    //     let normal = Vector3::new(0.0, 1.0, 0.0);
-    //     let positions = [p0, p1, p2, p0, p2, p3];
-    //     let dst_texcoords = [st0, st1, st2, st0, st2, st3];
-    //     for i in 0..6 {
-    //         vertices.push(positions[i]);
-    //         normals.push(normal);
-    //         texcoords.push(dst_texcoords[i]);
-    //         colors.push(color);
-    //     }
+    // for field_sample in room.field_samples() {
+    //     vertices.push(field_sample.position);
+    //     normals.push(Vector3::new(
+    //         field_sample.direction.x,
+    //         field_sample.magnitude,
+    //         field_sample.direction.y,
+    //     ));
+    //     texcoords.push(Vector2::new(field_sample.door_component, field_sample.window_component));
+    //     colors.push(field_sample.dominant_field_operator.color());
     // }
+    let base_length = room.field.config.chi_arrow_length;
+    let base_half_width = base_length * 0.15;
+    for field_sample in room.field_samples().iter() {
+        let dir2 = field_sample.direction;
+        if dir2.length_squared() < 1e-6 {
+            continue;
+        }
+        let dir3 = Vector3::new(dir2.x, 0.0, dir2.y).normalize();
+        let ortho = Vector3::new(-dir3.z, 0.0, dir3.x);
+        let m = field_sample.magnitude.clamp(0.0, 1.0);
+        let half_length = base_length * m * 0.5;
+        let half_width = base_half_width;
+        let center = field_sample.position;
+        let p0 = center - dir3 * half_length - ortho * half_width;
+        let p1 = center - dir3 * half_length + ortho * half_width;
+        let p2 = center + dir3 * half_length + ortho * half_width;
+        let p3 = center + dir3 * half_length - ortho * half_width;
+        let st0 = Vector2::new(0.0, 0.0);
+        let st1 = Vector2::new(0.0, 1.0);
+        let st2 = Vector2::new(1.0, 1.0);
+        let st3 = Vector2::new(1.0, 0.0);
+        let red = field_sample.door_component;
+        let green = field_sample.window_component;
+        let blue = field_sample.wall_component;
+        let sum = red + green + blue;
+        let (mut r, mut g, mut b) = if sum > 0.0 {
+            (red / sum, green / sum, blue / sum)
+        } else {
+            (0.0, 0.0, 0.0)
+        };
+
+        let brightness = 0.25 + 0.75 * m;
+        r *= brightness;
+        g *= brightness;
+        b *= brightness;
+
+        let color = Color {
+            r: (r * 255.0).round() as u8,
+            g: (g * 255.0).round() as u8,
+            b: (b * 255.0).round() as u8,
+            a: 255,
+        };
+
+        let normal = Vector3::new(0.0, 1.0, 0.0);
+        let positions = [p0, p1, p2, p0, p2, p3];
+        let dst_texcoords = [st0, st1, st2, st0, st2, st3];
+        for i in 0..6 {
+            vertices.push(positions[i]);
+            normals.push(normal);
+            texcoords.push(dst_texcoords[i]);
+            colors.push(color);
+        }
+    }
 
     let mesh = Mesh::init_mesh(&vertices)
         .normals(&normals)
@@ -540,6 +540,71 @@ pub fn build_chi_field_model(handle: &mut RaylibHandle, thread: &RaylibThread, r
     handle
         .load_model_from_mesh(thread, mesh)
         .expect("failed to create chi field model")
+}
+
+pub fn build_chi_field_model(
+    handle: &mut RaylibHandle,
+    thread: &RaylibThread,
+    room: &Room,
+    arrow_glyph: &WeakMesh,
+) -> Model {
+    let samples: &[FieldSample] = room.field_samples();
+    let sample_count = samples.len();
+    assert!(sample_count > 0, "need at least one field sample");
+    let first_mesh = {
+        let vertices: Vec<Vector3> = arrow_glyph
+            .vertices()
+            .iter()
+            .map(|&v| v + samples[0].position)
+            .collect();
+        Mesh::init_mesh(&vertices)
+            .normals_opt(arrow_glyph.normals())
+            .texcoords_opt(arrow_glyph.texcoords())
+            .colors_opt(arrow_glyph.colors())
+            .indices_opt(arrow_glyph.indices())
+            .build_dynamic(thread)
+            .unwrap()
+    };
+
+    let mut model = handle.load_model_from_mesh(thread, first_mesh).unwrap();
+    let mut raw_model = model.to_raw();
+    let mesh_size = (sample_count * size_of::<ffi::Mesh>()) as u32;
+    let new_meshes = unsafe { ffi::MemAlloc(mesh_size) } as *mut ffi::Mesh;
+    assert!(!new_meshes.is_null(), "MemAlloc failed for meshes");
+
+    unsafe { std::ptr::copy_nonoverlapping(raw_model.meshes, new_meshes, 1) };
+    unsafe { ffi::MemFree(raw_model.meshes as *mut std::ffi::c_void) };
+
+    let mesh_material_size = (sample_count * size_of::<i32>()) as u32;
+    let new_mesh_material = unsafe { ffi::MemAlloc(mesh_material_size) } as *mut i32;
+    assert!(!new_mesh_material.is_null(), "MemAlloc failed for meshMaterial");
+
+    for i in 0..sample_count {
+        unsafe { std::ptr::write(new_mesh_material.add(i), 0) };
+    }
+
+    unsafe { ffi::MemFree(raw_model.meshMaterial as *mut std::ffi::c_void) };
+    raw_model.meshes = new_meshes;
+    raw_model.meshCount = sample_count as i32;
+    raw_model.meshMaterial = new_mesh_material;
+    for i in 1..sample_count {
+        let vertices: Vec<Vector3> = arrow_glyph
+            .vertices()
+            .iter()
+            .map(|&v| v + samples[i].position)
+            .collect();
+        let mesh = Mesh::init_mesh(&vertices)
+            .normals_opt(arrow_glyph.normals())
+            .texcoords_opt(arrow_glyph.texcoords())
+            .colors_opt(arrow_glyph.colors())
+            .indices_opt(arrow_glyph.indices())
+            .build_dynamic(thread)
+            .unwrap();
+
+        unsafe { std::ptr::write(new_meshes.add(i), mesh.to_raw()) };
+    }
+
+    unsafe { Model::from_raw(raw_model) }
 }
 
 impl Room {

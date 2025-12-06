@@ -1,5 +1,6 @@
 use asset_payload::{
-    CHI_CONFIG_PATH, FONT_PATH, FUSUMA_GLTF_PATH, SPHERE_GLTF_PATH, SPHERE_PATH, VIEW_CONFIG_PATH, WINDOW_GLTF_PATH,
+    ARROW_GLTF_PATH, CHI_CONFIG_PATH, FONT_PATH, FUSUMA_GLTF_PATH, SPHERE_GLTF_PATH, SPHERE_PATH, VIEW_CONFIG_PATH,
+    WINDOW_GLTF_PATH,
 };
 use bath::fu4seoi3::config_and_state::*;
 use bath::fu4seoi3::core::*;
@@ -104,6 +105,13 @@ fn main() {
         .iter()
         .map(|m| MeshMetrics::measure(&m.meshes()[0]))
         .collect();
+
+    let mut arrow_model = handle
+        .load_model(&thread, ARROW_GLTF_PATH)
+        .expect("Failed to load arrow GLB");
+    fill_planar_texcoords(&mut arrow_model.meshes_mut()[0]);
+    arrow_model.materials_mut()[0].set_material_texture(MATERIAL_MAP_ALBEDO, &checked_texture);
+
     let mut meshes: Vec<MeshDescriptor> = Vec::new();
 
     let mut world_ghost = handle
@@ -278,7 +286,8 @@ fn main() {
         window.h0 = -window_bb.min.y;
     }
 
-    let mut chi_field_model = build_chi_field_model(&mut handle, &thread, &room);
+    let mut meta_model = build_meta_model(&mut handle, &thread, &room);
+    let mut chi_field_model = build_chi_field_model(&mut handle, &thread, &room, &arrow_model.meshes()[0]);
     chi_field_model.materials_mut()[0].set_material_texture(MATERIAL_MAP_ALBEDO, &meshes[0].texture);
     let mut animated_meshes_need_regeneration = false;
 
@@ -287,7 +296,8 @@ fn main() {
             let samples_changed = new_field_config.log_delta(&field_config);
             field_config = new_field_config;
             room.reload_config(field_config.clone());
-            chi_field_model = build_chi_field_model(&mut handle, &thread, &room);
+            meta_model = build_meta_model(&mut handle, &thread, &room);
+            chi_field_model = build_chi_field_model(&mut handle, &thread, &room, &arrow_model.meshes()[0]);
             chi_field_model.materials_mut()[0].set_material_texture(MATERIAL_MAP_ALBEDO, &meshes[0].texture);
 
             if samples_changed {
@@ -568,10 +578,16 @@ fn main() {
             );
             {
                 let desc = &mut meshes[target_mesh];
+                let texture = {
+                    &desc.ndc.materials()[0]
+                        .get_material_texture(MATERIAL_MAP_ALBEDO)
+                        .cloned()
+                        .unwrap()
+                };
                 draw_filled_with_overlay(
                     &mut rl3d,
                     &mut desc.ndc,
-                    &desc.texture,
+                    texture,
                     MODEL_POS,
                     mesh_rotation.to_degrees(),
                     MODEL_SCALE,
@@ -592,7 +608,24 @@ fn main() {
                     );
                 }
             }
-            draw_chi_field(&mut rl3d, &room, &mut chi_field_model, &mut opening_models);
+            draw_meta_field(&mut rl3d, &room, &mut meta_model, &mut opening_models);
+            let texture = {
+                &chi_field_model.materials()[0]
+                    .get_material_texture(MATERIAL_MAP_ALBEDO)
+                    .cloned() //TODO dear lord
+                    .unwrap()
+            };
+            draw_filled_with_overlay(
+                &mut rl3d,
+                &mut chi_field_model,
+                texture,
+                MODEL_POS,
+                0.0,
+                MODEL_SCALE,
+                true,
+                true,
+                None,
+            );
         });
 
         draw_hud(
