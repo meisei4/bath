@@ -353,7 +353,7 @@ pub fn draw_camera_basis(
 
 pub fn draw_placed_cells(
     rl3d: &mut RaylibMode3D<RaylibDrawHandle>,
-    meshes: &mut [MeshDescriptor],
+    meshes: &mut [Layer3MeshData],
     placed_cells: &mut [PlacedCell],
     total_time: f32,
     room: &Room,
@@ -447,24 +447,24 @@ pub fn update_animated_mesh(
     mesh_samples: &[Vec<Vector3>],
     main: &Camera3D,
     mesh_rotation: f32,
-    frame_dynamic_metrics: &mut FrameDynamicMetrics,
+    dynamic_mesh_metrics: &mut DynamicMeshMetrics,
     field_config: &FieldConfig,
 ) {
-    interpolate_between_deformed_vertices(ndc_model, i_time, mesh_samples, frame_dynamic_metrics, field_config);
-    interpolate_between_deformed_vertices(world_model, i_time, mesh_samples, frame_dynamic_metrics, field_config);
-    update_normals_for_silhouette(&mut ndc_model.meshes_mut()[0], frame_dynamic_metrics);
-    update_normals_for_silhouette(&mut world_model.meshes_mut()[0], frame_dynamic_metrics);
+    interpolate_between_deformed_vertices(ndc_model, i_time, mesh_samples, dynamic_mesh_metrics, field_config);
+    interpolate_between_deformed_vertices(world_model, i_time, mesh_samples, dynamic_mesh_metrics, field_config);
+    update_normals_for_silhouette(&mut ndc_model.meshes_mut()[0], dynamic_mesh_metrics);
+    update_normals_for_silhouette(&mut world_model.meshes_mut()[0], dynamic_mesh_metrics);
     fade_vertex_colors_silhouette_rim(
         &mut ndc_model.meshes_mut()[0],
         main,
         mesh_rotation,
-        frame_dynamic_metrics,
+        dynamic_mesh_metrics,
     );
     fade_vertex_colors_silhouette_rim(
         &mut world_model.meshes_mut()[0],
         main,
         mesh_rotation,
-        frame_dynamic_metrics,
+        dynamic_mesh_metrics,
     );
 }
 
@@ -511,7 +511,7 @@ pub fn fill_vertex_colors(mesh: &mut WeakMesh) {
     mesh.init_colors_mut().unwrap().copy_from_slice(&colors);
 }
 
-fn update_normals_for_silhouette(mesh: &mut WeakMesh, frame_dynamic_metrics: &mut FrameDynamicMetrics) {
+fn update_normals_for_silhouette(mesh: &mut WeakMesh, dynamic_mesh_metrics: &mut DynamicMeshMetrics) {
     let vertices = mesh.vertices();
     let mut normals = vec![Vector3::ZERO; vertices.len()];
 
@@ -533,14 +533,14 @@ fn update_normals_for_silhouette(mesh: &mut WeakMesh, frame_dynamic_metrics: &mu
     let normals_vec: Vec<Vector3> = normals.iter().map(|n| Vector3::new(n.x, n.y, n.z)).collect();
 
     mesh.normals_mut().unwrap().copy_from_slice(&normals_vec);
-    frame_dynamic_metrics.vertex_normals_written += normals_vec.len();
+    dynamic_mesh_metrics.hot_vertex_normals_written += normals_vec.len();
 }
 
 fn fade_vertex_colors_silhouette_rim(
     mesh: &mut WeakMesh,
     observer: &Camera3D,
     mesh_rotation: f32,
-    frame_dynamic_metrics: &mut FrameDynamicMetrics,
+    dynamic_mesh_metrics: &mut DynamicMeshMetrics,
 ) {
     let model_center_to_camera = rotate_point_about_axis(
         -1.0 * observed_line_of_sight(observer),
@@ -574,5 +574,5 @@ fn fade_vertex_colors_silhouette_rim(
     for i in 0..alpha_buffer.len() {
         colors[i].a = alpha_buffer[i];
     }
-    frame_dynamic_metrics.vertex_colors_written += alpha_buffer.len();
+    dynamic_mesh_metrics.hot_vertex_colors_written += alpha_buffer.len();
 }

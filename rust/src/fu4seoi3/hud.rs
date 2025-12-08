@@ -2,6 +2,14 @@ use crate::fu4seoi3::config_and_state::*;
 use crate::fu4seoi3::core::*;
 use raylib::prelude::*;
 
+pub struct HudMetrics<'a> {
+    pub meshes: &'a [Layer3MeshData],
+    pub dynamic: &'a DynamicMeshMetrics,
+    pub field_entities: &'a [StaticMeshMetrics],
+    pub field_arrows: &'a StaticMeshMetrics,
+    pub spatial_frame: &'a StaticMeshMetrics,
+}
+
 pub const HUD_MARGIN: i32 = 12;
 pub const HUD_LINE_HEIGHT: i32 = 22;
 pub const FONT_SIZE: i32 = 20;
@@ -159,7 +167,7 @@ fn draw_debug_box(
     }
 }
 
-fn mesh_name(i: usize, meshes: &[MeshDescriptor]) -> &'static str {
+fn mesh_name(i: usize, meshes: &[Layer3MeshData]) -> &'static str {
     meshes.get(i).map(|m| m.name).unwrap_or("MESH")
 }
 
@@ -173,14 +181,10 @@ pub fn draw_hud(
     hover_state: &HoverState,
     placed_cells: &[PlacedCell],
     i_time: f32,
-    meshes: &[MeshDescriptor],
-    mesh_samples: &[Vec<Vector3>],
-    frame_dynamic_metrics: &FrameDynamicMetrics,
+    metrics: HudMetrics, // BUNDLED
     room: &Room,
     edit_stack: &[EditStack],
     edit_cursor: usize,
-    field_entity_metrics: &[MeshMetrics],
-    field_arrows_metrics: &MeshMetrics,
 ) {
     let layout = compute_hud_layout(draw_handle, font);
     let mut line_y = layout.margin;
@@ -316,18 +320,7 @@ pub fn draw_hud(
         if view_state.ndc_space { BAHAMA_BLUE } else { ANAKIWA },
     );
 
-    draw_perf_hud(
-        draw_handle,
-        font,
-        &layout,
-        view_state,
-        placed_cells,
-        meshes,
-        mesh_samples,
-        frame_dynamic_metrics,
-        field_entity_metrics,
-        field_arrows_metrics,
-    );
+    draw_perf_hud(draw_handle, font, &layout, view_state, placed_cells, &metrics);
 
     if let (Some(cell_index), Some((ix, iy, iz))) = (hover_state.placed_cell_index, hover_state.indices) {
         if cell_index < placed_cells.len() {
@@ -336,7 +329,7 @@ pub fn draw_hud(
             let screen_pos = draw_handle.get_world_to_screen(corner_world, *jugemu);
             let anchor_x = screen_pos.x as i32;
             let anchor_y = screen_pos.y as i32;
-            let mesh_label = mesh_name(cell.mesh_index, meshes);
+            let mesh_label = mesh_name(cell.mesh_index, metrics.meshes);
             let age_seconds = i_time - cell.placed_time;
             let age_clock = format_time_clock(age_seconds);
             let state_label = if cell.settled { "SETTLED" } else { "ANIM" };
@@ -387,11 +380,7 @@ fn draw_perf_hud(
     layout: &HudLayout,
     view_state: &ViewState,
     placed_cells: &[PlacedCell],
-    meshes: &[MeshDescriptor],
-    mesh_samples: &[Vec<Vector3>],
-    frame_dynamic_metrics: &FrameDynamicMetrics,
-    field_entity_metrics: &[MeshMetrics],
-    field_arrows_metrics: &MeshMetrics,
+    metrics: &HudMetrics,
 ) {
     let screen_width = draw_handle.get_screen_width();
 
@@ -399,29 +388,28 @@ fn draw_perf_hud(
     let mut y = layout.perf_y;
     let line = layout.line_height_main;
     let font_sz = layout.font_size_main;
-
-    hud_text(draw_handle, font, "LAYER 3 METRICS", perf_x, y, font_sz, NEON_CARROT);
-    y += line;
-
-    let mesh_count = meshes.len();
+    let mesh_count = metrics.meshes.len();
     let mut per_mesh_instance_counts = vec![0usize; mesh_count];
     for cell in placed_cells {
         if cell.mesh_index < mesh_count {
             per_mesh_instance_counts[cell.mesh_index] += 1;
         }
     }
-    let total_geom_bytes_meshes: usize = meshes.iter().map(|m| m.combined_bytes).sum();
-    let total_geom_bytes_field_entities: usize = field_entity_metrics.iter().map(|m| m.total_bytes).sum();
-    let total_geom_bytes_chi_arrows: usize = field_arrows_metrics.total_bytes;
-    let total_geom_bytes_shared: usize =
-        total_geom_bytes_meshes + total_geom_bytes_field_entities + total_geom_bytes_chi_arrows;
+    let total_geom_bytes_meshes: usize = metrics.meshes.iter().map(|m| m.combined_bytes).sum();
+    let total_geom_bytes_field_entities: usize = metrics.field_entities.iter().map(|m| m.cold_total_bytes).sum();
+    let total_geom_bytes_chi_arrows: usize = metrics.field_arrows.cold_total_bytes;
+    let total_geom_bytes_spatial_frame: usize = metrics.spatial_frame.cold_total_bytes;
+    let total_geom_bytes_shared: usize = total_geom_bytes_meshes
+        + total_geom_bytes_field_entities
+        + total_geom_bytes_chi_arrows
+        + total_geom_bytes_spatial_frame;
     let mut filled_draws_per_mesh = vec![0usize; mesh_count];
     let mut overlay_calls_per_mesh = vec![0usize; mesh_count];
 
     if view_state.target_mesh_index < mesh_count {
         let i = view_state.target_mesh_index;
 
-        if view_state.color_mode || view_state.texture_mode {
+        if view_state.texture_mode || view_state.color_mode {
             filled_draws_per_mesh[i] += 1;
         }
 
@@ -442,19 +430,19 @@ fn draw_perf_hud(
 
     let active_index = view_state.target_mesh_index;
     if active_index < mesh_count {
-        let desc = &meshes[active_index];
+        let desc = &metrics.meshes[active_index];
 
-        let active_name = mesh_name(active_index, meshes);
-        let active_world = desc.metrics_world;
-        let active_ndc = desc.metrics_ndc;
+        let active_name = mesh_name(active_index, metrics.meshes);
+        let active_world = desc.static_metrics_world;
+        let active_ndc = desc.static_metrics_ndc;
         let active_bytes = desc.combined_bytes;
         let active_instances = per_mesh_instance_counts[active_index];
         let active_filled_draws = filled_draws_per_mesh[active_index];
         let active_overlay_calls = overlay_calls_per_mesh[active_index];
         let active_total_vertex_passes = active_filled_draws + active_overlay_calls * 2;
-        let active_verts_per_draw = active_ndc.vertex_count;
-        let active_tris_per_draw = active_ndc.triangle_count;
-        let active_indices_per_draw = active_ndc.index_count;
+        let active_verts_per_draw = active_ndc.cold_vertex_count;
+        let active_tris_per_draw = active_ndc.cold_triangle_count;
+        let active_indices_per_draw = active_ndc.cold_index_count;
         let gpu_verts_per_frame = active_verts_per_draw * active_total_vertex_passes;
         let gpu_tris_per_frame = active_tris_per_draw * active_filled_draws;
         let vertex_stride = gpu_vertex_stride_bytes(&active_ndc);
@@ -465,17 +453,6 @@ fn draw_perf_hud(
         let gpu_bytes_per_frame = gpu_bytes_from_tri_draws + gpu_bytes_from_overlay_draws;
         let active_x = (screen_width as f32 * 0.45).round() as i32;
         let mut header_y = layout.margin;
-
-        hud_text(
-            draw_handle,
-            font,
-            "ACTIVE MESH:",
-            active_x,
-            header_y,
-            font_sz,
-            SUNFLOWER,
-        );
-        header_y += line;
 
         hud_text(
             draw_handle,
@@ -493,7 +470,7 @@ fn draw_perf_hud(
             font,
             &format!(
                 "WRLD XYZ/ST/IDX: {}/{}/{}",
-                active_world.vertex_count, active_world.triangle_count, active_world.index_count
+                active_world.cold_vertex_count, active_world.cold_triangle_count, active_world.cold_index_count
             ),
             active_x,
             header_y,
@@ -507,7 +484,7 @@ fn draw_perf_hud(
             font,
             &format!(
                 "NDC   XYZ/ST/IDX: {}/{}/{}",
-                active_ndc.vertex_count, active_ndc.triangle_count, active_ndc.index_count
+                active_ndc.cold_vertex_count, active_ndc.cold_triangle_count, active_ndc.cold_index_count
             ),
             active_x,
             header_y,
@@ -523,7 +500,7 @@ fn draw_perf_hud(
             active_x,
             header_y,
             font_sz,
-            LILAC,
+            NEON_CARROT,
         );
         header_y += line;
 
@@ -589,17 +566,17 @@ fn draw_perf_hud(
             active_x,
             header_y,
             font_sz,
-            LILAC,
+            NEON_CARROT,
         );
     }
 
     hud_text(draw_handle, font, "STATIC MESHES:", perf_x, y, font_sz, SUNFLOWER);
     y += line;
 
-    for (i, desc) in meshes.iter().enumerate() {
-        let name = mesh_name(i, meshes);
-        let world = desc.metrics_world;
-        let ndc = desc.metrics_ndc;
+    for (i, desc) in metrics.meshes.iter().enumerate() {
+        let name = mesh_name(i, metrics.meshes);
+        let world = desc.static_metrics_world;
+        let ndc = desc.static_metrics_ndc;
         let combined_bytes = desc.combined_bytes;
 
         hud_text(
@@ -609,57 +586,70 @@ fn draw_perf_hud(
                 "{}: {} (WRLD {}v, NDC {}v)",
                 name,
                 format_bytes(combined_bytes),
-                world.vertex_count,
-                ndc.vertex_count
+                world.cold_vertex_count,
+                ndc.cold_vertex_count
             ),
             perf_x,
             y,
             font_sz,
-            ANAKIWA,
+            NEON_CARROT,
         );
         y += line;
     }
-    if !field_entity_metrics.is_empty() {
-        y += line;
-        hud_text(draw_handle, font, "FIELD ENTITY MESHES:", perf_x, y, font_sz, SUNFLOWER);
-        y += line;
 
-        for (i, m) in field_entity_metrics.iter().enumerate() {
+    if !metrics.field_entities.is_empty() {
+        y += line;
+        for (i, m) in metrics.field_entities.iter().enumerate() {
             hud_text(
                 draw_handle,
                 font,
                 &format!(
                     "FIELD_ENTITY_{}: {} ({}v)",
                     i,
-                    format_bytes(m.total_bytes),
-                    m.vertex_count
+                    format_bytes(m.cold_total_bytes),
+                    m.cold_vertex_count
                 ),
                 perf_x,
                 y,
                 font_sz,
-                ANAKIWA,
+                NEON_CARROT,
             );
             y += line;
         }
     }
-
-    if field_arrows_metrics.total_bytes > 0 {
-        y += line;
-        hud_text(draw_handle, font, "FIELD:", perf_x, y, font_sz, SUNFLOWER);
+    if metrics.spatial_frame.cold_total_bytes > 0 {
         y += line;
 
         hud_text(
             draw_handle,
             font,
             &format!(
-                "FIELD_ARROWS: {} ({}v)",
-                format_bytes(field_arrows_metrics.total_bytes),
-                field_arrows_metrics.vertex_count
+                "FRUSTUM: {} ({}v)",
+                format_bytes(metrics.spatial_frame.cold_total_bytes),
+                metrics.spatial_frame.cold_vertex_count
             ),
             perf_x,
             y,
             font_sz,
-            ANAKIWA,
+            NEON_CARROT,
+        );
+        y += line;
+    }
+
+    if metrics.field_arrows.cold_total_bytes > 0 {
+        y += line;
+        hud_text(
+            draw_handle,
+            font,
+            &format!(
+                "FIELD_ARROWS: {} ({}v)",
+                format_bytes(metrics.field_arrows.cold_total_bytes),
+                metrics.field_arrows.cold_vertex_count
+            ),
+            perf_x,
+            y,
+            font_sz,
+            NEON_CARROT,
         );
         y += line;
     }
@@ -671,16 +661,16 @@ fn draw_perf_hud(
         perf_x,
         y,
         font_sz,
-        LILAC,
+        NEON_CARROT,
     );
     y += line;
     y += line;
 
-    if let Some(anim_metrics) = AnimationMetrics::measure(mesh_samples) {
+    if metrics.dynamic.warm_anim_sample_count > 0 {
         hud_text(
             draw_handle,
             font,
-            &format!("ANIM SAMPLES: {}", anim_metrics.sample_count),
+            &format!("ANIM SAMPLES: {}", metrics.dynamic.warm_anim_sample_count),
             perf_x,
             y,
             font_sz,
@@ -691,7 +681,7 @@ fn draw_perf_hud(
         hud_text(
             draw_handle,
             font,
-            &format!("VERTS/SAMPLE: {}", anim_metrics.verts_per_sample),
+            &format!("VERTS/SAMPLE: {}", metrics.dynamic.warm_anim_verts_per_sample),
             perf_x,
             y,
             font_sz,
@@ -702,43 +692,73 @@ fn draw_perf_hud(
         hud_text(
             draw_handle,
             font,
-            &format!("ANIM MEM: {}", format_bytes(anim_metrics.total_bytes)),
+            &format!("ANIM MEM: {}", format_bytes(metrics.dynamic.warm_anim_total_bytes)),
             perf_x,
             y,
             font_sz,
-            LILAC,
+            NEON_CARROT,
         );
         y += line;
-
-        let total_layer3_bytes = total_geom_bytes_shared + anim_metrics.total_bytes;
+    }
+    if metrics.dynamic.warm_arrow_instance_count > 0 {
         hud_text(
             draw_handle,
             font,
-            &format!("LAYER3 MEM: {}", format_bytes(total_layer3_bytes)),
+            &format!("ARROW INSTANCES: {}", metrics.dynamic.warm_arrow_instance_count),
             perf_x,
             y,
             font_sz,
-            LILAC,
+            ANAKIWA,
         );
         y += line;
+
+        hud_text(
+            draw_handle,
+            font,
+            &format!("VERTS/ARROW: {}", metrics.dynamic.warm_arrow_verts_per_instance),
+            perf_x,
+            y,
+            font_sz,
+            ANAKIWA,
+        );
+        y += line;
+
+        hud_text(
+            draw_handle,
+            font,
+            &format!(
+                "ARROW POOL MEM: {}",
+                format_bytes(metrics.dynamic.warm_arrow_total_bytes)
+            ),
+            perf_x,
+            y,
+            font_sz,
+            NEON_CARROT,
+        );
+        y += line;
+    }
+
+    // Update total Layer3 bytes calculation to include both WARM pools
+    let total_warm_bytes = metrics.dynamic.warm_anim_total_bytes + metrics.dynamic.warm_arrow_total_bytes;
+
+    if total_warm_bytes > 0 {
+        let total_layer3_bytes = total_geom_bytes_shared + total_warm_bytes;
+        hud_text(
+            draw_handle,
+            font,
+            &format!("LAYER3 MEM (COLD+WARM): {}", format_bytes(total_layer3_bytes)),
+            perf_x,
+            y,
+            font_sz,
+            NEON_CARROT,
+        );
         y += line;
     }
 
     hud_text(
         draw_handle,
         font,
-        "DYNAMIC WRITES/FRAME:",
-        perf_x,
-        y,
-        font_sz,
-        SUNFLOWER,
-    );
-    y += line;
-
-    hud_text(
-        draw_handle,
-        font,
-        &format!("POS: {}", frame_dynamic_metrics.vertex_positions_written),
+        &format!("POS: {}", metrics.dynamic.hot_vertex_positions_written),
         perf_x,
         y,
         font_sz,
@@ -749,7 +769,7 @@ fn draw_perf_hud(
     hud_text(
         draw_handle,
         font,
-        &format!("NRM: {}", frame_dynamic_metrics.vertex_normals_written),
+        &format!("NRM: {}", metrics.dynamic.hot_vertex_normals_written),
         perf_x,
         y,
         font_sz,
@@ -760,7 +780,7 @@ fn draw_perf_hud(
     hud_text(
         draw_handle,
         font,
-        &format!("CLR: {}", frame_dynamic_metrics.vertex_colors_written),
+        &format!("CLR: {}", metrics.dynamic.hot_vertex_colors_written),
         perf_x,
         y,
         font_sz,
@@ -771,14 +791,11 @@ fn draw_perf_hud(
     hud_text(
         draw_handle,
         font,
-        &format!(
-            "BYTES RW: {}",
-            format_bytes(frame_dynamic_metrics.total_bytes_written())
-        ),
+        &format!("BYTES RW: {}", format_bytes(metrics.dynamic.total_bytes_written())),
         perf_x,
         y,
         font_sz,
-        LILAC,
+        NEON_CARROT,
     );
 }
 

@@ -617,7 +617,12 @@ pub fn build_field_model_arrows(
     unsafe { Model::from_raw(raw_model) }
 }
 
-pub fn update_field_model_arrows(field_model_arrows: &mut Model, room: &Room, arrow_mesh: &WeakMesh) {
+pub fn update_field_model_arrows(
+    field_model_arrows: &mut Model,
+    room: &Room,
+    arrow_mesh: &WeakMesh,
+    dynamic_mesh_metrics: &mut DynamicMeshMetrics,
+) {
     let samples = room.field_samples();
     let meshes = field_model_arrows.meshes_mut();
 
@@ -725,6 +730,10 @@ pub fn update_field_model_arrows(field_model_arrows: &mut Model, room: &Room, ar
         mesh.vertices_mut().copy_from_slice(&new_vertices);
         mesh.normals_mut().unwrap().copy_from_slice(&new_normals);
         mesh.colors_mut().unwrap().copy_from_slice(&new_colors);
+
+        dynamic_mesh_metrics.warm_vertex_positions_written += new_vertices.len();
+        dynamic_mesh_metrics.warm_vertex_normals_written += new_normals.len();
+        dynamic_mesh_metrics.warm_vertex_colors_written += new_colors.len();
     }
 }
 
@@ -819,17 +828,17 @@ impl Room {
 }
 
 #[derive(Copy, Clone)]
-pub struct MeshMetrics {
-    pub vertex_count: usize,
-    pub triangle_count: usize,
-    pub normal_count: usize,
-    pub texcoord_count: usize,
-    pub color_count: usize,
-    pub index_count: usize,
-    pub total_bytes: usize,
+pub struct StaticMeshMetrics {
+    pub cold_vertex_count: usize,
+    pub cold_triangle_count: usize,
+    pub cold_normal_count: usize,
+    pub cold_texcoord_count: usize,
+    pub cold_color_count: usize,
+    pub cold_index_count: usize,
+    pub cold_total_bytes: usize,
 }
 
-impl MeshMetrics {
+impl StaticMeshMetrics {
     pub fn measure(mesh: &WeakMesh) -> Self {
         let vertex_count = mesh.vertices().len();
         let triangle_count = mesh.triangles().count();
@@ -845,91 +854,109 @@ impl MeshMetrics {
         total_bytes += color_count * size_of::<Color>();
         total_bytes += index_count * size_of::<u16>();
 
-        MeshMetrics {
-            vertex_count,
-            triangle_count,
-            normal_count,
-            texcoord_count,
-            color_count,
-            index_count,
-            total_bytes,
+        StaticMeshMetrics {
+            cold_vertex_count: vertex_count,
+            cold_triangle_count: triangle_count,
+            cold_normal_count: normal_count,
+            cold_texcoord_count: texcoord_count,
+            cold_color_count: color_count,
+            cold_index_count: index_count,
+            cold_total_bytes: total_bytes,
         }
     }
 }
 
-pub fn gpu_vertex_stride_bytes(metrics: &MeshMetrics) -> usize {
+pub fn gpu_vertex_stride_bytes(metrics: &StaticMeshMetrics) -> usize {
     let mut stride = size_of::<Vector3>();
-    if metrics.normal_count > 0 {
+    if metrics.cold_normal_count > 0 {
         stride += size_of::<Vector3>();
     }
-    if metrics.texcoord_count > 0 {
+    if metrics.cold_texcoord_count > 0 {
         stride += size_of::<Vector2>();
     }
-    if metrics.color_count > 0 {
+    if metrics.cold_color_count > 0 {
         stride += size_of::<Color>();
     }
     stride
 }
 
-pub struct FrameDynamicMetrics {
-    pub vertex_positions_written: usize,
-    pub vertex_normals_written: usize,
-    pub vertex_colors_written: usize,
+#[derive(Copy, Clone, Default)]
+pub struct DynamicMeshMetrics {
+    pub hot_vertex_positions_written: usize,
+    pub hot_vertex_normals_written: usize,
+    pub hot_vertex_colors_written: usize,
+
+    pub warm_vertex_positions_written: usize,
+    pub warm_vertex_normals_written: usize,
+    pub warm_vertex_colors_written: usize,
+
+    pub warm_anim_sample_count: usize,
+    pub warm_anim_verts_per_sample: usize,
+    pub warm_anim_total_bytes: usize,
+
+    pub warm_arrow_instance_count: usize,
+    pub warm_arrow_verts_per_instance: usize,
+    pub warm_arrow_total_verts: usize,
+    pub warm_arrow_total_bytes: usize,
 }
 
-impl FrameDynamicMetrics {
-    pub fn new() -> Self {
-        FrameDynamicMetrics {
-            vertex_positions_written: 0,
-            vertex_normals_written: 0,
-            vertex_colors_written: 0,
-        }
+impl DynamicMeshMetrics {
+    pub fn hot_reset(&mut self) {
+        self.hot_vertex_positions_written = 0;
+        self.hot_vertex_normals_written = 0;
+        self.hot_vertex_colors_written = 0;
     }
 
-    pub fn reset(&mut self) {
-        self.vertex_positions_written = 0;
-        self.vertex_normals_written = 0;
-        self.vertex_colors_written = 0;
+    pub fn warm_reset(&mut self) {
+        self.warm_vertex_positions_written = 0;
+        self.warm_vertex_normals_written = 0;
+        self.warm_vertex_colors_written = 0;
+    }
+
+    pub fn update_arrow_pool(&mut self, arrow_mesh: &WeakMesh, instance_count: usize) {
+        let verts_per_instance = arrow_mesh.vertices().len();
+        self.warm_arrow_instance_count = instance_count;
+        self.warm_arrow_verts_per_instance = verts_per_instance;
+        self.warm_arrow_total_verts = instance_count * verts_per_instance;
+        self.warm_arrow_total_bytes = self.warm_arrow_total_verts * (size_of::<Vector3>() * 2 + size_of::<Color>());
     }
 
     pub fn total_bytes_written(&self) -> usize {
-        self.vertex_positions_written * size_of::<Vector3>()
-            + self.vertex_normals_written * size_of::<Vector3>()
-            + self.vertex_colors_written * size_of::<Color>()
+        self.hot_vertex_positions_written * size_of::<Vector3>()
+            + self.hot_vertex_normals_written * size_of::<Vector3>()
+            + self.hot_vertex_colors_written * size_of::<Color>()
     }
-}
+    pub fn measure_animation(mesh_samples: &[Vec<Vector3>]) -> Self {
+        let mut dynamic_mesh_metrics = DynamicMeshMetrics::default();
+        dynamic_mesh_metrics.update_animation(mesh_samples);
+        dynamic_mesh_metrics
+    }
 
-pub struct AnimationMetrics {
-    pub sample_count: usize,
-    pub verts_per_sample: usize,
-    pub total_bytes: usize,
-}
-
-impl AnimationMetrics {
-    pub fn measure(mesh_samples: &[Vec<Vector3>]) -> Option<Self> {
+    pub fn update_animation(&mut self, mesh_samples: &[Vec<Vector3>]) {
         if mesh_samples.is_empty() {
-            return None;
+            self.warm_anim_sample_count = 0;
+            self.warm_anim_verts_per_sample = 0;
+            self.warm_anim_total_bytes = 0;
+            return;
         }
 
         let sample_count = mesh_samples.len();
         let verts_per_sample = mesh_samples[0].len();
         let total_bytes = sample_count * verts_per_sample * size_of::<Vector3>();
 
-        Some(AnimationMetrics {
-            sample_count,
-            verts_per_sample,
-            total_bytes,
-        })
+        self.warm_anim_sample_count = sample_count;
+        self.warm_anim_verts_per_sample = verts_per_sample;
+        self.warm_anim_total_bytes = total_bytes;
     }
 }
 
-pub struct MeshDescriptor {
+pub struct Layer3MeshData {
     pub name: &'static str,
     pub world: Model,
     pub ndc: Model,
     pub texture: Texture2D,
-    pub metrics_world: MeshMetrics,
-    pub metrics_ndc: MeshMetrics,
+    pub static_metrics_world: StaticMeshMetrics,
+    pub static_metrics_ndc: StaticMeshMetrics,
     pub combined_bytes: usize,
     pub z_shift_anisotropic: f32,
     pub z_shift_isotropic: f32,
@@ -944,6 +971,7 @@ pub fn update_spatial_frame(
     space_factor: f32,
     aspect_factor: f32,
     ortho_factor: f32,
+    dynamic_mesh_metrics: &mut DynamicMeshMetrics,
     view_config: &ViewConfig,
 ) {
     let (depth, right, up) = basis_vector(&main);
@@ -985,6 +1013,7 @@ pub fn update_spatial_frame(
         }
     }
     spatial_frame.vertices_mut().copy_from_slice(&out_vertices);
+    dynamic_mesh_metrics.hot_vertex_positions_written += out_vertices.len();
 }
 
 pub fn world_to_ndc_space(
@@ -997,7 +1026,7 @@ pub fn world_to_ndc_space(
     rotation: f32,
     ortho_factor: f32,
     aspect_factor: f32,
-    frame_metrics: &mut FrameDynamicMetrics,
+    dynamic_mesh_metrics: &mut DynamicMeshMetrics,
     view_config: &ViewConfig,
 ) {
     let (depth, right, up) = basis_vector(camera);
@@ -1032,7 +1061,7 @@ pub fn world_to_ndc_space(
             let zw = depth * (z_ndc * half_depth_ndc);
             let final_pos = center_ndc + xw + yw + zw;
             dst_vertices[i] = translate_rotate_scale(1, final_pos, MODEL_POS, MODEL_SCALE, rotation);
-            frame_metrics.vertex_positions_written += 1;
+            dynamic_mesh_metrics.hot_vertex_positions_written += 1;
         }
     }
 }
@@ -1041,7 +1070,7 @@ pub fn blend_world_and_ndc_vertices(
     world_model: &Model,
     ndc_model: &mut Model,
     blend: f32,
-    frame_metrics: &mut FrameDynamicMetrics,
+    dynamic_mesh_metrics: &mut DynamicMeshMetrics,
 ) {
     let src = &world_model.meshes()[0];
     let dst = &mut ndc_model.meshes_mut()[0];
@@ -1052,7 +1081,7 @@ pub fn blend_world_and_ndc_vertices(
             dst_v[i].x = lerp(src_v[i].x, dst_v[i].x, blend);
             dst_v[i].y = lerp(src_v[i].y, dst_v[i].y, blend);
             dst_v[i].z = lerp(src_v[i].z, dst_v[i].z, blend);
-            frame_metrics.vertex_positions_written += 1;
+            dynamic_mesh_metrics.hot_vertex_positions_written += 1;
         }
     }
 }
@@ -1181,7 +1210,7 @@ pub fn interpolate_between_deformed_vertices(
     model: &mut Model,
     mesh_rotation: f32,
     samples: &[Vec<Vector3>],
-    frame_metrics: &mut FrameDynamicMetrics,
+    dynamic_mesh_metrics: &mut DynamicMeshMetrics,
     _field_config: &FieldConfig,
 ) {
     let normalized_rotation = (-mesh_rotation).rem_euclid(TAU);
@@ -1197,7 +1226,7 @@ pub fn interpolate_between_deformed_vertices(
         v.z = a.z * (1.0 - w) + b.z * w;
     }
 
-    frame_metrics.vertex_positions_written += dst.len();
+    dynamic_mesh_metrics.hot_vertex_positions_written += dst.len();
 }
 
 pub fn calculate_average_ndc_z_shift(world_model: &Model, ndc_model: &Model) -> f32 {

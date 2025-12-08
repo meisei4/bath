@@ -101,9 +101,9 @@ fn main() {
     window.materials_mut()[0].set_material_texture(MATERIAL_MAP_ALBEDO, &checked_texture);
 
     let mut field_entity_models: Vec<Model> = vec![fusuma, window];
-    let field_entity_metrics: Vec<MeshMetrics> = field_entity_models
+    let field_entity_metrics: Vec<StaticMeshMetrics> = field_entity_models
         .iter()
-        .map(|m| MeshMetrics::measure(&m.meshes()[0]))
+        .map(|m| StaticMeshMetrics::measure(&m.meshes()[0]))
         .collect();
 
     let mut arrow_model = handle
@@ -112,7 +112,7 @@ fn main() {
     fill_planar_texcoords(&mut arrow_model.meshes_mut()[0]);
     arrow_model.materials_mut()[0].set_material_texture(MATERIAL_MAP_ALBEDO, &checked_texture);
 
-    let mut meshes: Vec<MeshDescriptor> = Vec::new();
+    let mut meshes: Vec<Layer3MeshData> = Vec::new();
 
     let mut world_ghost = handle
         .load_model(&thread, SPHERE_GLTF_PATH)
@@ -123,7 +123,7 @@ fn main() {
     let world_ghost_pre_animation_vertices = world_ghost.meshes()[0].vertices().to_vec();
 
     let mut mesh_samples = collect_deformed_vertex_samples(world_ghost.meshes()[0].vertices(), &field_config);
-    let mut preload_dynamic_metrics_for_ghost = FrameDynamicMetrics::new();
+    let mut preload_dynamic_metrics_for_ghost = DynamicMeshMetrics::default();
     interpolate_between_deformed_vertices(
         &mut world_ghost,
         i_time,
@@ -147,17 +147,17 @@ fn main() {
         .expect("Failed to create ghost NDC model");
     ndc_ghost.materials_mut()[0].set_material_texture(MATERIAL_MAP_ALBEDO, &checked_texture);
 
-    let ghost_metrics_world = MeshMetrics::measure(&world_ghost.meshes()[0]);
-    let ghost_metrics_ndc = MeshMetrics::measure(&ndc_ghost.meshes()[0]);
-    let ghost_combined_bytes = ghost_metrics_world.total_bytes + ghost_metrics_ndc.total_bytes;
+    let ghost_metrics_world = StaticMeshMetrics::measure(&world_ghost.meshes()[0]);
+    let ghost_metrics_ndc = StaticMeshMetrics::measure(&ndc_ghost.meshes()[0]);
+    let ghost_combined_bytes = ghost_metrics_world.cold_total_bytes + ghost_metrics_ndc.cold_total_bytes;
 
-    meshes.push(MeshDescriptor {
+    meshes.push(Layer3MeshData {
         name: "GHOST",
         world: world_ghost,
         ndc: ndc_ghost,
         texture: checked_texture,
-        metrics_world: ghost_metrics_world,
-        metrics_ndc: ghost_metrics_ndc,
+        static_metrics_world: ghost_metrics_world,
+        static_metrics_ndc: ghost_metrics_ndc,
         combined_bytes: ghost_combined_bytes,
         z_shift_anisotropic: 0.0,
         z_shift_isotropic: 0.0,
@@ -207,24 +207,24 @@ fn main() {
         let mut ndc_model = handle.load_model_from_mesh(&thread, ndc_mesh).unwrap();
         ndc_model.materials_mut()[0].set_material_texture(MATERIAL_MAP_ALBEDO, &mesh_texture);
 
-        let metrics_world = MeshMetrics::measure(&world_model.meshes()[0]);
-        let metrics_ndc = MeshMetrics::measure(&ndc_model.meshes()[0]);
-        let combined_bytes = metrics_world.total_bytes + metrics_ndc.total_bytes;
+        let metrics_world = StaticMeshMetrics::measure(&world_model.meshes()[0]);
+        let metrics_ndc = StaticMeshMetrics::measure(&ndc_model.meshes()[0]);
+        let combined_bytes = metrics_world.cold_total_bytes + metrics_ndc.cold_total_bytes;
 
-        meshes.push(MeshDescriptor {
+        meshes.push(Layer3MeshData {
             name,
             world: world_model,
             ndc: ndc_model,
             texture: mesh_texture,
-            metrics_world,
-            metrics_ndc,
+            static_metrics_world: metrics_world,
+            static_metrics_ndc: metrics_ndc,
             combined_bytes,
             z_shift_anisotropic: 0.0,
             z_shift_isotropic: 0.0,
         });
     }
 
-    let mut preload_dynamic_metrics = FrameDynamicMetrics::new();
+    let mut preload_dynamic_metrics = DynamicMeshMetrics::default();
     for mesh_descriptor in meshes.iter_mut() {
         world_to_ndc_space(
             &main,
@@ -272,9 +272,9 @@ fn main() {
 
         handle.load_model_from_mesh(&thread, spatial_frame_mesh).unwrap()
     };
-
+    let spatial_frame_metrics = StaticMeshMetrics::measure(&spatial_frame_model.meshes()[0]);
     handle.set_target_fps(60);
-    let mut frame_dynamic_metrics = FrameDynamicMetrics::new();
+    let mut dynamic_mesh_metrics = DynamicMeshMetrics::measure_animation(&mesh_samples);
     let mut room = Room::default();
 
     if let Some(door) = room.field.entities.get_mut(0) {
@@ -291,8 +291,14 @@ fn main() {
 
     let mut field_model_arrows = build_field_model_arrows(&mut handle, &thread, &room, &arrow_model.meshes()[0]);
     field_model_arrows.materials_mut()[0].set_material_texture(MATERIAL_MAP_ALBEDO, &meshes[0].texture);
-    update_field_model_arrows(&mut field_model_arrows, &room, &arrow_model.meshes()[0]);
-    let mut field_arrows_metrics = MeshMetrics::measure(&field_model_arrows.meshes()[0]);
+    dynamic_mesh_metrics.update_arrow_pool(&arrow_model.meshes()[0], room.field_samples().len());
+    update_field_model_arrows(
+        &mut field_model_arrows,
+        &room,
+        &arrow_model.meshes()[0],
+        &mut dynamic_mesh_metrics,
+    );
+    let mut field_arrows_metrics = StaticMeshMetrics::measure(&field_model_arrows.meshes()[0]);
     let mut animated_meshes_need_regeneration = false;
 
     while !handle.window_should_close() {
@@ -300,13 +306,21 @@ fn main() {
             let samples_changed = new_field_config.log_delta(&field_config);
             field_config = new_field_config;
             room.reload_config(field_config.clone());
+            dynamic_mesh_metrics.warm_reset();
             field_model_lines = build_field_model_lines(&mut handle, &thread, &room);
             field_model_ribbons = build_field_model_ribbons(&mut handle, &thread, &room);
             field_model_arrows = build_field_model_arrows(&mut handle, &thread, &room, &arrow_model.meshes()[0]);
             field_model_arrows.materials_mut()[0].set_material_texture(MATERIAL_MAP_ALBEDO, &meshes[0].texture);
-            update_field_model_arrows(&mut field_model_arrows, &room, &arrow_model.meshes()[0]);
-            field_arrows_metrics = MeshMetrics::measure(&field_model_arrows.meshes()[0]);
+            dynamic_mesh_metrics.update_arrow_pool(&arrow_model.meshes()[0], room.field_samples().len());
 
+            update_field_model_arrows(
+                &mut field_model_arrows,
+                &room,
+                &arrow_model.meshes()[0],
+                &mut dynamic_mesh_metrics,
+            );
+
+            field_arrows_metrics = StaticMeshMetrics::measure(&field_model_arrows.meshes()[0]);
             if samples_changed {
                 animated_meshes_need_regeneration = true;
             }
@@ -349,12 +363,13 @@ fn main() {
                 timestamp(),
                 mesh_samples.len()
             );
+            dynamic_mesh_metrics.update_animation(&mesh_samples);
             animated_meshes_need_regeneration = false;
         }
 
         let dt = handle.get_frame_time();
         aspect = handle.get_screen_width() as f32 / handle.get_screen_height() as f32;
-        frame_dynamic_metrics.reset();
+        dynamic_mesh_metrics.hot_reset();
 
         update_view_from_input(&handle, &mut view_state, &mut jugemu);
         update_blend(&mut view_state.space_blend, dt, view_state.ndc_space, &view_config);
@@ -402,7 +417,7 @@ fn main() {
                 &mesh_samples,
                 &main,
                 mesh_rotation,
-                &mut frame_dynamic_metrics,
+                &mut dynamic_mesh_metrics,
                 &field_config,
             );
         }
@@ -419,7 +434,7 @@ fn main() {
                 mesh_rotation,
                 view_state.ortho_blend,
                 view_state.aspect_blend,
-                &mut frame_dynamic_metrics,
+                &mut dynamic_mesh_metrics,
                 &view_config,
             );
 
@@ -427,7 +442,7 @@ fn main() {
                 &mesh_descriptor.world,
                 &mut mesh_descriptor.ndc,
                 view_state.space_blend,
-                &mut frame_dynamic_metrics,
+                &mut dynamic_mesh_metrics,
             );
         }
 
@@ -454,8 +469,10 @@ fn main() {
             view_state.space_blend,
             view_state.aspect_blend,
             view_state.ortho_blend,
+            &mut dynamic_mesh_metrics,
             &view_config,
         );
+
         if handle.is_key_pressed(KeyboardKey::KEY_F) {
             let max_cells: usize = (ROOM_W * ROOM_H * ROOM_D) as usize;
             if placed_cells.len() == max_cells {
@@ -648,14 +665,16 @@ fn main() {
             &hover_state,
             &placed_cells,
             i_time,
-            &meshes,
-            &mesh_samples,
-            &frame_dynamic_metrics,
+            HudMetrics {
+                meshes: &meshes,
+                dynamic: &dynamic_mesh_metrics,
+                field_entities: &field_entity_metrics,
+                field_arrows: &field_arrows_metrics,
+                spatial_frame: &spatial_frame_metrics,
+            },
             &room,
             &edit_stack,
             edit_cursor,
-            &field_entity_metrics,
-            &field_arrows_metrics,
         );
     }
 }
