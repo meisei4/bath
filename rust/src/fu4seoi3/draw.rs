@@ -443,15 +443,26 @@ pub fn draw_room_floor_grid(rl3d: &mut RaylibMode3D<RaylibDrawHandle>, room: &Ro
 pub fn update_animated_mesh(
     ndc_model: &mut Model,
     world_model: &mut Model,
-    i_time: f32,
     mesh_samples: &[Vec<Vector3>],
     main: &Camera3D,
     mesh_rotation: f32,
     dynamic_mesh_metrics: &mut DynamicMeshMetrics,
     field_config: &FieldConfig,
 ) {
-    interpolate_between_deformed_vertices(ndc_model, i_time, mesh_samples, dynamic_mesh_metrics, field_config);
-    interpolate_between_deformed_vertices(world_model, i_time, mesh_samples, dynamic_mesh_metrics, field_config);
+    interpolate_between_deformed_vertices(
+        ndc_model,
+        mesh_rotation,
+        mesh_samples,
+        dynamic_mesh_metrics,
+        field_config,
+    );
+    interpolate_between_deformed_vertices(
+        world_model,
+        mesh_rotation,
+        mesh_samples,
+        dynamic_mesh_metrics,
+        field_config,
+    );
     update_normals_for_silhouette(&mut ndc_model.meshes_mut()[0], dynamic_mesh_metrics);
     update_normals_for_silhouette(&mut world_model.meshes_mut()[0], dynamic_mesh_metrics);
     fade_vertex_colors_silhouette_rim(

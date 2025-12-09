@@ -413,7 +413,6 @@ fn main() {
             update_animated_mesh(
                 &mut animated_mesh_descriptor.ndc,
                 &mut animated_mesh_descriptor.world,
-                mesh_rotation,
                 &mesh_samples,
                 &main,
                 mesh_rotation,

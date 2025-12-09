@@ -560,6 +560,7 @@ pub fn build_field_model_ribbons(handle: &mut RaylibHandle, thread: &RaylibThrea
         .expect("failed to create chi field model")
 }
 
+//TODO: no, this is not ok, we need to move to a single mesh instance and have just separated geometry placed through out it, but i dont think its going to work anymore
 pub fn build_field_model_arrows(
     handle: &mut RaylibHandle,
     thread: &RaylibThread,
