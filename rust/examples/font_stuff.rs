@@ -1,18 +1,79 @@
 use asset_payload::{FONT_IMAGE_PATH, FONT_PATH};
 use raylib::init;
-use raylib::prelude::{Image, RaylibFont};
+use raylib::prelude::*;
+use std::fs::File;
+use std::io::Write;
 use ttf_parser::{name_id, Face};
 
 fn main() {
-    let (mut handle, thread) = init()
-        .size(100, 100)
-        .title("raylib [core] example - fixed function didactic")
-        .build();
+    let (mut handle, thread) = init().size(100, 100).title("raylib font exporter").build();
 
-    let font_image = Image::load_image(FONT_IMAGE_PATH).unwrap();
+    let sizes = [8, 10, 12, 16, 20, 24, 32];
+    let chars: String = (32u8..127u8).map(|c| c as char).collect();
 
+    for &size in &sizes {
+        let font = handle
+            .load_font_ex(&thread, FONT_PATH, size, Some(&chars))
+            .expect("Failed to load font");
+
+        let base_path = format!("/home/adduser/fu4seoi3/src/fu4seoi3/romdisk/assets/font_{}px", size);
+        let mut image = font.texture().load_image().unwrap();
+
+        image.set_format(PixelFormat::PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
+
+        let tex_width = image.width;
+        let tex_height = image.height;
+
+        image.export_image(&format!("{}.png", base_path));
+
+        let mut fnt_file = File::create(format!("{}.fnt", base_path)).unwrap();
+        writeln!(fnt_file, "info face=\"font\" size={} bold=0 italic=0", size).unwrap();
+        writeln!(
+            fnt_file,
+            "common lineHeight={} base={} scaleW={} scaleH={} pages=1",
+            size, size, tex_width, tex_height
+        )
+        .unwrap();
+        writeln!(fnt_file, "page id=0 file=\"font_{}px.png\"", size).unwrap();
+        writeln!(fnt_file, "chars count={}", font.glyphCount).unwrap();
+
+        for (i, glyph) in font.chars().iter().enumerate() {
+            let rec = unsafe { *font.recs.add(i) };
+            writeln!(
+                fnt_file,
+                "char id={} x={} y={} width={} height={} xoffset={} yoffset={} xadvance={} page=0",
+                glyph.value,
+                rec.x as i32,
+                rec.y as i32,
+                rec.width as i32,
+                rec.height as i32,
+                glyph.offsetX,
+                glyph.offsetY,
+                glyph.advanceX
+            )
+            .unwrap();
+        }
+
+        println!(
+            "Exported: {}.png ({}x{}) and {}.fnt",
+            base_path, tex_width, tex_height, base_path
+        );
+    }
+
+    // let sizes = [8, 10, 12];
+    // let chars: String = (32u8..127u8).map(|c| c as char).collect();
+    // for &size in &sizes {
+    //     let font = handle
+    //         .load_font_ex(&thread, FONT_PATH, size, Some(&chars))
+    //         .expect("Failed to load font");
+    //     let base_path = format!("/home/adduser/fu4seoi3/src/fu4seoi3/romdisk/assets/font_{}px", size);
+    //     let image = font.texture().load_image().unwrap();
+    //     image.export_image(&format!("{}.png", base_path));
+    //     println!("Exported: {}.png", base_path);
+    // }
+
+    println!("\nFont metadata for size 32:");
     let font = handle
-        // .load_font(&thread, FONT_PATH)
         .load_font_ex(&thread, FONT_PATH, 32, None)
         .expect("Failed to load font");
     println!("File: {}", FONT_PATH);

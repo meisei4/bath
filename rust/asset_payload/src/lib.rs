@@ -117,7 +117,9 @@ define_payloads! {
         FONT                     => "fonts/font.ttf",
         FONT_IMAGE               => "fonts/raylib_default_font.png",
         CHI_CONFIG               => "custom/field.config",
-        VIEW_CONFIG              => "custom/view.config"
+        VIEW_CONFIG              => "custom/view.config",
+        FLOORPLAN                => "custom/floorplan.txt"
+
     },
     string: {
         RAYLIB_DEFAULT_VERT_100  => "shaders/glsl/raylib_base_vertex_100.glsl",

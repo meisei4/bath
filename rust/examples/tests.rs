@@ -26,3 +26,4 @@ fn main() {
 // cargo run --example ghost_dither_opengl11_geometry --features tests-only,opengl-11
 // cargo run --example ghost_dither_opengl11_texture --features tests-only,opengl-11
 // cargo run --example ghost_dither_glsl100 --features tests-only,glsl-100
+// cargo run --example room --features tests-only,opengl-11

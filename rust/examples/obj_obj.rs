@@ -130,151 +130,6 @@ fn main() {
     }
 }
 
-#[derive(Clone, Copy)]
-struct ArrowSpec {
-    width: f32,
-    length: f32,
-    tail_scale: f32,
-    thickness: f32,
-    chamfer_xy: f32,
-    chamfer_z: f32,
-}
-
-const ARROW_SPEC_TEST: ArrowSpec = ArrowSpec {
-    width: 0.25,
-    length: 0.33,
-    tail_scale: 1.0,
-    thickness: 0.1,
-    chamfer_xy: 0.033,
-    chamfer_z: 0.033,
-};
-
-const ARROW_OUTLINE_BASE: [[f32; 2]; 16] = [
-    [-0.004027, 0.125000],
-    [-0.125000, 0.004027],
-    [-0.125000, -0.028353],
-    [-0.100674, -0.052515],
-    [-0.066732, -0.052515],
-    [-0.044379, -0.028600],
-    [-0.044297, -0.088675],
-    [-0.008054, -0.125000],
-    [0.008054, -0.125000],
-    [0.044297, -0.088675],
-    [0.044379, -0.028600],
-    [0.066732, -0.052515],
-    [0.100674, -0.052515],
-    [0.125000, -0.028353],
-    [0.125000, 0.004027],
-    [0.004027, 0.125000],
-];
-
-const ARROW_TAIL_PIVOT_Y: f32 = -0.052515;
-
-fn build_arrow_outline_2d(spec: &ArrowSpec) -> Vec<[f32; 2]> {
-    let tail_scale = spec.tail_scale.max(0.01);
-
-    let mut pts: Vec<[f32; 2]> = ARROW_OUTLINE_BASE.iter().copied().collect();
-
-    if (tail_scale - 1.0).abs() > f32::EPSILON {
-        for p in pts.iter_mut() {
-            if p[1] <= ARROW_TAIL_PIVOT_Y {
-                p[1] = ARROW_TAIL_PIVOT_Y + (p[1] - ARROW_TAIL_PIVOT_Y) * tail_scale;
-            }
-        }
-    }
-
-    let mut min_x = f32::INFINITY;
-    let mut max_x = f32::NEG_INFINITY;
-    let mut min_y = f32::INFINITY;
-    let mut max_y = f32::NEG_INFINITY;
-
-    for p in &pts {
-        min_x = min_x.min(p[0]);
-        max_x = max_x.max(p[0]);
-        min_y = min_y.min(p[1]);
-        max_y = max_y.max(p[1]);
-    }
-
-    let width_base = max_x - min_x;
-    let length_base = max_y - min_y;
-
-    let cx = 0.5 * (min_x + max_x);
-    let cy = 0.5 * (min_y + max_y);
-
-    let sx = if width_base > 0.0 { spec.width / width_base } else { 1.0 };
-    let sy = if length_base > 0.0 {
-        spec.length / length_base
-    } else {
-        1.0
-    };
-
-    for p in pts.iter_mut() {
-        p[0] = (p[0] - cx) * sx;
-        p[1] = (p[1] - cy) * sy;
-    }
-
-    pts
-}
-//TODO: still need to consolidate the chamfering in the arrow tail-> head nooks, its resulting in intersecting geometry still...
-fn write_arrow_obj(file: &mut File, spec: &ArrowSpec, object_name: &str) {
-    let outline_2d = build_arrow_outline_2d(spec);
-    let n = outline_2d.len();
-
-    let mut verts: Vec<[f32; 3]> = Vec::new();
-
-    let thickness = spec.thickness.max(0.0001);
-    let half_t = 0.5 * thickness;
-    let chamfer_z = spec.chamfer_z.min(half_t * 0.99).max(0.0001);
-
-    let y0 = -half_t;
-    let y1 = -half_t + chamfer_z;
-    let y2 = half_t - chamfer_z;
-    let y3 = half_t;
-
-    let mut max_extent = 0.0f32;
-    for p in &outline_2d {
-        max_extent = max_extent.max(p[0].abs());
-        max_extent = max_extent.max(p[1].abs());
-    }
-
-    let chamfer_xy = spec.chamfer_xy.min(max_extent * 0.99).max(0.0);
-    let inner_scale = if max_extent > 0.0 {
-        (max_extent - chamfer_xy) / max_extent
-    } else {
-        1.0
-    };
-
-    verts.push([0.0, y3, 0.0]);
-
-    for p in outline_2d.iter().rev() {
-        verts.push([p[0] * inner_scale, y3, -p[1] * inner_scale]);
-    }
-    for p in outline_2d.iter().rev() {
-        verts.push([p[0], y2, -p[1]]);
-    }
-    for p in outline_2d.iter().rev() {
-        verts.push([p[0], y1, -p[1]]);
-    }
-    for p in outline_2d.iter().rev() {
-        verts.push([p[0] * inner_scale, y0, -p[1] * inner_scale]);
-    }
-    verts.push([0.0, y0, 0.0]);
-
-    writeln!(file, "o {}", object_name).unwrap();
-    writeln!(file, "s off").unwrap();
-
-    for v in &verts {
-        writeln!(file, "v {:.6} {:.6} {:.6}", v[0], v[1], v[2]).unwrap();
-    }
-
-    let stacks = 5;
-    let slices = n;
-    let mode = TexcoordMapping::SphericalEquirectangularUnwrapped;
-    emit_sphere_normals(file, &verts);
-    emit_sphere_texcoords(file, &verts, stacks, slices, &mode);
-    emit_sphere_indexed_triangles(file, stacks, slices, &mode);
-}
-
 fn write_window_obj(file: &mut File, spec: &WindowSpec, mullions: MullionConfig, object_name: &str) {
     let mm_to_unit = 1.0_f32 / 800.0_f32;
 
@@ -864,45 +719,6 @@ fn emit_sphere_equirectangular_unwrapped_texcoords(file: &mut File, stacks: usiz
     }
 }
 
-fn emit_indexed_triangles_equirectangular_unwrapped(file: &mut File, stacks: usize, slices: usize) {
-    let rings = stacks - 1;
-    for j in 0..slices {
-        let v_a = 2 + j;
-        let v_b = 2 + ((j + 1) % slices);
-        let st_top = 1 + j;
-        let st_a = slices + 1 + j;
-        let st_b = slices + 1 + j + 1;
-        writeln!(file, "f {}/{} {}/{} {}/{}", 1, st_top, v_b, st_b, v_a, st_a).unwrap();
-    }
-    for s in 0..(rings - 1) {
-        let ring_st_base = slices + 1 + s * (slices + 1);
-        let next_ring_st_base = slices + 1 + (s + 1) * (slices + 1);
-        for j in 0..slices {
-            let v_u0 = 2 + s * slices + j;
-            let v_u1 = 2 + s * slices + ((j + 1) % slices);
-            let v_l0 = 2 + (s + 1) * slices + j;
-            let v_l1 = 2 + (s + 1) * slices + ((j + 1) % slices);
-            let st_u0 = ring_st_base + j;
-            let st_u1 = ring_st_base + j + 1;
-            let st_l0 = next_ring_st_base + j;
-            let st_l1 = next_ring_st_base + j + 1;
-            writeln!(file, "f {}/{} {}/{} {}/{}", v_u0, st_u0, v_u1, st_u1, v_l0, st_l0).unwrap();
-            writeln!(file, "f {}/{} {}/{} {}/{}", v_u1, st_u1, v_l1, st_l1, v_l0, st_l0).unwrap();
-        }
-    }
-    let base_ring_st = 1 + slices + (rings - 1) * (slices + 1);
-    let bottom_pole_st_base = 1 + slices + rings * (slices + 1);
-    for j in 0..slices {
-        let v_a = 2 + (rings - 1) * slices + j;
-        let v_b = 2 + (rings - 1) * slices + ((j + 1) % slices);
-        let v_bottom = 2 + rings * slices;
-        let st_a = base_ring_st + j;
-        let st_b = base_ring_st + j + 1;
-        let st_bottom = bottom_pole_st_base + j;
-        writeln!(file, "f {}/{} {}/{} {}/{}", v_bottom, st_bottom, v_a, st_a, v_b, st_b).unwrap();
-    }
-}
-
 fn spherical_equirectangular_analytic_st(x: f32, y: f32, z: f32) -> (f32, f32) {
     let r = (x * x + y * y + z * z).sqrt();
     if r == 0.0 {
@@ -915,36 +731,6 @@ fn spherical_equirectangular_analytic_st(x: f32, y: f32, z: f32) -> (f32, f32) {
     let ny = (y / r).clamp(-1.0, 1.0);
     let t = 1.0 - ny.acos() / PI;
     (s, t)
-}
-
-fn emit_cylindrical_texcoords(file: &mut File, vert_count: usize, stacks: usize, slices: usize) {
-    let has_poles = vert_count == (2 + (stacks - 1) * slices);
-
-    if has_poles {
-        let s = 0.5;
-        let t = 1.0;
-        writeln!(file, "vt {:.6} {:.6}", s, t).unwrap();
-    }
-
-    let num_rings = if has_poles { stacks - 1 } else { stacks };
-    for ring_idx in 0..num_rings {
-        let t = if has_poles {
-            1.0 - ((ring_idx + 1) as f32) / (stacks as f32)
-        } else {
-            (num_rings - 1 - ring_idx) as f32 / (num_rings - 1).max(1) as f32
-        };
-
-        for i in 0..slices {
-            let s = i as f32 / slices as f32;
-            writeln!(file, "vt {:.6} {:.6}", s, t).unwrap();
-        }
-    }
-
-    if has_poles {
-        let s = 0.5;
-        let t = 0.0;
-        writeln!(file, "vt {:.6} {:.6}", s, t).unwrap();
-    }
 }
 
 fn planar_projection_xy_st(x: f32, y: f32, _z: f32) -> (f32, f32) {
@@ -1100,4 +886,217 @@ fn fill_vertex_colors_gltf(gltf_path_str: &str) {
     println!("  Binary size: {} -> {} bytes", original_bin_size, bin_data.len());
     fs::write(&bin_path, &bin_data).unwrap();
     fs::write(gltf_path, to_string_pretty(&root).unwrap()).unwrap();
+}
+
+#[derive(Clone, Copy)]
+struct ArrowSpec {
+    width: f32,
+    length: f32,
+    tail_scale: f32,
+    thickness: f32,
+    chamfer_xy: f32,
+    chamfer_z: f32,
+}
+
+const ARROW_SPEC_TEST: ArrowSpec = ArrowSpec {
+    width: 0.25,
+    length: 0.33,
+    tail_scale: 1.0,
+    thickness: 0.1,
+    chamfer_xy: 0.033,
+    chamfer_z: 0.033,
+};
+
+const ARROW_OUTLINE_BASE: [[f32; 2]; 16] = [
+    [-0.004027, 0.125000],
+    [-0.125000, 0.004027],
+    [-0.125000, -0.028353],
+    [-0.100674, -0.052515],
+    [-0.066732, -0.052515],
+    [-0.044379, -0.028600],
+    [-0.044297, -0.088675],
+    [-0.008054, -0.125000],
+    [0.008054, -0.125000],
+    [0.044297, -0.088675],
+    [0.044379, -0.028600],
+    [0.066732, -0.052515],
+    [0.100674, -0.052515],
+    [0.125000, -0.028353],
+    [0.125000, 0.004027],
+    [0.004027, 0.125000],
+];
+
+const ARROW_TAIL_PIVOT_Y: f32 = -0.052515;
+
+fn build_arrow_outline_2d(spec: &ArrowSpec) -> Vec<[f32; 2]> {
+    let tail_scale = spec.tail_scale.max(0.01);
+
+    let mut pts: Vec<[f32; 2]> = ARROW_OUTLINE_BASE.iter().copied().collect();
+
+    if (tail_scale - 1.0).abs() > f32::EPSILON {
+        for p in pts.iter_mut() {
+            if p[1] <= ARROW_TAIL_PIVOT_Y {
+                p[1] = ARROW_TAIL_PIVOT_Y + (p[1] - ARROW_TAIL_PIVOT_Y) * tail_scale;
+            }
+        }
+    }
+
+    let mut min_x = f32::INFINITY;
+    let mut max_x = f32::NEG_INFINITY;
+    let mut min_y = f32::INFINITY;
+    let mut max_y = f32::NEG_INFINITY;
+
+    for p in &pts {
+        min_x = min_x.min(p[0]);
+        max_x = max_x.max(p[0]);
+        min_y = min_y.min(p[1]);
+        max_y = max_y.max(p[1]);
+    }
+
+    let width_base = max_x - min_x;
+    let length_base = max_y - min_y;
+
+    let cx = 0.5 * (min_x + max_x);
+    let cy = 0.5 * (min_y + max_y);
+
+    let sx = if width_base > 0.0 { spec.width / width_base } else { 1.0 };
+    let sy = if length_base > 0.0 {
+        spec.length / length_base
+    } else {
+        1.0
+    };
+
+    for p in pts.iter_mut() {
+        p[0] = (p[0] - cx) * sx;
+        p[1] = (p[1] - cy) * sy;
+    }
+
+    pts
+}
+//TODO: still need to consolidate the chamfering in the arrow tail-> head nooks, its resulting in intersecting geometry still...
+fn write_arrow_obj(file: &mut File, spec: &ArrowSpec, object_name: &str) {
+    let outline_2d = build_arrow_outline_2d(spec);
+    let n = outline_2d.len();
+
+    let mut verts: Vec<[f32; 3]> = Vec::new();
+
+    let thickness = spec.thickness.max(0.0001);
+    let half_t = 0.5 * thickness;
+    let chamfer_z = spec.chamfer_z.min(half_t * 0.99).max(0.0001);
+
+    let y0 = -half_t;
+    let y1 = -half_t + chamfer_z;
+    let y2 = half_t - chamfer_z;
+    let y3 = half_t;
+
+    let mut max_extent = 0.0f32;
+    for p in &outline_2d {
+        max_extent = max_extent.max(p[0].abs());
+        max_extent = max_extent.max(p[1].abs());
+    }
+
+    let chamfer_xy = spec.chamfer_xy.min(max_extent * 0.99).max(0.0);
+    let inner_scale = if max_extent > 0.0 {
+        (max_extent - chamfer_xy) / max_extent
+    } else {
+        1.0
+    };
+
+    verts.push([0.0, y3, 0.0]);
+
+    for p in outline_2d.iter().rev() {
+        verts.push([p[0] * inner_scale, y3, -p[1] * inner_scale]);
+    }
+    for p in outline_2d.iter().rev() {
+        verts.push([p[0], y2, -p[1]]);
+    }
+    for p in outline_2d.iter().rev() {
+        verts.push([p[0], y1, -p[1]]);
+    }
+    for p in outline_2d.iter().rev() {
+        verts.push([p[0] * inner_scale, y0, -p[1] * inner_scale]);
+    }
+    verts.push([0.0, y0, 0.0]);
+
+    writeln!(file, "o {}", object_name).unwrap();
+    writeln!(file, "s off").unwrap();
+
+    for v in &verts {
+        writeln!(file, "v {:.6} {:.6} {:.6}", v[0], v[1], v[2]).unwrap();
+    }
+
+    let stacks = 5;
+    let slices = n;
+    let mode = TexcoordMapping::SphericalEquirectangularUnwrapped;
+    emit_sphere_normals(file, &verts);
+    emit_sphere_texcoords(file, &verts, stacks, slices, &mode);
+    emit_sphere_indexed_triangles(file, stacks, slices, &mode);
+}
+
+fn emit_cylindrical_texcoords(file: &mut File, vert_count: usize, stacks: usize, slices: usize) {
+    let has_poles = vert_count == (2 + (stacks - 1) * slices);
+
+    if has_poles {
+        let s = 0.5;
+        let t = 1.0;
+        writeln!(file, "vt {:.6} {:.6}", s, t).unwrap();
+    }
+
+    let num_rings = if has_poles { stacks - 1 } else { stacks };
+    for ring_idx in 0..num_rings {
+        let t = if has_poles {
+            1.0 - ((ring_idx + 1) as f32) / (stacks as f32)
+        } else {
+            (num_rings - 1 - ring_idx) as f32 / (num_rings - 1).max(1) as f32
+        };
+
+        for i in 0..slices {
+            let s = i as f32 / slices as f32;
+            writeln!(file, "vt {:.6} {:.6}", s, t).unwrap();
+        }
+    }
+
+    if has_poles {
+        let s = 0.5;
+        let t = 0.0;
+        writeln!(file, "vt {:.6} {:.6}", s, t).unwrap();
+    }
+}
+fn emit_indexed_triangles_equirectangular_unwrapped(file: &mut File, stacks: usize, slices: usize) {
+    let rings = stacks - 1;
+    for j in 0..slices {
+        let v_a = 2 + j;
+        let v_b = 2 + ((j + 1) % slices);
+        let st_top = 1 + j;
+        let st_a = slices + 1 + j;
+        let st_b = slices + 1 + j + 1;
+        writeln!(file, "f {}/{} {}/{} {}/{}", 1, st_top, v_b, st_b, v_a, st_a).unwrap();
+    }
+    for s in 0..(rings - 1) {
+        let ring_st_base = slices + 1 + s * (slices + 1);
+        let next_ring_st_base = slices + 1 + (s + 1) * (slices + 1);
+        for j in 0..slices {
+            let v_u0 = 2 + s * slices + j;
+            let v_u1 = 2 + s * slices + ((j + 1) % slices);
+            let v_l0 = 2 + (s + 1) * slices + j;
+            let v_l1 = 2 + (s + 1) * slices + ((j + 1) % slices);
+            let st_u0 = ring_st_base + j;
+            let st_u1 = ring_st_base + j + 1;
+            let st_l0 = next_ring_st_base + j;
+            let st_l1 = next_ring_st_base + j + 1;
+            writeln!(file, "f {}/{} {}/{} {}/{}", v_u0, st_u0, v_u1, st_u1, v_l0, st_l0).unwrap();
+            writeln!(file, "f {}/{} {}/{} {}/{}", v_u1, st_u1, v_l1, st_l1, v_l0, st_l0).unwrap();
+        }
+    }
+    let base_ring_st = 1 + slices + (rings - 1) * (slices + 1);
+    let bottom_pole_st_base = 1 + slices + rings * (slices + 1);
+    for j in 0..slices {
+        let v_a = 2 + (rings - 1) * slices + j;
+        let v_b = 2 + (rings - 1) * slices + ((j + 1) % slices);
+        let v_bottom = 2 + rings * slices;
+        let st_a = base_ring_st + j;
+        let st_b = base_ring_st + j + 1;
+        let st_bottom = bottom_pole_st_base + j;
+        writeln!(file, "f {}/{} {}/{} {}/{}", v_bottom, st_bottom, v_a, st_a, v_b, st_b).unwrap();
+    }
 }
