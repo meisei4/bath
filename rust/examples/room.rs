@@ -398,10 +398,148 @@ fn main() {
         )
         .unwrap();
     }
+    let derived_walls = derive_walls(&final_tiles, ix_min, iz_min, &baked);
+
+    for (wall_id_offset, wseg) in derived_walls.iter().enumerate() {
+        writeln!(
+            out,
+            "WALL {:.6} {:.6} {:.6} {:.6} {:.6} {:.6} {} SCATTER",
+            wseg.x0,
+            wseg.z0,
+            wseg.x1,
+            wseg.z1,
+            wseg.nx,
+            wseg.nz,
+            1000 + wall_id_offset as i32
+        )
+        .unwrap();
+    }
 
     for &(ix, iz) in &final_tiles {
         writeln!(out, "FLOOR {} {}", ix - ix_min, iz - iz_min).unwrap();
     }
 
     writeln!(out, "END").unwrap();
+}
+fn derive_walls(final_tiles: &[(i32, i32)], ix_min: i32, iz_min: i32, baked: &[(i32, Opening, bool)]) -> Vec<Opening> {
+    let _ = baked;
+
+    #[derive(Clone, Copy)]
+    struct WallEdge {
+        fixed: i32,
+        start: i32,
+        end: i32,
+        normal_sign: i32,
+    }
+
+    let interior: HashSet<(i32, i32)> = final_tiles.iter().map(|&(x, z)| (x - ix_min, z - iz_min)).collect();
+
+    let mut vertical_edges: Vec<WallEdge> = Vec::new();
+    let mut horizontal_edges: Vec<WallEdge> = Vec::new();
+
+    for &(x, z) in interior.iter() {
+        if !interior.contains(&(x - 1, z)) {
+            vertical_edges.push(WallEdge {
+                fixed: x,
+                start: z,
+                end: z + 1,
+                normal_sign: 1,
+            });
+        }
+        if !interior.contains(&(x + 1, z)) {
+            vertical_edges.push(WallEdge {
+                fixed: x + 1,
+                start: z,
+                end: z + 1,
+                normal_sign: -1,
+            });
+        }
+        if !interior.contains(&(x, z - 1)) {
+            horizontal_edges.push(WallEdge {
+                fixed: z,
+                start: x,
+                end: x + 1,
+                normal_sign: 1,
+            });
+        }
+        if !interior.contains(&(x, z + 1)) {
+            horizontal_edges.push(WallEdge {
+                fixed: z + 1,
+                start: x,
+                end: x + 1,
+                normal_sign: -1,
+            });
+        }
+    }
+
+    vertical_edges.sort_by(|a, b| (a.fixed, a.normal_sign, a.start).cmp(&(b.fixed, b.normal_sign, b.start)));
+    horizontal_edges.sort_by(|a, b| (a.fixed, a.normal_sign, a.start).cmp(&(b.fixed, b.normal_sign, b.start)));
+
+    let mut merged_vertical_edges: Vec<WallEdge> = Vec::new();
+    for e in vertical_edges {
+        if merged_vertical_edges
+            .last()
+            .map(|last| last.fixed == e.fixed && last.normal_sign == e.normal_sign && last.end == e.start)
+            .unwrap_or(false)
+        {
+            merged_vertical_edges.last_mut().unwrap().end = e.end;
+        } else {
+            merged_vertical_edges.push(e);
+        }
+    }
+
+    let mut merged_horizontal_edges: Vec<WallEdge> = Vec::new();
+    for e in horizontal_edges {
+        if merged_horizontal_edges
+            .last()
+            .map(|last| last.fixed == e.fixed && last.normal_sign == e.normal_sign && last.end == e.start)
+            .unwrap_or(false)
+        {
+            merged_horizontal_edges.last_mut().unwrap().end = e.end;
+        } else {
+            merged_horizontal_edges.push(e);
+        }
+    }
+
+    let mut wall_segments: Vec<Opening> = Vec::new();
+
+    for e in merged_vertical_edges {
+        wall_segments.push(Opening {
+            x0: e.fixed as f32,
+            z0: if e.normal_sign == 1 {
+                e.start as f32
+            } else {
+                e.end as f32
+            },
+            x1: e.fixed as f32,
+            z1: if e.normal_sign == 1 {
+                e.end as f32
+            } else {
+                e.start as f32
+            },
+            nx: e.normal_sign as f32,
+            nz: 0.0,
+        });
+    }
+
+    for e in merged_horizontal_edges {
+        wall_segments.push(Opening {
+            x0: if e.normal_sign == -1 {
+                e.start as f32
+            } else {
+                e.end as f32
+            },
+            z0: e.fixed as f32,
+            x1: if e.normal_sign == -1 {
+                e.end as f32
+            } else {
+                e.start as f32
+            },
+            z1: e.fixed as f32,
+            nx: 0.0,
+            nz: e.normal_sign as f32,
+        });
+    }
+
+    wall_segments
 }
