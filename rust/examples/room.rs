@@ -1,545 +1,373 @@
-use std::collections::{HashSet, VecDeque};
-use std::fs::File;
-use std::io::{BufRead, BufReader, Write};
+use asset_payload::FLOORPLAN_PATH;
+use std::collections::{HashMap, HashSet, VecDeque};
+use std::fs;
+use std::io::{BufRead, BufReader};
 
-const TILE_SIZE: f32 = 6.0;
-
-#[derive(Clone, Copy)]
-struct Opening {
-    x0: f32,
-    z0: f32,
-    x1: f32,
-    z1: f32,
-    nx: f32,
-    nz: f32,
-}
-
-fn floor_i(v: f32) -> i32 {
-    v.floor() as i32
-}
-
-fn interior_hit(interior: &HashSet<(i32, i32)>, x: f32, z: f32) -> bool {
-    interior.contains(&(floor_i(x), floor_i(z)))
-}
-
-fn bake_on_perimeter(o: &mut Opening, interior: &HashSet<(i32, i32)>) {
-    let mut set_normal = |oo: &mut Opening| -> bool {
-        let dx = oo.x1 - oo.x0;
-        let dz = oo.z1 - oo.z0;
-        let len = (dx * dx + dz * dz).sqrt();
-        if len < 1e-6 {
-            oo.nx = 0.0;
-            oo.nz = 0.0;
-            return false;
-        }
-        let tx = dx / len;
-        let tz = dz / len;
-        oo.nx = tz;
-        oo.nz = -tx;
-        true
-    };
-
-    if !set_normal(o) {
-        return;
-    }
-
-    let mut dx = o.x1 - o.x0;
-    let mut dz = o.z1 - o.z0;
-    let mut len = (dx * dx + dz * dz).sqrt();
-    if len < 1e-6 {
-        o.nx = 0.0;
-        o.nz = 0.0;
-        return;
-    }
-
-    let mut tx = dx / len;
-    let mut tz = dz / len;
-    let mut nx = tz;
-    let mut nz = -tx;
-
-    const DISTS: [f32; 8] = [0.25, 0.50, 0.75, 1.00, 1.25, 1.50, 1.75, 2.00];
-    const SAMPLES: [f32; 3] = [0.20, 0.50, 0.80];
-
-    let score_side = |sign: f32| -> i32 {
-        let mut score = 0i32;
-        for s in SAMPLES {
-            let px = o.x0 + (o.x1 - o.x0) * s;
-            let pz = o.z0 + (o.z1 - o.z0) * s;
-            for (j, d) in DISTS.iter().enumerate() {
-                let sx = px + nx * sign * (*d);
-                let sz = pz + nz * sign * (*d);
-                if interior_hit(interior, sx, sz) {
-                    score += (DISTS.len() - j) as i32;
-                    break;
-                }
-            }
-        }
-        score
-    };
-
-    if score_side(-1.0) > score_side(1.0) {
-        std::mem::swap(&mut o.x0, &mut o.x1);
-        std::mem::swap(&mut o.z0, &mut o.z1);
-
-        dx = o.x1 - o.x0;
-        dz = o.z1 - o.z0;
-        len = (dx * dx + dz * dz).sqrt();
-        if len < 1e-6 {
-            o.nx = 0.0;
-            o.nz = 0.0;
-            return;
-        }
-        tx = dx / len;
-        tz = dz / len;
-        nx = tz;
-        nz = -tx;
-    }
-
-    let midx = 0.5 * (o.x0 + o.x1);
-    let midz = 0.5 * (o.z0 + o.z1);
-
-    let mut interior_tile = None;
-    for d in DISTS {
-        let sx = midx + nx * d;
-        let sz = midz + nz * d;
-        let ix = floor_i(sx);
-        let iz = floor_i(sz);
-        if interior.contains(&(ix, iz)) {
-            interior_tile = Some((ix, iz));
-            break;
-        }
-    }
-    let Some((ix_in, iz_in)) = interior_tile else {
-        set_normal(o);
-        return;
-    };
-
-    let step_x: i32 = if nx > 0.0 {
-        -1
-    } else if nx < 0.0 {
-        1
-    } else {
-        0
-    };
-    let step_z: i32 = if nz > 0.0 {
-        -1
-    } else if nz < 0.0 {
-        1
-    } else {
-        0
-    };
-
-    let vertical = dx.abs() < dz.abs();
-
-    if vertical {
-        if step_x == 0 {
-            set_normal(o);
-            return;
-        }
-        let mut ix = ix_in;
-        while interior.contains(&(ix + step_x, iz_in)) {
-            ix += step_x;
-        }
-        let x_boundary = if step_x == 1 { (ix + 1) as f32 } else { ix as f32 };
-        o.x0 = x_boundary;
-        o.x1 = x_boundary;
-    } else {
-        if step_z == 0 {
-            set_normal(o);
-            return;
-        }
-        let mut iz = iz_in;
-        while interior.contains(&(ix_in, iz + step_z)) {
-            iz += step_z;
-        }
-        let z_boundary = if step_z == 1 { (iz + 1) as f32 } else { iz as f32 };
-        o.z0 = z_boundary;
-        o.z1 = z_boundary;
-    }
-
-    set_normal(o);
-}
-
-fn split_into_islands(tiles: &[(i32, i32)]) -> Vec<HashSet<(i32, i32)>> {
-    let mut all: HashSet<(i32, i32)> = tiles.iter().copied().collect();
-    let mut out = Vec::new();
-
-    while let Some(&start) = all.iter().next() {
-        let mut q = VecDeque::new();
-        let mut comp = HashSet::new();
-        all.remove(&start);
-        q.push_back(start);
-
-        while let Some((x, z)) = q.pop_front() {
-            comp.insert((x, z));
-            for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
-                let n = (x + dx, z + dz);
-                if all.remove(&n) {
-                    q.push_back(n);
-                }
-            }
-        }
-
-        out.push(comp);
-    }
-
-    out
-}
-
-fn seg_mid(x0: f32, y0: f32, x1: f32, y1: f32) -> (f32, f32) {
-    (0.5 * (x0 + x1), 0.5 * (y0 + y1))
-}
+const TILE: f32 = 6.0;
 
 fn main() {
-    let input_path = asset_payload::FLOORPLAN_PATH;
-    let output_path = "/home/adduser/fu4seoi3/src/fu4seoi3/romdisk/assets/room_v0.txt";
+    let input_path = FLOORPLAN_PATH;
+    let output_path = "/home/adduser/fu4seoi3/src/fu4seoi3/romdisk/assets/room_up_v0.txt";
 
-    let file = File::open(input_path).unwrap();
+    let file = std::fs::File::open(input_path).unwrap();
     let mut lines = BufReader::new(file).lines();
 
-    let dims: Vec<i32> = lines
-        .next()
-        .unwrap()
-        .unwrap()
-        .split_whitespace()
-        .map(|s| s.parse().unwrap())
-        .collect();
+    let first = lines.next().unwrap().unwrap();
+    let dims: Vec<i32> = first.split_whitespace().map(|s| s.parse().unwrap()).collect();
     let (px_w, px_h) = (dims[0], dims[1]);
 
-    let n: usize = lines.next().unwrap().unwrap().trim().parse().unwrap();
+    let n: usize = lines.next().unwrap().unwrap().parse().unwrap();
 
-    let mut walls: Vec<(f32, f32, f32, f32)> = Vec::with_capacity(n);
+    let mut walls = Vec::new();
     for _ in 0..n {
-        let p: Vec<f32> = lines
-            .next()
-            .unwrap()
-            .unwrap()
-            .split_whitespace()
-            .take(4)
-            .map(|s| s.parse().unwrap())
-            .collect();
-        walls.push((p[0], p[1], p[2], p[3]));
+        let line = lines.next().unwrap().unwrap();
+        let vals: Vec<f32> = line.split_whitespace().take(4).map(|s| s.parse().unwrap()).collect();
+        walls.push((vals[0], vals[1], vals[2], vals[3]));
     }
 
-    let mut doors_px: Vec<(f32, f32, f32, f32)> = Vec::new();
-    let mut entrance_px: Option<(f32, f32, f32, f32)> = None;
-
-    for line in lines.flatten() {
+    let mut doors = Vec::new();
+    for line in lines {
+        let line = line.unwrap();
         let toks: Vec<&str> = line.split_whitespace().collect();
-        if toks.len() < 5 {
-            continue;
-        }
-        let x0: f32 = toks[0].parse().unwrap();
-        let y0: f32 = toks[1].parse().unwrap();
-        let x1: f32 = toks[2].parse().unwrap();
-        let y1: f32 = toks[3].parse().unwrap();
-
-        if toks[4].eq_ignore_ascii_case("door") {
-            doors_px.push((x0, y0, x1, y1));
-            walls.push((x0, y0, x1, y1));
-        } else if toks[4].eq_ignore_ascii_case("entrance") {
-            if entrance_px.is_none() {
-                entrance_px = Some((x0, y0, x1, y1));
-            }
+        if toks.len() >= 5 && toks[4].eq_ignore_ascii_case("door") {
+            let vals: Vec<f32> = toks[..4].iter().map(|s| s.parse().unwrap()).collect();
+            doors.push((vals[0], vals[1], vals[2], vals[3]));
         }
     }
 
-    let gw = (px_w as f32 / TILE_SIZE).ceil() as i32;
-    let gh = (px_h as f32 / TILE_SIZE).ceil() as i32;
+    let gw = ((px_w as f32) / TILE).ceil() as i32;
+    let gh = ((px_h as f32) / TILE).ceil() as i32;
 
-    let mut is_wall = vec![vec![false; gw as usize]; gh as usize];
-    for &(x0, y0, x1, y1) in &walls {
-        let ix0 = (x0 / TILE_SIZE) as i32;
-        let iy0 = (y0 / TILE_SIZE) as i32;
-        let ix1 = (x1 / TILE_SIZE) as i32;
-        let iy1 = (y1 / TILE_SIZE) as i32;
+    let mut is_wall = vec![false; (gw * gh) as usize];
+    let idx = |x: i32, y: i32| (y * gw + x) as usize;
 
-        let dx = ix1 - ix0;
-        let dy = iy1 - iy0;
-        let steps = dx.abs().max(dy.abs()).max(1);
+    for (x0, y0, x1, y1) in &walls {
+        let ix0 = (x0 / TILE) as i32;
+        let iy0 = (y0 / TILE) as i32;
+        let ix1 = (x1 / TILE) as i32;
+        let iy1 = (y1 / TILE) as i32;
 
+        let steps = (ix1 - ix0).abs().max((iy1 - iy0).abs()).max(1);
         for step in 0..=steps {
             let t = step as f32 / steps as f32;
-            let x = (ix0 as f32 + t * dx as f32).round() as i32;
-            let y = (iy0 as f32 + t * dy as f32).round() as i32;
-            if (0..gw).contains(&x) && (0..gh).contains(&y) {
-                is_wall[y as usize][x as usize] = true;
+            let x = (ix0 as f32 + t * (ix1 - ix0) as f32).round() as i32;
+            let y = (iy0 as f32 + t * (iy1 - iy0) as f32).round() as i32;
+            if x >= 0 && x < gw && y >= 0 && y < gh {
+                is_wall[idx(x, y)] = true;
             }
         }
     }
 
-    let mut exterior = vec![vec![false; gw as usize]; gh as usize];
+    let mut exterior = vec![false; (gw * gh) as usize];
     let mut q = VecDeque::new();
     for y in 0..gh {
         for x in 0..gw {
-            if (x == 0 || x == gw - 1 || y == 0 || y == gh - 1) && !is_wall[y as usize][x as usize] {
-                exterior[y as usize][x as usize] = true;
+            if (x == 0 || x == gw - 1 || y == 0 || y == gh - 1) && !is_wall[idx(x, y)] {
+                exterior[idx(x, y)] = true;
                 q.push_back((x, y));
             }
         }
     }
 
     while let Some((x, y)) = q.pop_front() {
-        for (dx, dy) in [(0, 1), (1, 0), (0, -1), (-1, 0)] {
+        for (dx, dy) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
             let nx = x + dx;
             let ny = y + dy;
-            if (0..gw).contains(&nx) && (0..gh).contains(&ny) {
-                let (ux, uy) = (nx as usize, ny as usize);
-                if !is_wall[uy][ux] && !exterior[uy][ux] {
-                    exterior[uy][ux] = true;
+            if nx >= 0 && nx < gw && ny >= 0 && ny < gh {
+                let i = idx(nx, ny);
+                if !is_wall[i] && !exterior[i] {
+                    exterior[i] = true;
                     q.push_back((nx, ny));
                 }
             }
         }
     }
 
-    let mut final_tiles: Vec<(i32, i32)> = Vec::new();
+    let mut tiles = Vec::new();
     for y in 0..gh {
         for x in 0..gw {
-            if !is_wall[y as usize][x as usize] && !exterior[y as usize][x as usize] {
-                final_tiles.push((x, y));
+            if !is_wall[idx(x, y)] && !exterior[idx(x, y)] {
+                tiles.push((x, y));
             }
         }
     }
-    if final_tiles.is_empty() {
-        final_tiles.push((0, 0));
+    if tiles.is_empty() {
+        tiles.push((0, 0));
     }
 
-    let ix_min = final_tiles.iter().map(|(x, _)| *x).min().unwrap() - 1;
-    let ix_max = final_tiles.iter().map(|(x, _)| *x).max().unwrap() + 1;
-    let iz_min = final_tiles.iter().map(|(_, z)| *z).min().unwrap() - 1;
-    let iz_max = final_tiles.iter().map(|(_, z)| *z).max().unwrap() + 1;
+    let islands = split_islands(&tiles);
 
-    let w = ix_max - ix_min + 1;
-    let d = iz_max - iz_min + 1;
+    let min_x = tiles.iter().map(|(x, _)| *x).min().unwrap() - 1;
+    let max_x = tiles.iter().map(|(x, _)| *x).max().unwrap() + 1;
+    let min_z = tiles.iter().map(|(_, z)| *z).min().unwrap() - 1;
+    let max_z = tiles.iter().map(|(_, z)| *z).max().unwrap() + 1;
 
-    let islands_global = split_into_islands(&final_tiles);
+    let seed_w = max_x - min_x + 1;
+    let seed_d = max_z - min_z + 1;
 
-    let mut islands_local: Vec<HashSet<(i32, i32)>> = Vec::with_capacity(islands_global.len());
-    for comp in &islands_global {
-        let mut set = HashSet::with_capacity(comp.len());
-        for &(gx, gz) in comp {
-            set.insert((gx - ix_min, gz - iz_min));
+    let mut islands_local: Vec<HashSet<(i32, i32)>> = Vec::new();
+    for island in &islands {
+        let mut local = HashSet::new();
+        for (x, z) in island {
+            local.insert((x - min_x, z - min_z));
         }
-        islands_local.push(set);
+        islands_local.push(local);
     }
 
-    let (entr_cx, entr_cy) = entrance_px
-        .map(|(x0, y0, x1, y1)| seg_mid(x0, y0, x1, y1))
-        .unwrap_or((0.0, 0.0));
+    let mut openings = Vec::new();
+    for (door_id, (x0, y0, x1, y1)) in doors.iter().enumerate() {
+        let cx0 = x0 / TILE - min_x as f32;
+        let cz0 = y0 / TILE - min_z as f32;
+        let cx1 = x1 / TILE - min_x as f32;
+        let cz1 = y1 / TILE - min_z as f32;
 
-    let entr_tile_global = (floor_i(entr_cx / TILE_SIZE), floor_i(entr_cy / TILE_SIZE));
-    let entr_tile_local = (entr_tile_global.0 - ix_min, entr_tile_global.1 - iz_min);
+        for interior in &islands_local {
+            if let Some(opening) = bake_to_perimeter(cx0, cz0, cx1, cz1, interior) {
+                openings.push((opening, door_id));
+            }
+        }
+    }
 
-    let mut entrance_island = 0usize;
-    for (i, set) in islands_local.iter().enumerate() {
-        if set.contains(&entr_tile_local) {
-            entrance_island = i;
+    let mut rows: HashMap<i32, Vec<i32>> = HashMap::new();
+    for (x, z) in &tiles {
+        rows.entry(z - min_z).or_default().push(x - min_x);
+    }
+
+    let mut floor_runs = Vec::new();
+    for (z, xs) in rows.iter_mut() {
+        xs.sort_unstable();
+        let mut a = xs[0];
+        let mut b = xs[0];
+        for &x in xs.iter().skip(1) {
+            if x == b + 1 {
+                b = x;
+            } else {
+                floor_runs.push((*z, a, b));
+                a = x;
+                b = x;
+            }
+        }
+        floor_runs.push((*z, a, b));
+    }
+    floor_runs.sort();
+
+    let mut out = String::new();
+    out.push_str("ROOM_V0\n");
+    out.push_str(&format!("SEED {} 3 {}\n", seed_w, seed_d));
+    out.push_str("ORIGIN CENTERED\n");
+
+    for ((axis, fixed, a0, a1, nx, nz), door_id) in &openings {
+        let axis_str = if *axis == 1 { "X" } else { "Z" };
+        out.push_str(&format!(
+            "OPEN DOOR {} {} {} {} {} NX {} NZ {} EMIT\n",
+            axis_str, fixed, a0, a1, door_id, nx, nz
+        ));
+    }
+    let mut wall_segments = derive_walls(&islands_local, &openings);
+
+    for (wall_id, (axis, fixed, a0, a1, nx, nz)) in wall_segments.iter().enumerate() {
+        let axis_str = if *axis == 1 { "X" } else { "Z" };
+        out.push_str(&format!(
+            "OPEN WALL {} {} {} {} {} NX {} NZ {} SCATTER\n",
+            axis_str,
+            fixed,
+            a0,
+            a1,
+            1000 + wall_id,
+            nx,
+            nz
+        ));
+    }
+
+    for (z, x0, x1) in &floor_runs {
+        out.push_str(&format!("FLOOR_RUN {} {} {}\n", z, x0, x1));
+    }
+
+    out.push_str("END\n");
+
+    fs::write(output_path, &out).unwrap();
+    println!("Wrote {} doors to {}", openings.len(), output_path);
+}
+
+fn split_islands(tiles: &[(i32, i32)]) -> Vec<HashSet<(i32, i32)>> {
+    let mut remaining: HashSet<(i32, i32)> = tiles.iter().copied().collect();
+    let mut islands = Vec::new();
+
+    while let Some(&start) = remaining.iter().next() {
+        let mut island = HashSet::new();
+        let mut q = VecDeque::new();
+        remaining.remove(&start);
+        q.push_back(start);
+
+        while let Some((x, z)) = q.pop_front() {
+            island.insert((x, z));
+            for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+                let n = (x + dx, z + dz);
+                if remaining.remove(&n) {
+                    q.push_back(n);
+                }
+            }
+        }
+        islands.push(island);
+    }
+    islands
+}
+
+fn bake_to_perimeter(
+    cx0: f32,
+    cz0: f32,
+    cx1: f32,
+    cz1: f32,
+    interior: &HashSet<(i32, i32)>,
+) -> Option<(i32, i32, i32, i32, i32, i32)> {
+    let dx = cx1 - cx0;
+    let dz = cz1 - cz0;
+    let len = (dx * dx + dz * dz).sqrt();
+    if len < 1e-6 {
+        return None;
+    }
+
+    let tx = dx / len;
+    let tz = dz / len;
+    let mut nx = tz;
+    let mut nz = -tx;
+
+    let mut score_pos = 0;
+    let mut score_neg = 0;
+
+    for frac in [0.25, 0.5, 0.75] {
+        let px = cx0 + dx * frac;
+        let pz = cz0 + dz * frac;
+
+        for dist in [0.3, 0.6, 1.0, 1.5] {
+            let sx_pos = px + nx * dist;
+            let sz_pos = pz + nz * dist;
+            let sx_neg = px - nx * dist;
+            let sz_neg = pz - nz * dist;
+
+            if interior.contains(&(sx_pos.floor() as i32, sz_pos.floor() as i32)) {
+                score_pos += 1;
+            }
+            if interior.contains(&(sx_neg.floor() as i32, sz_neg.floor() as i32)) {
+                score_neg += 1;
+            }
+        }
+    }
+
+    if score_neg > score_pos {
+        nx = -nx;
+        nz = -nz;
+    }
+
+    if score_pos == 0 && score_neg == 0 {
+        return None;
+    }
+
+    let midx = 0.5 * (cx0 + cx1);
+    let midz = 0.5 * (cz0 + cz1);
+
+    let mut interior_tile = None;
+    for dist in [0.3, 0.6, 1.0, 1.5, 2.0, 2.5, 3.0] {
+        let sx = midx + nx * dist;
+        let sz = midz + nz * dist;
+        let ix = sx.floor() as i32;
+        let iz = sz.floor() as i32;
+        if interior.contains(&(ix, iz)) {
+            interior_tile = Some((ix, iz));
             break;
         }
     }
 
-    let mut primary_did = 0i32;
-    if !doors_px.is_empty() {
-        let mut best = (0usize, f32::INFINITY);
-        for (i, &(x0, y0, x1, y1)) in doors_px.iter().enumerate() {
-            let (mx, my) = seg_mid(x0, y0, x1, y1);
-            let dx = mx - entr_cx;
-            let dy = my - entr_cy;
-            let dist2 = dx * dx + dy * dy;
-            if dist2 < best.1 {
-                best = (i, dist2);
-            }
+    let (ix_in, iz_in) = interior_tile?;
+
+    let vertical = dx.abs() < dz.abs();
+
+    if vertical {
+        let step_x = if nx > 0.0 { -1 } else { 1 };
+        let mut ix = ix_in;
+        while interior.contains(&(ix + step_x, iz_in)) {
+            ix += step_x;
         }
-        primary_did = best.0 as i32;
-    }
+        let x_snap = if step_x == 1 { ix + 1 } else { ix };
 
-    let mut baked: Vec<(i32, Opening, bool)> = Vec::new();
+        let z0 = cz0.min(cz1);
+        let z1 = cz0.max(cz1);
+        let a0 = (z0 * 2.0).round() as i32;
+        let a1 = (z1 * 2.0).round() as i32;
 
-    for (did, &(x0, y0, x1, y1)) in doors_px.iter().enumerate() {
-        let did = did as i32;
-
-        let base = Opening {
-            x0: x0 / TILE_SIZE - ix_min as f32,
-            z0: y0 / TILE_SIZE - iz_min as f32,
-            x1: x1 / TILE_SIZE - ix_min as f32,
-            z1: y1 / TILE_SIZE - iz_min as f32,
-            nx: 0.0,
-            nz: 0.0,
-        };
-
-        for (island_i, interior_set) in islands_local.iter().enumerate() {
-            let mut o = base;
-            bake_on_perimeter(&mut o, interior_set);
-
-            let midx = 0.5 * (o.x0 + o.x1);
-            let midz = 0.5 * (o.z0 + o.z1);
-            let eps = 0.25;
-
-            if interior_hit(interior_set, midx + o.nx * eps, midz + o.nz * eps) {
-                let is_primary = did == primary_did && island_i == entrance_island;
-                baked.push((did, o, is_primary));
-            }
+        Some((1, x_snap * 2, a0, a1, nx.round() as i32, 0))
+    } else {
+        let step_z = if nz > 0.0 { -1 } else { 1 };
+        let mut iz = iz_in;
+        while interior.contains(&(ix_in, iz + step_z)) {
+            iz += step_z;
         }
+        let z_snap = if step_z == 1 { iz + 1 } else { iz };
+
+        let x0 = cx0.min(cx1);
+        let x1 = cx0.max(cx1);
+        let a0 = (x0 * 2.0).round() as i32;
+        let a1 = (x1 * 2.0).round() as i32;
+
+        Some((0, z_snap * 2, a0, a1, 0, nz.round() as i32))
     }
-
-    baked.sort_by(|a, b| b.2.cmp(&a.2).then_with(|| a.0.cmp(&b.0)));
-
-    let mut out = File::create(output_path).unwrap();
-    writeln!(out, "ROOM_V0").unwrap();
-    writeln!(out, "SEED {} 3 {}", w, d).unwrap();
-    writeln!(out, "ORIGIN CENTERED").unwrap();
-
-    for (did, o, _) in &baked {
-        writeln!(
-            out,
-            "DOOR {:.6} {:.6} {:.6} {:.6} {:.6} {:.6} {}",
-            o.x0, o.z0, o.x1, o.z1, o.nx, o.nz, did
-        )
-        .unwrap();
-    }
-    let derived_walls = derive_walls(&final_tiles, ix_min, iz_min, &baked);
-
-    for (wall_id_offset, wseg) in derived_walls.iter().enumerate() {
-        writeln!(
-            out,
-            "WALL {:.6} {:.6} {:.6} {:.6} {:.6} {:.6} {} SCATTER",
-            wseg.x0,
-            wseg.z0,
-            wseg.x1,
-            wseg.z1,
-            wseg.nx,
-            wseg.nz,
-            1000 + wall_id_offset as i32
-        )
-        .unwrap();
-    }
-
-    for &(ix, iz) in &final_tiles {
-        writeln!(out, "FLOOR {} {}", ix - ix_min, iz - iz_min).unwrap();
-    }
-
-    writeln!(out, "END").unwrap();
 }
-fn derive_walls(final_tiles: &[(i32, i32)], ix_min: i32, iz_min: i32, baked: &[(i32, Opening, bool)]) -> Vec<Opening> {
-    let _ = baked;
 
-    #[derive(Clone, Copy)]
-    struct WallEdge {
-        fixed: i32,
-        start: i32,
-        end: i32,
-        normal_sign: i32,
-    }
+fn derive_walls(
+    islands: &[HashSet<(i32, i32)>],
+    openings: &[((i32, i32, i32, i32, i32, i32), usize)],
+) -> Vec<(i32, i32, i32, i32, i32, i32)> {
+    let mut walls = Vec::new();
 
-    let interior: HashSet<(i32, i32)> = final_tiles.iter().map(|&(x, z)| (x - ix_min, z - iz_min)).collect();
+    for interior in islands {
+        let mut edges = Vec::new();
 
-    let mut vertical_edges: Vec<WallEdge> = Vec::new();
-    let mut horizontal_edges: Vec<WallEdge> = Vec::new();
+        for (x, z) in interior.iter() {
+            if !interior.contains(&(x - 1, *z)) {
+                edges.push((1, x * 2, z * 2, (z + 1) * 2, 1, 0)); // Left edge, normal pointing right
+            }
+            if !interior.contains(&(x + 1, *z)) {
+                edges.push((1, (x + 1) * 2, z * 2, (z + 1) * 2, -1, 0)); // Right edge, normal pointing left
+            }
+            if !interior.contains(&(*x, z - 1)) {
+                edges.push((0, z * 2, x * 2, (x + 1) * 2, 0, 1)); // Bottom edge, normal pointing up
+            }
+            if !interior.contains(&(*x, z + 1)) {
+                edges.push((0, (z + 1) * 2, x * 2, (x + 1) * 2, 0, -1)); // Top edge, normal pointing down
+            }
+        }
 
-    for &(x, z) in interior.iter() {
-        if !interior.contains(&(x - 1, z)) {
-            vertical_edges.push(WallEdge {
-                fixed: x,
-                start: z,
-                end: z + 1,
-                normal_sign: 1,
+        edges.sort_by_key(|(axis, fixed, a0, _a1, nx, nz)| (*axis, *fixed, *nx, *nz, *a0));
+
+        let mut merged = Vec::new();
+        for edge in edges {
+            if let Some(last) = merged.last_mut() {
+                let (l_axis, l_fixed, _l_a0, l_a1, l_nx, l_nz): &mut (i32, i32, i32, i32, i32, i32) = last;
+                if *l_axis == edge.0 && *l_fixed == edge.1 && *l_nx == edge.4 && *l_nz == edge.5 && *l_a1 == edge.2 {
+                    *l_a1 = edge.3;
+                    continue;
+                }
+            }
+            merged.push(edge);
+        }
+
+        for wall in merged {
+            let overlaps = openings.iter().any(|((o_axis, o_fixed, o_a0, o_a1, _, _), _)| {
+                if wall.0 != *o_axis || wall.1 != *o_fixed {
+                    return false;
+                }
+                let w_min = wall.2.min(wall.3);
+                let w_max = wall.2.max(wall.3);
+                let o_min = o_a0.min(o_a1);
+                let o_max = o_a0.max(o_a1);
+                w_max > *o_min && o_max > &w_min
             });
-        }
-        if !interior.contains(&(x + 1, z)) {
-            vertical_edges.push(WallEdge {
-                fixed: x + 1,
-                start: z,
-                end: z + 1,
-                normal_sign: -1,
-            });
-        }
-        if !interior.contains(&(x, z - 1)) {
-            horizontal_edges.push(WallEdge {
-                fixed: z,
-                start: x,
-                end: x + 1,
-                normal_sign: 1,
-            });
-        }
-        if !interior.contains(&(x, z + 1)) {
-            horizontal_edges.push(WallEdge {
-                fixed: z + 1,
-                start: x,
-                end: x + 1,
-                normal_sign: -1,
-            });
+
+            if !overlaps {
+                walls.push(wall);
+            }
         }
     }
 
-    vertical_edges.sort_by(|a, b| (a.fixed, a.normal_sign, a.start).cmp(&(b.fixed, b.normal_sign, b.start)));
-    horizontal_edges.sort_by(|a, b| (a.fixed, a.normal_sign, a.start).cmp(&(b.fixed, b.normal_sign, b.start)));
-
-    let mut merged_vertical_edges: Vec<WallEdge> = Vec::new();
-    for e in vertical_edges {
-        if merged_vertical_edges
-            .last()
-            .map(|last| last.fixed == e.fixed && last.normal_sign == e.normal_sign && last.end == e.start)
-            .unwrap_or(false)
-        {
-            merged_vertical_edges.last_mut().unwrap().end = e.end;
-        } else {
-            merged_vertical_edges.push(e);
-        }
-    }
-
-    let mut merged_horizontal_edges: Vec<WallEdge> = Vec::new();
-    for e in horizontal_edges {
-        if merged_horizontal_edges
-            .last()
-            .map(|last| last.fixed == e.fixed && last.normal_sign == e.normal_sign && last.end == e.start)
-            .unwrap_or(false)
-        {
-            merged_horizontal_edges.last_mut().unwrap().end = e.end;
-        } else {
-            merged_horizontal_edges.push(e);
-        }
-    }
-
-    let mut wall_segments: Vec<Opening> = Vec::new();
-
-    for e in merged_vertical_edges {
-        wall_segments.push(Opening {
-            x0: e.fixed as f32,
-            z0: if e.normal_sign == 1 {
-                e.start as f32
-            } else {
-                e.end as f32
-            },
-            x1: e.fixed as f32,
-            z1: if e.normal_sign == 1 {
-                e.end as f32
-            } else {
-                e.start as f32
-            },
-            nx: e.normal_sign as f32,
-            nz: 0.0,
-        });
-    }
-
-    for e in merged_horizontal_edges {
-        wall_segments.push(Opening {
-            x0: if e.normal_sign == -1 {
-                e.start as f32
-            } else {
-                e.end as f32
-            },
-            z0: e.fixed as f32,
-            x1: if e.normal_sign == -1 {
-                e.end as f32
-            } else {
-                e.start as f32
-            },
-            z1: e.fixed as f32,
-            nx: 0.0,
-            nz: e.normal_sign as f32,
-        });
-    }
-
-    wall_segments
+    walls
 }
