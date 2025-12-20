@@ -7,7 +7,7 @@ const TILE: f32 = 6.0;
 
 fn main() {
     let input_path = FLOORPLAN_PATH;
-    let output_path = "/home/adduser/fu4seoi3/src/fu4seoi3/romdisk/assets/room_up_v0.txt";
+    let output_path = "/home/adduser/fu4seoi3/src/fu4seoi3/romdisk/assets/room_down_v0.txt";
 
     let file = std::fs::File::open(input_path).unwrap();
     let mut lines = BufReader::new(file).lines();
@@ -163,7 +163,8 @@ fn main() {
             axis_str, fixed, a0, a1, door_id, nx, nz
         ));
     }
-    let mut wall_segments = derive_walls(&islands_local, &openings);
+
+    let wall_segments = derive_walls(&islands_local, &openings);
 
     for (wall_id, (axis, fixed, a0, a1, nx, nz)) in wall_segments.iter().enumerate() {
         let axis_str = if *axis == 1 { "X" } else { "Z" };
@@ -186,7 +187,12 @@ fn main() {
     out.push_str("END\n");
 
     fs::write(output_path, &out).unwrap();
-    println!("Wrote {} doors to {}", openings.len(), output_path);
+    println!(
+        "Wrote {} doors, {} walls to {}",
+        openings.len(),
+        wall_segments.len(),
+        output_path
+    );
 }
 
 fn split_islands(tiles: &[(i32, i32)]) -> Vec<HashSet<(i32, i32)>> {
@@ -312,28 +318,64 @@ fn bake_to_perimeter(
         Some((0, z_snap * 2, a0, a1, 0, nz.round() as i32))
     }
 }
+fn carve_segment(a0: i32, a1: i32, holes: &[(i32, i32)]) -> Vec<(i32, i32)> {
+    if holes.is_empty() {
+        return vec![(a0, a1)];
+    }
 
+    let mut sorted_holes: Vec<(i32, i32)> = holes.iter().map(|&(a, b)| (a.min(b), a.max(b))).collect();
+    sorted_holes.sort_by_key(|(a, _)| *a);
+
+    let mut out = Vec::new();
+    let mut cur = a0;
+
+    for (hole_a, hole_b) in sorted_holes {
+        let hole_a = hole_a.max(a0);
+        let hole_b = hole_b.min(a1);
+
+        if hole_b <= cur {
+            continue;
+        }
+
+        if hole_a > cur {
+            out.push((cur, hole_a));
+        }
+
+        cur = cur.max(hole_b);
+    }
+
+    if cur < a1 {
+        out.push((cur, a1));
+    }
+
+    out
+}
 fn derive_walls(
     islands: &[HashSet<(i32, i32)>],
     openings: &[((i32, i32, i32, i32, i32, i32), usize)],
 ) -> Vec<(i32, i32, i32, i32, i32, i32)> {
+    let mut all_interior: HashSet<(i32, i32)> = HashSet::new();
+    for island in islands {
+        all_interior.extend(island.iter());
+    }
+
     let mut walls = Vec::new();
 
     for interior in islands {
         let mut edges = Vec::new();
 
         for (x, z) in interior.iter() {
-            if !interior.contains(&(x - 1, *z)) {
-                edges.push((1, x * 2, z * 2, (z + 1) * 2, 1, 0)); // Left edge, normal pointing right
+            if !all_interior.contains(&(x - 1, *z)) {
+                edges.push((1, x * 2, z * 2, (z + 1) * 2, 1, 0));
             }
-            if !interior.contains(&(x + 1, *z)) {
-                edges.push((1, (x + 1) * 2, z * 2, (z + 1) * 2, -1, 0)); // Right edge, normal pointing left
+            if !all_interior.contains(&(x + 1, *z)) {
+                edges.push((1, (x + 1) * 2, z * 2, (z + 1) * 2, -1, 0));
             }
-            if !interior.contains(&(*x, z - 1)) {
-                edges.push((0, z * 2, x * 2, (x + 1) * 2, 0, 1)); // Bottom edge, normal pointing up
+            if !all_interior.contains(&(*x, z - 1)) {
+                edges.push((0, z * 2, x * 2, (x + 1) * 2, 0, 1));
             }
-            if !interior.contains(&(*x, z + 1)) {
-                edges.push((0, (z + 1) * 2, x * 2, (x + 1) * 2, 0, -1)); // Top edge, normal pointing down
+            if !all_interior.contains(&(*x, z + 1)) {
+                edges.push((0, (z + 1) * 2, x * 2, (x + 1) * 2, 0, -1));
             }
         }
 
@@ -351,20 +393,19 @@ fn derive_walls(
             merged.push(edge);
         }
 
-        for wall in merged {
-            let overlaps = openings.iter().any(|((o_axis, o_fixed, o_a0, o_a1, _, _), _)| {
-                if wall.0 != *o_axis || wall.1 != *o_fixed {
-                    return false;
-                }
-                let w_min = wall.2.min(wall.3);
-                let w_max = wall.2.max(wall.3);
-                let o_min = o_a0.min(o_a1);
-                let o_max = o_a0.max(o_a1);
-                w_max > *o_min && o_max > &w_min
-            });
+        for (axis, fixed, a0, a1, nx, nz) in merged {
+            let mut holes = Vec::new();
 
-            if !overlaps {
-                walls.push(wall);
+            for ((o_axis, o_fixed, o_a0, o_a1, _, _), _) in openings {
+                if axis == *o_axis && fixed == *o_fixed {
+                    holes.push((*o_a0, *o_a1));
+                }
+            }
+
+            let segments = carve_segment(a0, a1, &holes);
+
+            for (seg_a0, seg_a1) in segments {
+                walls.push((axis, fixed, seg_a0, seg_a1, nx, nz));
             }
         }
     }
