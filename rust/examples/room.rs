@@ -7,7 +7,7 @@ const TILE: f32 = 6.0;
 
 fn main() {
     let input_path = FLOORPLAN_PATH;
-    let output_path = "/home/adduser/fu4seoi3/src/fu4seoi3/romdisk/assets/room_down_v0.txt";
+    let output_path = "/home/adduser/fu4seoi3/src/fu4seoi3/romdisk/assets/room_up_v0.txt";
 
     let file = std::fs::File::open(input_path).unwrap();
     let mut lines = BufReader::new(file).lines();
@@ -127,6 +127,28 @@ fn main() {
             }
         }
     }
+
+    let bound_max_x = seed_w * 2;
+    let bound_max_z = seed_d * 2;
+
+    openings = openings
+        .into_iter()
+        .map(|((axis, fixed, a0, a1, nx, nz), door_id)| {
+            let (clamped_a0, clamped_a1) = if axis == 1 {
+                (a0.max(0).min(bound_max_z), a1.max(0).min(bound_max_z))
+            } else {
+                (a0.max(0).min(bound_max_x), a1.max(0).min(bound_max_x))
+            };
+
+            let clamped_fixed = if axis == 1 {
+                fixed.max(0).min(bound_max_x)
+            } else {
+                fixed.max(0).min(bound_max_z)
+            };
+
+            ((axis, clamped_fixed, clamped_a0, clamped_a1, nx, nz), door_id)
+        })
+        .collect();
 
     let mut rows: HashMap<i32, Vec<i32>> = HashMap::new();
     for (x, z) in &tiles {
@@ -318,6 +340,7 @@ fn bake_to_perimeter(
         Some((0, z_snap * 2, a0, a1, 0, nz.round() as i32))
     }
 }
+
 fn carve_segment(a0: i32, a1: i32, holes: &[(i32, i32)]) -> Vec<(i32, i32)> {
     if holes.is_empty() {
         return vec![(a0, a1)];
@@ -350,6 +373,7 @@ fn carve_segment(a0: i32, a1: i32, holes: &[(i32, i32)]) -> Vec<(i32, i32)> {
 
     out
 }
+
 fn derive_walls(
     islands: &[HashSet<(i32, i32)>],
     openings: &[((i32, i32, i32, i32, i32, i32), usize)],
@@ -396,8 +420,8 @@ fn derive_walls(
         for (axis, fixed, a0, a1, nx, nz) in merged {
             let mut holes = Vec::new();
 
-            for ((o_axis, o_fixed, o_a0, o_a1, _, _), _) in openings {
-                if axis == *o_axis && fixed == *o_fixed {
+            for ((o_axis, o_fixed, o_a0, o_a1, o_nx, o_nz), _) in openings {
+                if axis == *o_axis && fixed == *o_fixed && nx == *o_nx && nz == *o_nz {
                     holes.push((*o_a0, *o_a1));
                 }
             }
