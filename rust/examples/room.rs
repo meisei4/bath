@@ -26,12 +26,35 @@ fn main() {
     }
 
     let mut doors = Vec::new();
+    let mut entrance_rectangle = None;
     for line in lines {
         let line = line.unwrap();
         let toks: Vec<&str> = line.split_whitespace().collect();
         if toks.len() >= 5 && toks[4].eq_ignore_ascii_case("door") {
             let vals: Vec<f32> = toks[..4].iter().map(|s| s.parse().unwrap()).collect();
             doors.push((vals[0], vals[1], vals[2], vals[3]));
+        }
+        if toks.len() >= 5 && toks[4].eq_ignore_ascii_case("entrance") {
+            let vals: Vec<f32> = toks[..4].iter().map(|s| s.parse().unwrap()).collect();
+            entrance_rectangle = Some((vals[0], vals[1], vals[2], vals[3]));
+        }
+    }
+
+    let (entrance_x0, entrance_y0, entrance_x1, entrance_y1) = entrance_rectangle.unwrap();
+    let entrance_center_x = 0.5 * (entrance_x0 + entrance_x1);
+    let entrance_center_y = 0.5 * (entrance_y0 + entrance_y1);
+
+    let mut entrance_door_id = 0usize;
+    let mut best_distance_squared = f32::INFINITY;
+    for (door_id, (x0, y0, x1, y1)) in doors.iter().enumerate() {
+        let door_center_x = 0.5 * (x0 + x1);
+        let door_center_y = 0.5 * (y0 + y1);
+        let dx = door_center_x - entrance_center_x;
+        let dy = door_center_y - entrance_center_y;
+        let distance_squared = dx * dx + dy * dy;
+        if distance_squared < best_distance_squared {
+            best_distance_squared = distance_squared;
+            entrance_door_id = door_id;
         }
     }
 
@@ -181,8 +204,19 @@ fn main() {
     for ((axis, fixed, a0, a1, nx, nz), door_id) in &openings {
         let axis_str = if *axis == 1 { "X" } else { "Z" };
         out.push_str(&format!(
-            "OPEN DOOR {} {} {} {} {} NX {} NZ {} EMIT\n",
-            axis_str, fixed, a0, a1, door_id, nx, nz
+            "OPEN {} {} {} {} {} {} NX {} NZ {} EMIT\n",
+            if *door_id == entrance_door_id {
+                "DOOR_ENTRANCE"
+            } else {
+                "DOOR"
+            },
+            axis_str,
+            fixed,
+            a0,
+            a1,
+            door_id,
+            nx,
+            nz
         ));
     }
 
@@ -221,7 +255,14 @@ fn split_islands(tiles: &[(i32, i32)]) -> Vec<HashSet<(i32, i32)>> {
     let mut remaining: HashSet<(i32, i32)> = tiles.iter().copied().collect();
     let mut islands = Vec::new();
 
-    while let Some(&start) = remaining.iter().next() {
+    while !remaining.is_empty() {
+        let mut start = (i32::MAX, i32::MAX);
+        for &(x, z) in remaining.iter() {
+            if x < start.0 || (x == start.0 && z < start.1) {
+                start = (x, z);
+            }
+        }
+
         let mut island = HashSet::new();
         let mut q = VecDeque::new();
         remaining.remove(&start);
