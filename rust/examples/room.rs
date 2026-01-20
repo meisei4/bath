@@ -6,8 +6,24 @@ use std::io::{BufRead, BufReader};
 const TILE: f32 = 6.0;
 
 fn main() {
-    let input_path = FLOORPLAN_PATH;
-    let output_path = "/home/adduser/fu4seoi3/src/fu4seoi3/romdisk/assets/room_up_v0.txt";
+    // let input_path = FLOORPLAN_PATH;
+    let input_path = "/home/adduser/FloorplanTransformation/output/f1543f63cb922619a940b0c34697fa29/floorplan.txt";
+    let output_path = "/home/adduser/fu4seoi3/src/fu4seoi3/romdisk/assets/room_f1543.txt";
+
+    // let input_path  = "/home/adduser/FloorplanTransformation/output/floorplan_1/floorplan.txt";
+    // let output_path = "/home/adduser/fu4seoi3/src/fu4seoi3/romdisk/assets/room_1.txt";
+
+    // let input_path  = "/home/adduser/FloorplanTransformation/output/lifull1/floorplan.txt";
+    // let output_path = "/home/adduser/fu4seoi3/src/fu4seoi3/romdisk/assets/room_full1.txt";
+
+    // let input_path  = "/home/adduser/FloorplanTransformation/output/lifull-maybe/floorplan.txt";
+    // let output_path = "/home/adduser/fu4seoi3/src/fu4seoi3/romdisk/assets/room_full2.txt";
+
+    // let input_path  = "/home/adduser/FloorplanTransformation/output/suumo/floorplan.txt";
+    // let output_path = "/home/adduser/fu4seoi3/src/fu4seoi3/romdisk/assets/room_sagami.txt";
+
+    // let input_path  = "/home/adduser/FloorplanTransformation/output/TATEISHI/floorplan.txt";
+    // let output_path = "/home/adduser/fu4seoi3/src/fu4seoi3/romdisk/assets/room_up_v0.txt";
 
     let file = std::fs::File::open(input_path).unwrap();
     let mut lines = BufReader::new(file).lines();
