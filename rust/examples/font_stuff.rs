@@ -327,7 +327,9 @@ fn generate_font(
 
 /// Draw a single line (yang=solid, yin=broken) into the image
 fn draw_line(image: &mut Image, x: i32, y: i32, width: i32, thickness: i32, is_yang: bool, gap: i32) {
-    let color = Color::WHITE;
+    // Use slightly off-white to force PNG encoder to output RGBA instead of grayscale
+    // (Dreamcast GLdc doesn't support GRAY_ALPHA format)
+    let color = Color::new(255, 255, 254, 255);
     if is_yang {
         // Solid line
         unsafe {
@@ -382,6 +384,14 @@ fn draw_hexagram(image: &mut Image, binary: u8, cell_x: i32, cell_y: i32, cell_s
     }
 }
 
+fn next_power_of_two(n: i32) -> i32 {
+    let mut p = 1;
+    while p < n {
+        p *= 2;
+    }
+    p
+}
+
 /// Generate hexagram font atlas and BMFont metadata
 fn generate_hexagram_font(size: i32) {
     println!("  yijing_hex@{}px: 8 trigrams + 64 hexagrams (72 glyphs)", size);
@@ -389,8 +399,11 @@ fn generate_hexagram_font(size: i32) {
     // Atlas layout: 8 columns, 9 rows (row 0 = trigrams, rows 1-8 = hexagrams)
     let cols = 8;
     let rows = 9;
-    let atlas_w = cols * size;
-    let atlas_h = rows * size;
+    let content_w = cols * size;
+    let content_h = rows * size;
+    // Dreamcast PowerVR requires power-of-two texture dimensions
+    let atlas_w = next_power_of_two(content_w);
+    let atlas_h = next_power_of_two(content_h);
 
     // Create blank RGBA image
     let mut image = Image::gen_image_color(atlas_w, atlas_h, Color::BLANK);
@@ -456,7 +469,7 @@ fn generate_hexagram_font(size: i32) {
         ).unwrap();
     }
 
-    println!("    -> {} ({}x{}, 72 glyphs)", base_path, atlas_w, atlas_h);
+    println!("    -> {} ({}x{} content, {}x{} atlas POT, 72 glyphs)", base_path, content_w, content_h, atlas_w, atlas_h);
 }
 
 fn main() {
