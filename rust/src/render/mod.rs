@@ -1,6 +1,7 @@
 #[cfg(feature = "godot")]
 pub mod godot;
 
+#[cfg(feature = "godot")]
 pub mod godot_util;
 
 #[cfg(feature = "raylib")]

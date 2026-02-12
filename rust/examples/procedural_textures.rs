@@ -44,11 +44,7 @@ fn generate_rings(w: i32, h: i32) -> Image {
             let dy = j as f32 - d;
             let e = (dx * dx + dy * dy).sqrt() / r;
             let ring_index = (e * 8.0) as i32;
-            let color = if (ring_index & 1) == 1 {
-                saddle_brown
-            } else {
-                wheat
-            };
+            let color = if (ring_index & 1) == 1 { saddle_brown } else { wheat };
             image.draw_pixel(i, j, color);
         }
     }
@@ -64,17 +60,14 @@ fn generate_aged(w: i32, h: i32) -> Image {
             let u = i as f32 / w as f32;
             let v = j as f32 / h as f32;
 
-            let bn = n(u * 2.0, v * 2.0, 42) * 0.5
-                + n(u * 4.0, v * 4.0, 43) * 0.25
-                + n(u * 8.0, v * 8.0, 44) * 0.25;
+            let bn = n(u * 2.0, v * 2.0, 42) * 0.5 + n(u * 4.0, v * 4.0, 43) * 0.25 + n(u * 8.0, v * 8.0, 44) * 0.25;
 
             let br = 255.0 + (248.0 - 255.0) * bn;
             let bg = 255.0 + (248.0 - 255.0) * bn;
             let bb = 240.0 + (220.0 - 240.0) * bn;
 
-            let fn_val = n(u * 8.0, v * 8.0, 123) * 0.5
-                + n(u * 16.0, v * 16.0, 124) * 0.25
-                + n(u * 32.0, v * 32.0, 125) * 0.25;
+            let fn_val =
+                n(u * 8.0, v * 8.0, 123) * 0.5 + n(u * 16.0, v * 16.0, 124) * 0.25 + n(u * 32.0, v * 32.0, 125) * 0.25;
             let fm = n(u * 4.0, v * 4.0, 456);
 
             let fs = if fn_val > 0.65 && fm > 0.5 {
@@ -103,12 +96,7 @@ fn generate_aged(w: i32, h: i32) -> Image {
             g_out *= 1.0 - vig;
             b_out *= 1.0 - vig;
 
-            let color = Color::new(
-                (r_out * 255.0) as u8,
-                (g_out * 255.0) as u8,
-                (b_out * 255.0) as u8,
-                255,
-            );
+            let color = Color::new((r_out * 255.0) as u8, (g_out * 255.0) as u8, (b_out * 255.0) as u8, 255);
             image.draw_pixel(i, j, color);
         }
     }
@@ -121,7 +109,7 @@ fn main() {
     println!("Output: {}", OUTPUT_BASE);
     println!();
 
-    let (mut rl, thread) = raylib::init().size(100, 100).title("Generator").build();
+    let (_rl, _thread) = raylib::init().size(100, 100).title("Generator").build();
 
     for &size in SIZES {
         println!("Generating aged_{}...", size);

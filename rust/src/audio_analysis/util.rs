@@ -1,34 +1,42 @@
-#[cfg(all(not(target_arch = "wasm32"), not(target_os = "linux")))]
+#[cfg(feature = "aubio")]
 use aubio_rs::{OnsetMode::SpecFlux, Smpl, Tempo};
-#[cfg(all(not(target_arch = "wasm32"), not(target_os = "linux")))]
-use godot::global::godot_print;
-#[cfg(all(not(target_arch = "wasm32"), not(target_os = "linux")))]
+#[cfg(feature = "aubio")]
 use hound::WavReader;
-#[cfg(all(not(target_arch = "wasm32"), not(target_os = "linux")))]
+#[cfg(feature = "aubio")]
 use std::io::Cursor;
 
-#[cfg(all(not(target_arch = "wasm32"), not(target_os = "linux")))]
+// Logging macro that uses godot_print when available, eprintln otherwise
+#[cfg(all(feature = "aubio", feature = "godot"))]
+macro_rules! log_error {
+    ($($arg:tt)*) => { godot::global::log_error!($($arg)*) };
+}
+#[cfg(all(feature = "aubio", not(feature = "godot")))]
+macro_rules! log_error {
+    ($($arg:tt)*) => { eprintln!($($arg)*) };
+}
+
+#[cfg(feature = "aubio")]
 const BUF_SIZE: usize = 1024;
-#[cfg(all(not(target_arch = "wasm32"), not(target_os = "linux")))]
+#[cfg(feature = "aubio")]
 const HOP_SIZE: usize = 512;
-#[cfg(all(not(target_arch = "wasm32"), not(target_os = "linux")))]
+#[cfg(feature = "aubio")]
 const I16_TO_SMPL: Smpl = 1.0 / (i16::MAX as Smpl);
 
-#[cfg(any(target_arch = "wasm32", target_os = "linux"))]
+#[cfg(not(feature = "aubio"))]
 pub fn detect_bpm_aubio_wav(_pcm_bytes: &[u8]) -> f32 {
     0.0
 }
-#[cfg(any(target_arch = "wasm32", target_os = "linux"))]
+#[cfg(not(feature = "aubio"))]
 pub fn detect_bpm_aubio_ogg(_pcm_bytes: &[u8]) -> f32 {
     0.0
 }
 
-#[cfg(all(not(target_arch = "wasm32"), not(target_os = "linux")))]
+#[cfg(feature = "aubio")]
 pub fn detect_bpm_aubio_wav(pcm_bytes: &[u8]) -> f32 {
     let mut reader = match WavReader::new(Cursor::new(pcm_bytes)) {
         Ok(r) => r,
         Err(e) => {
-            godot_print!("detect_bpm_aubio: failed to parse PCM bytes: {}", e);
+            log_error!("detect_bpm_aubio: failed to parse PCM bytes: {}", e);
             return 0.0;
         },
     };
@@ -58,16 +66,16 @@ pub fn detect_bpm_aubio_wav(pcm_bytes: &[u8]) -> f32 {
     bpm
 }
 
-#[cfg(all(not(target_arch = "wasm32"), not(target_os = "linux")))]
+#[cfg(feature = "aubio")]
 const REFERENCE_SAMPLE_RATE: f32 = 44_100.0;
-#[cfg(all(not(target_arch = "wasm32"), not(target_os = "linux")))]
+#[cfg(feature = "aubio")]
 use lewton::inside_ogg::OggStreamReader;
-#[cfg(all(not(target_arch = "wasm32"), not(target_os = "linux")))]
+#[cfg(feature = "aubio")]
 pub fn detect_bpm_aubio_ogg(ogg_bytes: &[u8]) -> f32 {
     let mut ogg = match OggStreamReader::new(Cursor::new(ogg_bytes)) {
         Ok(r) => r,
         Err(e) => {
-            godot_print!("OGG BPM: failed to parse OGG: {:?}", e);
+            log_error!("OGG BPM: failed to parse OGG: {:?}", e);
             return 0.0;
         },
     };
@@ -91,7 +99,7 @@ pub fn detect_bpm_aubio_ogg(ogg_bytes: &[u8]) -> f32 {
     let mut tempo = match Tempo::new(SpecFlux, ogg_buffer_size, ogg_hop_size, ogg_sample_rate_u32) {
         Ok(t) => t,
         Err(e) => {
-            godot_print!("OGG BPM: Tempo init failed: {}", e);
+            log_error!("OGG BPM: Tempo init failed: {}", e);
             return 0.0;
         },
     };

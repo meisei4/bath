@@ -8,7 +8,6 @@ use ttf_parser::{name_id, Face};
 const CHARS_PATH: &str = "/Users/adduser/fu4seoi3/src/fu4seoi3/romdisk/assets/chars.txt";
 const OUTPUT_BASE: &str = "/Users/adduser/fu4seoi3/src/fu4seoi3/romdisk/assets";
 
-#[allow(dead_code)]
 struct FontFamily {
     name: &'static str,
     path: &'static str,
@@ -28,9 +27,6 @@ const FONT_FAMILIES: &[FontFamily] = &[
     },
 ];
 
-// Hexagram sizes to generate
-// NOTE: 16px removed - mathematically broken (1px lines, 0px spacing = illegible blob)
-// 24px added as new minimum viable size
 const HEXAGRAM_SIZES: &[i32] = &[24, 32, 48];
 
 // 8 Trigrams - binary encoding (bottom to top: line1, line2, line3)
@@ -47,7 +43,9 @@ const TRIGRAM_BINARY: [u8; 8] = [
 ];
 
 // Unicode codepoints for trigrams (U+2630-U+2637)
-const TRIGRAM_CODEPOINTS: [u32; 8] = [0x2630, 0x2631, 0x2632, 0x2633, 0x2634, 0x2635, 0x2636, 0x2637];
+const TRIGRAM_CODEPOINTS: [u32; 8] = [
+    0x2630, 0x2631, 0x2632, 0x2633, 0x2634, 0x2635, 0x2636, 0x2637,
+];
 
 // 64 Hexagrams - King Wen sequence
 // Binary encoding: bits 0-2 = lower trigram, bits 3-5 = upper trigram
@@ -142,7 +140,7 @@ fn load_char_sections() -> CharSections {
         Err(e) => {
             eprintln!("ERROR: Cannot open {}: {}", CHARS_PATH, e);
             return sections;
-        },
+        }
     };
 
     let reader = BufReader::new(file);
@@ -198,7 +196,6 @@ fn load_char_sections() -> CharSections {
     sections
 }
 
-#[allow(dead_code)]
 fn get_chars_for_font(family_name: &str, size: i32, sections: &CharSections) -> String {
     match family_name {
         "ds_bios_8" => {
@@ -209,7 +206,7 @@ fn get_chars_for_font(family_name: &str, size: i32, sections: &CharSections) -> 
                 sections.ascii.chars().count()
             );
             sections.ascii.clone()
-        },
+        }
         "dot_gothic_16" => {
             if size <= 16 {
                 let mut chars = sections.ascii.clone();
@@ -246,15 +243,14 @@ fn get_chars_for_font(family_name: &str, size: i32, sections: &CharSections) -> 
                 );
                 chars
             }
-        },
+        }
         _ => {
             println!("  {}@{}px: ASCII only (default)", family_name, size);
             sections.ascii.clone()
-        },
+        }
     }
 }
 
-#[allow(dead_code)]
 fn generate_font(
     handle: &mut RaylibHandle,
     thread: &RaylibThread,
@@ -268,7 +264,7 @@ fn generate_font(
         Err(e) => {
             eprintln!("  ERROR loading {}@{}px: {}", family.name, size, e);
             return;
-        },
+        }
     };
 
     let base_path = format!("{}/{}_{size}px{suffix}", OUTPUT_BASE, family.name);
@@ -277,7 +273,7 @@ fn generate_font(
         Err(e) => {
             eprintln!("  ERROR texture {}@{}px: {:?}", family.name, size, e);
             return;
-        },
+        }
     };
 
     image.set_format(PixelFormat::PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
@@ -285,14 +281,24 @@ fn generate_font(
     image.export_image(&format!("{}.png", base_path));
 
     let mut fnt = File::create(format!("{}.fnt", base_path)).unwrap();
-    writeln!(fnt, "info face=\"{}\" size={} bold=0 italic=0", family.name, size).unwrap();
+    writeln!(
+        fnt,
+        "info face=\"{}\" size={} bold=0 italic=0",
+        family.name, size
+    )
+    .unwrap();
     writeln!(
         fnt,
         "common lineHeight={} base={} scaleW={} scaleH={} pages=1",
         size, size, w, h
     )
     .unwrap();
-    writeln!(fnt, "page id=0 file=\"{}_{size}px{suffix}.png\"", family.name).unwrap();
+    writeln!(
+        fnt,
+        "page id=0 file=\"{}_{size}px{suffix}.png\"",
+        family.name
+    )
+    .unwrap();
     writeln!(fnt, "chars count={}", font.glyphCount).unwrap();
 
     for (i, glyph) in font.chars().iter().enumerate() {
@@ -312,75 +318,39 @@ fn generate_font(
         .unwrap();
     }
 
-    println!("    -> {} ({}x{}, {} glyphs)", base_path, w, h, font.glyphCount);
+    println!(
+        "    -> {} ({}x{}, {} glyphs)",
+        base_path, w, h, font.glyphCount
+    );
 }
 
 /// Draw a single line (yang=solid, yin=broken) into the image
 fn draw_line(image: &mut Image, x: i32, y: i32, width: i32, thickness: i32, is_yang: bool, gap: i32) {
-    // Use slightly off-white to force PNG encoder to output RGBA instead of grayscale
-    // (Dreamcast GLdc doesn't support GRAY_ALPHA format)
-    let color = Color::new(255, 255, 254, 255);
+    let color = Color::WHITE;
     if is_yang {
-        // Solid line - full width
+        // Solid line
         unsafe {
-            ImageDrawRectangle(
-                image as *mut _ as *mut raylib::ffi::Image,
-                x,
-                y,
-                width,
-                thickness,
-                color.into(),
-            );
+            ImageDrawRectangle(image as *mut _ as *mut raylib::ffi::Image, x, y, width, thickness, color.into());
         }
     } else {
-        // Broken line - two segments with centered gap
-        // Left segment width (rounded down)
-        let left_width = (width - gap) / 2;
-        // Right segment fills remaining space (handles odd division)
-        let right_start = x + left_width + gap;
-        let right_width = (x + width) - right_start;
+        // Broken line (two segments with gap in center)
+        let seg_width = (width - gap) / 2;
         unsafe {
-            // Left segment - starts at x
-            ImageDrawRectangle(
-                image as *mut _ as *mut raylib::ffi::Image,
-                x,
-                y,
-                left_width,
-                thickness,
-                color.into(),
-            );
-            // Right segment - ends at x + width
-            ImageDrawRectangle(
-                image as *mut _ as *mut raylib::ffi::Image,
-                right_start,
-                y,
-                right_width,
-                thickness,
-                color.into(),
-            );
+            ImageDrawRectangle(image as *mut _ as *mut raylib::ffi::Image, x, y, seg_width, thickness, color.into());
+            ImageDrawRectangle(image as *mut _ as *mut raylib::ffi::Image, x + seg_width + gap, y, seg_width, thickness, color.into());
         }
     }
 }
 
 /// Draw a trigram (3 lines) into the image at the specified position
 fn draw_trigram(image: &mut Image, binary: u8, cell_x: i32, cell_y: i32, cell_size: i32) {
-    // Wide lines - only 2px padding each side
-    let padding = 2.max(cell_size / 24);
+    let padding = cell_size / 8;
     let line_width = cell_size - padding * 2;
+    let line_thickness = (cell_size - padding * 2) / 5;
+    let line_spacing = line_thickness + line_thickness / 2;
+    let yin_gap = cell_size / 5;
 
-    // Thicker lines for trigrams since only 3 lines (12% of cell)
-    let line_thickness = (cell_size * 12 / 100).max(2);
-    // Generous spacing between lines
-    let line_spacing = (cell_size / 8).max(2);
-    // Yin gap - must match line_width parity for symmetric segments
-    let raw_gap = line_width / 4;
-    let yin_gap = if line_width % 2 == 0 {
-        raw_gap & !1 // Round down to even
-    } else {
-        raw_gap | 1 // Round up to odd
-    };
-
-    // Center vertically for 3 lines + 2 gaps
+    // Center vertically for 3 lines
     let total_height = line_thickness * 3 + line_spacing * 2;
     let start_y = cell_y + (cell_size - total_height) / 2;
 
@@ -393,31 +363,20 @@ fn draw_trigram(image: &mut Image, binary: u8, cell_x: i32, cell_y: i32, cell_si
 
 /// Draw a hexagram (6 lines) into the image at the specified position
 fn draw_hexagram(image: &mut Image, binary: u8, cell_x: i32, cell_y: i32, cell_size: i32) {
-    // Wide lines - only 2px padding each side (lines fill ~92% of cell width)
-    let padding = 2.max(cell_size / 24);
+    let padding = cell_size / 8;
     let line_width = cell_size - padding * 2;
+    let line_thickness = (cell_size - padding * 2) / 9;
+    let line_spacing = line_thickness / 2;
+    let yin_gap = cell_size / 5;
 
-    // Line thickness ~10% of cell height, minimum 2px
-    let line_thickness = (cell_size / 10).max(2);
-    // Uniform gap between all lines
-    let line_gap = (cell_size / 16).max(1);
-    // Yin (broken line) gap - must match line_width parity for symmetric segments
-    let raw_gap = line_width / 4;
-    let yin_gap = if line_width % 2 == 0 {
-        raw_gap & !1 // Round down to even
-    } else {
-        raw_gap | 1 // Round up to odd
-    };
-
-    // Total height: 6 lines + 5 equal gaps
-    let total_height = line_thickness * 6 + line_gap * 5;
+    // Center vertically for 6 lines
+    let total_height = line_thickness * 6 + line_spacing * 5;
     let start_y = cell_y + (cell_size - total_height) / 2;
 
-    for line_idx in 0..6 {
-        let is_yang = (binary >> line_idx) & 1 == 1;
+    for line in 0..6 {
+        let is_yang = (binary >> line) & 1 == 1;
         // Draw from bottom to top (line 0 at bottom, line 5 at top)
-        let visual_pos = 5 - line_idx as i32;
-        let y = start_y + visual_pos * (line_thickness + line_gap);
+        let y = start_y + (5 - line as i32) * (line_thickness + line_spacing);
         draw_line(image, cell_x + padding, y, line_width, line_thickness, is_yang, yin_gap);
     }
 }
@@ -434,32 +393,32 @@ fn next_power_of_two(n: i32) -> i32 {
 fn generate_hexagram_font(size: i32) {
     println!("  yijing_hex@{}px: 8 trigrams + 64 hexagrams (72 glyphs)", size);
 
-    // Layout: 9 columns × 8 rows = 72 cells exactly
-    let cols = 9;
-    let rows = 8;
+    // Atlas layout: 8 columns, 9 rows (row 0 = trigrams, rows 1-8 = hexagrams)
+    let cols = 8;
+    let rows = 9;
     let content_w = cols * size;
     let content_h = rows * size;
-    // Dreamcast PowerVR REQUIRES power-of-two textures
+    // Dreamcast PowerVR requires power-of-two texture dimensions
     let atlas_w = next_power_of_two(content_w);
     let atlas_h = next_power_of_two(content_h);
 
-    // Create blank RGBA image with POT dimensions
+    // Create blank RGBA image
     let mut image = Image::gen_image_color(atlas_w, atlas_h, Color::BLANK);
 
-    // Draw all 72 glyphs in 9×8 grid (8 trigrams + 64 hexagrams)
-    for i in 0..72usize {
-        let col = (i as i32) % cols;
-        let row = (i as i32) / cols;
-        let cell_x = col * size;
-        let cell_y = row * size;
+    // Draw 8 trigrams in row 0
+    for i in 0..8 {
+        let cell_x = (i as i32) * size;
+        let cell_y = 0;
+        draw_trigram(&mut image, TRIGRAM_BINARY[i], cell_x, cell_y, size);
+    }
 
-        if i < 8 {
-            // First 8 glyphs are trigrams
-            draw_trigram(&mut image, TRIGRAM_BINARY[i], cell_x, cell_y, size);
-        } else {
-            // Remaining 64 are hexagrams
-            draw_hexagram(&mut image, HEXAGRAM_BINARY[i - 8], cell_x, cell_y, size);
-        }
+    // Draw 64 hexagrams in rows 1-8
+    for i in 0..64 {
+        let col = i % 8;
+        let row = (i / 8) + 1; // +1 to skip trigram row
+        let cell_x = (col as i32) * size;
+        let cell_y = (row as i32) * size;
+        draw_hexagram(&mut image, HEXAGRAM_BINARY[i], cell_x, cell_y, size);
     }
 
     // Ensure RGBA8888 format
@@ -476,45 +435,60 @@ fn generate_hexagram_font(size: i32) {
         fnt,
         "common lineHeight={} base={} scaleW={} scaleH={} pages=1",
         size, size, atlas_w, atlas_h
-    )
-    .unwrap();
+    ).unwrap();
     writeln!(fnt, "page id=0 file=\"yijing_hex_{}px.png\"", size).unwrap();
     writeln!(fnt, "chars count=72").unwrap();
 
-    // Write all 72 glyph entries (8 trigrams + 64 hexagrams) in 9-column layout
-    for i in 0..72usize {
-        let col = (i as i32) % cols;
-        let row = (i as i32) / cols;
-        let x = col * size;
-        let y = row * size;
-        let codepoint = if i < 8 {
-            TRIGRAM_CODEPOINTS[i] as u32
-        } else {
-            HEXAGRAM_CODEPOINT_BASE + ((i - 8) as u32)
-        };
+    // Write trigram char entries (Unicode U+2630-U+2637)
+    for i in 0..8 {
+        let x = (i as i32) * size;
+        let y = 0;
         writeln!(
             fnt,
             "char id={} x={} y={} width={} height={} xoffset=0 yoffset=0 xadvance={} page=0",
-            codepoint, x, y, size, size, size
-        )
-        .unwrap();
+            TRIGRAM_CODEPOINTS[i],
+            x, y, size, size, size
+        ).unwrap();
     }
 
-    let waste = 100 - (content_w * content_h * 100) / (atlas_w * atlas_h);
-    println!(
-        "    -> {} ({}x{} content, {}x{} POT, {}% waste)",
-        base_path, content_w, content_h, atlas_w, atlas_h, waste
-    );
+    // Write hexagram char entries (Unicode U+4DC0-U+4DFF)
+    for i in 0..64 {
+        let col = i % 8;
+        let row = (i / 8) + 1;
+        let x = (col as i32) * size;
+        let y = (row as i32) * size;
+        let codepoint = HEXAGRAM_CODEPOINT_BASE + (i as u32);
+        writeln!(
+            fnt,
+            "char id={} x={} y={} width={} height={} xoffset=0 yoffset=0 xadvance={} page=0",
+            codepoint,
+            x, y, size, size, size
+        ).unwrap();
+    }
+
+    println!("    -> {} ({}x{} content, {}x{} atlas POT, 72 glyphs)", base_path, content_w, content_h, atlas_w, atlas_h);
 }
 
 fn main() {
-    let (_handle, _thread) = init().size(100, 100).title("font exporter").build();
+    let (mut handle, thread) = init().size(100, 100).title("font exporter").build();
 
     println!("\n=== Loading Character Sections ===\n");
-    let _sections = load_char_sections();
+    let sections = load_char_sections();
 
     println!("\n=== Font Generation ===\n");
-    println!("yijing_hex (procedural)");
+    for family in FONT_FAMILIES {
+        if !std::path::Path::new(family.path).exists() {
+            eprintln!("SKIP {}: not found at {}", family.name, family.path);
+            continue;
+        }
+        println!("{}", family.name);
+        for &size in family.sizes {
+            let chars = get_chars_for_font(family.name, size, &sections);
+            generate_font(&mut handle, &thread, family, size, &chars, "");
+        }
+    }
+
+    println!("\nyijing_hex (procedural)");
     for &size in HEXAGRAM_SIZES {
         generate_hexagram_font(size);
     }

@@ -1,0 +1,12 @@
+[package]
+name = "font_gen"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "font_gen"
+path = "main.rs"
+
+[dependencies]
+raylib = { git = "https://github.com/raylib-rs/raylib-rs.git", branch = "unstable" }
+ttf-parser = "0.25.1"
