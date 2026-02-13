@@ -5,7 +5,7 @@ use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
 use ttf_parser::{name_id, Face};
 
-const CHARS_PATH: &str = "/Users/adduser/fu4seoi3/src/fu4seoi3/romdisk/assets/chars.txt";
+const CHARS_PATH: &str = "/Users/adduser/fu4seoi3/refs/seal_script/seal_chars.txt";
 const OUTPUT_BASE: &str = "/Users/adduser/fu4seoi3/src/fu4seoi3/romdisk/assets";
 
 #[allow(dead_code)]

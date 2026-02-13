@@ -55,10 +55,19 @@ fn load_seal_chars(path: &Path) -> Vec<char> {
 
     let reader = BufReader::new(file);
     let mut chars = Vec::new();
+    let mut in_seal_section = false;
 
     for line in reader.lines().flatten() {
         let trimmed = line.trim();
-        if trimmed.is_empty() || trimmed.starts_with('#') {
+        if trimmed.is_empty() {
+            continue;
+        }
+        if trimmed.starts_with('#') {
+            let lower = trimmed.to_lowercase();
+            in_seal_section = lower.starts_with("#cjk") || lower.starts_with("#yijing");
+            continue;
+        }
+        if !in_seal_section {
             continue;
         }
         for ch in trimmed.chars() {
